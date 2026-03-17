@@ -1,0 +1,42 @@
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Coverage & testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Database
+*.db
+
+# Node/Mobile
+node_modules/
+.expo/
+ios/Pods/
+
+# Byte-compiled
+*.pyc
