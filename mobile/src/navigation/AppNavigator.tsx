@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme';
@@ -16,6 +17,7 @@ import MealLogScreen from '../screens/MealLogScreen';
 import FoodSearchScreen from '../screens/FoodSearchScreen';
 import NutritionProfileScreen from '../screens/NutritionProfileScreen';
 import LoadingScreen from '../components/LoadingScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -104,9 +106,22 @@ const MainNavigator = () => (
 
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
-  if (isLoading) {
+  useEffect(() => {
+    AsyncStorage.getItem('onboarding_completed').then(val => {
+      setOnboardingDone(val === 'true');
+    });
+  }, []);
+
+  if (isLoading || onboardingDone === null) {
     return <LoadingScreen />;
+  }
+
+  if (!onboardingDone) {
+    return (
+      <OnboardingScreen onComplete={() => setOnboardingDone(true)} />
+    );
   }
 
   return (
