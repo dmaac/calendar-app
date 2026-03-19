@@ -17,7 +17,7 @@ export const saveOnboardingStep = async (partial: Partial<OnboardingData>): Prom
 export const completeOnboarding = async (data: OnboardingData): Promise<OnboardingProfileRead> => {
   const payload = {
     gender:                data.gender || null,
-    workouts_per_week:     data.workoutsPerWeek || null,
+    workouts_per_week:     mapWorkoutsToInt(data.workoutsPerWeek),
     heard_from:            data.heardFrom || null,
     used_other_apps:       data.usedOtherApps,
     height_cm:             data.heightCm,
@@ -26,10 +26,10 @@ export const completeOnboarding = async (data: OnboardingData): Promise<Onboardi
     birth_date:            formatBirthDate(data.birthDate),
     goal:                  data.goal || null,
     target_weight_kg:      data.targetWeightKg,
-    weight_speed_kg:       data.weeklySpeedKg,
-    pain_points:           data.painPoints,
+    weekly_speed_kg:       data.weeklySpeedKg,
+    pain_points:           data.painPoints.length  ? JSON.stringify(data.painPoints)  : null,
     diet_type:             data.dietType || null,
-    accomplishments:       data.accomplishments,
+    accomplishments:       data.accomplishments.length ? JSON.stringify(data.accomplishments) : null,
     health_connected:      data.healthConnected,
     notifications_enabled: data.notificationsEnabled,
     referral_code:         data.referralCode || null,
@@ -48,4 +48,14 @@ function formatBirthDate(bd: { monthIndex: number; day: number; year: number }):
   const m = String(bd.monthIndex + 1).padStart(2, '0');
   const d = String(bd.day).padStart(2, '0');
   return `${bd.year}-${m}-${d}`;
+}
+
+/** Convierte el rango de entrenamientos a un entero representativo para el backend. */
+function mapWorkoutsToInt(value: string): number {
+  switch (value) {
+    case '0-2': return 1;
+    case '3-5': return 4;
+    case '6+':  return 6;
+    default:    return 3;
+  }
 }
