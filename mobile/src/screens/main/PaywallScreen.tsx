@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.sm },
   crownBadge: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.badgeBg,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: spacing.sm,
   },
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   ctaBtnText: { ...typography.button, color: colors.white, fontSize: 17 },
   ctaNote: { ...typography.caption, color: colors.gray, textAlign: 'center', marginBottom: spacing.md },
   restoreBtn: { alignItems: 'center', paddingVertical: spacing.sm },
-  restoreText: { ...typography.caption, color: colors.gray, textDecoration: 'underline' as any },
+  restoreText: { ...typography.caption, color: colors.gray, textDecorationLine: 'underline' },
   legal: {
     ...typography.caption,
     color: colors.disabled,

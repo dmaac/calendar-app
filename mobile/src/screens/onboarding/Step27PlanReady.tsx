@@ -81,20 +81,20 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
                 <Text style={styles.macroNum}>{carbs}g</Text>
                 <Text style={styles.macroLbl}>Carbos</Text>
               </View>
-              <View style={[styles.macroPill, { backgroundColor: '#E8F4FF' }]}>
-                <Text style={[styles.macroNum, { color: '#007AFF' }]}>{protein}g</Text>
+              <View style={[styles.macroPill, { backgroundColor: '#FEE2E2' }]}>
+                <Text style={[styles.macroNum, { color: colors.protein }]}>{protein}g</Text>
                 <Text style={styles.macroLbl}>Proteína</Text>
               </View>
-              <View style={[styles.macroPill, { backgroundColor: '#FFF8E8' }]}>
-                <Text style={[styles.macroNum, { color: '#FF9500' }]}>{fats}g</Text>
+              <View style={[styles.macroPill, { backgroundColor: '#EFF6FF' }]}>
+                <Text style={[styles.macroNum, { color: colors.fats }]}>{fats}g</Text>
                 <Text style={styles.macroLbl}>Grasas</Text>
               </View>
             </View>
 
             <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
-              <MacroBar label="Carbos" grams={carbs} color={colors.accent} maxGrams={maxMacro} />
-              <MacroBar label="Proteína" grams={protein} color="#007AFF" maxGrams={maxMacro} />
-              <MacroBar label="Grasas" grams={fats} color="#FF9500" maxGrams={maxMacro} />
+              <MacroBar label="Carbos" grams={carbs} color={colors.carbs} maxGrams={maxMacro} />
+              <MacroBar label="Proteína" grams={protein} color={colors.protein} maxGrams={maxMacro} />
+              <MacroBar label="Grasas" grams={fats} color={colors.fats} maxGrams={maxMacro} />
             </View>
           </View>
 
@@ -139,13 +139,13 @@ const styles = StyleSheet.create({
   macroGrid: { flexDirection: 'row', gap: spacing.sm },
   macroPill: {
     flex: 1,
-    backgroundColor: '#FFE8E3',
+    backgroundColor: '#FEF3C7',
     borderRadius: radius.md,
     padding: spacing.md,
     alignItems: 'center',
     gap: 2,
   },
-  macroNum: { fontSize: 18, fontWeight: '800', color: colors.accent },
+  macroNum: { fontSize: 18, fontWeight: '800', color: colors.carbs },
   macroLbl: { ...typography.caption, color: colors.gray },
   scoreCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   scoreDesc: { ...typography.caption, color: colors.gray },

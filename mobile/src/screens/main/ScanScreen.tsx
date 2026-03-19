@@ -405,10 +405,10 @@ const styles = StyleSheet.create({
   resultConfidence: { ...typography.caption, color: colors.gray },
   cacheBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#FEF3C7', paddingHorizontal: spacing.sm,
+    backgroundColor: colors.badgeBg, paddingHorizontal: spacing.sm,
     paddingVertical: 3, borderRadius: radius.full,
   },
-  cacheBadgeText: { fontSize: 11, fontWeight: '700', color: '#92400E' },
+  cacheBadgeText: { fontSize: 11, fontWeight: '700', color: colors.badgeText },
   calorieBox: { alignItems: 'center', paddingVertical: spacing.sm, gap: 2 },
   calorieValue: { fontSize: 52, fontWeight: '800', color: colors.black, letterSpacing: -2 },
   calorieUnit: { ...typography.label, color: colors.gray },

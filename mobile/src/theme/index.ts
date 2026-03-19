@@ -32,6 +32,18 @@ export const colors = {
   tabActive: '#111111',
   tabInactive: '#C7C7CC',
   border: '#E5E5EA',
+
+  // Badge (streak, premium)
+  badgeBg: '#FEF3C7',
+  badgeText: '#92400E',
+};
+
+// ─── Meal type colors (shared across LogScreen, HomeScreen, ScanScreen, AddFoodScreen) ─
+export const mealColors: Record<string, { label: string; icon: string; color: string }> = {
+  breakfast: { label: 'Desayuno', icon: 'sunny-outline',      color: '#F59E0B' },
+  lunch:     { label: 'Almuerzo', icon: 'restaurant-outline', color: '#10B981' },
+  dinner:    { label: 'Cena',     icon: 'moon-outline',       color: '#6366F1' },
+  snack:     { label: 'Snack',    icon: 'cafe-outline',       color: '#EC4899' },
 };
 
 export const typography = {

@@ -26,8 +26,6 @@
 - `POST /api/onboarding/save-step` — guardar paso individual
 - `POST /api/onboarding/complete` — completar + calcular plan (Mifflin-St Jeor)
 - `GET  /api/onboarding/profile` — obtener perfil guardado
-- Schemas en `backend/app/schemas/onboarding.py`
-- Service en `backend/app/services/onboarding_service.py`
 
 ---
 
@@ -36,7 +34,7 @@
 | Módulo | Archivo | Estado |
 |--------|---------|--------|
 | 01 Splash | `Step01Splash.tsx` | ✅ |
-| 02 Welcome | `Step02Welcome.tsx` | ✅ |
+| 02 Welcome | `Step02Welcome.tsx` | ✅ bug fixes aplicados |
 | 03 Gender | `Step03Gender.tsx` | ✅ |
 | 04 Workouts | `Step04Workouts.tsx` | ✅ |
 | 05 Source | `Step05Source.tsx` | ✅ |
@@ -50,7 +48,7 @@
 |--------|---------|--------|
 | 07 Social Proof chart | `Step07SocialProof.tsx` | ✅ |
 | 08 Height & Weight | `Step08HeightWeight.tsx` | ✅ |
-| 09 Birthday | `Step09Birthday.tsx` | ✅ |
+| 09 Birthday | `Step09Birthday.tsx` | ✅ bug fix day index |
 | 10 Goal | `Step10Goal.tsx` | ✅ |
 | 11 Target Weight (ruler) | `Step11TargetWeight.tsx` | ✅ |
 | 12 Affirmation | `Step12Affirmation.tsx` | ✅ |
@@ -71,7 +69,7 @@
 | 20 Health connect | `Step20Health.tsx` | ✅ |
 | 21 Reviews | `Step21Reviews.tsx` | ✅ |
 | 22 Flexibility | `Step22Flexibility.tsx` | ✅ |
-| 23 Notifications | `Step23Notifications.tsx` | ✅ |
+| 23 Notifications | `Step23Notifications.tsx` | ✅ real permissions + scheduling |
 
 ---
 
@@ -82,10 +80,10 @@
 | 24 Referral code | `Step24Referral.tsx` | ✅ |
 | 25 Account creation | `Step25Account.tsx` | ✅ |
 | 26 Plan building (loading) | `Step26PlanBuilding.tsx` | ✅ |
-| 27 Plan ready | `Step27PlanReady.tsx` | ✅ |
+| 27 Plan ready | `Step27PlanReady.tsx` | ✅ theme colors fix |
 | 28 Paywall principal | `Step28Paywall.tsx` | ✅ |
 | 29 Spin wheel | `Step29SpinWheel.tsx` | ✅ |
-| 30 Paywall descuento | `Step30PaywallDiscount.tsx` | ✅ |
+| 30 Paywall descuento | `Step30PaywallDiscount.tsx` | ✅ VITALICIO fix |
 
 **OnboardingNavigator**: ✅ Todos los 30 pasos cableados
 
@@ -97,51 +95,102 @@
 ### TAREA 5.2 — Endpoints onboarding ✅
 ### TAREA 5.3 — Auth completa ✅
 - Email/password, Apple Sign In, Google OAuth, rolling refresh tokens
-- `backend/app/routers/auth.py`, `core/security.py`, `core/token_store.py`
-- `mobile/src/services/auth.service.ts`, `mobile/src/context/AuthContext.tsx`
-
 ### TAREA 5.4 — AI Food Scan ✅ COMPLETO
 - `POST /api/food/scan` — GPT-4o Vision, SHA256 cache (Redis + DB), auto-log
 - `GET  /api/food/logs` — historial con filtro por fecha
-- `GET  /api/food/logs/{id}` — detalle
-- `PUT  /api/food/logs/{id}` — editar (was_edited=True)
+- `PUT  /api/food/logs/{id}` — editar
 - `DELETE /api/food/logs/{id}` — eliminar
-- `backend/app/services/ai_scan_service.py`
-- `backend/app/routers/ai_food.py`
-
 ### TAREA 5.5 — Dashboard ✅ COMPLETO
 - `GET /api/dashboard/today?date=YYYY-MM-DD`
-- Totales vs targets, streak calculado, meals_logged
-- `.env.example` actualizado con OPENAI_API_KEY
+- Totales vs targets, streak calculado, water_ml real
 
 ---
 
-## ⬜ FASE 6 — Pantallas principales (post-onboarding)
+## ✅ FASE 6 — Pantallas principales (COMPLETO)
 
-### TAREA 6.1 — HomeScreen
-- Dashboard de calorías del día, macros, progreso
+### TAREA 6.1 — HomeScreen ✅
+- SVG calorie ring, macro bars, streak badge, pull-to-refresh
+- `mobile/src/screens/main/HomeScreen.tsx`
 
-### TAREA 6.2 — ScanScreen
-- Cámara, preview, AI scan, resultado, confirmación
+### TAREA 6.2 — ScanScreen ✅
+- expo-image-picker, AI scan flow, result display, meal type selector
+- `mobile/src/screens/main/ScanScreen.tsx`
 
-### TAREA 6.3 — LogScreen
-- Historial de comidas con búsqueda manual
+### TAREA 6.3 — LogScreen ✅ (ampliado)
+- Comidas por tipo, eliminar, water tracking con botones rápidos
+- Modal "Añadir" con opciones: Scan IA | Manual
+- `mobile/src/screens/main/LogScreen.tsx`
 
-### TAREA 6.4 — ProfileScreen
-- Datos del usuario, edición de metas, suscripción
+### TAREA 6.4 — AddFoodScreen ✅ (NUEVO)
+- Formulario manual: nombre, calorías, macros, porción
+- Selector de tipo de comida con chips
+- `mobile/src/screens/main/AddFoodScreen.tsx`
+
+### TAREA 6.5 — ProfileScreen ✅
+- Avatar, stats, datos personales, plan nutricional, Premium banner
+- `mobile/src/screens/main/ProfileScreen.tsx`
+
+### TAREA 6.6 — PaywallScreen ✅
+- UI completa, selector mensual/anual, ready para RevenueCat
+- `mobile/src/screens/main/PaywallScreen.tsx`
+
+---
+
+## ✅ FASE 7 — Features adicionales (COMPLETO)
+
+### TAREA 7.1 — Backend: Manual food log ✅
+- `POST /api/food/manual` — log sin foto, ai_provider="manual"
+
+### TAREA 7.2 — Backend: Water tracking ✅
+- `POST /api/food/water` — acumula ml en DailyNutritionSummary
+- `GET /api/dashboard/today` ahora retorna water_ml real
+
+### TAREA 7.3 — Backend: Subscriptions ✅
+- `POST /api/subscriptions` — crea/reemplaza suscripción, actualiza is_premium
+- `GET  /api/subscriptions/current` — obtiene suscripción activa
+- `DELETE /api/subscriptions/current` — cancela suscripción
+- `backend/app/routers/subscriptions.py`
+
+### TAREA 7.4 — LogStack navigation ✅
+- MainNavigator tiene LogStack (LogScreen + AddFoodScreen)
+
+### TAREA 7.5 — Bug fixes audit ✅
+- Step09Birthday: day index off-by-one corregido
+- OnboardingContext: macro split 40/30/30 (alineado con backend)
+- Step02Welcome: botón "🌐 EN" eliminado
+- Step30PaywallDiscount: "FOREVER" → "VITALICIO"
+- Step27PlanReady: colores hardcoded → theme colors
+- PaywallScreen: `textDecoration` → `textDecorationLine`
+
+---
+
+## ⬜ TAREAS MANUALES (requieren config externa)
+
+| Tarea | Bloqueo | Detalles |
+|-------|---------|---------|
+| RevenueCat SDK | Config | Instalar `react-native-purchases`, crear productos en App Store Connect / Play Console, reemplazar TODO en `PaywallScreen.handleSubscribe` |
+| OPENAI_API_KEY | Credencial | Agregar a `backend/.env` para habilitar AI food scan |
+| Apple Sign In | Credenciales | APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY en `backend/.env` |
+| Google OAuth | Credenciales | EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS / _ANDROID / _WEB en `mobile/.env` |
+| IP del servidor (dev) | Config | Cambiar `localhost` por IP real en `mobile/src/services/api.ts` para probar en dispositivo físico |
+| Push notifications server | Config | APNS certificate + expo-notifications server setup para enviar push desde backend |
+| App Store / Play Store | Config | Bundle ID, certificados, provisioning profiles |
+| Dominio + HTTPS | Infra | Para producción: nginx reverse proxy + SSL en el servidor |
 
 ---
 
 ## Notas de sesión
 
-| Fecha | Qué se hizo | Dónde quedamos |
-|-------|-------------|----------------|
-| 2026-03-17 | Setup inicial, diseño DB, CLAUDE.md | FASE 0 |
-| 2026-03-17 | FASE 0-1 completa: design system, componentes base, context, navigator, módulos 01-06 | Inicio FASE 2 |
-| 2026-03-18 | FASE 2 completa: módulos 07-14 (charts, pickers, sliders) | Inicio FASE 3 |
-| 2026-03-18 | FASE 3+4 completa: módulos 15-30, navigator actualizado con 30 pasos | **Próximo: FASE 5 (Backend)** |
-| 2026-03-18 | FASE 5 completa: auth (Apple/Google/email), AI food scan (GPT-4o + cache), dashboard, food logs CRUD | **Próximo: FASE 6 (Pantallas principales)** |
+| Fecha | Qué se hizo |
+|-------|-------------|
+| 2026-03-17 | Setup inicial, diseño DB, CLAUDE.md |
+| 2026-03-17 | FASE 0-1: design system, componentes, context, navigator, módulos 01-06 |
+| 2026-03-18 | FASE 2: módulos 07-14 (charts, pickers, sliders) |
+| 2026-03-18 | FASE 3+4: módulos 15-30, navigator 30 pasos |
+| 2026-03-18 | FASE 5: auth (Apple/Google/email), AI food scan (GPT-4o + cache), dashboard |
+| 2026-03-18 | FASE 6: pantallas principales (Home, Scan, Log, Profile, Paywall), navegación |
+| 2026-03-19 | Bug fixes audit, FASE 7: AddFoodScreen, water tracking, subscriptions backend, notif scheduling |
 
 ---
 
-*Para continuar: empezar por la primera tarea ⬜ PENDIENTE de la fase más baja numerada.*
+*El proyecto está funcionalmente completo. Solo quedan tareas que requieren credenciales externas.*

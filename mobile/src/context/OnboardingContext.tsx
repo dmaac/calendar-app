@@ -153,9 +153,9 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
 
   const dailyCalories = Math.max(1200, Math.min(4000, tdee + deficit));
 
-  // Macros
-  const dailyCarbsG    = Math.round((dailyCalories * 0.45) / 4);
-  const dailyProteinG  = Math.round((dailyCalories * 0.25) / 4);
+  // Macros (40% carbs / 30% protein / 30% fats — matches backend calculation)
+  const dailyCarbsG    = Math.round((dailyCalories * 0.40) / 4);
+  const dailyProteinG  = Math.round((dailyCalories * 0.30) / 4);
   const dailyFatsG     = Math.round((dailyCalories * 0.30) / 9);
 
   // Fecha objetivo

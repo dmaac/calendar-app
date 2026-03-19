@@ -352,6 +352,21 @@ async def get_daily_summary(
     # Simple streak calculation: count consecutive days with ≥1 log
     streak = await _calculate_streak(user_id=user_id, today=date, session=session)
 
+    # Water from daily summary record if it exists
+    from ..models.daily_nutrition_summary import DailyNutritionSummary
+    from datetime import date as date_type
+    try:
+        date_obj = date_type.fromisoformat(date)
+    except ValueError:
+        date_obj = date_type.today()
+    water_stmt = select(DailyNutritionSummary).where(
+        DailyNutritionSummary.user_id == user_id,
+        DailyNutritionSummary.date == date_obj,
+    )
+    water_result = await session.execute(water_stmt)
+    daily_summary = water_result.scalar_one_or_none()
+    water_ml = float(daily_summary.water_ml or 0) if daily_summary else 0.0
+
     return {
         "date": date,
         "total_calories": float(row.total_calories),
@@ -364,7 +379,7 @@ async def get_daily_summary(
         "target_fats_g": target_fats_g,
         "meals_logged": row.meals_logged,
         "streak_days": streak,
-        "water_ml": 0,  # water tracking not yet implemented
+        "water_ml": water_ml,
     }
 
 

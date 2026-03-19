@@ -216,12 +216,12 @@ const styles = StyleSheet.create({
   profileName: { ...typography.titleSm, color: colors.black },
   profileEmail: { ...typography.caption, color: colors.gray },
   premiumBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.badgeBg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.full,
   },
-  premiumText: { ...typography.caption, fontWeight: '700', color: '#92400E' },
+  premiumText: { ...typography.caption, fontWeight: '700', color: colors.badgeText },
   statsRow: {
     flexDirection: 'row',
     gap: spacing.sm,

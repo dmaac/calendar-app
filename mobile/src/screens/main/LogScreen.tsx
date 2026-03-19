@@ -1,6 +1,6 @@
 /**
  * LogScreen — Diario de alimentos del día
- * Muestra las comidas agrupadas por tipo, permite eliminar registros.
+ * Comidas agrupadas por tipo · Eliminar · Añadir manualmente · Tracking de agua
  */
 import React, { useState, useCallback } from 'react';
 import {
@@ -11,21 +11,161 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, shadows, useLayout } from '../../theme';
+import { colors, typography, spacing, radius, shadows, useLayout, mealColors } from '../../theme';
 import * as foodService from '../../services/food.service';
 import { AIFoodLog, DailySummary } from '../../types';
+import { MealType } from '../../services/food.service';
 
-const MEAL_META: Record<string, { label: string; icon: string; color: string }> = {
-  breakfast: { label: 'Desayuno', icon: 'sunny-outline',     color: '#F59E0B' },
-  lunch:     { label: 'Almuerzo', icon: 'restaurant-outline', color: '#10B981' },
-  dinner:    { label: 'Cena',     icon: 'moon-outline',       color: '#6366F1' },
-  snack:     { label: 'Snack',    icon: 'cafe-outline',       color: '#EC4899' },
-};
-const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'];
+const MEAL_META = mealColors;
+const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+// ─── Water quick-add buttons ─────────────────────────────────────────────────
+const WATER_AMOUNTS = [150, 200, 250, 350, 500];
+
+function WaterCard({ waterMl, onAdd }: { waterMl: number; onAdd: (ml: number) => void }) {
+  const pct = Math.min(waterMl / 2000, 1);
+  return (
+    <View style={waterStyles.card}>
+      <View style={waterStyles.header}>
+        <Ionicons name="water" size={18} color={colors.fats} />
+        <Text style={waterStyles.title}>Agua</Text>
+        <Text style={waterStyles.value}>
+          {waterMl} <Text style={waterStyles.unit}>/ 2000 ml</Text>
+        </Text>
+      </View>
+      <View style={waterStyles.track}>
+        <View style={[waterStyles.fill, { width: `${pct * 100}%` }]} />
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
+        <View style={waterStyles.btnRow}>
+          {WATER_AMOUNTS.map((ml) => (
+            <TouchableOpacity key={ml} style={waterStyles.btn} onPress={() => onAdd(ml)} activeOpacity={0.7}>
+              <Text style={waterStyles.btnText}>+{ml}ml</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const waterStyles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    ...shadows.sm,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
+  title: { ...typography.label, color: colors.black, flex: 1 },
+  value: { ...typography.label, color: colors.fats },
+  unit: { ...typography.caption, color: colors.gray },
+  track: {
+    height: 6,
+    backgroundColor: colors.surface,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  fill: { height: '100%', backgroundColor: colors.fats, borderRadius: 3 },
+  btnRow: { flexDirection: 'row', gap: spacing.xs, paddingVertical: 2 },
+  btn: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+  },
+  btnText: { ...typography.caption, color: colors.fats, fontWeight: '700' },
+});
+
+// ─── Add options modal ────────────────────────────────────────────────────────
+function AddModal({
+  visible,
+  mealType,
+  onClose,
+  onScan,
+  onManual,
+}: {
+  visible: boolean;
+  mealType: MealType | null;
+  onClose: () => void;
+  onScan: () => void;
+  onManual: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={modalStyles.overlay} onPress={onClose}>
+        <View style={modalStyles.sheet}>
+          <Text style={modalStyles.title}>
+            Añadir a {mealType ? MEAL_META[mealType]?.label : 'comida'}
+          </Text>
+          <TouchableOpacity style={modalStyles.option} onPress={onScan} activeOpacity={0.7}>
+            <View style={[modalStyles.optIcon, { backgroundColor: colors.black }]}>
+              <Ionicons name="camera" size={20} color={colors.white} />
+            </View>
+            <View>
+              <Text style={modalStyles.optLabel}>Escanear con IA</Text>
+              <Text style={modalStyles.optSub}>Saca una foto a tu comida</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={modalStyles.option} onPress={onManual} activeOpacity={0.7}>
+            <View style={[modalStyles.optIcon, { backgroundColor: colors.surface }]}>
+              <Ionicons name="create-outline" size={20} color={colors.black} />
+            </View>
+            <View>
+              <Text style={modalStyles.optLabel}>Añadir manualmente</Text>
+              <Text style={modalStyles.optSub}>Escribe el nombre y macros</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
+          </TouchableOpacity>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    paddingBottom: spacing.xl,
+  },
+  title: { ...typography.label, color: colors.gray, textAlign: 'center', marginBottom: spacing.xs },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  optIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optLabel: { ...typography.bodyMd, color: colors.black },
+  optSub: { ...typography.caption, color: colors.gray, marginTop: 2 },
+});
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function LogScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -33,6 +173,8 @@ export default function LogScreen({ navigation }: any) {
   const [logs, setLogs] = useState<AIFoodLog[]>([]);
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [waterMl, setWaterMl] = useState(0);
+  const [modalMeal, setModalMeal] = useState<MealType | null>(null);
 
   const load = async () => {
     try {
@@ -41,15 +183,14 @@ export default function LogScreen({ navigation }: any) {
         foodService.getDailySummary(),
       ]);
       if (l.status === 'fulfilled') setLogs(l.value);
-      if (s.status === 'fulfilled') setSummary(s.value);
+      if (s.status === 'fulfilled') {
+        setSummary(s.value);
+        setWaterMl(s.value.water_ml ?? 0);
+      }
     } catch {}
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [])
-  );
+  useFocusEffect(useCallback(() => { load(); }, []));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -58,25 +199,46 @@ export default function LogScreen({ navigation }: any) {
   };
 
   const handleDelete = (log: AIFoodLog) => {
-    Alert.alert(
-      'Eliminar registro',
-      `¿Eliminar "${log.food_name}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await foodService.deleteFoodLog(log.id);
-              setLogs((prev) => prev.filter((l) => l.id !== log.id));
-            } catch {
-              Alert.alert('Error', 'No se pudo eliminar el registro.');
-            }
-          },
+    Alert.alert('Eliminar registro', `¿Eliminar "${log.food_name}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await foodService.deleteFoodLog(log.id);
+            setLogs((prev) => prev.filter((l) => l.id !== log.id));
+          } catch {
+            Alert.alert('Error', 'No se pudo eliminar el registro.');
+          }
         },
-      ]
-    );
+      },
+    ]);
+  };
+
+  const handleAddWater = async (ml: number) => {
+    const prev = waterMl;
+    setWaterMl((w) => w + ml); // optimistic
+    try {
+      const res = await foodService.logWater(ml);
+      setWaterMl(res.water_ml);
+    } catch {
+      setWaterMl(prev);
+    }
+  };
+
+  const openAddModal = (mt: MealType) => setModalMeal(mt);
+  const closeModal = () => setModalMeal(null);
+
+  const handleScan = () => {
+    closeModal();
+    navigation.navigate('Escanear');
+  };
+
+  const handleManual = () => {
+    const mt = modalMeal;
+    closeModal();
+    navigation.navigate('AddFood', { mealType: mt });
   };
 
   const consumed = summary?.total_calories ?? 0;
@@ -99,7 +261,7 @@ export default function LogScreen({ navigation }: any) {
           <Text style={styles.headerTitle}>Registro</Text>
           <Text style={styles.headerDate}>{today}</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('Escanear')}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => openAddModal('snack')}>
           <Ionicons name="add" size={22} color={colors.white} />
         </TouchableOpacity>
       </View>
@@ -129,6 +291,10 @@ export default function LogScreen({ navigation }: any) {
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Water tracking */}
+        <WaterCard waterMl={waterMl} onAdd={handleAddWater} />
+
+        {/* Meal sections */}
         {MEAL_ORDER.map((mt) => {
           const meta = MEAL_META[mt];
           const mealLogs = logsByMeal[mt];
@@ -136,7 +302,6 @@ export default function LogScreen({ navigation }: any) {
 
           return (
             <View key={mt} style={styles.mealCard}>
-              {/* Meal header */}
               <View style={styles.mealHeader}>
                 <View style={[styles.mealIconBg, { backgroundColor: meta.color + '20' }]}>
                   <Ionicons name={meta.icon as any} size={18} color={meta.color} />
@@ -145,9 +310,11 @@ export default function LogScreen({ navigation }: any) {
                 {mealLogs.length > 0 && (
                   <Text style={styles.mealKcal}>{Math.round(mealTotal)} kcal</Text>
                 )}
+                <TouchableOpacity onPress={() => openAddModal(mt)} style={styles.mealAddBtn}>
+                  <Ionicons name="add" size={16} color={colors.gray} />
+                </TouchableOpacity>
               </View>
 
-              {/* Food items */}
               {mealLogs.length > 0 ? (
                 mealLogs.map((log) => (
                   <View key={log.id} style={styles.foodRow}>
@@ -171,7 +338,7 @@ export default function LogScreen({ navigation }: any) {
               ) : (
                 <TouchableOpacity
                   style={styles.emptyMeal}
-                  onPress={() => navigation.navigate('Escanear')}
+                  onPress={() => openAddModal(mt)}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="add-circle-outline" size={16} color={colors.gray} />
@@ -184,6 +351,14 @@ export default function LogScreen({ navigation }: any) {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+
+      <AddModal
+        visible={modalMeal !== null}
+        mealType={modalMeal}
+        onClose={closeModal}
+        onScan={handleScan}
+        onManual={handleManual}
+      />
     </View>
   );
 }
@@ -243,6 +418,7 @@ const styles = StyleSheet.create({
   },
   mealTitle: { ...typography.label, color: colors.black, flex: 1 },
   mealKcal: { ...typography.caption, fontWeight: '700', color: colors.black },
+  mealAddBtn: { padding: 4 },
   foodRow: {
     flexDirection: 'row',
     alignItems: 'center',

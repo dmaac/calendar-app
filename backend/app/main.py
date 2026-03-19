@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.database import create_db_and_tables
 from .core.config import settings
-from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router
+from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router
 
 try:
     from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -61,6 +61,7 @@ app.include_router(meals_router)
 app.include_router(nutrition_profile_router)
 app.include_router(onboarding_router, prefix="/api")
 app.include_router(ai_food_router)
+app.include_router(subscriptions_router)
 
 
 @app.get("/", tags=["root"])

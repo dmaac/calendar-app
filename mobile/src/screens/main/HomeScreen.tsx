@@ -16,7 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, shadows, useLayout } from '../../theme';
+import { colors, typography, spacing, radius, shadows, useLayout, mealColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import * as foodService from '../../services/food.service';
 import { AIFoodLog, DailySummary } from '../../types';
@@ -106,12 +106,7 @@ function MacroBar({
 
 // ─── Meal section ─────────────────────────────────────────────────────────────
 
-const MEAL_META: Record<string, { label: string; icon: string; color: string }> = {
-  breakfast: { label: 'Desayuno', icon: 'sunny-outline', color: '#F59E0B' },
-  lunch:     { label: 'Almuerzo', icon: 'restaurant-outline', color: '#10B981' },
-  dinner:    { label: 'Cena',     icon: 'moon-outline', color: '#6366F1' },
-  snack:     { label: 'Snack',    icon: 'cafe-outline', color: '#EC4899' },
-};
+const MEAL_META = mealColors;
 
 function MealSection({
   mealType,
@@ -289,14 +284,14 @@ const styles = StyleSheet.create({
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.badgeBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: 5,
     borderRadius: radius.full,
     gap: 3,
   },
   streakFire: { fontSize: 14 },
-  streakCount: { fontSize: 13, fontWeight: '800', color: '#92400E' },
+  streakCount: { fontSize: 13, fontWeight: '800', color: colors.badgeText },
   greeting: {
     ...typography.caption,
     color: colors.gray,

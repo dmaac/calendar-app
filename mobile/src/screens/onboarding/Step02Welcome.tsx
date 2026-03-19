@@ -9,7 +9,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing, radius, MAX_WIDTH, useLayout } from '../../theme';
+import { colors, typography, spacing, MAX_WIDTH, useLayout } from '../../theme';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
 
@@ -33,14 +33,6 @@ export default function Step02Welcome({ onNext, onSkipToLogin }: Step02Props) {
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
       <View style={[styles.root, { width: contentWidth, alignSelf: 'center' }]}>
-
-        {/* Language selector */}
-        <View style={styles.topBar}>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity style={styles.langBtn} activeOpacity={0.7}>
-            <Text style={styles.langText}>🌐 EN</Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Phone mockup */}
         <Animated.View style={[styles.mockupWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -130,23 +122,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     paddingHorizontal: spacing.lg,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  langBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-  },
-  langText: {
-    fontSize: 13,
-    color: colors.black,
-    fontWeight: '500',
   },
   mockupWrapper: {
     flex: 1,

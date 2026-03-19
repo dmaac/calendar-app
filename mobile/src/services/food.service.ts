@@ -55,3 +55,26 @@ export const getDailySummary = async (date?: string): Promise<DailySummary> => {
   const res = await api.get(`/api/dashboard/today?date=${d}`);
   return res.data;
 };
+
+export interface ManualFoodEntry {
+  food_name: string;
+  calories: number;
+  carbs_g: number;
+  protein_g: number;
+  fats_g: number;
+  fiber_g?: number;
+  serving_size?: string;
+  meal_type: MealType;
+}
+
+/** Registra un alimento manualmente (sin foto). */
+export const manualLogFood = async (entry: ManualFoodEntry): Promise<AIFoodLog> => {
+  const res = await api.post('/api/food/manual', entry);
+  return res.data;
+};
+
+/** Agrega ml de agua al registro diario. */
+export const logWater = async (ml: number): Promise<{ water_ml: number }> => {
+  const res = await api.post('/api/food/water', { ml });
+  return res.data;
+};

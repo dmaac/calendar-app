@@ -46,7 +46,7 @@ export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps
         {/* Discount badge */}
         <Animated.View style={[styles.discountBadge, { transform: [{ scale: pulseAnim }] }]}>
           <Text style={styles.discountText}>80% OFF</Text>
-          <Text style={styles.discountSub}>FOREVER</Text>
+          <Text style={styles.discountSub}>VITALICIO</Text>
         </Animated.View>
 
         <Text style={styles.title}>Oferta especial{'\n'}solo para ti</Text>

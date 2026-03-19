@@ -25,6 +25,22 @@ from ..services.ai_scan_service import (
     get_food_logs,
     get_daily_summary,
 )
+from pydantic import BaseModel
+
+
+class ManualFoodLog(BaseModel):
+    food_name: str
+    calories: float
+    carbs_g: float
+    protein_g: float
+    fats_g: float
+    fiber_g: Optional[float] = None
+    serving_size: Optional[str] = None
+    meal_type: str = "snack"
+
+
+class WaterLog(BaseModel):
+    ml: int  # millilitres to add
 
 router = APIRouter(prefix="/api", tags=["ai-food"])
 
@@ -74,6 +90,93 @@ async def scan_food(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
 
     return result
+
+
+# ─── Manual Log ───────────────────────────────────────────────────────────────
+
+@router.post("/food/manual", status_code=201)
+async def manual_food_log(
+    body: ManualFoodLog,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Log food manually (no photo required).
+    Useful when the user knows the nutritional info and doesn't want to scan.
+    """
+    valid_types = {"breakfast", "lunch", "dinner", "snack"}
+    if body.meal_type not in valid_types:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"meal_type must be one of: {', '.join(valid_types)}",
+        )
+
+    log = AIFoodLog(
+        user_id=current_user.id,
+        meal_type=body.meal_type,
+        food_name=body.food_name,
+        calories=body.calories,
+        carbs_g=body.carbs_g,
+        protein_g=body.protein_g,
+        fats_g=body.fats_g,
+        fiber_g=body.fiber_g,
+        serving_size=body.serving_size,
+        ai_provider="manual",
+        ai_confidence=1.0,
+        was_edited=False,
+    )
+    session.add(log)
+    await session.commit()
+    await session.refresh(log)
+
+    return {
+        "id": log.id,
+        "food_name": log.food_name,
+        "calories": log.calories,
+        "carbs_g": log.carbs_g,
+        "protein_g": log.protein_g,
+        "fats_g": log.fats_g,
+        "fiber_g": log.fiber_g,
+        "meal_type": log.meal_type,
+        "logged_at": log.logged_at.isoformat(),
+        "was_edited": log.was_edited,
+        "cache_hit": False,
+    }
+
+
+# ─── Water Tracking ───────────────────────────────────────────────────────────
+
+@router.post("/food/water")
+async def log_water(
+    body: WaterLog,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Add water intake (ml) to today's daily summary."""
+    from datetime import date as date_type
+    from ..models.daily_nutrition_summary import DailyNutritionSummary
+
+    today = date_type.today()
+    result = await session.exec(
+        select(DailyNutritionSummary).where(
+            DailyNutritionSummary.user_id == current_user.id,
+            DailyNutritionSummary.date == today,
+        )
+    )
+    summary = result.first()
+
+    if summary:
+        summary.water_ml = (summary.water_ml or 0) + body.ml
+    else:
+        summary = DailyNutritionSummary(
+            user_id=current_user.id,
+            date=today,
+            water_ml=float(body.ml),
+        )
+    session.add(summary)
+    await session.commit()
+    await session.refresh(summary)
+    return {"water_ml": summary.water_ml}
 
 
 # ─── Food Logs ────────────────────────────────────────────────────────────────

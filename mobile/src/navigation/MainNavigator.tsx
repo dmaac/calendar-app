@@ -11,11 +11,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme';
 
-import HomeScreen    from '../screens/main/HomeScreen';
-import ScanScreen    from '../screens/main/ScanScreen';
-import LogScreen     from '../screens/main/LogScreen';
-import ProfileScreen from '../screens/main/ProfileScreen';
-import PaywallScreen from '../screens/main/PaywallScreen';
+import HomeScreen     from '../screens/main/HomeScreen';
+import ScanScreen     from '../screens/main/ScanScreen';
+import LogScreen      from '../screens/main/LogScreen';
+import AddFoodScreen  from '../screens/main/AddFoodScreen';
+import ProfileScreen  from '../screens/main/ProfileScreen';
+import PaywallScreen  from '../screens/main/PaywallScreen';
 
 const Stack = createStackNavigator();
 
@@ -39,6 +40,13 @@ const ProfileStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ProfileMain" component={ProfileScreen} />
     <Stack.Screen name="Paywall"     component={PaywallScreen} />
+  </Stack.Navigator>
+);
+
+const LogStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="LogMain"   component={LogScreen} />
+    <Stack.Screen name="AddFood"   component={AddFoodScreen} />
   </Stack.Navigator>
 );
 
@@ -82,7 +90,7 @@ export default function MainNavigator() {
     >
       <Tab.Screen name="Inicio"   component={HomeScreen}    options={{ tabBarLabel: 'Inicio' }} />
       <Tab.Screen name="Escanear" component={ScanScreen}    options={{ tabBarLabel: 'Escanear' }} />
-      <Tab.Screen name="Registro" component={LogScreen}     options={{ tabBarLabel: 'Registro' }} />
+      <Tab.Screen name="Registro" component={LogStack}      options={{ tabBarLabel: 'Registro' }} />
       <Tab.Screen name="Perfil"   component={ProfileStack}  options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );

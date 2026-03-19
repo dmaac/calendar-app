@@ -38,8 +38,8 @@ export default function Step09Birthday({ onNext, onBack, step, totalSteps }: Ste
         />
         <ScrollPicker
           items={DAYS}
-          selectedIndex={day}
-          onSelect={i => update('birthDate', { ...data.birthDate, day: i })}
+          selectedIndex={day - 1}
+          onSelect={i => update('birthDate', { ...data.birthDate, day: i + 1 })}
           width={60}
         />
         <ScrollPicker
