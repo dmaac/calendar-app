@@ -211,7 +211,7 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
+            <Text style={styles.dividerText}>o</Text>
             <View style={styles.dividerLine} />
           </View>
 

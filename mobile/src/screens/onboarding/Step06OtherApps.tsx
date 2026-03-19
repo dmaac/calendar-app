@@ -29,7 +29,7 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: St
           onPress={() => update('usedOtherApps', false)}
         />
         <OptionCard
-          label="Yes"
+          label="Sí"
           emoji="👍"
           selected={selected === true}
           onPress={() => update('usedOtherApps', true)}

@@ -44,7 +44,7 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
       onBack={onBack}
       footer={<><PrimaryButton label={`Conectar ${appName}`} onPress={handleConnect} /><PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" /></>}
     >
-      <Text style={styles.title}>Connect to{'\n'}{appName}</Text>
+      <Text style={styles.title}>Conectar con{'\n'}{appName}</Text>
 
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {/* App icon */}
