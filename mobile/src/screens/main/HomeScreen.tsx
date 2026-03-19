@@ -198,6 +198,8 @@ export default function HomeScreen({ navigation }: any) {
   }
   const hasMeals = logs.length > 0;
 
+  const streak = summary?.streak_days ?? 0;
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -206,12 +208,20 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.greeting}>{greeting()},</Text>
           <Text style={styles.userName}>{user?.first_name || 'Usuario'} 👋</Text>
         </View>
-        <TouchableOpacity
-          style={styles.scanBtn}
-          onPress={() => navigation.navigate('Escanear')}
-        >
-          <Ionicons name="camera" size={20} color={colors.white} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {streak > 0 && (
+            <View style={styles.streakBadge}>
+              <Text style={styles.streakFire}>🔥</Text>
+              <Text style={styles.streakCount}>{streak}</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={styles.scanBtn}
+            onPress={() => navigation.navigate('Escanear')}
+          >
+            <Ionicons name="camera" size={20} color={colors.white} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -271,6 +281,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+    gap: 3,
+  },
+  streakFire: { fontSize: 14 },
+  streakCount: { fontSize: 13, fontWeight: '800', color: '#92400E' },
   greeting: {
     ...typography.caption,
     color: colors.gray,

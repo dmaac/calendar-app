@@ -68,7 +68,7 @@ function Row({
   );
 }
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
   const { user, logout } = useAuth();
@@ -154,11 +154,29 @@ export default function ProfileScreen() {
           </>
         )}
 
+        {/* Premium banner (si no es premium) */}
+        {!user?.is_premium && (
+          <TouchableOpacity
+            style={styles.premiumBanner}
+            onPress={() => navigation.navigate('Paywall')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.premiumBannerLeft}>
+              <Text style={styles.premiumBannerIcon}>👑</Text>
+              <View>
+                <Text style={styles.premiumBannerTitle}>Hazte Premium</Text>
+                <Text style={styles.premiumBannerSub}>Escaneos ilimitados · Sin restricciones</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.white} />
+          </TouchableOpacity>
+        )}
+
         {/* Configuración */}
         <Text style={styles.sectionTitle}>Cuenta</Text>
         <View style={styles.card}>
           <Row icon="mail-outline"       label="Correo" value={user?.email} />
-          <Row icon="shield-outline"     label="Suscripción" value={user?.is_premium ? 'Premium' : 'Gratuita'} />
+          <Row icon="shield-outline"     label="Suscripción" value={user?.is_premium ? 'Premium' : 'Gratuita'} onPress={() => navigation.navigate('Paywall')} />
           <Row
             icon="log-out-outline"
             label="Cerrar sesión"
@@ -235,6 +253,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadows.sm,
   },
+  premiumBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.black,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  premiumBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  premiumBannerIcon: { fontSize: 28 },
+  premiumBannerTitle: { ...typography.label, color: colors.white },
+  premiumBannerSub: { ...typography.caption, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,10 +1,12 @@
 /**
  * MainNavigator — Tab bar principal (post-onboarding)
  * 4 tabs: Inicio · Escanear · Registro · Perfil
+ * Cada tab tiene su propio Stack para navegación anidada.
  */
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme';
@@ -13,6 +15,9 @@ import HomeScreen    from '../screens/main/HomeScreen';
 import ScanScreen    from '../screens/main/ScanScreen';
 import LogScreen     from '../screens/main/LogScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
+import PaywallScreen from '../screens/main/PaywallScreen';
+
+const Stack = createStackNavigator();
 
 const Tab = createBottomTabNavigator();
 
@@ -28,6 +33,14 @@ const TAB_ICONS: Record<string, [TabIconName, TabIconName]> = {
   Registro: ['book',   'book-outline'],
   Perfil:   ['person', 'person-outline'],
 };
+
+// Stack navigators para tabs que necesitan navegación anidada
+const ProfileStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+    <Stack.Screen name="Paywall"     component={PaywallScreen} />
+  </Stack.Navigator>
+);
 
 export default function MainNavigator() {
   const insets = useSafeAreaInsets();
@@ -70,7 +83,7 @@ export default function MainNavigator() {
       <Tab.Screen name="Inicio"   component={HomeScreen}    options={{ tabBarLabel: 'Inicio' }} />
       <Tab.Screen name="Escanear" component={ScanScreen}    options={{ tabBarLabel: 'Escanear' }} />
       <Tab.Screen name="Registro" component={LogScreen}     options={{ tabBarLabel: 'Registro' }} />
-      <Tab.Screen name="Perfil"   component={ProfileScreen} options={{ tabBarLabel: 'Perfil' }} />
+      <Tab.Screen name="Perfil"   component={ProfileStack}  options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );
 }
