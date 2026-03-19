@@ -19,7 +19,12 @@ export default function Step14Comparison({ onNext, onBack, step, totalSteps }: S
   }, []);
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+    >
       <Text style={styles.title}>Pierde el doble de peso{'\n'}con nuestra app{'\n'}vs. por tu cuenta</Text>
 
       <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
@@ -65,10 +70,6 @@ export default function Step14Comparison({ onNext, onBack, step, totalSteps }: S
           Nuestra app lo hace fácil y te mantiene comprometido.
         </Text>
       </Animated.View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -116,5 +117,4 @@ const styles = StyleSheet.create({
   barValueSmall: { ...typography.titleMd, color: colors.gray },
   barValueLarge: { fontSize: 28, fontWeight: '800', color: colors.white, letterSpacing: -0.5 },
   caption: { ...typography.caption, color: colors.gray, textAlign: 'center', lineHeight: 18 },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

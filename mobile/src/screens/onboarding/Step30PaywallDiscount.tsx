@@ -36,7 +36,12 @@ export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps
   }, []);
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<><PrimaryButton label="Reclamar 80% OFF — Prueba gratis" onPress={onNext} /><TouchableOpacity onPress={onNext} style={styles.skipBtn}><Text style={styles.skipText}>No gracias, prefiero pagar precio completo</Text></TouchableOpacity></>}
+    >
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         {/* Discount badge */}
         <Animated.View style={[styles.discountBadge, { transform: [{ scale: pulseAnim }] }]}>
@@ -73,13 +78,6 @@ export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps
           <Text style={styles.guaranteeText}>Garantía de devolución de 30 días · Cancela cuando quieras</Text>
         </View>
       </Animated.View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Reclamar 80% OFF — Prueba gratis" onPress={onNext} />
-        <TouchableOpacity onPress={onNext} style={styles.skipBtn}>
-          <Text style={styles.skipText}>No gracias, prefiero pagar precio completo</Text>
-        </TouchableOpacity>
-      </View>
     </OnboardingLayout>
   );
 }
@@ -138,13 +136,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   guaranteeText: { ...typography.caption, color: colors.gray },
-  footer: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
-    gap: spacing.sm,
-  },
   skipBtn: { alignItems: 'center', paddingVertical: spacing.xs },
   skipText: { ...typography.caption, color: colors.gray },
 });

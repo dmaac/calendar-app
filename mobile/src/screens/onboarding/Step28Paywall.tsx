@@ -38,7 +38,13 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
   const [selectedPlan, setSelectedPlan] = useState('annual');
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      scrollable={false}
+      footer={<><PrimaryButton label="Comenzar prueba gratis" onPress={onNext} /><TouchableOpacity onPress={onNext} style={styles.skipBtn}><Text style={styles.skipText}>No gracias, lo dejo pasar</Text></TouchableOpacity></>}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Comienza tu{'\n'}prueba gratis hoy</Text>
         <Text style={styles.subtitle}>Únete a más de 500,000 personas alcanzando sus metas</Text>
@@ -90,15 +96,7 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
           <Text style={styles.noCCText}>3 días de prueba gratis · Sin pago ahora · Cancela cuando quieras</Text>
         </View>
 
-        <View style={{ height: 120 }} />
       </ScrollView>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Comenzar prueba gratis" onPress={onNext} />
-        <TouchableOpacity onPress={onNext} style={styles.skipBtn}>
-          <Text style={styles.skipText}>No gracias, lo dejo pasar</Text>
-        </TouchableOpacity>
-      </View>
     </OnboardingLayout>
   );
 }
@@ -161,15 +159,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   noCCText: { ...typography.caption, color: colors.gray, textAlign: 'center' },
-  footer: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
-    gap: spacing.sm,
-    backgroundColor: colors.white,
-    paddingTop: spacing.sm,
-  },
   skipBtn: { alignItems: 'center', paddingVertical: spacing.xs },
   skipText: { ...typography.caption, color: colors.gray },
 });

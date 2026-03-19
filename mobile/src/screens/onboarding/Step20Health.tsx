@@ -38,7 +38,12 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
   const iconName = Platform.OS === 'ios' ? 'heart-circle' : 'fitness';
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<><PrimaryButton label={`Conectar ${appName}`} onPress={handleConnect} /><PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" /></>}
+    >
       <Text style={styles.title}>Connect to{'\n'}{appName}</Text>
 
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
@@ -73,11 +78,6 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
           ))}
         </View>
       </Animated.View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label={`Conectar ${appName}`} onPress={handleConnect} />
-        <PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -127,11 +127,4 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   permLabel: { ...typography.option, color: colors.black, flex: 1 },
-  footer: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
-    gap: spacing.sm,
-  },
 });

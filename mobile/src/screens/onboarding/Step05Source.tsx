@@ -25,7 +25,13 @@ export default function Step05Source({ onNext, onBack, step, totalSteps }: StepP
   const selected = data.heardFrom;
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      scrollable={false}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />}
+    >
 
       <Text style={styles.title}>¿Cómo nos{'\n'}encontraste?</Text>
 
@@ -48,10 +54,6 @@ export default function Step05Source({ onNext, onBack, step, totalSteps }: StepP
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />
-      </View>
-
     </OnboardingLayout>
   );
 }
@@ -60,5 +62,4 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md, marginBottom: spacing.md },
   list: { flex: 1 },
   listContent: { gap: spacing.sm + 2, paddingBottom: spacing.sm },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

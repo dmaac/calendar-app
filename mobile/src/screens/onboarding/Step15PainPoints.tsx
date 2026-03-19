@@ -27,7 +27,13 @@ export default function Step15PainPoints({ onNext, onBack, step, totalSteps }: S
   };
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      scrollable={false}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={selected.length === 0} />}
+    >
       <Text style={styles.title}>¿Qué te impide{'\n'}alcanzar{'\n'}tus objetivos?</Text>
       <Text style={styles.subtitle}>Selecciona todas las que apliquen.</Text>
 
@@ -45,10 +51,6 @@ export default function Step15PainPoints({ onNext, onBack, step, totalSteps }: S
           <View style={{ height: 80 }} />
         </View>
       </ScrollView>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} disabled={selected.length === 0} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -57,5 +59,4 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
   subtitle: { ...typography.subtitle, color: colors.gray, marginTop: spacing.sm, marginBottom: spacing.md },
   options: { gap: spacing.sm + 2 },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

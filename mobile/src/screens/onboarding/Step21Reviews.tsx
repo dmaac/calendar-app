@@ -48,7 +48,13 @@ export default function Step21Reviews({ onNext, onBack, step, totalSteps }: Step
   }, []);
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      scrollable={false}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+    >
       <Text style={styles.title}>Amado por{'\n'}miles de personas</Text>
 
       <Animated.View style={[{ opacity: fadeAnim }, styles.ratingRow]}>
@@ -77,10 +83,6 @@ export default function Step21Reviews({ onNext, onBack, step, totalSteps }: Step
           <View style={{ height: 80 }} />
         </Animated.View>
       </ScrollView>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -117,5 +119,4 @@ const styles = StyleSheet.create({
   reviewName: { ...typography.label, color: colors.black },
   reviewDate: { ...typography.caption, color: colors.gray },
   reviewText: { ...typography.subtitle, color: colors.black, lineHeight: 22 },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

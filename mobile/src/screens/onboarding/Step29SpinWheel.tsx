@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Easing } from 'react-native';
 import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
-import { colors, typography, spacing, radius } from '../../theme';
+import { colors, typography, spacing, radius, useLayout } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
@@ -17,8 +17,6 @@ const SEGMENTS = [
   { label: '80% OFF', color: '#FF7A5C' },
 ];
 
-const WHEEL_SIZE = 280;
-const WHEEL_CENTER = WHEEL_SIZE / 2;
 const SEGMENT_ANGLE = (2 * Math.PI) / SEGMENTS.length;
 
 // Winning segment is always index 7 (80% OFF) — index calculation accounts for spin
@@ -46,6 +44,10 @@ function buildSegmentPath(idx: number, cx: number, cy: number, r: number): strin
 }
 
 export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: StepProps) {
+  const { innerWidth } = useLayout();
+  const WHEEL_SIZE = Math.min(Math.round(innerWidth * 0.85), 320);
+  const WHEEL_CENTER = WHEEL_SIZE / 2;
+
   const spinAnim = useRef(new Animated.Value(0)).current;
   const [spun, setSpun] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -81,7 +83,24 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
   });
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={
+        !spun ? (
+          <TouchableOpacity
+            style={[styles.spinBtn, spinning && styles.spinBtnDisabled]}
+            onPress={handleSpin}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.spinBtnText}>{spinning ? 'Girando...' : '🎰 ¡GIRAR!'}</Text>
+          </TouchableOpacity>
+        ) : (
+          <PrimaryButton label="Reclamar mi descuento" onPress={onNext} />
+        )
+      }
+    >
       <Text style={styles.title}>¡Gira para desbloquear{'\n'}tu descuento!</Text>
       <Text style={styles.subtitle}>Un giro por usuario. ¡Buena suerte! 🍀</Text>
 
@@ -133,20 +152,6 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
           <Text style={styles.resultText}>Ganaste: <Text style={styles.resultHighlight}>{result}</Text></Text>
         </View>
       ) : null}
-
-      <View style={styles.footer}>
-        {!spun ? (
-          <TouchableOpacity
-            style={[styles.spinBtn, spinning && styles.spinBtnDisabled]}
-            onPress={handleSpin}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.spinBtnText}>{spinning ? 'Girando...' : '🎰 ¡GIRAR!'}</Text>
-          </TouchableOpacity>
-        ) : (
-          <PrimaryButton label="Reclamar mi descuento" onPress={onNext} />
-        )}
-      </View>
     </OnboardingLayout>
   );
 }
@@ -196,7 +201,6 @@ const styles = StyleSheet.create({
   resultEmoji: { fontSize: 24 },
   resultText: { ...typography.label, color: colors.black },
   resultHighlight: { color: colors.accent, fontWeight: '800' },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
   spinBtn: {
     height: 56,
     borderRadius: radius.full,

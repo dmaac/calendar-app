@@ -25,7 +25,12 @@ export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepPr
   }, []);
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Entendido" onPress={onNext} />}
+    >
       <Text style={styles.title}>Tu privacidad{'\n'}es nuestra prioridad</Text>
 
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
@@ -54,10 +59,6 @@ export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepPr
           <Text style={styles.badgeText}>Sin anuncios. Sin spam. Sin rodeos.</Text>
         </View>
       </Animated.View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Entendido" onPress={onNext} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -104,5 +105,4 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   badgeText: { ...typography.caption, color: colors.gray },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

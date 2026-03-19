@@ -12,7 +12,12 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: St
   const selected = data.usedOtherApps;
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={selected === null} />}
+    >
 
       <Text style={styles.title}>¿Has probado otras{'\n'}apps de calorías?</Text>
 
@@ -31,10 +36,6 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: St
         />
       </View>
 
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} disabled={selected === null} />
-      </View>
-
     </OnboardingLayout>
   );
 }
@@ -42,5 +43,4 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: St
 const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
   options: { marginTop: spacing.xxl + spacing.lg, gap: spacing.sm + 4 },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

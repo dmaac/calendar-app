@@ -18,7 +18,12 @@ export default function Step16Diet({ onNext, onBack, step, totalSteps }: StepPro
   const { data, update } = useOnboarding();
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!data.dietType} />}
+    >
       <Text style={styles.title}>¿Sigues alguna{'\n'}dieta específica?</Text>
 
       <View style={styles.options}>
@@ -32,10 +37,6 @@ export default function Step16Diet({ onNext, onBack, step, totalSteps }: StepPro
           />
         ))}
       </View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} disabled={!data.dietType} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -43,5 +44,4 @@ export default function Step16Diet({ onNext, onBack, step, totalSteps }: StepPro
 const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
   options: { marginTop: spacing.xxl, gap: spacing.sm + 4 },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

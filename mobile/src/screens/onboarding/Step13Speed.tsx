@@ -55,7 +55,12 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
   ).current;
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+    >
       <Text style={styles.title}>¿Qué tan rápido quieres{'\n'}alcanzar tu objetivo?</Text>
 
       <View style={styles.center}>
@@ -112,10 +117,6 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
             </TouchableOpacity>
           ))}
         </View>
-      </View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );
@@ -174,5 +175,4 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.black },
   chipText: { ...typography.label, color: colors.black },
   chipTextActive: { color: colors.white },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

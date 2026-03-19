@@ -18,6 +18,7 @@ import BackButton from './BackButton';
 
 interface OnboardingLayoutProps {
   children: ReactNode;
+  footer?: ReactNode;         // sticky footer button(s) — rendered outside scroll
   step: number;               // paso actual (1-30)
   totalSteps?: number;        // default 30
   showHeader?: boolean;       // false en splash y welcome
@@ -29,6 +30,7 @@ interface OnboardingLayoutProps {
 
 export default function OnboardingLayout({
   children,
+  footer,
   step,
   totalSteps = 30,
   showHeader = true,
@@ -74,7 +76,10 @@ export default function OnboardingLayout({
         {scrollable ? (
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              footer ? { paddingBottom: 0 } : undefined,
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
@@ -83,6 +88,13 @@ export default function OnboardingLayout({
         ) : (
           <View style={styles.content}>
             {children}
+          </View>
+        )}
+
+        {/* Footer fijo — fuera del scroll, siempre visible */}
+        {footer && (
+          <View style={styles.footer}>
+            {footer}
           </View>
         )}
       </View>
@@ -132,6 +144,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 120, // espacio para el botón flotante
+    paddingBottom: spacing.lg,
+  },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    paddingTop: spacing.md,
+    gap: 10,
   },
 });

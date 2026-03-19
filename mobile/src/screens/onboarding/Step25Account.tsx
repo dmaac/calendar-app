@@ -121,7 +121,12 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
   // ─────────────────────────────────────────────────────────────────────────
   if (mode === 'email') {
     return (
-      <OnboardingLayout step={step} totalSteps={totalSteps} onBack={() => setMode('options')}>
+      <OnboardingLayout
+        step={step}
+        totalSteps={totalSteps}
+        onBack={() => setMode('options')}
+        footer={<PrimaryButton label="Continuar" onPress={handleEmail} loading={loading} disabled={!email.includes('@') || password.length < 6} />}
+      >
         <Text style={styles.title}>Crea tu{'\n'}cuenta</Text>
 
         <View style={styles.form}>
@@ -161,21 +166,23 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
             <Text style={styles.link}>Política de privacidad</Text>.
           </Text>
         </View>
-
-        <View style={styles.footer}>
-          <PrimaryButton
-            label="Continuar"
-            onPress={handleEmail}
-            loading={loading}
-            disabled={!email.includes('@') || password.length < 6}
-          />
-        </View>
       </OnboardingLayout>
     );
   }
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={
+        <Text style={styles.terms}>
+          Al continuar aceptas nuestros{' '}
+          <Text style={styles.link}>Términos</Text> y{' '}
+          <Text style={styles.link}>Política de privacidad</Text>.
+        </Text>
+      }
+    >
       <Text style={styles.title}>Crea tu{'\n'}cuenta gratis</Text>
       <Text style={styles.subtitle}>Guarda tu plan y comienza tu camino.</Text>
 
@@ -214,14 +221,6 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
             <Text style={[styles.socialBtnText, { color: colors.black }]}>Continuar con Email</Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.terms}>
-          Al continuar aceptas nuestros{' '}
-          <Text style={styles.link}>Términos</Text> y{' '}
-          <Text style={styles.link}>Política de privacidad</Text>.
-        </Text>
       </View>
     </OnboardingLayout>
   );
@@ -267,11 +266,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, height: 56, gap: spacing.sm,
   },
   input: { flex: 1, ...typography.option, color: colors.black },
-  footer: {
-    position: 'absolute', bottom: spacing.lg,
-    left: spacing.lg, right: spacing.lg,
-    gap: spacing.sm,
-  },
   terms: { ...typography.caption, color: colors.gray, textAlign: 'center', lineHeight: 18 },
   link:  { color: colors.black, fontWeight: '600' },
 });

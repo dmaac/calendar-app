@@ -39,7 +39,13 @@ export default function Step12Affirmation({ onNext, onBack, step, totalSteps }: 
   const suffix = GOAL_SUFFIX[data.goal] || 'is a great goal!';
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} showHeader>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      showHeader
+      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+    >
       <View style={styles.center}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
           <Text style={styles.text}>
@@ -55,10 +61,6 @@ export default function Step12Affirmation({ onNext, onBack, step, totalSteps }: 
             El 90% de los usuarios dice que el cambio es evidente al usar nuestra app y que no es fácil recuperar el peso.
           </Text>
         </Animated.View>
-      </View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );
@@ -83,5 +85,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     lineHeight: 22,
   },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

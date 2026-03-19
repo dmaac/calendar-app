@@ -17,7 +17,12 @@ export default function Step10Goal({ onNext, onBack, step, totalSteps }: StepPro
   const { data, update } = useOnboarding();
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!data.goal} />}
+    >
       <Text style={styles.title}>¿Cuál es tu objetivo?</Text>
       <Text style={styles.subtitle}>Esto nos ayuda a generar un plan para tu ingesta calórica.</Text>
 
@@ -32,10 +37,6 @@ export default function Step10Goal({ onNext, onBack, step, totalSteps }: StepPro
           />
         ))}
       </View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} disabled={!data.goal} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -44,5 +45,4 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
   subtitle: { ...typography.subtitle, color: colors.gray, marginTop: spacing.sm },
   options: { marginTop: spacing.xxl, gap: spacing.sm + 4 },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

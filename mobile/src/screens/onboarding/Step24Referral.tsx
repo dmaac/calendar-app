@@ -23,7 +23,12 @@ export default function Step24Referral({ onNext, onBack, step, totalSteps }: Ste
   };
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<><PrimaryButton label="Aplicar código" onPress={handleContinue} disabled={code.trim().length === 0} /><PrimaryButton label="Omitir" onPress={onNext} variant="ghost" /></>}
+    >
       <Text style={styles.title}>¿Tienes un{'\n'}código de referido?</Text>
       <Text style={styles.subtitle}>Ingresa el código de un amigo para desbloquear un descuento especial.</Text>
 
@@ -56,10 +61,6 @@ export default function Step24Referral({ onNext, onBack, step, totalSteps }: Ste
         </Text>
       </View>
 
-      <View style={styles.footer}>
-        <PrimaryButton label="Aplicar código" onPress={handleContinue} disabled={code.trim().length === 0} />
-        <PrimaryButton label="Omitir" onPress={onNext} variant="ghost" />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -106,12 +107,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: spacing.md,
     lineHeight: 18,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
-    gap: spacing.sm,
   },
 });

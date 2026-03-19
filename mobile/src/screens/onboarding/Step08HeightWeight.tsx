@@ -57,7 +57,12 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
   };
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+    >
       <Text style={styles.title}>Altura y peso</Text>
       <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
 
@@ -134,9 +139,6 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
         )}
       </View>
 
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -171,5 +173,4 @@ const styles = StyleSheet.create({
   pickerPair: { flexDirection: 'row', gap: spacing.xs },
   pickerLabel: { ...typography.label, color: colors.gray },
   divider: { width: 1, height: 200, backgroundColor: colors.grayLight, marginTop: 28 },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

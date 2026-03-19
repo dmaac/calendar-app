@@ -28,7 +28,12 @@ export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }:
   };
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+    >
       <Text style={styles.title}>¿Cuál es tu{'\n'}peso deseado?</Text>
       <Text style={styles.subtitle}>{GOAL_LABELS[data.goal] || 'Tu objetivo'}</Text>
 
@@ -42,10 +47,6 @@ export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }:
           onChange={handleChange}
         />
       </View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -54,5 +55,4 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
   subtitle: { ...typography.subtitle, color: colors.gray, marginTop: spacing.sm },
   rulerWrapper: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

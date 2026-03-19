@@ -43,7 +43,12 @@ export default function Step22Flexibility({ onNext, onBack, step, totalSteps }: 
   }, []);
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+    >
       <Text style={styles.title}>Todo lo que{'\n'}necesitas para lograrlo</Text>
 
       <View style={styles.grid}>
@@ -54,10 +59,6 @@ export default function Step22Flexibility({ onNext, onBack, step, totalSteps }: 
             <Text style={styles.cardDesc}>{f.desc}</Text>
           </Animated.View>
         ))}
-      </View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );
@@ -81,5 +82,4 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 28, lineHeight: 36 },
   cardTitle: { ...typography.label, color: colors.black, fontWeight: '700' },
   cardDesc: { ...typography.caption, color: colors.gray, lineHeight: 18 },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

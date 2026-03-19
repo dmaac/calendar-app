@@ -35,7 +35,12 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
   };
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<><PrimaryButton label="Activar recordatorios" onPress={handleEnable} /><PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" /></>}
+    >
       <Text style={styles.title}>Mantén el rumbo{'\n'}con recordatorios</Text>
       <Text style={styles.subtitle}>
         Los usuarios que activan recordatorios pierden 3x más peso.
@@ -58,11 +63,6 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
           </View>
         ))}
       </Animated.View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Activar recordatorios" onPress={handleEnable} />
-        <PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -97,11 +97,4 @@ const styles = StyleSheet.create({
   notifTime: { ...typography.caption, color: colors.gray },
   notifText: { ...typography.label, color: colors.black, marginTop: 2 },
   notifSub: { ...typography.caption, color: colors.gray, marginTop: 2 },
-  footer: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
-    gap: spacing.sm,
-  },
 });

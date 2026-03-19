@@ -20,7 +20,12 @@ export default function Step09Birthday({ onNext, onBack, step, totalSteps }: Ste
   const yearIndex = YEARS.indexOf(String(year));
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+    >
       <Text style={styles.title}>¿Cuándo naciste?</Text>
       <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
 
@@ -44,10 +49,6 @@ export default function Step09Birthday({ onNext, onBack, step, totalSteps }: Ste
           width={80}
         />
       </View>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -62,5 +63,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxl + spacing.md,
     gap: spacing.xs,
   },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

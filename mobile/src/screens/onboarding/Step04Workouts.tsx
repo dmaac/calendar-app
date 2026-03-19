@@ -18,7 +18,12 @@ export default function Step04Workouts({ onNext, onBack, step, totalSteps }: Ste
   const selected = data.workoutsPerWeek;
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />}
+    >
 
       <Text style={styles.title}>¿Cuántos entrenos{'\n'}haces por semana?</Text>
       <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
@@ -36,10 +41,6 @@ export default function Step04Workouts({ onNext, onBack, step, totalSteps }: Ste
         ))}
       </View>
 
-      <View style={styles.footer}>
-        <PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />
-      </View>
-
     </OnboardingLayout>
   );
 }
@@ -48,5 +49,4 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
   subtitle: { ...typography.subtitle, color: colors.gray, marginTop: spacing.sm },
   options: { marginTop: spacing.xxl, gap: spacing.sm + 4 },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..core.database import get_session
 from ..models.user import User
@@ -19,11 +19,11 @@ router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 async def save_onboarding_step(
     data: OnboardingStepSave,
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     """Save a single onboarding step (partial update — only provided fields are stored)."""
     service = OnboardingService(session)
-    profile = service.save_or_update_profile(current_user.id, data)
+    profile = await service.save_or_update_profile(current_user.id, data)
     return profile
 
 
@@ -31,7 +31,7 @@ async def save_onboarding_step(
 async def complete_onboarding(
     data: OnboardingComplete,
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     """
     Complete the onboarding flow.
@@ -39,18 +39,18 @@ async def complete_onboarding(
     profile as completed.
     """
     service = OnboardingService(session)
-    profile = service.complete_onboarding(current_user.id, data)
+    profile = await service.complete_onboarding(current_user.id, data)
     return profile
 
 
 @router.get("/profile", response_model=OnboardingProfileRead)
 async def get_onboarding_profile(
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     """Return the current user's onboarding profile."""
     service = OnboardingService(session)
-    profile = service.get_profile(current_user.id)
+    profile = await service.get_profile(current_user.id)
 
     if not profile:
         raise HTTPException(

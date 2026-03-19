@@ -55,7 +55,13 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
   }, []);
 
   return (
-    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
+    <OnboardingLayout
+      step={step}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      scrollable={false}
+      footer={<PrimaryButton label="Ver mi plan" onPress={onNext} />}
+    >
       <Text style={styles.title}>¡Tu plan{'\n'}está listo! 🎉</Text>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -107,10 +113,6 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
           <View style={{ height: 80 }} />
         </Animated.View>
       </ScrollView>
-
-      <View style={styles.footer}>
-        <PrimaryButton label="Ver mi plan" onPress={onNext} />
-      </View>
     </OnboardingLayout>
   );
 }
@@ -150,5 +152,4 @@ const styles = StyleSheet.create({
   scoreBadge: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
   scoreNum: { fontSize: 40, fontWeight: '900', color: colors.black, letterSpacing: -1 },
   scoreMax: { ...typography.subtitle, color: colors.gray },
-  footer: { position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
 });
