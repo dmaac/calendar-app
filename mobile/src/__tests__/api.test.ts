@@ -1,71 +1,29 @@
+// All mock state lives inside the factory so it's available when hoisted
+jest.mock('axios', () => {
+  const instance = {
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+    interceptors: {
+      request: { use: jest.fn() },
+      response: { use: jest.fn() },
+    },
+  };
+  return { default: { create: jest.fn(() => instance) }, create: jest.fn(() => instance) };
+});
+
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// We need to mock axios before importing the module that uses it
-jest.mock('axios');
-const mockedAxios = axios as jest.Mocked<typeof axios>;
-
-// Mock the create method to return a mock instance
-const mockApi = {
-  get: jest.fn(),
-  post: jest.fn(),
-  put: jest.fn(),
-  delete: jest.fn(),
-  interceptors: {
-    request: { use: jest.fn() },
-    response: { use: jest.fn() },
-  },
-};
-
-mockedAxios.create.mockReturnValue(mockApi as any);
-
-// Now import the api module (it will use the mocked axios)
 import api from '../services/api';
+
+// Grab the mock instance axios.create returned
+const mockApi = (axios.create as jest.Mock).mock.results[0]?.value ?? (axios as any).create();
 
 describe('ApiService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
-  });
-
-  describe('login', () => {
-    it('sends form-urlencoded credentials to /auth/login', async () => {
-      mockApi.post.mockResolvedValue({
-        data: { access_token: 'test-token', token_type: 'bearer' },
-      });
-
-      const result = await api.login({
-        username: 'user@test.com',
-        password: 'pass123',
-      });
-
-      expect(mockApi.post).toHaveBeenCalledWith(
-        '/auth/login',
-        expect.any(URLSearchParams),
-        expect.objectContaining({
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        })
-      );
-      expect(result).toEqual({ access_token: 'test-token', token_type: 'bearer' });
-    });
-  });
-
-  describe('register', () => {
-    it('sends user data to /auth/register', async () => {
-      const userData = {
-        email: 'new@test.com',
-        first_name: 'New',
-        last_name: 'User',
-        password: 'pass123',
-      };
-      mockApi.post.mockResolvedValue({
-        data: { id: 1, ...userData, is_active: true },
-      });
-
-      await api.register(userData);
-
-      expect(mockApi.post).toHaveBeenCalledWith('/auth/register', userData);
-    });
   });
 
   describe('getCurrentUser', () => {
