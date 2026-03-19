@@ -1,6 +1,7 @@
 from typing import List, Optional, Tuple
 from datetime import date, timedelta
-from sqlmodel import Session, select, func, col
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select, func, col
 from ..models.meal_log import MealLog, MealLogCreate
 from ..models.food import Food
 from ..models.daily_nutrition_summary import DailyNutritionSummary
@@ -8,12 +9,12 @@ from ..models.nutrition_profile import UserNutritionProfile
 
 
 class MealService:
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
-    def log_meal(self, meal_create: MealLogCreate, user_id: int) -> MealLog:
+    async def log_meal(self, meal_create: MealLogCreate, user_id: int) -> MealLog:
         # Get food to calculate totals
-        food = self.session.get(Food, meal_create.food_id)
+        food = await self.session.get(Food, meal_create.food_id)
         if not food:
             raise ValueError(f"Food with id {meal_create.food_id} not found")
 
@@ -39,59 +40,63 @@ class MealService:
             user_id=user_id,
         )
         self.session.add(meal_log)
-        self.session.commit()
-        self.session.refresh(meal_log)
+        await self.session.commit()
+        await self.session.refresh(meal_log)
 
         # Update daily summary
-        self._update_daily_summary(user_id, meal_create.date)
+        await self._update_daily_summary(user_id, meal_create.date)
 
         return meal_log
 
-    def get_meals_by_date(self, user_id: int, target_date: date, offset: int = 0, limit: int = 0) -> List[MealLog]:
+    async def get_meals_by_date(self, user_id: int, target_date: date, offset: int = 0, limit: int = 0) -> List[MealLog]:
         statement = select(MealLog).where(
             MealLog.user_id == user_id,
             MealLog.date == target_date,
         ).order_by(MealLog.created_at)  # type: ignore
         if limit > 0:
             statement = statement.offset(offset).limit(limit)
-        return list(self.session.exec(statement).all())
+        result = await self.session.exec(statement)
+        return list(result.all())
 
-    def count_meals_by_date(self, user_id: int, target_date: date) -> int:
+    async def count_meals_by_date(self, user_id: int, target_date: date) -> int:
         statement = select(func.count()).select_from(MealLog).where(
             MealLog.user_id == user_id,
             MealLog.date == target_date,
         )
-        return self.session.exec(statement).one()
+        result = await self.session.exec(statement)
+        return result.one()
 
-    def get_meal_by_id(self, meal_id: int) -> Optional[MealLog]:
-        return self.session.get(MealLog, meal_id)
+    async def get_meal_by_id(self, meal_id: int) -> Optional[MealLog]:
+        return await self.session.get(MealLog, meal_id)
 
-    def delete_meal(self, meal_id: int, user_id: int) -> bool:
-        meal = self.session.get(MealLog, meal_id)
+    async def delete_meal(self, meal_id: int, user_id: int) -> bool:
+        meal = await self.session.get(MealLog, meal_id)
         if not meal or meal.user_id != user_id:
             return False
 
         meal_date = meal.date
-        self.session.delete(meal)
-        self.session.commit()
+        await self.session.delete(meal)
+        await self.session.commit()
 
         # Update daily summary after deletion
-        self._update_daily_summary(user_id, meal_date)
+        await self._update_daily_summary(user_id, meal_date)
         return True
 
-    def get_daily_summary(self, user_id: int, target_date: date) -> DailyNutritionSummary:
+    async def get_daily_summary(self, user_id: int, target_date: date) -> DailyNutritionSummary:
         statement = select(DailyNutritionSummary).where(
             DailyNutritionSummary.user_id == user_id,
             DailyNutritionSummary.date == target_date,
         )
-        summary = self.session.exec(statement).first()
+        result = await self.session.exec(statement)
+        summary = result.first()
 
         if not summary:
             # Get user's target calories from nutrition profile
             profile_stmt = select(UserNutritionProfile).where(
                 UserNutritionProfile.user_id == user_id
             )
-            profile = self.session.exec(profile_stmt).first()
+            profile_result = await self.session.exec(profile_stmt)
+            profile = profile_result.first()
             target_cals = profile.target_calories if profile else 2000.0
 
             summary = DailyNutritionSummary(
@@ -105,15 +110,15 @@ class MealService:
                 water_ml=0.0,
             )
             self.session.add(summary)
-            self.session.commit()
-            self.session.refresh(summary)
+            await self.session.commit()
+            await self.session.refresh(summary)
 
         return summary
 
-    def get_daily_summary_with_fiber_sugar(self, user_id: int, target_date: date) -> dict:
+    async def get_daily_summary_with_fiber_sugar(self, user_id: int, target_date: date) -> dict:
         """Get daily summary including fiber and sugar totals computed from meal logs."""
-        summary = self.get_daily_summary(user_id, target_date)
-        meals = self.get_meals_by_date(user_id, target_date)
+        summary = await self.get_daily_summary(user_id, target_date)
+        meals = await self.get_meals_by_date(user_id, target_date)
 
         total_fiber = round(sum(m.total_fiber for m in meals), 1)
         total_sugar = round(sum(m.total_sugar for m in meals), 1)
@@ -130,34 +135,34 @@ class MealService:
             "water_ml": summary.water_ml,
         }
 
-    def get_weekly_summary(self, user_id: int, end_date: date) -> List[dict]:
+    async def get_weekly_summary(self, user_id: int, end_date: date) -> List[dict]:
         """Return 7 daily summaries ending on end_date."""
         summaries = []
         for i in range(6, -1, -1):
             day = end_date - timedelta(days=i)
-            summaries.append(self.get_daily_summary_with_fiber_sugar(user_id, day))
+            summaries.append(await self.get_daily_summary_with_fiber_sugar(user_id, day))
         return summaries
 
-    def get_history(self, user_id: int, days: int) -> List[dict]:
+    async def get_history(self, user_id: int, days: int) -> List[dict]:
         """Return daily summaries for the last N days (ending today-ish, based on the most recent date)."""
         end_date = date.today()
         summaries = []
         for i in range(days - 1, -1, -1):
             day = end_date - timedelta(days=i)
-            summaries.append(self.get_daily_summary_with_fiber_sugar(user_id, day))
+            summaries.append(await self.get_daily_summary_with_fiber_sugar(user_id, day))
         return summaries
 
-    def update_water(self, user_id: int, target_date: date, water_ml: float) -> DailyNutritionSummary:
-        summary = self.get_daily_summary(user_id, target_date)
+    async def update_water(self, user_id: int, target_date: date, water_ml: float) -> DailyNutritionSummary:
+        summary = await self.get_daily_summary(user_id, target_date)
         summary.water_ml = water_ml
         self.session.add(summary)
-        self.session.commit()
-        self.session.refresh(summary)
+        await self.session.commit()
+        await self.session.refresh(summary)
         return summary
 
-    def _update_daily_summary(self, user_id: int, target_date: date) -> None:
+    async def _update_daily_summary(self, user_id: int, target_date: date) -> None:
         """Recalculate daily summary from all meals for the given date."""
-        meals = self.get_meals_by_date(user_id, target_date)
+        meals = await self.get_meals_by_date(user_id, target_date)
 
         total_calories = sum(m.total_calories for m in meals)
         total_protein = sum(m.total_protein for m in meals)
@@ -169,13 +174,15 @@ class MealService:
             DailyNutritionSummary.user_id == user_id,
             DailyNutritionSummary.date == target_date,
         )
-        summary = self.session.exec(statement).first()
+        result = await self.session.exec(statement)
+        summary = result.first()
 
         if not summary:
             profile_stmt = select(UserNutritionProfile).where(
                 UserNutritionProfile.user_id == user_id
             )
-            profile = self.session.exec(profile_stmt).first()
+            profile_result = await self.session.exec(profile_stmt)
+            profile = profile_result.first()
             target_cals = profile.target_calories if profile else 2000.0
 
             summary = DailyNutritionSummary(
@@ -191,4 +198,4 @@ class MealService:
         summary.total_fat = round(total_fat, 1)
 
         self.session.add(summary)
-        self.session.commit()
+        await self.session.commit()

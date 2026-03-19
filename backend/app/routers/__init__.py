@@ -3,6 +3,8 @@ from .activities import router as activities_router
 from .foods import router as foods_router
 from .meals import router as meals_router
 from .nutrition_profile import router as nutrition_profile_router
+from .onboarding import router as onboarding_router
+from .ai_food import router as ai_food_router
 
 __all__ = [
     "auth_router",
@@ -10,4 +12,6 @@ __all__ = [
     "foods_router",
     "meals_router",
     "nutrition_profile_router",
+    "onboarding_router",
+    "ai_food_router",
 ]

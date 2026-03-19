@@ -1,7 +1,7 @@
 from typing import List
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlmodel import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
 from ..core.database import get_session
 from ..models.user import User
 from ..models.meal_log import MealLogCreate, MealLogRead
@@ -17,17 +17,17 @@ router = APIRouter(prefix="/meals", tags=["meals"])
 async def log_meal(
     meal_create: MealLogCreate,
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     meal_service = MealService(session)
 
     try:
-        meal_log = meal_service.log_meal(meal_create, current_user.id)
+        meal_log = await meal_service.log_meal(meal_create, current_user.id)
 
         # Get food info for response
         from ..services.food_service import FoodService
         food_service = FoodService(session)
-        food = food_service.get_food_by_id(meal_log.food_id)
+        food = await food_service.get_food_by_id(meal_log.food_id)
 
         return MealLogRead(
             id=meal_log.id,
@@ -57,15 +57,15 @@ async def log_meal(
 async def get_daily_summary(
     target_date: date = Query(..., description="Date to get summary for (YYYY-MM-DD)"),
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     meal_service = MealService(session)
     nutrition_service = NutritionService(session)
 
-    data = meal_service.get_daily_summary_with_fiber_sugar(current_user.id, target_date)
-    profile = nutrition_service.get_profile(current_user.id)
+    data = await meal_service.get_daily_summary_with_fiber_sugar(current_user.id, target_date)
+    profile = await nutrition_service.get_profile(current_user.id)
 
-    meals = meal_service.get_meals_by_date(current_user.id, target_date)
+    meals = await meal_service.get_meals_by_date(current_user.id, target_date)
 
     return DailySummaryResponse(
         date=data["date"],
@@ -88,17 +88,17 @@ async def get_daily_summary(
 async def get_weekly_summary(
     end_date: date = Query(..., description="End date for weekly summary (YYYY-MM-DD)"),
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     meal_service = MealService(session)
     nutrition_service = NutritionService(session)
-    profile = nutrition_service.get_profile(current_user.id)
+    profile = await nutrition_service.get_profile(current_user.id)
 
-    summaries = meal_service.get_weekly_summary(current_user.id, end_date)
+    summaries = await meal_service.get_weekly_summary(current_user.id, end_date)
 
     result = []
     for data in summaries:
-        meals = meal_service.get_meals_by_date(current_user.id, data["date"])
+        meals = await meal_service.get_meals_by_date(current_user.id, data["date"])
         result.append(
             DailySummaryResponse(
                 date=data["date"],
@@ -124,17 +124,17 @@ async def get_weekly_summary(
 async def get_history(
     days: int = Query(7, ge=1, le=90, description="Number of days of history"),
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     meal_service = MealService(session)
     nutrition_service = NutritionService(session)
-    profile = nutrition_service.get_profile(current_user.id)
+    profile = await nutrition_service.get_profile(current_user.id)
 
-    summaries = meal_service.get_history(current_user.id, days)
+    summaries = await meal_service.get_history(current_user.id, days)
 
     result = []
     for data in summaries:
-        meals = meal_service.get_meals_by_date(current_user.id, data["date"])
+        meals = await meal_service.get_meals_by_date(current_user.id, data["date"])
         result.append(
             DailySummaryResponse(
                 date=data["date"],
@@ -162,18 +162,18 @@ async def get_meals(
     offset: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(50, ge=1, le=200, description="Max number of results"),
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     meal_service = MealService(session)
-    total = meal_service.count_meals_by_date(current_user.id, target_date)
-    meals = meal_service.get_meals_by_date(current_user.id, target_date, offset=offset, limit=limit)
+    total = await meal_service.count_meals_by_date(current_user.id, target_date)
+    meals = await meal_service.get_meals_by_date(current_user.id, target_date, offset=offset, limit=limit)
 
     from ..services.food_service import FoodService
     food_service = FoodService(session)
 
     items = []
     for meal in meals:
-        food = food_service.get_food_by_id(meal.food_id)
+        food = await food_service.get_food_by_id(meal.food_id)
         items.append(
             MealLogRead(
                 id=meal.id,
@@ -201,11 +201,11 @@ async def get_meals(
 async def delete_meal(
     meal_id: int,
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     meal_service = MealService(session)
 
-    if not meal_service.delete_meal(meal_id, current_user.id):
+    if not await meal_service.delete_meal(meal_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meal log not found",
@@ -219,8 +219,8 @@ async def update_water(
     target_date: date = Query(..., description="Date (YYYY-MM-DD)"),
     water_ml: float = Query(..., ge=0, description="Water intake in ml"),
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
     meal_service = MealService(session)
-    summary = meal_service.update_water(current_user.id, target_date, water_ml)
+    summary = await meal_service.update_water(current_user.id, target_date, water_ml)
     return {"message": "Water intake updated", "water_ml": summary.water_ml}

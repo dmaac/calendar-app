@@ -47,7 +47,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
     setIsLoading(true);
     try {
-      await register(userData);
+      await register(userData.email, userData.password, userData.first_name, userData.last_name);
       Alert.alert('Success', 'Account created successfully!');
     } catch (error: any) {
       Alert.alert('Registration Failed', error?.response?.data?.detail || 'An error occurred');

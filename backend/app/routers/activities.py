@@ -1,7 +1,7 @@
 from typing import List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlmodel import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
 from ..core.database import get_session
 from ..models.user import User
 from ..models.activity import Activity, ActivityCreate, ActivityRead, ActivityUpdate
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/activities", tags=["activities"])
 async def create_activity(
     activity_create: ActivityCreate,
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     activity_service = ActivityService(session)
 
@@ -27,7 +27,7 @@ async def create_activity(
         )
 
     try:
-        activity = activity_service.create_activity(activity_create, current_user.id)
+        activity = await activity_service.create_activity(activity_create, current_user.id)
         return activity
     except ValueError as e:
         raise HTTPException(
@@ -41,16 +41,16 @@ async def get_user_activities(
     start_date: datetime = Query(None, description="Filter activities from this date"),
     end_date: datetime = Query(None, description="Filter activities until this date"),
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     activity_service = ActivityService(session)
 
     if start_date and end_date:
-        activities = activity_service.get_user_activities_by_date_range(
+        activities = await activity_service.get_user_activities_by_date_range(
             current_user.id, start_date, end_date
         )
     else:
-        activities = activity_service.get_user_activities(current_user.id)
+        activities = await activity_service.get_user_activities(current_user.id)
 
     return activities
 
@@ -59,10 +59,10 @@ async def get_user_activities(
 async def get_activity(
     activity_id: int,
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     activity_service = ActivityService(session)
-    activity = activity_service.get_activity_by_id(activity_id)
+    activity = await activity_service.get_activity_by_id(activity_id)
 
     if not activity or activity.user_id != current_user.id:
         raise HTTPException(
@@ -78,7 +78,7 @@ async def update_activity(
     activity_id: int,
     activity_update: ActivityUpdate,
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     activity_service = ActivityService(session)
 
@@ -91,7 +91,7 @@ async def update_activity(
         )
 
     try:
-        activity = activity_service.update_activity(activity_id, activity_update, current_user.id)
+        activity = await activity_service.update_activity(activity_id, activity_update, current_user.id)
 
         if not activity:
             raise HTTPException(
@@ -111,11 +111,11 @@ async def update_activity(
 async def delete_activity(
     activity_id: int,
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     activity_service = ActivityService(session)
 
-    if not activity_service.delete_activity(activity_id, current_user.id):
+    if not await activity_service.delete_activity(activity_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Activity not found"

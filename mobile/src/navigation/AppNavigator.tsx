@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme';
@@ -17,116 +16,82 @@ import MealLogScreen from '../screens/MealLogScreen';
 import FoodSearchScreen from '../screens/FoodSearchScreen';
 import NutritionProfileScreen from '../screens/NutritionProfileScreen';
 import LoadingScreen from '../components/LoadingScreen';
-import OnboardingScreen from '../screens/OnboardingScreen';
+import OnboardingNavigator from '../screens/onboarding/OnboardingNavigator';
+import { OnboardingProvider } from '../context/OnboardingContext';
 
 const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
+const Tab   = createBottomTabNavigator();
 
+// ─── Auth stack (login / register) ───────────────────────────────────────────
 const AuthNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Login" component={LoginScreen} />
+    <Stack.Screen name="Login"    component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />
   </Stack.Navigator>
 );
 
+// ─── Main tab bar ─────────────────────────────────────────────────────────────
 const MainTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
       tabBarIcon: ({ focused, color, size }) => {
-        let iconName: keyof typeof Ionicons.glyphMap;
-
-        if (route.name === 'Home') {
-          iconName = focused ? 'home' : 'home-outline';
-        } else if (route.name === 'Calendar') {
-          iconName = focused ? 'calendar' : 'calendar-outline';
-        } else if (route.name === 'Nutrition') {
-          iconName = focused ? 'leaf' : 'leaf-outline';
-        } else {
-          iconName = 'home-outline';
-        }
-
-        return <Ionicons name={iconName} size={size} color={color} />;
+        const icons: Record<string, [string, string]> = {
+          Home:      ['home',     'home-outline'],
+          Calendar:  ['calendar', 'calendar-outline'],
+          Nutrition: ['leaf',     'leaf-outline'],
+        };
+        const [active, inactive] = icons[route.name] ?? ['home', 'home-outline'];
+        return <Ionicons name={(focused ? active : inactive) as any} size={size} color={color} />;
       },
-      tabBarActiveTintColor: theme.colors.tabActive,
+      tabBarActiveTintColor:   theme.colors.tabActive,
       tabBarInactiveTintColor: theme.colors.tabInactive,
       tabBarStyle: {
         backgroundColor: theme.colors.surface,
-        borderTopColor: theme.colors.border,
-        borderTopWidth: 1,
-        height: 88,
-        paddingBottom: 24,
-        paddingTop: 8,
+        borderTopColor:  theme.colors.border,
+        borderTopWidth:  1,
+        height:          88,
+        paddingBottom:   24,
+        paddingTop:      8,
       },
     })}
   >
-    <Tab.Screen name="Home" component={HomeScreen} />
-    <Tab.Screen name="Calendar" component={CalendarScreen} />
+    <Tab.Screen name="Home"      component={HomeScreen} />
+    <Tab.Screen name="Calendar"  component={CalendarScreen} />
     <Tab.Screen name="Nutrition" component={NutritionDashboardScreen} />
   </Tab.Navigator>
 );
 
+// ─── Main stack (tabs + modals) ───────────────────────────────────────────────
 const MainNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-    <Stack.Screen
-      name="AddActivity"
-      component={AddActivityScreen}
-      options={{
-        presentation: 'modal',
-        headerShown: false,
-      }}
-    />
-    <Stack.Screen
-      name="MealLog"
-      component={MealLogScreen}
-      options={{
-        presentation: 'modal',
-        headerShown: false,
-      }}
-    />
-    <Stack.Screen
-      name="FoodSearch"
-      component={FoodSearchScreen}
-      options={{
-        presentation: 'modal',
-        headerShown: false,
-      }}
-    />
-    <Stack.Screen
-      name="NutritionProfile"
-      component={NutritionProfileScreen}
-      options={{
-        presentation: 'modal',
-        headerShown: false,
-      }}
-    />
+    <Stack.Screen name="MainTabs"        component={MainTabNavigator} />
+    <Stack.Screen name="AddActivity"     component={AddActivityScreen}       options={{ presentation: 'modal' }} />
+    <Stack.Screen name="MealLog"         component={MealLogScreen}           options={{ presentation: 'modal' }} />
+    <Stack.Screen name="FoodSearch"      component={FoodSearchScreen}        options={{ presentation: 'modal' }} />
+    <Stack.Screen name="NutritionProfile" component={NutritionProfileScreen} options={{ presentation: 'modal' }} />
   </Stack.Navigator>
 );
 
+// ─── Root navigator ───────────────────────────────────────────────────────────
 const AppNavigator = () => {
-  const { user, isLoading } = useAuth();
-  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  const { isLoading, isAuthenticated, isOnboardingComplete, markOnboardingComplete } = useAuth();
 
-  useEffect(() => {
-    AsyncStorage.getItem('onboarding_completed').then(val => {
-      setOnboardingDone(val === 'true');
-    });
-  }, []);
+  // Espera a que AuthContext cargue los tokens de SecureStore
+  if (isLoading) return <LoadingScreen />;
 
-  if (isLoading || onboardingDone === null) {
-    return <LoadingScreen />;
-  }
-
-  if (!onboardingDone) {
+  // Onboarding first — antes de login
+  if (!isOnboardingComplete) {
     return (
-      <OnboardingScreen onComplete={() => setOnboardingDone(true)} />
+      <OnboardingProvider>
+        <OnboardingNavigator onComplete={markOnboardingComplete} />
+      </OnboardingProvider>
     );
   }
 
   return (
     <NavigationContainer>
-      {user ? <MainNavigator /> : <AuthNavigator />}
+      {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );
 };

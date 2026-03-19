@@ -45,7 +45,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
     setIsLoading(true);
     try {
-      await login(credentials);
+      await login(credentials.username, credentials.password);
     } catch (error: any) {
       Alert.alert('Login Failed', error?.response?.data?.detail || 'An error occurred');
     } finally {

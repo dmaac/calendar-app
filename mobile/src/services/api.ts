@@ -1,208 +1,221 @@
-import axios, { AxiosInstance } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+/**
+ * api.ts — HTTP transport layer
+ *
+ * - Único axios instance para toda la app
+ * - Request interceptor: inyecta Bearer token
+ * - Response interceptor: en 401, intenta refresh automático (rolling refresh)
+ *   y reintenta la request original una vez
+ * - Preserva compatibilidad con todos los endpoints existentes
+ */
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
-import {
-  User,
-  Activity,
-  ActivityCreate,
-  LoginRequest,
-  RegisterRequest,
-  Food,
-  MealLog,
-  MealLogCreate,
-  DailySummary,
-  NutritionProfile,
-  NutritionProfileCreate,
-  MacroTargets,
-} from '../types';
+import * as authService from './auth.service';
 
-// Configure base URL based on platform and environment
-const getBaseUrl = () => {
+// ─── Base URL ─────────────────────────────────────────────────────────────────
+
+const getBaseUrl = (): string => {
   if (__DEV__) {
-    // Development mode
-    if (Platform.OS === 'web') {
-      return 'http://localhost:8000'; // Web browser
-    } else if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:8000'; // Android emulator localhost
-    } else {
-      // Physical device or iOS simulator - use local network IP
-      return 'http://172.20.10.13:8000';
-    }
-  } else {
-    // Production mode - replace with your production API URL
-    return 'http://localhost:8000';
+    if (Platform.OS === 'web')     return 'http://localhost:8000';
+    if (Platform.OS === 'android') return 'http://10.0.2.2:8000';
+    return 'http://172.20.10.13:8000'; // iOS físico — cambiar por tu IP local
   }
+  return process.env.EXPO_PUBLIC_API_URL ?? 'https://api.calai.app';
 };
 
-const BASE_URL = getBaseUrl();
+export const BASE_URL = getBaseUrl();
+authService.setBaseUrl(BASE_URL);
 
-class ApiService {
-  private api: AxiosInstance;
+// ─── Axios instance ───────────────────────────────────────────────────────────
 
-  constructor() {
-    this.api = axios.create({
-      baseURL: BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+let _isRefreshing = false;
+let _refreshQueue: Array<(token: string | null) => void> = [];
 
-    // Add token to requests automatically
-    this.api.interceptors.request.use(async (config) => {
-      const token = await AsyncStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+const processQueue = (token: string | null) => {
+  _refreshQueue.forEach(cb => cb(token));
+  _refreshQueue = [];
+};
+
+const api: AxiosInstance = axios.create({
+  baseURL: BASE_URL,
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// ── Request: inject access token ──────────────────────────────────────────────
+api.interceptors.request.use(async (config) => {
+  const token = await authService.getAccessToken();
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// ── Response: handle 401 with token refresh ───────────────────────────────────
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+    // 307 redirect — maintain auth headers
+    if (error.response?.status === 307 && !original._retry) {
+      original._retry = true;
+      const location = error.response.headers.location;
+      if (location) {
+        const token = await authService.getAccessToken();
+        const url = location.startsWith('http') ? location : `${BASE_URL}${location}`;
+        original.url = url;
+        if (token) (original.headers as any).Authorization = `Bearer ${token}`;
+        return api.request(original);
       }
-      return config;
-    });
+    }
 
-    // Handle redirects and maintain auth headers
-    this.api.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        const original = error.config;
+    // 401 — try refresh once
+    if (error.response?.status === 401 && !original._retry) {
+      original._retry = true;
 
-        // If we get a 307 redirect, retry with the correct URL and maintain headers
-        if (error.response?.status === 307 && !original._retry) {
-          original._retry = true;
-          const redirectUrl = error.response.headers.location;
-          if (redirectUrl) {
-            const token = await AsyncStorage.getItem('token');
-            const newUrl = redirectUrl.startsWith('http') ? redirectUrl : `${BASE_URL}${redirectUrl}`;
-            original.url = newUrl;
-            if (token) {
-              original.headers.Authorization = `Bearer ${token}`;
+      if (_isRefreshing) {
+        // Queue this request until refresh completes
+        return new Promise((resolve, reject) => {
+          _refreshQueue.push((newToken) => {
+            if (newToken) {
+              (original.headers as any).Authorization = `Bearer ${newToken}`;
+              resolve(api.request(original));
+            } else {
+              reject(error);
             }
-            return this.api.request(original);
-          }
-        }
-
-        return Promise.reject(error);
+          });
+        });
       }
-    );
+
+      _isRefreshing = true;
+
+      try {
+        const tokens = await authService.refreshSession();
+        _isRefreshing = false;
+
+        if (tokens) {
+          processQueue(tokens.access_token);
+          (original.headers as any).Authorization = `Bearer ${tokens.access_token}`;
+          return api.request(original);
+        } else {
+          processQueue(null);
+          // Refresh failed — session expired, app will detect via AuthContext
+          return Promise.reject(error);
+        }
+      } catch (refreshError) {
+        _isRefreshing = false;
+        processQueue(null);
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
   }
+);
 
-  // Auth endpoints
-  async login(credentials: LoginRequest) {
-    // OAuth2 expects form-urlencoded with username and password fields
-    const params = new URLSearchParams();
-    params.append('username', credentials.username);
-    params.append('password', credentials.password);
+// ─── Domain methods (legacy + new) ────────────────────────────────────────────
+// Mantiene compatibilidad con todas las pantallas existentes
 
-    const response = await this.api.post('/auth/login', params, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
-    return response.data;
-  }
+const ApiService = {
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  async login(credentials: { username: string; password: string }) {
+    return authService.login(credentials);
+  },
 
-  async register(userData: RegisterRequest): Promise<User> {
-    const response = await this.api.post('/auth/register', userData);
-    return response.data;
-  }
+  async register(userData: { email: string; password: string; first_name?: string; last_name?: string }) {
+    return authService.register(userData);
+  },
 
-  async getCurrentUser(): Promise<User> {
-    const response = await this.api.get('/auth/me');
-    return response.data;
-  }
+  async getCurrentUser() {
+    const res = await api.get('/auth/me');
+    return res.data;
+  },
 
-  // Activity endpoints
-  async getActivities(startDate?: string, endDate?: string): Promise<Activity[]> {
+  // ── Activities ────────────────────────────────────────────────────────────
+  async getActivities(startDate?: string, endDate?: string) {
     const params = new URLSearchParams();
     if (startDate) params.append('start_date', startDate);
-    if (endDate) params.append('end_date', endDate);
+    if (endDate)   params.append('end_date', endDate);
+    const res = await api.get(`/activities/?${params}`);
+    return res.data;
+  },
 
-    const response = await this.api.get(`/activities/?${params.toString()}`);
-    return response.data;
-  }
+  async getActivity(id: number) {
+    const res = await api.get(`/activities/${id}`);
+    return res.data;
+  },
 
-  async getActivity(id: number): Promise<Activity> {
-    const response = await this.api.get(`/activities/${id}`);
-    return response.data;
-  }
+  async createActivity(data: any) {
+    const res = await api.post('/activities/', data);
+    return res.data;
+  },
 
-  async createActivity(activityData: ActivityCreate): Promise<Activity> {
-    const response = await this.api.post('/activities/', activityData);
-    return response.data;
-  }
+  async updateActivity(id: number, data: any) {
+    const res = await api.put(`/activities/${id}`, data);
+    return res.data;
+  },
 
-  async updateActivity(id: number, activityData: Partial<ActivityCreate>): Promise<Activity> {
-    const response = await this.api.put(`/activities/${id}`, activityData);
-    return response.data;
-  }
+  async deleteActivity(id: number) {
+    await api.delete(`/activities/${id}`);
+  },
 
-  async deleteActivity(id: number): Promise<void> {
-    await this.api.delete(`/activities/${id}`);
-  }
-
-  // Food endpoints
-  async searchFoods(query?: string, limit: number = 50): Promise<Food[]> {
+  // ── Foods ─────────────────────────────────────────────────────────────────
+  async searchFoods(query?: string, limit = 50) {
     const params = new URLSearchParams();
     if (query) params.append('query', query);
     params.append('limit', limit.toString());
-    const response = await this.api.get(`/foods/?${params.toString()}`);
-    return response.data;
-  }
+    const res = await api.get(`/foods/?${params}`);
+    return res.data;
+  },
 
-  async getFood(id: number): Promise<Food> {
-    const response = await this.api.get(`/foods/${id}`);
-    return response.data;
-  }
+  async getFood(id: number) {
+    const res = await api.get(`/foods/${id}`);
+    return res.data;
+  },
 
-  // Meal endpoints
-  async logMeal(mealData: MealLogCreate): Promise<MealLog> {
-    const response = await this.api.post('/meals/', mealData);
-    return response.data;
-  }
+  // ── Meals ─────────────────────────────────────────────────────────────────
+  async logMeal(data: any) {
+    const res = await api.post('/meals/', data);
+    return res.data;
+  },
 
-  async getMeals(date: string): Promise<MealLog[]> {
-    const response = await this.api.get(`/meals/?target_date=${date}`);
-    return response.data;
-  }
+  async getMeals(date: string) {
+    const res = await api.get(`/meals/?target_date=${date}`);
+    return res.data;
+  },
 
-  async deleteMeal(id: number): Promise<void> {
-    await this.api.delete(`/meals/${id}`);
-  }
+  async deleteMeal(id: number) {
+    await api.delete(`/meals/${id}`);
+  },
 
-  async getDailySummary(date: string): Promise<DailySummary> {
-    const response = await this.api.get(`/meals/summary?target_date=${date}`);
-    return response.data;
-  }
+  async getDailySummary(date: string) {
+    const res = await api.get(`/meals/summary?target_date=${date}`);
+    return res.data;
+  },
 
-  async updateWater(date: string, waterMl: number): Promise<void> {
-    await this.api.post(`/meals/water?target_date=${date}&water_ml=${waterMl}`);
-  }
+  async updateWater(date: string, waterMl: number) {
+    await api.post(`/meals/water?target_date=${date}&water_ml=${waterMl}`);
+  },
 
-  // Nutrition profile endpoints
-  async getNutritionProfile(): Promise<NutritionProfile> {
-    const response = await this.api.get('/nutrition-profile/');
-    return response.data;
-  }
+  // ── Nutrition profile ─────────────────────────────────────────────────────
+  async getNutritionProfile() {
+    const res = await api.get('/nutrition-profile/');
+    return res.data;
+  },
 
-  async createOrUpdateNutritionProfile(profileData: NutritionProfileCreate): Promise<NutritionProfile> {
-    const response = await this.api.post('/nutrition-profile/', profileData);
-    return response.data;
-  }
+  async createOrUpdateNutritionProfile(data: any) {
+    const res = await api.post('/nutrition-profile/', data);
+    return res.data;
+  },
 
-  async calculateTargets(
-    heightCm: number,
-    weightKg: number,
-    age: number,
-    gender: string,
-    activityLevel: string,
-    goal: string,
-  ): Promise<MacroTargets> {
-    const response = await this.api.post('/nutrition-profile/calculate-targets', {
-      height_cm: heightCm,
-      weight_kg: weightKg,
-      age,
-      gender,
-      activity_level: activityLevel,
-      goal,
+  async calculateTargets(heightCm: number, weightKg: number, age: number, gender: string, activityLevel: string, goal: string) {
+    const res = await api.post('/nutrition-profile/calculate-targets', {
+      height_cm: heightCm, weight_kg: weightKg, age, gender, activity_level: activityLevel, goal,
     });
-    return response.data;
-  }
-}
+    return res.data;
+  },
+};
 
-export default new ApiService();
+export { api };
+export default ApiService;

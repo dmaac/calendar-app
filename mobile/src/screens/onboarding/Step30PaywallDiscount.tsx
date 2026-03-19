@@ -1,0 +1,150 @@
+import React, { useRef, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, typography, spacing, radius } from '../../theme';
+import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
+import PrimaryButton from '../../components/onboarding/PrimaryButton';
+import { StepProps } from './OnboardingNavigator';
+
+const COUNTDOWN_SECS = 15 * 60; // 15 minutes
+
+function useCountdown(seconds: number) {
+  const [remaining, setRemaining] = useState(seconds);
+  useEffect(() => {
+    const t = setInterval(() => setRemaining(r => Math.max(0, r - 1)), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+  const s = String(remaining % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps }: StepProps) {
+  const countdown = useCountdown(COUNTDOWN_SECS);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+    // Pulse the discount badge
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        {/* Discount badge */}
+        <Animated.View style={[styles.discountBadge, { transform: [{ scale: pulseAnim }] }]}>
+          <Text style={styles.discountText}>80% OFF</Text>
+          <Text style={styles.discountSub}>FOREVER</Text>
+        </Animated.View>
+
+        <Text style={styles.title}>Special offer{'\n'}just for you</Text>
+
+        {/* Price comparison */}
+        <View style={styles.priceCard}>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceOld}>$12.99</Text>
+            <Text style={styles.priceLabel}>Monthly</Text>
+          </View>
+          <View style={styles.priceDivider} />
+          <View style={styles.priceRowNew}>
+            <Text style={styles.priceNew}>$2.49</Text>
+            <Text style={styles.pricePerMonth}>/month</Text>
+          </View>
+          <Text style={styles.priceNote}>Billed as $29.99/year · First 3 days FREE</Text>
+        </View>
+
+        {/* Timer */}
+        <View style={styles.timerRow}>
+          <Ionicons name="timer-outline" size={18} color={colors.accent} />
+          <Text style={styles.timerText}>Offer expires in </Text>
+          <Text style={styles.timerValue}>{countdown}</Text>
+        </View>
+
+        {/* Guarantee */}
+        <View style={styles.guaranteeRow}>
+          <Ionicons name="shield-checkmark-outline" size={16} color={colors.gray} />
+          <Text style={styles.guaranteeText}>30-day money-back guarantee · Cancel anytime</Text>
+        </View>
+      </Animated.View>
+
+      <View style={styles.footer}>
+        <PrimaryButton label="Claim 80% OFF — Free Trial" onPress={onNext} />
+        <TouchableOpacity onPress={onNext} style={styles.skipBtn}>
+          <Text style={styles.skipText}>No thanks, I'll pay full price</Text>
+        </TouchableOpacity>
+      </View>
+    </OnboardingLayout>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xl },
+  discountBadge: {
+    backgroundColor: colors.accent,
+    borderRadius: 20,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  discountText: { fontSize: 36, fontWeight: '900', color: colors.white, letterSpacing: -1 },
+  discountSub: { ...typography.label, color: 'rgba(255,255,255,0.8)', letterSpacing: 2 },
+  title: { ...typography.title, color: colors.black, textAlign: 'center' },
+  priceCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: spacing.lg,
+    width: '100%',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  priceOld: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.gray,
+    textDecorationLine: 'line-through',
+  },
+  priceLabel: { ...typography.label, color: colors.gray },
+  priceDivider: { width: '60%', height: 1, backgroundColor: colors.grayLight },
+  priceRowNew: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  priceNew: { fontSize: 48, fontWeight: '900', color: colors.black, letterSpacing: -2 },
+  pricePerMonth: { ...typography.subtitle, color: colors.gray },
+  priceNote: { ...typography.caption, color: colors.gray, textAlign: 'center' },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: '#FFF0EC',
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  timerText: { ...typography.label, color: colors.black },
+  timerValue: { ...typography.label, color: colors.accent, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  guaranteeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  guaranteeText: { ...typography.caption, color: colors.gray },
+  footer: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: spacing.lg,
+    right: spacing.lg,
+    gap: spacing.sm,
+  },
+  skipBtn: { alignItems: 'center', paddingVertical: spacing.xs },
+  skipText: { ...typography.caption, color: colors.gray },
+});

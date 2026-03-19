@@ -1,6 +1,7 @@
 from typing import Optional
 from datetime import datetime
-from sqlmodel import Session, select
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select
 from ..models.nutrition_profile import (
     UserNutritionProfile,
     UserNutritionProfileCreate,
@@ -12,19 +13,20 @@ from ..models.nutrition_profile import (
 
 
 class NutritionService:
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
-    def get_profile(self, user_id: int) -> Optional[UserNutritionProfile]:
+    async def get_profile(self, user_id: int) -> Optional[UserNutritionProfile]:
         statement = select(UserNutritionProfile).where(
             UserNutritionProfile.user_id == user_id
         )
-        return self.session.exec(statement).first()
+        result = await self.session.exec(statement)
+        return result.first()
 
-    def create_or_update_profile(
+    async def create_or_update_profile(
         self, user_id: int, profile_data: UserNutritionProfileCreate
     ) -> UserNutritionProfile:
-        existing = self.get_profile(user_id)
+        existing = await self.get_profile(user_id)
 
         if existing:
             update_data = profile_data.dict(exclude_unset=True)
@@ -40,8 +42,8 @@ class NutritionService:
             existing.updated_at = datetime.utcnow()
 
             self.session.add(existing)
-            self.session.commit()
-            self.session.refresh(existing)
+            await self.session.commit()
+            await self.session.refresh(existing)
             return existing
         else:
             profile = UserNutritionProfile(
@@ -57,14 +59,14 @@ class NutritionService:
             profile.target_fat_g = targets["target_fat_g"]
 
             self.session.add(profile)
-            self.session.commit()
-            self.session.refresh(profile)
+            await self.session.commit()
+            await self.session.refresh(profile)
             return profile
 
-    def update_profile(
+    async def update_profile(
         self, user_id: int, profile_update: UserNutritionProfileUpdate
     ) -> Optional[UserNutritionProfile]:
-        profile = self.get_profile(user_id)
+        profile = await self.get_profile(user_id)
         if not profile:
             return None
 
@@ -74,8 +76,8 @@ class NutritionService:
                 setattr(profile, field, value)
             profile.updated_at = datetime.utcnow()
             self.session.add(profile)
-            self.session.commit()
-            self.session.refresh(profile)
+            await self.session.commit()
+            await self.session.refresh(profile)
 
         return profile
 

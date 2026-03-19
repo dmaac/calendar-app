@@ -1,105 +1,222 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+/**
+ * AuthContext — estado global de autenticación
+ *
+ * Tokens → SecureStore (Keychain/EncryptedSharedPreferences)
+ * En cold launch: lee token de SecureStore → si expirado intenta refresh → carga usuario
+ * Soporta: email, Apple Sign In, Google OAuth
+ */
+import React, {
+  createContext, useContext, useEffect, useState,
+  useCallback, ReactNode,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
+import { User } from '../types';
+import * as authService from '../services/auth.service';
 import ApiService from '../services/api';
-import { User, AuthState, LoginRequest, RegisterRequest } from '../types';
 
-interface AuthContextType extends AuthState {
-  login: (credentials: LoginRequest) => Promise<void>;
-  register: (userData: RegisterRequest) => Promise<void>;
+WebBrowser.maybeCompleteAuthSession();
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface AuthContextType {
+  // State
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  isPremium: boolean;
+  isOnboardingComplete: boolean;
+
+  // Methods
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
+  loginWithApple: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  markOnboardingComplete: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+// ─── Google OAuth config ──────────────────────────────────────────────────────
+// Redirect URI for Google — in production use your bundle ID
+const GOOGLE_CLIENT_ID_IOS     = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ?? '';
+const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID ?? '';
+const GOOGLE_CLIENT_ID_WEB     = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ?? '';
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+const googleClientId = Platform.select({
+  ios:     GOOGLE_CLIENT_ID_IOS,
+  android: GOOGLE_CLIENT_ID_ANDROID,
+  default: GOOGLE_CLIENT_ID_WEB,
+}) ?? '';
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser]         = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
 
+  // Google OAuth flow
+  const [googleRequest, googleResponse, googlePromptAsync] = AuthSession.useAuthRequest(
+    {
+      clientId: googleClientId,
+      scopes: ['openid', 'profile', 'email'],
+      responseType: AuthSession.ResponseType.IdToken,
+      redirectUri: AuthSession.makeRedirectUri(),
+      extraParams: { nonce: 'nonce' },
+    },
+    { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' }
+  );
+
+  // ── Cold launch: load stored session ───────────────────────────────────────
   useEffect(() => {
-    loadStoredAuth();
+    loadStoredSession();
   }, []);
 
-  const loadStoredAuth = async () => {
-    try {
-      const storedToken = await AsyncStorage.getItem('token');
-      if (storedToken) {
-        setToken(storedToken);
-        const userData = await ApiService.getCurrentUser();
-        setUser(userData);
+  // ── Handle Google OAuth response ───────────────────────────────────────────
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const idToken = googleResponse.params?.id_token;
+      if (idToken) {
+        handleGoogleToken(idToken);
       }
-    } catch (error) {
-      console.error('Error loading stored auth:', error);
-      await logout();
+    }
+  }, [googleResponse]);
+
+  const loadStoredSession = async () => {
+    try {
+      setIsLoading(true);
+      const [accessToken, onboardingFlag] = await Promise.all([
+        authService.getAccessToken(),
+        AsyncStorage.getItem('onboarding_completed'),
+      ]);
+
+      setIsOnboardingComplete(onboardingFlag === 'true');
+
+      if (!accessToken) return;
+
+      // If access token expired, try refresh first
+      if (authService.isTokenExpired(accessToken)) {
+        const newTokens = await authService.refreshSession();
+        if (!newTokens) return; // refresh failed → stay logged out
+      }
+
+      // Load user profile
+      const userData = await ApiService.getCurrentUser();
+      setUser(userData);
+    } catch (err) {
+      // Session invalid — clear and start fresh
+      await authService.clearTokens();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const login = async (credentials: LoginRequest) => {
+  const fetchAndSetUser = async () => {
+    const userData = await ApiService.getCurrentUser();
+    setUser(userData);
+    return userData;
+  };
+
+  // ── Email login ────────────────────────────────────────────────────────────
+  const login = useCallback(async (email: string, password: string) => {
+    await authService.login({ username: email, password });
+    await fetchAndSetUser();
+  }, []);
+
+  // ── Email register ─────────────────────────────────────────────────────────
+  const register = useCallback(async (
+    email: string, password: string,
+    firstName?: string, lastName?: string,
+  ) => {
+    await authService.register({ email, password, first_name: firstName, last_name: lastName });
+    // After register, login
+    await authService.login({ username: email, password });
+    await fetchAndSetUser();
+  }, []);
+
+  // ── Apple Sign In ──────────────────────────────────────────────────────────
+  const loginWithApple = useCallback(async () => {
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+
+    await authService.loginWithApple({
+      identity_token:     credential.identityToken ?? '',
+      authorization_code: credential.authorizationCode ?? '',
+      first_name:         credential.fullName?.givenName  ?? undefined,
+      last_name:          credential.fullName?.familyName ?? undefined,
+    });
+
+    await fetchAndSetUser();
+  }, []);
+
+  // ── Google Sign In ─────────────────────────────────────────────────────────
+  const loginWithGoogle = useCallback(async () => {
+    if (!googleClientId) {
+      throw new Error('Google client ID not configured. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS/ANDROID/WEB in .env');
+    }
+    await googlePromptAsync();
+    // Result is handled by the useEffect watching googleResponse
+  }, [googlePromptAsync]);
+
+  const handleGoogleToken = async (idToken: string) => {
     try {
-      const response = await ApiService.login(credentials);
-      const { access_token } = response;
-
-      await AsyncStorage.setItem('token', access_token);
-      setToken(access_token);
-
-      const userData = await ApiService.getCurrentUser();
-      setUser(userData);
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      await authService.loginWithGoogle({ id_token: idToken });
+      await fetchAndSetUser();
+    } catch (err) {
+      console.error('Google login error:', err);
     }
   };
 
-  const register = async (userData: RegisterRequest) => {
-    try {
-      await ApiService.register(userData);
-      // After registration, login with the same credentials
-      await login({ username: userData.email, password: userData.password });
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
-  };
+  // ── Logout ─────────────────────────────────────────────────────────────────
+  const logout = useCallback(async () => {
+    await authService.logout();
+    await AsyncStorage.multiRemove(['onboarding_completed', 'onboarding_data_v2', 'onboarding_current_step']);
+    setUser(null);
+    setIsOnboardingComplete(false);
+  }, []);
 
-  const logout = async () => {
-    try {
-      // Clear token from AsyncStorage
-      await AsyncStorage.removeItem('token');
+  // ── Mark onboarding complete ───────────────────────────────────────────────
+  const markOnboardingComplete = useCallback(async () => {
+    await AsyncStorage.setItem('onboarding_completed', 'true');
+    setIsOnboardingComplete(true);
+  }, []);
 
-      // Clear all auth state
-      setToken(null);
-      setUser(null);
+  // ── Refresh user from API ──────────────────────────────────────────────────
+  const refreshUser = useCallback(async () => {
+    const userData = await ApiService.getCurrentUser();
+    setUser(userData);
+  }, []);
 
-      console.log('Logout successful - User logged out');
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Force clear state even if AsyncStorage fails
-      setToken(null);
-      setUser(null);
-    }
-  };
-
+  // ─────────────────────────────────────────────────────────────────────────
   const value: AuthContextType = {
     user,
-    token,
     isLoading,
+    isAuthenticated: !!user,
+    isPremium: user?.is_premium ?? false,
+    isOnboardingComplete,
     login,
     register,
+    loginWithApple,
+    loginWithGoogle,
     logout,
+    markOnboardingComplete,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
