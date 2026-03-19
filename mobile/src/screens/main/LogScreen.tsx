@@ -270,9 +270,17 @@ export default function LogScreen({ navigation }: any) {
           <Text style={styles.headerTitle}>Registro</Text>
           <Text style={styles.headerDate}>{today}</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => openAddModal('snack')}>
-          <Ionicons name="add" size={22} color={colors.white} />
-        </TouchableOpacity>
+        <View style={styles.headerBtns}>
+          <TouchableOpacity
+            style={styles.historyBtn}
+            onPress={() => navigation.navigate('History')}
+          >
+            <Ionicons name="calendar-outline" size={18} color={colors.black} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addBtn} onPress={() => openAddModal('snack')}>
+            <Ionicons name="add" size={22} color={colors.white} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Error banner */}
@@ -399,6 +407,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...typography.titleSm, color: colors.black },
   headerDate: { ...typography.caption, color: colors.gray, marginTop: 2, textTransform: 'capitalize' },
+  headerBtns: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  historyBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center',
+  },
   addBtn: {
     width: 36,
     height: 36,

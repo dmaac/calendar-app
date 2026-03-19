@@ -15,9 +15,11 @@ import HomeScreen     from '../screens/main/HomeScreen';
 import ScanScreen     from '../screens/main/ScanScreen';
 import LogScreen      from '../screens/main/LogScreen';
 import AddFoodScreen  from '../screens/main/AddFoodScreen';
-import EditFoodScreen from '../screens/main/EditFoodScreen';
-import ProfileScreen  from '../screens/main/ProfileScreen';
-import PaywallScreen  from '../screens/main/PaywallScreen';
+import EditFoodScreen    from '../screens/main/EditFoodScreen';
+import HistoryScreen     from '../screens/main/HistoryScreen';
+import ProfileScreen     from '../screens/main/ProfileScreen';
+import EditProfileScreen from '../screens/main/EditProfileScreen';
+import PaywallScreen     from '../screens/main/PaywallScreen';
 
 const Stack = createStackNavigator();
 
@@ -39,8 +41,9 @@ const TAB_ICONS: Record<string, [TabIconName, TabIconName]> = {
 // Stack navigators para tabs que necesitan navegación anidada
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-    <Stack.Screen name="Paywall"     component={PaywallScreen} />
+    <Stack.Screen name="ProfileMain"  component={ProfileScreen} />
+    <Stack.Screen name="Paywall"      component={PaywallScreen} />
+    <Stack.Screen name="EditProfile"  component={EditProfileScreen} />
   </Stack.Navigator>
 );
 
@@ -49,6 +52,7 @@ const LogStack = () => (
     <Stack.Screen name="LogMain"   component={LogScreen} />
     <Stack.Screen name="AddFood"   component={AddFoodScreen} />
     <Stack.Screen name="EditFood"  component={EditFoodScreen} />
+    <Stack.Screen name="History"   component={HistoryScreen} />
   </Stack.Navigator>
 );
 

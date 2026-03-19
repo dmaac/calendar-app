@@ -160,6 +160,13 @@ export default function ProfileScreen({ navigation }: any) {
           <Row icon="scale-outline"       label="Peso actual"  value={weightVal} />
           <Row icon="trophy-outline"      label="Objetivo"     value={goalLabel} />
           <Row icon="speedometer-outline" label="Peso objetivo" value={targetWeight} />
+          {profile && (
+            <Row
+              icon="create-outline"
+              label="Editar datos"
+              onPress={() => navigation.navigate('EditProfile', { profile })}
+            />
+          )}
         </View>
 
         {/* Nutrición */}
