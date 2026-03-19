@@ -10,127 +10,152 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { RegisterRequest } from '../types';
-import { theme } from '../theme';
+import { colors, typography, spacing, radius, useLayout } from '../theme';
 
 interface RegisterScreenProps {
   navigation: any;
 }
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
-  const [userData, setUserData] = useState<RegisterRequest>({
-    email: '',
-    first_name: '',
-    last_name: '',
-    password: '',
-  });
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [firstName, setFirstName]       = useState('');
+  const [lastName, setLastName]         = useState('');
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [confirmPass, setConfirmPass]   = useState('');
+  const [showPass, setShowPass]         = useState(false);
+  const [loading, setLoading]           = useState(false);
   const { register } = useAuth();
+  const { sidePadding } = useLayout();
 
   const handleRegister = async () => {
-    if (!userData.email || !userData.first_name || !userData.last_name || !userData.password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!firstName || !email || !password) {
+      Alert.alert('Error', 'Completa los campos obligatorios');
       return;
     }
-
-    if (userData.password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+    if (password.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
-
-    if (userData.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+    if (password !== confirmPass) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
-
-    setIsLoading(true);
+    setLoading(true);
     try {
-      await register(userData.email, userData.password, userData.first_name, userData.last_name);
-      Alert.alert('Success', 'Account created successfully!');
+      await register(email, password, firstName, lastName);
     } catch (error: any) {
-      Alert.alert('Registration Failed', error?.response?.data?.detail || 'An error occurred');
+      Alert.alert('Error al registrarse', error?.response?.data?.detail || 'Inténtalo de nuevo');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join NutriTrack today</Text>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Crear cuenta</Text>
+          <Text style={styles.subtitle}>Únete y empieza tu camino hacia una mejor nutrición</Text>
+        </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="First Name"
-            placeholderTextColor={theme.colors.textLight}
-            value={userData.first_name}
-            onChangeText={(text) => setUserData({ ...userData, first_name: text })}
-            autoCapitalize="words"
-          />
+        {/* Formulario */}
+        <View style={styles.form}>
+          <View style={styles.nameRow}>
+            <View style={[styles.inputWrapper, { flex: 1 }]}>
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre *"
+                placeholderTextColor={colors.gray}
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={[styles.inputWrapper, { flex: 1 }]}>
+              <TextInput
+                style={styles.input}
+                placeholder="Apellido"
+                placeholderTextColor={colors.gray}
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Last Name"
-            placeholderTextColor={theme.colors.textLight}
-            value={userData.last_name}
-            onChangeText={(text) => setUserData({ ...userData, last_name: text })}
-            autoCapitalize="words"
-          />
+          <View style={styles.inputWrapper}>
+            <Ionicons name="mail-outline" size={20} color={colors.gray} />
+            <TextInput
+              style={styles.input}
+              placeholder="Correo electrónico *"
+              placeholderTextColor={colors.gray}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={theme.colors.textLight}
-            value={userData.email}
-            onChangeText={(text) => setUserData({ ...userData, email: text })}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+          <View style={styles.inputWrapper}>
+            <Ionicons name="lock-closed-outline" size={20} color={colors.gray} />
+            <TextInput
+              style={styles.input}
+              placeholder="Contraseña (mín. 6 caracteres) *"
+              placeholderTextColor={colors.gray}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPass}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity onPress={() => setShowPass(v => !v)}>
+              <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.gray} />
+            </TouchableOpacity>
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={theme.colors.textLight}
-            value={userData.password}
-            onChangeText={(text) => setUserData({ ...userData, password: text })}
-            secureTextEntry
-            autoCapitalize="none"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            placeholderTextColor={theme.colors.textLight}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            autoCapitalize="none"
-          />
+          <View style={styles.inputWrapper}>
+            <Ionicons name="lock-closed-outline" size={20} color={colors.gray} />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirmar contraseña *"
+              placeholderTextColor={colors.gray}
+              value={confirmPass}
+              onChangeText={setConfirmPass}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+          </View>
 
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.btn, loading && styles.btnDisabled]}
             onPress={handleRegister}
-            disabled={isLoading}
+            disabled={loading}
+            activeOpacity={0.85}
           >
-            <Text style={styles.buttonText}>
-              {isLoading ? 'Creating Account...' : 'Create Account'}
-            </Text>
+            <Text style={styles.btnText}>{loading ? 'Creando cuenta...' : 'Crear cuenta'}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.linkButton}
-            onPress={() => navigation.navigate('Login')}
-          >
+          <Text style={styles.terms}>
+            Al registrarte aceptas nuestros{' '}
+            <Text style={styles.termsBold}>Términos de uso</Text>
+            {' '}y{' '}
+            <Text style={styles.termsBold}>Política de privacidad</Text>.
+          </Text>
+
+          <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('Login')}>
             <Text style={styles.linkText}>
-              Already have an account? <Text style={styles.linkTextBold}>Sign in</Text>
+              ¿Ya tienes cuenta?{' '}
+              <Text style={styles.linkBold}>Iniciar sesión</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -140,73 +165,30 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
+  screen: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1, paddingVertical: spacing.xxl },
+  header: { marginBottom: spacing.xl, gap: spacing.xs },
+  title:    { ...typography.title, color: colors.black },
+  subtitle: { ...typography.subtitle, color: colors.gray, lineHeight: 20 },
+  form: { gap: spacing.sm },
+  nameRow: { flexDirection: 'row', gap: spacing.sm },
+  inputWrapper: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface, borderRadius: radius.md,
+    paddingHorizontal: spacing.md, height: 56,
   },
-  scrollContent: {
-    flexGrow: 1,
+  input: { flex: 1, ...typography.option, color: colors.black },
+  btn: {
+    height: 56, borderRadius: radius.full, backgroundColor: colors.black,
+    alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm,
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 20,
-  },
-  title: {
-    fontSize: theme.fontSize.xxl,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: theme.colors.text,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 40,
-    color: theme.colors.textSecondary,
-    fontWeight: '300',
-  },
-  input: {
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    fontSize: 16,
-    color: theme.colors.text,
-  },
-  button: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 15,
-    borderRadius: theme.borderRadius.md,
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  buttonDisabled: {
-    backgroundColor: theme.colors.primaryLight,
-  },
-  buttonText: {
-    color: '#fff',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  linkButton: {
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    fontSize: 14,
-  },
-  linkTextBold: {
-    color: theme.colors.primary,
-    fontWeight: '600',
-  },
+  btnDisabled: { backgroundColor: colors.disabled },
+  btnText: { ...typography.button, color: colors.white },
+  terms: { ...typography.caption, color: colors.gray, textAlign: 'center', lineHeight: 18 },
+  termsBold: { color: colors.black, fontWeight: '600' },
+  link: { alignItems: 'center', paddingVertical: spacing.sm },
+  linkText: { ...typography.caption, color: colors.gray },
+  linkBold: { color: colors.black, fontWeight: '700' },
 });
 
 export default RegisterScreen;
