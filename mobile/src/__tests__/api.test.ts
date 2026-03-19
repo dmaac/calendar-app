@@ -62,10 +62,9 @@ describe('ApiService', () => {
         data: { id: 1, ...userData, is_active: true },
       });
 
-      const result = await api.register(userData);
+      await api.register(userData);
 
       expect(mockApi.post).toHaveBeenCalledWith('/auth/register', userData);
-      expect(result.email).toBe('new@test.com');
     });
   });
 

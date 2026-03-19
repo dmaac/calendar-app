@@ -55,7 +55,7 @@ const AddActivityScreen: React.FC<AddActivityScreenProps> = ({ navigation, route
       // Check for duplicate titles by fetching all activities
       const existingActivities = await ApiService.getActivities();
       const duplicateTitle = existingActivities.find(
-        (existingActivity) => existingActivity.title.toLowerCase() === activity.title.trim().toLowerCase()
+        (existingActivity: any) => existingActivity.title.toLowerCase() === activity.title.trim().toLowerCase()
       );
 
       if (duplicateTitle) {

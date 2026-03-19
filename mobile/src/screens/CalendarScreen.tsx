@@ -62,7 +62,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
       );
 
       const marked: any = {};
-      monthActivities.forEach((activity) => {
+      monthActivities.forEach((activity: any) => {
         const activityDate = new Date(activity.start_time).toISOString().split('T')[0];
         if (!marked[activityDate]) {
           marked[activityDate] = { marked: true, dotColor: theme.colors.primary };

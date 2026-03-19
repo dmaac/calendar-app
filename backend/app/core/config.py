@@ -49,7 +49,10 @@ class Settings(BaseSettings):
     def derive_async_url(cls, v, values):
         if not v and 'database_url' in values:
             db_url = str(values['database_url'])
-            return db_url.replace('postgresql://', 'postgresql+asyncpg://', 1).replace('postgres://', 'postgresql+asyncpg://', 1)
+            return (db_url
+                    .replace('postgresql://', 'postgresql+asyncpg://', 1)
+                    .replace('postgres://', 'postgresql+asyncpg://', 1)
+                    .replace('sqlite://', 'sqlite+aiosqlite://', 1))
         return v
 
     class Config:

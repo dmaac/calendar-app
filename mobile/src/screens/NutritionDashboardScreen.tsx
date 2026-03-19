@@ -51,15 +51,16 @@ const NutritionDashboardScreen: React.FC<NutritionDashboardScreenProps> = ({ nav
         setSummary({
           date: today,
           total_calories: 0,
-          total_protein: 0,
-          total_carbs: 0,
-          total_fat: 0,
+          total_protein_g: 0,
+          total_carbs_g: 0,
+          total_fats_g: 0,
           target_calories: 2000,
-          target_protein: 150,
-          target_carbs: 250,
-          target_fat: 65,
+          target_protein_g: 150,
+          target_carbs_g: 250,
+          target_fats_g: 65,
           water_ml: 0,
-          meals_count: 0,
+          meals_logged: 0,
+          streak_days: 0,
         });
       }
     } finally {
