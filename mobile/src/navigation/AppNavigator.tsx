@@ -1,8 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -23,24 +21,18 @@ const AuthNavigator = () => (
 
 // ─── Root navigator ───────────────────────────────────────────────────────────
 const AppNavigator = () => {
-  const { isLoading, isAuthenticated, isOnboardingComplete, markOnboardingComplete, logout } = useAuth();
+  const { isLoading, isAuthenticated, isOnboardingComplete, markOnboardingComplete } = useAuth();
 
   // Espera a que AuthContext cargue los tokens de SecureStore
   if (isLoading) return <LoadingScreen />;
 
-  // En dev siempre arranca en onboarding para poder testear
-  if (!isOnboardingComplete || __DEV__) {
+  if (!isOnboardingComplete) {
     return (
       <OnboardingProvider>
         <OnboardingNavigator onComplete={markOnboardingComplete} />
       </OnboardingProvider>
     );
   }
-
-  const handleReset = async () => {
-    await AsyncStorage.multiRemove(['onboarding_completed', 'onboarding_data_v2', 'onboarding_current_step']);
-    await logout();
-  };
 
   return (
     <NavigationContainer>

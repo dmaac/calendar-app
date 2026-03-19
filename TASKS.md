@@ -164,6 +164,39 @@
 
 ---
 
+## ✅ FASE 8 — Pantallas adicionales + auditoría (COMPLETO)
+
+### TAREA 8.1 — EditFoodScreen ✅
+- Editar registro de comida existente, pre-llenado con valores actuales
+- Badge de confianza IA, selector de tipo de comida
+- `mobile/src/screens/main/EditFoodScreen.tsx`
+
+### TAREA 8.2 — HistoryScreen ✅
+- Navegación día a día (←/→), bloqueo de fechas futuras
+- Summary card + comidas agrupadas por tipo
+- `mobile/src/screens/main/HistoryScreen.tsx`
+
+### TAREA 8.3 — EditProfileScreen ✅
+- Editar peso, altura, objetivo con recalculo del plan en tiempo real
+- Fórmula Mifflin-St Jeor, preview nutricional
+- `mobile/src/screens/main/EditProfileScreen.tsx`
+
+### TAREA 8.4 — Auditoría profunda + 8 bug fixes ✅
+- Backend: `OnboardingStepSave` ahora acepta campos de nutrición
+- `editFoodLog` usa query params en vez de JSON body
+- `getFoodLogs`/`getDailySummary` usan fecha local (no UTC)
+- `EditProfileScreen` envía snake_case al backend
+- `HomeScreen` muestra spinner OR contenido (no ambos)
+- `ScanScreen` re-fetch solo cuando `scanState === idle`
+- `HistoryScreen` formatDate usa hora local
+- `LogScreen` tiene loading state inicial
+
+### TAREA 8.5 — AppNavigator fix ✅
+- Eliminado `|| __DEV__` que forzaba onboarding siempre en dev
+- Eliminado dead code `handleReset`
+
+---
+
 ## ⬜ TAREAS MANUALES (requieren config externa)
 
 | Tarea | Bloqueo | Detalles |
@@ -190,6 +223,7 @@
 | 2026-03-18 | FASE 5: auth (Apple/Google/email), AI food scan (GPT-4o + cache), dashboard |
 | 2026-03-18 | FASE 6: pantallas principales (Home, Scan, Log, Profile, Paywall), navegación |
 | 2026-03-19 | Bug fixes audit, FASE 7: AddFoodScreen, water tracking, subscriptions backend, notif scheduling |
+| 2026-03-19 | FASE 8: EditFoodScreen, HistoryScreen, EditProfileScreen, auditoría 8 bugs, AppNavigator fix |
 
 ---
 
