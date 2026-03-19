@@ -1,5 +1,4 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,6 +9,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import LoadingScreen from '../components/LoadingScreen';
 import OnboardingNavigator from '../screens/onboarding/OnboardingNavigator';
 import { OnboardingProvider } from '../context/OnboardingContext';
+import MainNavigator from './MainNavigator';
 
 const Stack = createStackNavigator();
 
@@ -20,29 +20,6 @@ const AuthNavigator = () => (
     <Stack.Screen name="Register" component={RegisterScreen} />
   </Stack.Navigator>
 );
-
-// ─── Placeholder: main app screens (Rama 2 — en construcción) ────────────────
-const MainNavigatorPlaceholder = ({ onReset }: { onReset: () => void }) => (
-  <View style={styles.placeholder}>
-    <Text style={styles.emoji}>🚀</Text>
-    <Text style={styles.title}>Cal AI</Text>
-    <Text style={styles.subtitle}>Pantallas principales en construcción</Text>
-    <Text style={styles.caption}>HomeScreen · ScanScreen · LogScreen</Text>
-    <TouchableOpacity style={styles.resetBtn} onPress={onReset}>
-      <Text style={styles.resetText}>↩ Reiniciar onboarding (dev)</Text>
-    </TouchableOpacity>
-  </View>
-);
-
-const styles = StyleSheet.create({
-  placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', gap: 8 },
-  emoji:    { fontSize: 56 },
-  title:    { fontSize: 28, fontWeight: '800', color: '#111' },
-  subtitle: { fontSize: 16, color: '#8E8E93' },
-  caption:  { fontSize: 12, color: '#C7C7CC', marginTop: 8 },
-  resetBtn: { marginTop: 24, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#F5F5F7', borderRadius: 20 },
-  resetText: { fontSize: 13, color: '#8E8E93' },
-});
 
 // ─── Root navigator ───────────────────────────────────────────────────────────
 const AppNavigator = () => {
@@ -68,7 +45,7 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       {isAuthenticated
-        ? <MainNavigatorPlaceholder onReset={handleReset} />
+        ? <MainNavigator />
         : <AuthNavigator />}
     </NavigationContainer>
   );
