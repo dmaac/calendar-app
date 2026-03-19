@@ -24,8 +24,8 @@ export default function Step24Referral({ onNext, onBack, step, totalSteps }: Ste
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Have a{'\n'}referral code?</Text>
-      <Text style={styles.subtitle}>Enter a friend's code to unlock a bonus discount.</Text>
+      <Text style={styles.title}>¿Tienes un{'\n'}código de referido?</Text>
+      <Text style={styles.subtitle}>Ingresa el código de un amigo para desbloquear un descuento especial.</Text>
 
       <View style={styles.content}>
         <View style={styles.giftIcon}>
@@ -36,7 +36,7 @@ export default function Step24Referral({ onNext, onBack, step, totalSteps }: Ste
           <Ionicons name="pricetag-outline" size={20} color={colors.gray} />
           <TextInput
             style={styles.input}
-            placeholder="Enter code (e.g. FRIEND20)"
+            placeholder="Ingresa tu código (ej. AMIGO20)"
             placeholderTextColor={colors.gray}
             value={code}
             onChangeText={handleChange}
@@ -52,13 +52,13 @@ export default function Step24Referral({ onNext, onBack, step, totalSteps }: Ste
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Text style={styles.hint}>
-          Both you and your friend get a special discount when you subscribe.
+          Tú y tu amigo obtienen un descuento especial al suscribirse.
         </Text>
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Apply Code" onPress={handleContinue} disabled={code.trim().length === 0} />
-        <PrimaryButton label="Skip" onPress={onNext} variant="ghost" />
+        <PrimaryButton label="Aplicar código" onPress={handleContinue} disabled={code.trim().length === 0} />
+        <PrimaryButton label="Omitir" onPress={onNext} variant="ghost" />
       </View>
     </OnboardingLayout>
   );

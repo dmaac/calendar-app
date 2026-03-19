@@ -20,13 +20,13 @@ export default function Step14Comparison({ onNext, onBack, step, totalSteps }: S
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Lose twice as much{'\n'}weight with our app{'\n'}vs on your own</Text>
+      <Text style={styles.title}>Pierde el doble de peso{'\n'}con nuestra app{'\n'}vs. por tu cuenta</Text>
 
       <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
         <View style={styles.barsContainer}>
           {/* Without app bar */}
           <View style={styles.barCol}>
-            <Text style={styles.barTopLabel}>Without{'\n'}our app</Text>
+            <Text style={styles.barTopLabel}>Sin{'\n'}nuestra app</Text>
             <View style={styles.barTrack}>
               <Animated.View
                 style={[
@@ -44,7 +44,7 @@ export default function Step14Comparison({ onNext, onBack, step, totalSteps }: S
 
           {/* With app bar */}
           <View style={styles.barCol}>
-            <Text style={[styles.barTopLabel, { color: colors.black }]}>With{'\n'}our app</Text>
+            <Text style={[styles.barTopLabel, { color: colors.black }]}>Con{'\n'}nuestra app</Text>
             <View style={styles.barTrack}>
               <Animated.View
                 style={[
@@ -62,12 +62,12 @@ export default function Step14Comparison({ onNext, onBack, step, totalSteps }: S
         </View>
 
         <Text style={styles.caption}>
-          Our app makes it easy and holds you accountable.
+          Nuestra app lo hace fácil y te mantiene comprometido.
         </Text>
       </Animated.View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

@@ -10,26 +10,26 @@ const FEATURES = [
   {
     icon: 'camera-outline',
     emoji: '📸',
-    title: 'Snap & Track',
-    desc: 'Just take a photo. Our AI identifies your food and logs every macro instantly.',
+    title: 'Fotografía y registra',
+    desc: 'Solo toma una foto. Nuestra IA identifica tu comida y registra cada macro al instante.',
   },
   {
     icon: 'person-outline',
     emoji: '🧠',
-    title: 'Truly Personal',
-    desc: 'Your plan adapts to your goals, diet, and lifestyle — not a generic template.',
+    title: '100% personalizado',
+    desc: 'Tu plan se adapta a tus objetivos, dieta y estilo de vida — no es una plantilla genérica.',
   },
   {
     icon: 'trending-down-outline',
     emoji: '📉',
-    title: 'Real Results',
-    desc: 'Users lose 2x more weight vs tracking manually. Consistency made easy.',
+    title: 'Resultados reales',
+    desc: 'Los usuarios pierden el doble de peso vs. el registro manual. La constancia nunca fue tan fácil.',
   },
   {
     icon: 'time-outline',
     emoji: '⚡',
-    title: '30 Seconds/Day',
-    desc: 'No more tedious logging. Track a full meal in seconds, not minutes.',
+    title: 'Ahorra tiempo',
+    desc: 'Sin registros tediosos. Registra una comida completa en segundos.',
   },
 ];
 
@@ -44,7 +44,7 @@ export default function Step22Flexibility({ onNext, onBack, step, totalSteps }: 
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Everything you{'\n'}need to succeed</Text>
+      <Text style={styles.title}>Todo lo que{'\n'}necesitas para lograrlo</Text>
 
       <View style={styles.grid}>
         {FEATURES.map((f, i) => (
@@ -57,7 +57,7 @@ export default function Step22Flexibility({ onNext, onBack, step, totalSteps }: 
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

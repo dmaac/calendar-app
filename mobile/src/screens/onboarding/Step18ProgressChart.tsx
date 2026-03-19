@@ -8,7 +8,7 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const CHART_HEIGHT = 200;
-const MONTHS = ['Now', '1 Month', '3 Months', '5 Months'];
+const MONTHS = ['Ahora', '1 Mes', '3 Meses', '5 Meses'];
 
 // Generates a smooth bezier path through points
 function smoothPath(points: { x: number; y: number }[]): string {
@@ -59,20 +59,20 @@ export default function Step18ProgressChart({ onNext, onBack, step, totalSteps }
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Your personalized{'\n'}weight journey</Text>
+      <Text style={styles.title}>Tu camino{'\n'}personalizado</Text>
 
       <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
         {/* Weight labels */}
         <View style={styles.weightRow}>
           <View>
-            <Text style={styles.weightLabel}>Current</Text>
+            <Text style={styles.weightLabel}>Actual</Text>
             <Text style={styles.weightValue}>{toDisplay(startWeight)} {unit}</Text>
           </View>
           <View style={styles.arrowContainer}>
             <Text style={styles.arrow}>{isLose ? '↓' : '↑'}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={styles.weightLabel}>Goal</Text>
+            <Text style={styles.weightLabel}>Meta</Text>
             <Text style={[styles.weightValue, { color: colors.accent }]}>{toDisplay(endWeight)} {unit}</Text>
           </View>
         </View>
@@ -121,12 +121,12 @@ export default function Step18ProgressChart({ onNext, onBack, step, totalSteps }
         </Svg>
 
         <Text style={styles.caption}>
-          Based on your goal and pace, you could reach your target weight in 3–5 months.
+          Según tu objetivo y ritmo, podrías alcanzar tu peso ideal en 3–5 meses.
         </Text>
       </Animated.View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

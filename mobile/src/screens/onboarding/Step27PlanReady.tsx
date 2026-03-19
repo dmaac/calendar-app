@@ -56,47 +56,47 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
-      <Text style={styles.title}>Your plan{'\n'}is ready! 🎉</Text>
+      <Text style={styles.title}>¡Tu plan{'\n'}está listo! 🎉</Text>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }], gap: spacing.md, paddingTop: spacing.lg }}>
           {/* Calories card */}
           <View style={styles.caloriesCard}>
-            <Text style={styles.caloriesLabel}>Daily Calorie Goal</Text>
+            <Text style={styles.caloriesLabel}>Meta calórica diaria</Text>
             <Text style={styles.caloriesValue}>{calories}</Text>
-            <Text style={styles.caloriesUnit}>kcal / day</Text>
+            <Text style={styles.caloriesUnit}>kcal / día</Text>
           </View>
 
           {/* Macros card */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Your Macros</Text>
+            <Text style={styles.cardTitle}>Tus Macros</Text>
             <View style={styles.macroGrid}>
               <View style={styles.macroPill}>
                 <Text style={styles.macroNum}>{carbs}g</Text>
-                <Text style={styles.macroLbl}>Carbs</Text>
+                <Text style={styles.macroLbl}>Carbos</Text>
               </View>
               <View style={[styles.macroPill, { backgroundColor: '#E8F4FF' }]}>
                 <Text style={[styles.macroNum, { color: '#007AFF' }]}>{protein}g</Text>
-                <Text style={styles.macroLbl}>Protein</Text>
+                <Text style={styles.macroLbl}>Proteína</Text>
               </View>
               <View style={[styles.macroPill, { backgroundColor: '#FFF8E8' }]}>
                 <Text style={[styles.macroNum, { color: '#FF9500' }]}>{fats}g</Text>
-                <Text style={styles.macroLbl}>Fats</Text>
+                <Text style={styles.macroLbl}>Grasas</Text>
               </View>
             </View>
 
             <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
-              <MacroBar label="Carbs" grams={carbs} color={colors.accent} maxGrams={maxMacro} />
-              <MacroBar label="Protein" grams={protein} color="#007AFF" maxGrams={maxMacro} />
-              <MacroBar label="Fats" grams={fats} color="#FF9500" maxGrams={maxMacro} />
+              <MacroBar label="Carbos" grams={carbs} color={colors.accent} maxGrams={maxMacro} />
+              <MacroBar label="Proteína" grams={protein} color="#007AFF" maxGrams={maxMacro} />
+              <MacroBar label="Grasas" grams={fats} color="#FF9500" maxGrams={maxMacro} />
             </View>
           </View>
 
           {/* Health score */}
           <View style={[styles.card, styles.scoreCard]}>
             <View>
-              <Text style={styles.cardTitle}>Health Score</Text>
-              <Text style={styles.scoreDesc}>Based on your profile and goals</Text>
+              <Text style={styles.cardTitle}>Puntuación de salud</Text>
+              <Text style={styles.scoreDesc}>Basado en tu perfil y objetivos</Text>
             </View>
             <View style={styles.scoreBadge}>
               <Text style={styles.scoreNum}>{healthScore}</Text>
@@ -109,7 +109,7 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="See My Plan" onPress={onNext} />
+        <PrimaryButton label="Ver mi plan" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

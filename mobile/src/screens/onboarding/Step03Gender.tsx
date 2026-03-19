@@ -8,9 +8,9 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const OPTIONS = [
-  { value: 'Male' as const, emoji: '👨' },
-  { value: 'Female' as const, emoji: '👩' },
-  { value: 'Other' as const, emoji: '🧑' },
+  { value: 'Male' as const, label: 'Hombre', emoji: '👨' },
+  { value: 'Female' as const, label: 'Mujer', emoji: '👩' },
+  { value: 'Other' as const, label: 'Otro', emoji: '🧑' },
 ];
 
 export default function Step03Gender({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -25,15 +25,15 @@ export default function Step03Gender({ onNext, onBack, step, totalSteps }: StepP
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
 
       {/* Título */}
-      <Text style={styles.title}>Choose your Gender</Text>
-      <Text style={styles.subtitle}>This will be used to calibrate your custom plan.</Text>
+      <Text style={styles.title}>¿Cuál es tu género?</Text>
+      <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
 
       {/* Opciones */}
       <View style={styles.options}>
         {OPTIONS.map(opt => (
           <OptionCard
             key={opt.value}
-            label={opt.value}
+            label={opt.label}
             emoji={opt.emoji}
             selected={selected === opt.value}
             onPress={() => handleSelect(opt.value)}
@@ -44,7 +44,7 @@ export default function Step03Gender({ onNext, onBack, step, totalSteps }: StepP
       {/* Botón flotante */}
       <View style={styles.footer}>
         <PrimaryButton
-          label="Continue"
+          label="Continuar"
           onPress={onNext}
           disabled={!selected}
         />

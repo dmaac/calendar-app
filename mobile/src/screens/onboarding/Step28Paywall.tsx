@@ -7,28 +7,28 @@ import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
 
 const BENEFITS = [
-  { icon: 'camera-outline',          text: 'Unlimited AI food scanning' },
-  { icon: 'trending-down-outline',   text: 'Personalized weight plan' },
-  { icon: 'nutrition-outline',       text: 'Macro & calorie tracking' },
-  { icon: 'bar-chart-outline',       text: 'Progress analytics & insights' },
-  { icon: 'notifications-outline',   text: 'Smart meal reminders' },
-  { icon: 'people-outline',          text: 'Community & accountability' },
+  { icon: 'camera-outline',          text: 'Escaneo de comida con IA ilimitado' },
+  { icon: 'trending-down-outline',   text: 'Plan de peso personalizado' },
+  { icon: 'nutrition-outline',       text: 'Seguimiento de macros y calorías' },
+  { icon: 'bar-chart-outline',       text: 'Análisis de progreso e insights' },
+  { icon: 'notifications-outline',   text: 'Recordatorios inteligentes de comidas' },
+  { icon: 'people-outline',          text: 'Comunidad y responsabilidad' },
 ];
 
 const PLANS = [
   {
     id: 'annual',
-    label: 'Annual',
+    label: 'Anual',
     price: '$39.99',
-    perMonth: '$3.33/mo',
-    badge: 'BEST VALUE',
-    savings: 'Save 72%',
+    perMonth: '$3.33/mes',
+    badge: 'MEJOR VALOR',
+    savings: 'Ahorra 72%',
   },
   {
     id: 'monthly',
-    label: 'Monthly',
+    label: 'Mensual',
     price: '$12.99',
-    perMonth: '$12.99/mo',
+    perMonth: '$12.99/mes',
     badge: null,
     savings: null,
   },
@@ -40,8 +40,8 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Start your{'\n'}free trial today</Text>
-        <Text style={styles.subtitle}>Join 500,000+ people reaching their goals</Text>
+        <Text style={styles.title}>Comienza tu{'\n'}prueba gratis hoy</Text>
+        <Text style={styles.subtitle}>Únete a más de 500,000 personas alcanzando sus metas</Text>
 
         {/* Benefits */}
         <View style={styles.benefits}>
@@ -87,16 +87,16 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
         {/* No payment note */}
         <View style={styles.noCCRow}>
           <Ionicons name="shield-checkmark-outline" size={16} color={colors.gray} />
-          <Text style={styles.noCCText}>3-day free trial · No payment due now · Cancel anytime</Text>
+          <Text style={styles.noCCText}>3 días de prueba gratis · Sin pago ahora · Cancela cuando quieras</Text>
         </View>
 
         <View style={{ height: 120 }} />
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Start Free Trial" onPress={onNext} />
+        <PrimaryButton label="Comenzar prueba gratis" onPress={onNext} />
         <TouchableOpacity onPress={onNext} style={styles.skipBtn}>
-          <Text style={styles.skipText}>No thanks, I'll pass</Text>
+          <Text style={styles.skipText}>No gracias, lo dejo pasar</Text>
         </TouchableOpacity>
       </View>
     </OnboardingLayout>

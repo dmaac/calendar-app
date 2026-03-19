@@ -7,11 +7,11 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const STEPS = [
-  { icon: 'person-outline',         text: 'Analyzing your profile...' },
-  { icon: 'calculator-outline',     text: 'Calculating your metabolism...' },
-  { icon: 'nutrition-outline',      text: 'Building your meal plan...' },
-  { icon: 'barbell-outline',        text: 'Optimizing for your goals...' },
-  { icon: 'checkmark-circle-outline', text: 'Finalizing your plan...' },
+  { icon: 'person-outline',         text: 'Analizando tu perfil...' },
+  { icon: 'calculator-outline',     text: 'Calculando tu metabolismo...' },
+  { icon: 'nutrition-outline',      text: 'Creando tu plan de comidas...' },
+  { icon: 'barbell-outline',        text: 'Optimizando para tus objetivos...' },
+  { icon: 'checkmark-circle-outline', text: 'Finalizando tu plan...' },
 ];
 
 export default function Step26PlanBuilding({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -61,8 +61,8 @@ export default function Step26PlanBuilding({ onNext, onBack, step, totalSteps }:
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} showHeader={false}>
       <View style={styles.container}>
-        <Text style={styles.title}>Building your{'\n'}personalized plan</Text>
-        <Text style={styles.subtitle}>Just a moment while we crunch the numbers...</Text>
+        <Text style={styles.title}>Creando tu{'\n'}plan personalizado</Text>
+        <Text style={styles.subtitle}>Un momento mientras procesamos los datos...</Text>
 
         {/* Spinner / checkmark */}
         <View style={styles.iconCircle}>

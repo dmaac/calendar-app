@@ -7,14 +7,14 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const GOAL_VERB: Record<string, string> = {
-  lose: 'Losing',
-  gain: 'Gaining',
-  maintain: 'Maintaining',
+  lose: 'Perdiendo',
+  gain: 'Ganando',
+  maintain: 'Manteniendo',
 };
 const GOAL_SUFFIX: Record<string, string> = {
-  lose: 'is a realistic\ntarget. It\'s not hard at all!',
-  gain: 'is an achievable\ntarget. You\'ve got this!',
-  maintain: 'your current weight\nis a great goal!',
+  lose: 'es un objetivo realista.\n¡No es tan difícil!',
+  gain: 'es un objetivo alcanzable.\n¡Tú puedes!',
+  maintain: 'tu peso actual\n¡es una gran meta!',
 };
 
 export default function Step12Affirmation({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -52,13 +52,13 @@ export default function Step12Affirmation({ onNext, onBack, step, totalSteps }: 
 
         <Animated.View style={{ opacity: fadeAnim, marginTop: spacing.xl }}>
           <Text style={styles.sub}>
-            90% of users say that the change is obvious after using our app and it is not easy to rebound.
+            El 90% de los usuarios dice que el cambio es evidente al usar nuestra app y que no es fácil recuperar el peso.
           </Text>
         </Animated.View>
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

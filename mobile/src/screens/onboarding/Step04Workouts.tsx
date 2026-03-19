@@ -8,9 +8,9 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const OPTIONS = [
-  { value: '0-2' as const, subtitle: 'Workouts now and then', icon: 'ellipse' },
-  { value: '3-5' as const, subtitle: 'A few workouts per week', icon: 'ellipse' },
-  { value: '6+' as const, subtitle: 'Dedicated athlete', icon: 'ellipse' },
+  { value: '0-2' as const, subtitle: 'Entreno de vez en cuando', icon: 'ellipse' },
+  { value: '3-5' as const, subtitle: 'Algunos entrenos por semana', icon: 'ellipse' },
+  { value: '6+' as const, subtitle: 'Atleta dedicado', icon: 'ellipse' },
 ];
 
 export default function Step04Workouts({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -20,8 +20,8 @@ export default function Step04Workouts({ onNext, onBack, step, totalSteps }: Ste
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
 
-      <Text style={styles.title}>How many workouts{'\n'}do you do per week?</Text>
-      <Text style={styles.subtitle}>This will be used to calibrate your custom plan.</Text>
+      <Text style={styles.title}>¿Cuántos entrenos{'\n'}haces por semana?</Text>
+      <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
 
       <View style={styles.options}>
         {OPTIONS.map((opt, i) => (
@@ -37,7 +37,7 @@ export default function Step04Workouts({ onNext, onBack, step, totalSteps }: Ste
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} disabled={!selected} />
+        <PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />
       </View>
 
     </OnboardingLayout>

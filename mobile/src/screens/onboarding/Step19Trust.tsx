@@ -7,10 +7,10 @@ import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
 
 const FEATURES = [
-  { icon: 'lock-closed-outline', text: 'Your data is encrypted and never sold' },
-  { icon: 'eye-off-outline',     text: 'We never share your personal info' },
-  { icon: 'shield-checkmark-outline', text: 'HIPAA-compliant data storage' },
-  { icon: 'trash-outline',       text: 'Delete your data anytime, instantly' },
+  { icon: 'lock-closed-outline', text: 'Tus datos están cifrados y nunca se venden' },
+  { icon: 'eye-off-outline',     text: 'Nunca compartimos tu información personal' },
+  { icon: 'shield-checkmark-outline', text: 'Almacenamiento de datos con cumplimiento HIPAA' },
+  { icon: 'trash-outline',       text: 'Elimina tus datos en cualquier momento' },
 ];
 
 export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -26,7 +26,7 @@ export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepPr
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Your privacy{'\n'}is our priority</Text>
+      <Text style={styles.title}>Tu privacidad{'\n'}es nuestra prioridad</Text>
 
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         {/* Big lock icon */}
@@ -35,7 +35,7 @@ export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepPr
         </View>
 
         <Text style={styles.subtitle}>
-          We take your privacy seriously. Here's our commitment to you:
+          Nos tomamos tu privacidad en serio. Aquí está nuestro compromiso contigo:
         </Text>
 
         <View style={styles.features}>
@@ -51,12 +51,12 @@ export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepPr
 
         <View style={styles.badge}>
           <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
-          <Text style={styles.badgeText}>No ads. No spam. No nonsense.</Text>
+          <Text style={styles.badgeText}>Sin anuncios. Sin spam. Sin rodeos.</Text>
         </View>
       </Animated.View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="I Understand" onPress={onNext} />
+        <PrimaryButton label="Entendido" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

@@ -15,14 +15,14 @@ export default function Step07SocialProof({ onNext, onBack, step, totalSteps }: 
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Our app creates{'\n'}long-term results</Text>
+      <Text style={styles.title}>Nuestra app genera{'\n'}resultados duraderos</Text>
 
       <Animated.View style={{ opacity: fadeAnim, marginTop: spacing.xl }}>
         <ChartCard />
       </Animated.View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );
@@ -30,7 +30,7 @@ export default function Step07SocialProof({ onNext, onBack, step, totalSteps }: 
 
 function ChartCard() {
   const { innerWidth } = useLayout();
-  const cw = innerWidth;
+  const cw = innerWidth - spacing.md * 2;
   const ch = 160;
   const pad = { t: 12, b: 28, l: 8, r: 8 };
   const gw = cw - pad.l - pad.r;
@@ -49,7 +49,7 @@ function ChartCard() {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Your weight</Text>
+      <Text style={styles.cardTitle}>Tu peso</Text>
 
       <Svg width={cw} height={ch}>
         {/* Baseline */}
@@ -69,26 +69,26 @@ function ChartCard() {
 
       {/* X axis labels */}
       <View style={styles.xLabels}>
-        <Text style={styles.xLabel}>Month 1</Text>
-        <Text style={styles.xLabel}>Month 6</Text>
+        <Text style={styles.xLabel}>Mes 1</Text>
+        <Text style={styles.xLabel}>Mes 6</Text>
       </View>
 
       {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendLine, { backgroundColor: colors.black }]} />
-          <Text style={styles.legendText}>Our app</Text>
+          <Text style={styles.legendText}>Nuestra app</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendLine, { backgroundColor: colors.accent }]} />
-          <Text style={styles.legendText}>Traditional diet</Text>
+          <Text style={styles.legendText}>Dieta tradicional</Text>
         </View>
       </View>
 
       {/* Stat box */}
       <View style={styles.statBox}>
         <Text style={styles.statText}>
-          80% of users maintain their weight loss even 6 months later
+          El 80% de nuestros usuarios mantiene su pérdida de peso 6 meses después
         </Text>
       </View>
     </View>

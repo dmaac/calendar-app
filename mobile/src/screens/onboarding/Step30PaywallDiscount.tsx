@@ -44,40 +44,40 @@ export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps
           <Text style={styles.discountSub}>FOREVER</Text>
         </Animated.View>
 
-        <Text style={styles.title}>Special offer{'\n'}just for you</Text>
+        <Text style={styles.title}>Oferta especial{'\n'}solo para ti</Text>
 
         {/* Price comparison */}
         <View style={styles.priceCard}>
           <View style={styles.priceRow}>
             <Text style={styles.priceOld}>$12.99</Text>
-            <Text style={styles.priceLabel}>Monthly</Text>
+            <Text style={styles.priceLabel}>Mensual</Text>
           </View>
           <View style={styles.priceDivider} />
           <View style={styles.priceRowNew}>
             <Text style={styles.priceNew}>$2.49</Text>
-            <Text style={styles.pricePerMonth}>/month</Text>
+            <Text style={styles.pricePerMonth}>/mes</Text>
           </View>
-          <Text style={styles.priceNote}>Billed as $29.99/year · First 3 days FREE</Text>
+          <Text style={styles.priceNote}>Cobrado como $29.99/año · Primeros 3 días GRATIS</Text>
         </View>
 
         {/* Timer */}
         <View style={styles.timerRow}>
           <Ionicons name="timer-outline" size={18} color={colors.accent} />
-          <Text style={styles.timerText}>Offer expires in </Text>
+          <Text style={styles.timerText}>La oferta expira en </Text>
           <Text style={styles.timerValue}>{countdown}</Text>
         </View>
 
         {/* Guarantee */}
         <View style={styles.guaranteeRow}>
           <Ionicons name="shield-checkmark-outline" size={16} color={colors.gray} />
-          <Text style={styles.guaranteeText}>30-day money-back guarantee · Cancel anytime</Text>
+          <Text style={styles.guaranteeText}>Garantía de devolución de 30 días · Cancela cuando quieras</Text>
         </View>
       </Animated.View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Claim 80% OFF — Free Trial" onPress={onNext} />
+        <PrimaryButton label="Reclamar 80% OFF — Prueba gratis" onPress={onNext} />
         <TouchableOpacity onPress={onNext} style={styles.skipBtn}>
-          <Text style={styles.skipText}>No thanks, I'll pay full price</Text>
+          <Text style={styles.skipText}>No gracias, prefiero pagar precio completo</Text>
         </TouchableOpacity>
       </View>
     </OnboardingLayout>

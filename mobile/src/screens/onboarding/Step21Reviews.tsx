@@ -11,22 +11,22 @@ const REVIEWS = [
     name: 'Sarah M.',
     avatar: '👩',
     stars: 5,
-    text: 'Lost 12 lbs in 6 weeks! The AI food scanner is unbelievably accurate. Just point and track.',
-    date: '2 days ago',
+    text: '¡Perdí 5.5 kg en 6 semanas! El escáner de comida con IA es increíblemente preciso. Solo apunta y registra.',
+    date: 'Hace 2 días',
   },
   {
     name: 'James K.',
     avatar: '👨',
     stars: 5,
-    text: "Finally an app that doesn't make me obsess over every calorie. It just works. Down 18 lbs!",
-    date: '1 week ago',
+    text: '¡Por fin una app que no me hace obsesionar con cada caloría. Simplemente funciona. Bajé 8 kg!',
+    date: 'Hace 1 semana',
   },
   {
     name: 'Priya R.',
     avatar: '👩🏽',
     stars: 5,
-    text: "The personalized plan matched my lifestyle perfectly. I didn't change much but the results are amazing.",
-    date: '2 weeks ago',
+    text: 'El plan personalizado se adaptó perfectamente a mi estilo de vida. No cambié mucho, pero los resultados son increíbles.',
+    date: 'Hace 2 semanas',
   },
 ];
 
@@ -49,13 +49,13 @@ export default function Step21Reviews({ onNext, onBack, step, totalSteps }: Step
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
-      <Text style={styles.title}>Loved by{'\n'}thousands</Text>
+      <Text style={styles.title}>Amado por{'\n'}miles de personas</Text>
 
       <Animated.View style={[{ opacity: fadeAnim }, styles.ratingRow]}>
         <Text style={styles.ratingNumber}>4.8</Text>
         <View style={{ gap: 4 }}>
           <Stars count={5} />
-          <Text style={styles.ratingCount}>12,400+ ratings</Text>
+          <Text style={styles.ratingCount}>12,400+ valoraciones</Text>
         </View>
       </Animated.View>
 
@@ -79,7 +79,7 @@ export default function Step21Reviews({ onNext, onBack, step, totalSteps }: Step
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

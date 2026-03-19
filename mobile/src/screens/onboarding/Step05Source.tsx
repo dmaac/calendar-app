@@ -16,8 +16,8 @@ const SOURCES = [
   { label: 'Instagram',       icon: 'logo-instagram' },
   { label: 'Google',          icon: 'logo-google' },
   { label: 'Facebook',        icon: 'logo-facebook' },
-  { label: 'Friend / Family', icon: 'people-outline' },
-  { label: 'Other',           icon: 'ellipsis-horizontal-circle-outline' },
+  { label: 'Amigos / Familia', icon: 'people-outline' },
+  { label: 'Otro',            icon: 'ellipsis-horizontal-circle-outline' },
 ];
 
 export default function Step05Source({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -27,7 +27,7 @@ export default function Step05Source({ onNext, onBack, step, totalSteps }: StepP
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
 
-      <Text style={styles.title}>Where did you hear{'\n'}about us?</Text>
+      <Text style={styles.title}>¿Cómo nos{'\n'}encontraste?</Text>
 
       {/* Lista scrollable */}
       <ScrollView
@@ -49,7 +49,7 @@ export default function Step05Source({ onNext, onBack, step, totalSteps }: StepP
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} disabled={!selected} />
+        <PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />
       </View>
 
     </OnboardingLayout>

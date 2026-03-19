@@ -8,10 +8,10 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const PERMS = [
-  { icon: 'scale-outline',    label: 'Weight' },
-  { icon: 'walk-outline',     label: 'Steps' },
-  { icon: 'flame-outline',    label: 'Calories burned' },
-  { icon: 'heart-outline',    label: 'Heart rate' },
+  { icon: 'scale-outline',    label: 'Peso' },
+  { icon: 'walk-outline',     label: 'Pasos' },
+  { icon: 'flame-outline',    label: 'Calorías quemadas' },
+  { icon: 'heart-outline',    label: 'Frecuencia cardíaca' },
 ];
 
 export default function Step20Health({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -58,12 +58,12 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
         </View>
 
         <Text style={styles.desc}>
-          Sync your health data for a more accurate calorie and activity picture.
+          Sincroniza tus datos de salud para un registro más preciso de calorías y actividad.
         </Text>
 
         {/* Permissions list */}
         <View style={styles.permsCard}>
-          <Text style={styles.permsTitle}>We'll read:</Text>
+          <Text style={styles.permsTitle}>Leeremos:</Text>
           {PERMS.map((p, i) => (
             <View key={i} style={styles.permRow}>
               <Ionicons name={p.icon as any} size={18} color={colors.gray} />
@@ -75,8 +75,8 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
       </Animated.View>
 
       <View style={styles.footer}>
-        <PrimaryButton label={`Connect ${appName}`} onPress={handleConnect} />
-        <PrimaryButton label="Not now" onPress={handleSkip} variant="ghost" />
+        <PrimaryButton label={`Conectar ${appName}`} onPress={handleConnect} />
+        <PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" />
       </View>
     </OnboardingLayout>
   );

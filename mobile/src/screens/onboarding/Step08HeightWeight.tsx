@@ -58,8 +58,8 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Height & weight</Text>
-      <Text style={styles.subtitle}>This will be used to calibrate your custom plan.</Text>
+      <Text style={styles.title}>Altura y peso</Text>
+      <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
 
       {/* Unit toggle */}
       <View style={styles.toggleRow}>
@@ -82,7 +82,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
         {unit === 'imperial' ? (
           <>
             <View style={styles.pickerCol}>
-              <Text style={styles.pickerLabel}>Height</Text>
+              <Text style={styles.pickerLabel}>Altura</Text>
               <View style={styles.pickerPair}>
                 <ScrollPicker
                   items={FT_OPTIONS}
@@ -100,7 +100,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
             </View>
             <View style={styles.divider} />
             <View style={styles.pickerCol}>
-              <Text style={styles.pickerLabel}>Weight</Text>
+              <Text style={styles.pickerLabel}>Peso</Text>
               <ScrollPicker
                 items={LB_OPTIONS}
                 selectedIndex={Math.max(0, Math.min(LB_OPTIONS.length - 1, lb - 80))}
@@ -112,7 +112,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
         ) : (
           <>
             <View style={styles.pickerCol}>
-              <Text style={styles.pickerLabel}>Height</Text>
+              <Text style={styles.pickerLabel}>Altura</Text>
               <ScrollPicker
                 items={CM_OPTIONS}
                 selectedIndex={Math.max(0, Math.min(CM_OPTIONS.length - 1, data.heightCm - 120))}
@@ -122,7 +122,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
             </View>
             <View style={styles.divider} />
             <View style={styles.pickerCol}>
-              <Text style={styles.pickerLabel}>Weight</Text>
+              <Text style={styles.pickerLabel}>Peso</Text>
               <ScrollPicker
                 items={KG_OPTIONS}
                 selectedIndex={Math.max(0, Math.min(KG_OPTIONS.length - 1, data.weightKg - 30))}
@@ -135,7 +135,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

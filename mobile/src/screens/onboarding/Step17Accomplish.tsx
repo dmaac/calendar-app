@@ -8,12 +8,12 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const OPTIONS = [
-  { label: 'Build healthy habits',    icon: 'fitness-outline' },
-  { label: 'Improve my energy',       icon: 'flash-outline' },
-  { label: 'Feel confident',          icon: 'star-outline' },
-  { label: 'Eat more mindfully',      icon: 'restaurant-outline' },
-  { label: 'Reduce stress',           icon: 'leaf-outline' },
-  { label: 'Sleep better',            icon: 'moon-outline' },
+  { label: 'Crear hábitos saludables',     icon: 'fitness-outline' },
+  { label: 'Mejorar mi energía',           icon: 'flash-outline' },
+  { label: 'Sentirme con más confianza',   icon: 'star-outline' },
+  { label: 'Comer con más consciencia',    icon: 'restaurant-outline' },
+  { label: 'Reducir el estrés',            icon: 'leaf-outline' },
+  { label: 'Dormir mejor',                 icon: 'moon-outline' },
 ];
 
 export default function Step17Accomplish({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -29,8 +29,8 @@ export default function Step17Accomplish({ onNext, onBack, step, totalSteps }: S
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
-      <Text style={styles.title}>What do you want{'\n'}to accomplish?</Text>
-      <Text style={styles.subtitle}>Select all that apply.</Text>
+      <Text style={styles.title}>¿Qué quieres{'\n'}lograr?</Text>
+      <Text style={styles.subtitle}>Selecciona todas las que apliquen.</Text>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={styles.options}>
@@ -48,7 +48,7 @@ export default function Step17Accomplish({ onNext, onBack, step, totalSteps }: S
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} disabled={selected.length === 0} />
+        <PrimaryButton label="Continuar" onPress={onNext} disabled={selected.length === 0} />
       </View>
     </OnboardingLayout>
   );

@@ -7,7 +7,7 @@ import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 100 }, (_, i) => String(CURRENT_YEAR - 10 - i));
@@ -21,8 +21,8 @@ export default function Step09Birthday({ onNext, onBack, step, totalSteps }: Ste
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>When were you born?</Text>
-      <Text style={styles.subtitle}>This will be used to calibrate your custom plan.</Text>
+      <Text style={styles.title}>¿Cuándo naciste?</Text>
+      <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
 
       <View style={styles.pickersRow}>
         <ScrollPicker
@@ -46,7 +46,7 @@ export default function Step09Birthday({ onNext, onBack, step, totalSteps }: Ste
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

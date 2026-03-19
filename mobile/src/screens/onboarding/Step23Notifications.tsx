@@ -8,9 +8,9 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const NOTIF_EXAMPLES = [
-  { time: '8:00 AM', text: "🌅 Good morning! Log your breakfast", sub: 'Keep your streak going' },
-  { time: '1:00 PM', text: "🥗 Lunchtime! Don't forget to snap", sub: 'You have 842 calories left' },
-  { time: '7:30 PM', text: "✅ Great job today! You hit your goal", sub: 'Tap to see your summary' },
+  { time: '8:00 AM', text: '🌅 ¡Buenos días! Registra tu desayuno', sub: 'Mantén tu racha' },
+  { time: '1:00 PM', text: '🥗 ¡Hora de comer! No olvides fotografiar', sub: 'Te quedan 842 calorías' },
+  { time: '7:30 PM', text: '✅ ¡Excelente día! Alcanzaste tu meta', sub: 'Toca para ver tu resumen' },
 ];
 
 export default function Step23Notifications({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -36,9 +36,9 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Stay on track{'\n'}with reminders</Text>
+      <Text style={styles.title}>Mantén el rumbo{'\n'}con recordatorios</Text>
       <Text style={styles.subtitle}>
-        Users who enable reminders lose 3x more weight.
+        Los usuarios que activan recordatorios pierden 3x más peso.
       </Text>
 
       <Animated.View style={[styles.phone, { opacity: fadeAnim }]}>
@@ -60,8 +60,8 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
       </Animated.View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Enable Reminders" onPress={handleEnable} />
-        <PrimaryButton label="Not now" onPress={handleSkip} variant="ghost" />
+        <PrimaryButton label="Activar recordatorios" onPress={handleEnable} />
+        <PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" />
       </View>
     </OnboardingLayout>
   );

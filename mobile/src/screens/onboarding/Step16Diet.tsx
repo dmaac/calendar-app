@@ -8,10 +8,10 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const OPTIONS = [
-  { value: 'Classic' as const,      emoji: '🍗', icon: 'restaurant-outline' },
-  { value: 'Pescatarian' as const,  emoji: '🐟', icon: 'fish-outline' },
-  { value: 'Vegetarian' as const,   emoji: '🥦', icon: 'leaf-outline' },
-  { value: 'Vegan' as const,        emoji: '🌱', icon: 'flower-outline' },
+  { value: 'Classic' as const,      label: 'Clásico',       emoji: '🍗', icon: 'restaurant-outline' },
+  { value: 'Pescatarian' as const,  label: 'Pescetariano',  emoji: '🐟', icon: 'fish-outline' },
+  { value: 'Vegetarian' as const,   label: 'Vegetariano',   emoji: '🥦', icon: 'leaf-outline' },
+  { value: 'Vegan' as const,        label: 'Vegano',        emoji: '🌱', icon: 'flower-outline' },
 ];
 
 export default function Step16Diet({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -19,13 +19,13 @@ export default function Step16Diet({ onNext, onBack, step, totalSteps }: StepPro
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Do you follow a{'\n'}specific diet?</Text>
+      <Text style={styles.title}>¿Sigues alguna{'\n'}dieta específica?</Text>
 
       <View style={styles.options}>
         {OPTIONS.map(opt => (
           <OptionCard
             key={opt.value}
-            label={opt.value}
+            label={opt.label}
             emoji={opt.emoji}
             selected={data.dietType === opt.value}
             onPress={() => update('dietType', opt.value)}
@@ -34,7 +34,7 @@ export default function Step16Diet({ onNext, onBack, step, totalSteps }: StepPro
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} disabled={!data.dietType} />
+        <PrimaryButton label="Continuar" onPress={onNext} disabled={!data.dietType} />
       </View>
     </OnboardingLayout>
   );

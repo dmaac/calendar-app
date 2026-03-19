@@ -8,9 +8,9 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const OPTIONS = [
-  { value: 'lose' as const,     label: 'Lose weight',   emoji: '📉' },
-  { value: 'maintain' as const, label: 'Maintain',      emoji: '⚖️' },
-  { value: 'gain' as const,     label: 'Gain weight',   emoji: '📈' },
+  { value: 'lose' as const,     label: 'Perder peso',   emoji: '📉' },
+  { value: 'maintain' as const, label: 'Mantener',      emoji: '⚖️' },
+  { value: 'gain' as const,     label: 'Ganar peso',    emoji: '📈' },
 ];
 
 export default function Step10Goal({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -18,8 +18,8 @@ export default function Step10Goal({ onNext, onBack, step, totalSteps }: StepPro
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>What is your goal?</Text>
-      <Text style={styles.subtitle}>This helps us generate a plan for your calorie intake.</Text>
+      <Text style={styles.title}>¿Cuál es tu objetivo?</Text>
+      <Text style={styles.subtitle}>Esto nos ayuda a generar un plan para tu ingesta calórica.</Text>
 
       <View style={styles.options}>
         {OPTIONS.map(opt => (
@@ -34,7 +34,7 @@ export default function Step10Goal({ onNext, onBack, step, totalSteps }: StepPro
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} disabled={!data.goal} />
+        <PrimaryButton label="Continuar" onPress={onNext} disabled={!data.goal} />
       </View>
     </OnboardingLayout>
   );

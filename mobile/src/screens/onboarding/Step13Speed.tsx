@@ -56,11 +56,11 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>How fast do you want{'\n'}to reach your goal?</Text>
+      <Text style={styles.title}>¿Qué tan rápido quieres{'\n'}alcanzar tu objetivo?</Text>
 
       <View style={styles.center}>
         {/* Value display */}
-        <Text style={styles.speedLabel}>Loss weight speed per week</Text>
+        <Text style={styles.speedLabel}>Velocidad de pérdida de peso por semana</Text>
         <Text style={styles.speedValue}>{speed.toFixed(1)} kg</Text>
 
         {/* Animal indicator */}
@@ -115,7 +115,7 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

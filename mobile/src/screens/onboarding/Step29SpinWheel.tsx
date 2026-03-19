@@ -10,7 +10,7 @@ const SEGMENTS = [
   { label: '40% OFF', color: '#FF7A5C' },
   { label: '1 Month', color: '#111111' },
   { label: '50% OFF', color: '#FF7A5C' },
-  { label: 'Try Again', color: '#E5E5EA' },
+  { label: 'Otra vez', color: '#E5E5EA' },
   { label: '60% OFF', color: '#FF7A5C' },
   { label: '30% OFF', color: '#8E8E93' },
   { label: '3 Days Free', color: '#111111' },
@@ -82,8 +82,8 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Spin to unlock{'\n'}your discount!</Text>
-      <Text style={styles.subtitle}>One spin per user. Good luck! 🍀</Text>
+      <Text style={styles.title}>¡Gira para desbloquear{'\n'}tu descuento!</Text>
+      <Text style={styles.subtitle}>Un giro por usuario. ¡Buena suerte! 🍀</Text>
 
       <View style={styles.wheelContainer}>
         {/* Pointer */}
@@ -130,7 +130,7 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
       {spun && result ? (
         <View style={styles.resultBanner}>
           <Text style={styles.resultEmoji}>🎉</Text>
-          <Text style={styles.resultText}>You won: <Text style={styles.resultHighlight}>{result}</Text></Text>
+          <Text style={styles.resultText}>Ganaste: <Text style={styles.resultHighlight}>{result}</Text></Text>
         </View>
       ) : null}
 
@@ -141,10 +141,10 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
             onPress={handleSpin}
             activeOpacity={0.8}
           >
-            <Text style={styles.spinBtnText}>{spinning ? 'Spinning...' : '🎰 SPIN!'}</Text>
+            <Text style={styles.spinBtnText}>{spinning ? 'Girando...' : '🎰 ¡GIRAR!'}</Text>
           </TouchableOpacity>
         ) : (
-          <PrimaryButton label="Claim My Discount" onPress={onNext} />
+          <PrimaryButton label="Reclamar mi descuento" onPress={onNext} />
         )}
       </View>
     </OnboardingLayout>

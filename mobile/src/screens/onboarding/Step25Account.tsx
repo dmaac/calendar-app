@@ -68,7 +68,7 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
       await syncAndProceed();
     } catch (err: any) {
       if (err?.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert('Error', 'Apple Sign In failed. Please try again.');
+        Alert.alert('Error', 'Error con Apple Sign In. Por favor intenta de nuevo.');
       }
     } finally {
       setLoading(false);
@@ -78,7 +78,7 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
   // ── Google Sign In ─────────────────────────────────────────────────────────
   const handleGoogle = async () => {
     if (!GOOGLE_CLIENT_ID) {
-      Alert.alert('Not configured', 'Google Sign In is not set up yet.');
+      Alert.alert('No configurado', 'Google Sign In no está configurado aún.');
       return;
     }
     try {
@@ -92,7 +92,7 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
         }
       }
     } catch {
-      Alert.alert('Error', 'Google Sign In failed. Please try again.');
+      Alert.alert('Error', 'Error con Google Sign In. Por favor intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
       }
       await syncAndProceed();
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'Authentication failed.');
+      Alert.alert('Error', err?.message ?? 'Error de autenticación.');
     } finally {
       setLoading(false);
     }
@@ -122,14 +122,14 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
   if (mode === 'email') {
     return (
       <OnboardingLayout step={step} totalSteps={totalSteps} onBack={() => setMode('options')}>
-        <Text style={styles.title}>Create your{'\n'}account</Text>
+        <Text style={styles.title}>Crea tu{'\n'}cuenta</Text>
 
         <View style={styles.form}>
           <View style={styles.inputWrapper}>
             <Ionicons name="mail-outline" size={20} color={colors.gray} />
             <TextInput
               style={styles.input}
-              placeholder="Email address"
+              placeholder="Correo electrónico"
               placeholderTextColor={colors.gray}
               value={email}
               onChangeText={setEmail}
@@ -143,7 +143,7 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
             <Ionicons name="lock-closed-outline" size={20} color={colors.gray} />
             <TextInput
               style={styles.input}
-              placeholder="Password (min 6 chars)"
+              placeholder="Contraseña (mín. 6 caracteres)"
               placeholderTextColor={colors.gray}
               value={password}
               onChangeText={setPassword}
@@ -156,15 +156,15 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
           </View>
 
           <Text style={styles.terms}>
-            By continuing you agree to our{' '}
-            <Text style={styles.link}>Terms</Text> and{' '}
-            <Text style={styles.link}>Privacy Policy</Text>.
+            Al continuar aceptas nuestros{' '}
+            <Text style={styles.link}>Términos</Text> y{' '}
+            <Text style={styles.link}>Política de privacidad</Text>.
           </Text>
         </View>
 
         <View style={styles.footer}>
           <PrimaryButton
-            label="Continue"
+            label="Continuar"
             onPress={handleEmail}
             loading={loading}
             disabled={!email.includes('@') || password.length < 6}
@@ -176,8 +176,8 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>Create your{'\n'}free account</Text>
-      <Text style={styles.subtitle}>Save your plan and start your journey.</Text>
+      <Text style={styles.title}>Crea tu{'\n'}cuenta gratis</Text>
+      <Text style={styles.subtitle}>Guarda tu plan y comienza tu camino.</Text>
 
       <View style={styles.content}>
         <View style={styles.lockBadge}>
@@ -199,7 +199,7 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
           {/* Google */}
           <TouchableOpacity style={[styles.socialBtn, styles.googleBtn]} onPress={handleGoogle} activeOpacity={0.8}>
             <Text style={styles.googleG}>G</Text>
-            <Text style={[styles.socialBtnText, { color: colors.black }]}>Continue with Google</Text>
+            <Text style={[styles.socialBtnText, { color: colors.black }]}>Continuar con Google</Text>
           </TouchableOpacity>
 
           <View style={styles.divider}>
@@ -211,16 +211,16 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
           {/* Email */}
           <TouchableOpacity style={[styles.socialBtn, styles.emailBtn]} onPress={() => setMode('email')} activeOpacity={0.8}>
             <Ionicons name="mail-outline" size={22} color={colors.black} />
-            <Text style={[styles.socialBtnText, { color: colors.black }]}>Continue with Email</Text>
+            <Text style={[styles.socialBtnText, { color: colors.black }]}>Continuar con Email</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.footer}>
         <Text style={styles.terms}>
-          By continuing you agree to our{' '}
-          <Text style={styles.link}>Terms</Text> and{' '}
-          <Text style={styles.link}>Privacy Policy</Text>.
+          Al continuar aceptas nuestros{' '}
+          <Text style={styles.link}>Términos</Text> y{' '}
+          <Text style={styles.link}>Política de privacidad</Text>.
         </Text>
       </View>
     </OnboardingLayout>

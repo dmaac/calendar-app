@@ -8,11 +8,11 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const OPTIONS = [
-  { label: 'Lack of consistency',      icon: 'bar-chart-outline' },
-  { label: 'Unhealthy eating habits',  icon: 'fast-food-outline' },
-  { label: 'Lack of support',          icon: 'hand-left-outline' },
-  { label: 'Busy schedule',            icon: 'calendar-outline' },
-  { label: 'Lack of meal inspiration', icon: 'nutrition-outline' },
+  { label: 'Falta de constancia',          icon: 'bar-chart-outline' },
+  { label: 'Malos hábitos alimenticios',   icon: 'fast-food-outline' },
+  { label: 'Falta de apoyo',               icon: 'hand-left-outline' },
+  { label: 'Agenda muy ocupada',           icon: 'calendar-outline' },
+  { label: 'Sin inspiración para comer',   icon: 'nutrition-outline' },
 ];
 
 export default function Step15PainPoints({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -28,8 +28,8 @@ export default function Step15PainPoints({ onNext, onBack, step, totalSteps }: S
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack} scrollable={false}>
-      <Text style={styles.title}>What's stopping you{'\n'}from reaching{'\n'}your goals?</Text>
-      <Text style={styles.subtitle}>Select all that apply.</Text>
+      <Text style={styles.title}>¿Qué te impide{'\n'}alcanzar{'\n'}tus objetivos?</Text>
+      <Text style={styles.subtitle}>Selecciona todas las que apliquen.</Text>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={styles.options}>
@@ -47,7 +47,7 @@ export default function Step15PainPoints({ onNext, onBack, step, totalSteps }: S
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} disabled={selected.length === 0} />
+        <PrimaryButton label="Continuar" onPress={onNext} disabled={selected.length === 0} />
       </View>
     </OnboardingLayout>
   );

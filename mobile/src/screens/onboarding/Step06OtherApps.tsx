@@ -14,7 +14,7 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: St
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
 
-      <Text style={styles.title}>Have you tried other{'\n'}calorie tracking apps?</Text>
+      <Text style={styles.title}>¿Has probado otras{'\n'}apps de calorías?</Text>
 
       <View style={styles.options}>
         <OptionCard
@@ -32,7 +32,7 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: St
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} disabled={selected === null} />
+        <PrimaryButton label="Continuar" onPress={onNext} disabled={selected === null} />
       </View>
 
     </OnboardingLayout>

@@ -8,9 +8,9 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const GOAL_LABELS: Record<string, string> = {
-  lose: 'Lose weight',
-  maintain: 'Maintain weight',
-  gain: 'Gain weight',
+  lose: 'Perder peso',
+  maintain: 'Mantener peso',
+  gain: 'Ganar peso',
 };
 
 export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -29,8 +29,8 @@ export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }:
 
   return (
     <OnboardingLayout step={step} totalSteps={totalSteps} onBack={onBack}>
-      <Text style={styles.title}>What is your{'\n'}desired weight?</Text>
-      <Text style={styles.subtitle}>{GOAL_LABELS[data.goal] || 'Your goal'}</Text>
+      <Text style={styles.title}>¿Cuál es tu{'\n'}peso deseado?</Text>
+      <Text style={styles.subtitle}>{GOAL_LABELS[data.goal] || 'Tu objetivo'}</Text>
 
       <View style={styles.rulerWrapper}>
         <RulerSlider
@@ -44,7 +44,7 @@ export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }:
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Continue" onPress={onNext} />
+        <PrimaryButton label="Continuar" onPress={onNext} />
       </View>
     </OnboardingLayout>
   );

@@ -49,16 +49,16 @@ export default function Step02Welcome({ onNext, onSkipToLogin }: Step02Props) {
 
         {/* Texto */}
         <Animated.View style={[styles.textBlock, { opacity: fadeAnim }]}>
-          <Text style={styles.title}>Calorie & schedule{'\n'}tracking made easy</Text>
+          <Text style={styles.title}>Registra calorías y{'\n'}horarios fácilmente</Text>
         </Animated.View>
 
         {/* CTAs */}
         <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
-          <PrimaryButton label="Get Started" onPress={onNext} />
+          <PrimaryButton label="Comenzar" onPress={onNext} />
           <TouchableOpacity onPress={onSkipToLogin} style={styles.signInBtn} activeOpacity={0.7}>
             <Text style={styles.signInText}>
-              Already have an account?{' '}
-              <Text style={styles.signInBold}>Sign In</Text>
+              ¿Ya tienes una cuenta?{' '}
+              <Text style={styles.signInBold}>Iniciar sesión</Text>
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -110,7 +110,7 @@ function PhoneMockup() {
         <View style={mockStyles.bottomBar}>
           <View style={mockStyles.scanChip}>
             <Ionicons name="scan" size={12} color={colors.white} />
-            <Text style={mockStyles.scanText}>Scan Food</Text>
+            <Text style={mockStyles.scanText}>Escanear</Text>
           </View>
           <View style={mockStyles.captureBtn} />
         </View>
