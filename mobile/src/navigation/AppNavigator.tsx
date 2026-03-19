@@ -51,8 +51,8 @@ const AppNavigator = () => {
   // Espera a que AuthContext cargue los tokens de SecureStore
   if (isLoading) return <LoadingScreen />;
 
-  // Onboarding first
-  if (!isOnboardingComplete) {
+  // En dev siempre arranca en onboarding para poder testear
+  if (!isOnboardingComplete || __DEV__) {
     return (
       <OnboardingProvider>
         <OnboardingNavigator onComplete={markOnboardingComplete} />
