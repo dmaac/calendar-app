@@ -37,6 +37,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   markOnboardingComplete: () => Promise<void>;
+  resetOnboarding: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -186,15 +187,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     await authService.logout();
-    await AsyncStorage.multiRemove(['onboarding_completed', 'onboarding_data_v2', 'onboarding_current_step']);
+    // Keep onboarding_completed so returning users see Login, not onboarding again
+    await AsyncStorage.multiRemove(['onboarding_data_v2', 'onboarding_current_step']);
     setUser(null);
-    setIsOnboardingComplete(false);
+    // isOnboardingComplete stays true → AuthNavigator shows Login
   }, []);
 
   // ── Mark onboarding complete ───────────────────────────────────────────────
   const markOnboardingComplete = useCallback(async () => {
     await AsyncStorage.setItem('onboarding_completed', 'true');
     setIsOnboardingComplete(true);
+  }, []);
+
+  // ── Reset onboarding (for "new user" link on LoginScreen) ─────────────────
+  const resetOnboarding = useCallback(async () => {
+    await AsyncStorage.multiRemove(['onboarding_completed', 'onboarding_data_v2', 'onboarding_current_step']);
+    setIsOnboardingComplete(false);
   }, []);
 
   // ── Refresh user from API ──────────────────────────────────────────────────
@@ -216,6 +224,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loginWithGoogle,
     logout,
     markOnboardingComplete,
+    resetOnboarding,
     refreshUser,
   };
 

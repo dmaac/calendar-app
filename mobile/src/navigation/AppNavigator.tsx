@@ -3,7 +3,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
-import RegisterScreen from '../screens/RegisterScreen';
 import LoadingScreen from '../components/LoadingScreen';
 import OnboardingNavigator from '../screens/onboarding/OnboardingNavigator';
 import { OnboardingProvider } from '../context/OnboardingContext';
@@ -11,11 +10,10 @@ import MainNavigator from './MainNavigator';
 
 const Stack = createStackNavigator();
 
-// ─── Auth stack ───────────────────────────────────────────────────────────────
+// ─── Auth stack — solo Login (registro ocurre en Step25 del onboarding) ───────
 const AuthNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Login"    component={LoginScreen} />
-    <Stack.Screen name="Register" component={RegisterScreen} />
+    <Stack.Screen name="Login" component={LoginScreen} />
   </Stack.Navigator>
 );
 

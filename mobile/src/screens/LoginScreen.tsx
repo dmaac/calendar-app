@@ -23,7 +23,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
-  const { login } = useAuth();
+  const { login, resetOnboarding } = useAuth();
   const { sidePadding, contentWidth } = useLayout();
 
   const handleLogin = async () => {
@@ -103,10 +103,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <Text style={styles.btnText}>{loading ? 'Ingresando...' : 'Iniciar sesión'}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('Register')}>
+          <TouchableOpacity style={styles.link} onPress={resetOnboarding}>
             <Text style={styles.linkText}>
-              ¿No tienes cuenta?{' '}
-              <Text style={styles.linkBold}>Regístrate</Text>
+              ¿Nuevo aquí?{' '}
+              <Text style={styles.linkBold}>Crea tu cuenta gratis</Text>
             </Text>
           </TouchableOpacity>
         </View>
