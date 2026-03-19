@@ -131,7 +131,7 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
                     alignmentBaseline="middle"
                     fontSize={11}
                     fontWeight="700"
-                    fill={seg.color === '#E5E5EA' ? colors.gray : colors.white}
+                    fill={seg.color === '#E5E5EA' ? colors.black : colors.white}
                     transform={`rotate(${(i * 360 / SEGMENTS.length) + 180 / SEGMENTS.length}, ${textPos.x}, ${textPos.y})`}
                   >
                     {seg.label}

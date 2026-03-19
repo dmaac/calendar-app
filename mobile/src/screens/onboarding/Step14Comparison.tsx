@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   barCol: { alignItems: 'center', gap: spacing.sm },
   barTopLabel: {
     ...typography.caption,
-    color: colors.gray,
+    color: colors.black,
     textAlign: 'center',
     lineHeight: 18,
     position: 'absolute',
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   },
   barSmall: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.grayLight },
   barLarge: { backgroundColor: colors.black },
-  barValueSmall: { ...typography.titleMd, color: colors.gray },
+  barValueSmall: { ...typography.titleMd, color: colors.black },
   barValueLarge: { fontSize: 28, fontWeight: '800', color: colors.white, letterSpacing: -0.5 },
   caption: { ...typography.caption, color: colors.gray, textAlign: 'center', lineHeight: 18 },
 });

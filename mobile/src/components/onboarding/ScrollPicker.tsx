@@ -73,9 +73,12 @@ export default function ScrollPicker({
 
   return (
     <View style={[styles.container, { width }]}>
+      {/* Highlight debajo del ScrollView */}
+      <View style={styles.selectionHighlight} pointerEvents="none" />
+
       <ScrollView
         ref={scrollRef}
-        style={{ height: PICKER_HEIGHT }}
+        style={[{ height: PICKER_HEIGHT }, styles.scrollView]}
         showsVerticalScrollIndicator={false}
         snapToInterval={isWeb ? undefined : ITEM_HEIGHT}
         decelerationRate={Platform.OS === 'ios' ? 'fast' : 0.9}
@@ -91,7 +94,7 @@ export default function ScrollPicker({
         {items.map((item, i) => {
           const isSelected = i === localIndex;
           const distance = Math.abs(i - localIndex);
-          const opacity = distance === 0 ? 1 : distance === 1 ? 0.5 : 0.2;
+          const opacity = distance === 0 ? 1 : distance === 1 ? 0.6 : 0.35;
           const fontSize = distance === 0 ? 20 : 16;
 
           return (
@@ -106,7 +109,7 @@ export default function ScrollPicker({
                   styles.itemText,
                   {
                     fontSize,
-                    fontWeight: isSelected ? '600' : '400',
+                    fontWeight: isSelected ? '700' : '400',
                     color: isSelected ? colors.black : colors.gray,
                     opacity,
                   },
@@ -119,9 +122,8 @@ export default function ScrollPicker({
         })}
       </ScrollView>
 
-      {/* Overlays encima del ScrollView para no bloquear eventos */}
+      {/* Fades encima para difuminar los bordes */}
       <View style={styles.fadeTop} pointerEvents="none" />
-      <View style={styles.selectionHighlight} pointerEvents="none" />
       <View style={styles.fadeBottom} pointerEvents="none" />
     </View>
   );
@@ -133,6 +135,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  scrollView: {
+    position: 'relative',
+    zIndex: 2,
+  },
   selectionHighlight: {
     position: 'absolute',
     top: ITEM_HEIGHT * 2,
@@ -141,7 +147,7 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     backgroundColor: colors.surface,
     borderRadius: 10,
-    zIndex: 2,
+    zIndex: 1,
   },
   fadeTop: {
     position: 'absolute',
@@ -150,7 +156,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: ITEM_HEIGHT * 2,
     zIndex: 3,
-    backgroundColor: 'rgba(255,255,255,0.75)',
+    backgroundColor: 'rgba(255,255,255,0.55)',
   },
   fadeBottom: {
     position: 'absolute',
@@ -159,7 +165,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: ITEM_HEIGHT * 2,
     zIndex: 3,
-    backgroundColor: 'rgba(255,255,255,0.75)',
+    backgroundColor: 'rgba(255,255,255,0.55)',
   },
   item: {
     justifyContent: 'center',

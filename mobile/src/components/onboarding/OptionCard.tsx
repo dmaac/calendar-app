@@ -118,10 +118,10 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.caption,
-    color: colors.gray,
+    color: colors.black,
     marginTop: 2,
   },
   subtitleSelected: {
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255,255,255,0.9)',
   },
 });

@@ -138,7 +138,7 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
 const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg },
-  speedLabel: { ...typography.label, color: colors.gray },
+  speedLabel: { ...typography.label, color: colors.black },
   speedValue: { fontSize: 48, fontWeight: '800', color: colors.black, letterSpacing: -1, marginTop: -8 },
   animalsRow: {
     flexDirection: 'row',

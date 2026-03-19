@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.subtitle,
-    color: colors.gray,
+    color: colors.black,
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: spacing.md,

@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   caloriesLabel: { ...typography.label, color: 'rgba(255,255,255,0.7)' },
   caloriesValue: { fontSize: 56, fontWeight: '900', color: colors.white, letterSpacing: -2 },
-  caloriesUnit: { ...typography.caption, color: 'rgba(255,255,255,0.5)' },
+  caloriesUnit: { ...typography.caption, color: 'rgba(255,255,255,0.85)' },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 16,

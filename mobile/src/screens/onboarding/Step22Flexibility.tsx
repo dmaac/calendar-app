@@ -81,5 +81,5 @@ const styles = StyleSheet.create({
   },
   emoji: { fontSize: 28, lineHeight: 36 },
   cardTitle: { ...typography.label, color: colors.black, fontWeight: '700' },
-  cardDesc: { ...typography.caption, color: colors.gray, lineHeight: 18 },
+  cardDesc: { ...typography.caption, color: colors.black, lineHeight: 18 },
 });

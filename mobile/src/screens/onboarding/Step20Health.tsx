@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   desc: {
     ...typography.subtitle,
-    color: colors.gray,
+    color: colors.black,
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: spacing.md,

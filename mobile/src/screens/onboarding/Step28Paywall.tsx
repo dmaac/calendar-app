@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   planLabel: { ...typography.label, color: colors.black },
   planSavings: { ...typography.caption, color: colors.accent, fontWeight: '600' },
   planPrice: { ...typography.label, color: colors.black, fontWeight: '800' },
-  planPer: { ...typography.caption, color: colors.gray },
+  planPer: { ...typography.caption, color: colors.black },
   noCCRow: {
     flexDirection: 'row',
     alignItems: 'center',

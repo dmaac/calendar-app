@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   toggleBtnActive: { backgroundColor: colors.white },
-  toggleText: { ...typography.label, color: colors.gray },
+  toggleText: { ...typography.label, color: colors.black },
   toggleTextActive: { color: colors.black },
   pickersRow: {
     flexDirection: 'row',
@@ -171,6 +171,6 @@ const styles = StyleSheet.create({
   },
   pickerCol: { alignItems: 'center', gap: spacing.sm },
   pickerPair: { flexDirection: 'row', gap: spacing.xs },
-  pickerLabel: { ...typography.label, color: colors.gray },
+  pickerLabel: { ...typography.label, color: colors.black },
   divider: { width: 1, height: 200, backgroundColor: colors.grayLight, marginTop: 28 },
 });
