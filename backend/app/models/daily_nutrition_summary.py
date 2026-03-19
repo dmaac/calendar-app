@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Index, UniqueConstraint
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, date
 
@@ -17,8 +18,14 @@ class DailyNutritionSummaryBase(SQLModel):
 
 
 class DailyNutritionSummary(DailyNutritionSummaryBase, table=True):
+    __table_args__ = (
+        # Water lookup: one record per user per day — enforced unique + fast lookup
+        UniqueConstraint("user_id", "date", name="uq_daily_summary_user_date"),
+        Index("ix_daily_summary_user_date", "user_id", "date"),
+    )
+
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
+    user_id: int = Field(foreign_key="user.id", index=True)
 
     user: "User" = Relationship(back_populates="daily_nutrition_summaries")
 

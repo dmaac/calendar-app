@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Index
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 
@@ -8,6 +9,12 @@ if TYPE_CHECKING:
 
 class AIFoodLog(SQLModel, table=True):
     __tablename__ = "ai_food_log"
+    __table_args__ = (
+        # Used by dashboard + history: filter by user & date range
+        Index("ix_ai_food_log_user_logged_at", "user_id", "logged_at"),
+        # Used by streak calculation and meal-type grouping
+        Index("ix_ai_food_log_user_meal_type", "user_id", "meal_type"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)

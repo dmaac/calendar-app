@@ -18,6 +18,13 @@ class Settings(BaseSettings):
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
+    redis_max_connections: int = 50
+
+    # Database pool tuning
+    db_pool_size: int = 20
+    db_max_overflow: int = 40
+    db_pool_timeout: int = 30
+    db_pool_recycle: int = 1800
 
     # Refresh token settings
     refresh_secret_key: str = "refresh-secret-change-in-production"

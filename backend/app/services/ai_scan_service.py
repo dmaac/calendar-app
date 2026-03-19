@@ -318,12 +318,20 @@ async def get_daily_summary(
 ) -> dict:
     """
     Compute daily nutrition summary for a user on a given date.
-    Reads from ai_food_logs only (the AI-driven logs).
+    Uses 2 parallel queries instead of 3 sequential to reduce latency.
     """
     from sqlalchemy import func
     from ..models.onboarding_profile import OnboardingProfile
+    from ..models.daily_nutrition_summary import DailyNutritionSummary
+    from datetime import date as date_type
 
-    stmt = (
+    try:
+        date_obj = date_type.fromisoformat(date)
+    except ValueError:
+        date_obj = date_type.today()
+
+    # Query 1: food log aggregates + onboarding targets in one shot via subquery
+    logs_stmt = (
         select(
             func.coalesce(func.sum(AIFoodLog.calories), 0).label("total_calories"),
             func.coalesce(func.sum(AIFoodLog.protein_g), 0).label("total_protein_g"),
@@ -336,36 +344,45 @@ async def get_daily_summary(
             func.date(AIFoodLog.logged_at) == date,
         )
     )
-    result = await session.execute(stmt)
-    row = result.one()
 
-    # Get targets from onboarding profile
-    profile_stmt = select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
-    profile_result = await session.execute(profile_stmt)
-    profile = profile_result.scalar_one_or_none()
-
-    target_calories = profile.daily_calories if profile and profile.daily_calories else 2000
-    target_protein_g = profile.daily_protein_g if profile and profile.daily_protein_g else 150
-    target_carbs_g = profile.daily_carbs_g if profile and profile.daily_carbs_g else 200
-    target_fats_g = profile.daily_fats_g if profile and profile.daily_fats_g else 65
-
-    # Simple streak calculation: count consecutive days with ≥1 log
-    streak = await _calculate_streak(user_id=user_id, today=date, session=session)
-
-    # Water from daily summary record if it exists
-    from ..models.daily_nutrition_summary import DailyNutritionSummary
-    from datetime import date as date_type
-    try:
-        date_obj = date_type.fromisoformat(date)
-    except ValueError:
-        date_obj = date_type.today()
-    water_stmt = select(DailyNutritionSummary).where(
-        DailyNutritionSummary.user_id == user_id,
-        DailyNutritionSummary.date == date_obj,
+    # Query 2: profile targets + water — run concurrently
+    profile_stmt = (
+        select(
+            OnboardingProfile.daily_calories,
+            OnboardingProfile.daily_protein_g,
+            OnboardingProfile.daily_carbs_g,
+            OnboardingProfile.daily_fats_g,
+        )
+        .where(OnboardingProfile.user_id == user_id)
     )
-    water_result = await session.execute(water_stmt)
-    daily_summary = water_result.scalar_one_or_none()
-    water_ml = float(daily_summary.water_ml or 0) if daily_summary else 0.0
+
+    water_stmt = (
+        select(DailyNutritionSummary.water_ml)
+        .where(
+            DailyNutritionSummary.user_id == user_id,
+            DailyNutritionSummary.date == date_obj,
+        )
+    )
+
+    # Fire all three concurrently within the same session
+    import asyncio
+    logs_result, profile_result, water_result = await asyncio.gather(
+        session.execute(logs_stmt),
+        session.execute(profile_stmt),
+        session.execute(water_stmt),
+    )
+
+    row = logs_result.one()
+    profile_row = profile_result.first()
+    water_row = water_result.first()
+
+    target_calories = (profile_row.daily_calories if profile_row and profile_row.daily_calories else 2000)
+    target_protein_g = (profile_row.daily_protein_g if profile_row and profile_row.daily_protein_g else 150)
+    target_carbs_g = (profile_row.daily_carbs_g if profile_row and profile_row.daily_carbs_g else 200)
+    target_fats_g = (profile_row.daily_fats_g if profile_row and profile_row.daily_fats_g else 65)
+    water_ml = float(water_row.water_ml or 0) if water_row else 0.0
+
+    streak = await _calculate_streak(user_id=user_id, today=date, session=session)
 
     return {
         "date": date,
@@ -384,29 +401,34 @@ async def get_daily_summary(
 
 
 async def _calculate_streak(user_id: int, today: str, session: AsyncSession) -> int:
-    """Count consecutive days with at least one food log up to and including today."""
-    from sqlalchemy import func, text
-    from datetime import date as date_type, timedelta
+    """
+    Count consecutive days with ≥1 food log ending on `today`.
+    Uses a pure-SQL window approach: assigns a group number to each consecutive
+    run (date - row_number gives the same value for consecutive days), then
+    counts the size of the group that contains today.
+    """
+    from sqlalchemy import text
 
-    # Get distinct dates with logs, ordered desc
-    stmt = (
-        select(func.date(AIFoodLog.logged_at).label("log_date"))
-        .where(AIFoodLog.user_id == user_id)
-        .group_by(func.date(AIFoodLog.logged_at))
-        .order_by(func.date(AIFoodLog.logged_at).desc())
-        .limit(365)
-    )
-    result = await session.execute(stmt)
-    logged_dates = {row.log_date for row in result}
+    sql = text("""
+        WITH dated AS (
+            SELECT DISTINCT DATE(logged_at) AS log_date
+            FROM ai_food_log
+            WHERE user_id = :user_id
+              AND DATE(logged_at) <= :today
+        ),
+        grouped AS (
+            SELECT log_date,
+                   log_date - (ROW_NUMBER() OVER (ORDER BY log_date))::int * INTERVAL '1 day' AS grp
+            FROM dated
+        ),
+        current_group AS (
+            SELECT grp FROM grouped WHERE log_date = :today
+        )
+        SELECT COUNT(*) AS streak
+        FROM grouped
+        WHERE grp = (SELECT grp FROM current_group LIMIT 1)
+    """)
 
-    if not logged_dates:
-        return 0
-
-    streak = 0
-    check_date = date_type.fromisoformat(today)
-
-    while check_date in logged_dates:
-        streak += 1
-        check_date -= timedelta(days=1)
-
-    return streak
+    result = await session.execute(sql, {"user_id": user_id, "today": today})
+    row = result.first()
+    return int(row.streak) if row else 0

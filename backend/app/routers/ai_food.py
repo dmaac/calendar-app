@@ -12,7 +12,7 @@ GET  /api/dashboard/today  — daily summary for authenticated user
 from datetime import date as date_type
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy import select
 
@@ -26,6 +26,14 @@ from ..services.ai_scan_service import (
     get_daily_summary,
 )
 from pydantic import BaseModel
+
+try:
+    from slowapi import Limiter
+    from slowapi.util import get_remote_address
+    _limiter = Limiter(key_func=get_remote_address)
+    _rate_limit_enabled = True
+except ImportError:
+    _rate_limit_enabled = False
 
 
 class ManualFoodLog(BaseModel):
@@ -47,7 +55,9 @@ router = APIRouter(prefix="/api", tags=["ai-food"])
 # ─── Scan ─────────────────────────────────────────────────────────────────────
 
 @router.post("/food/scan")
+@(_limiter.limit("20/minute") if _rate_limit_enabled else lambda f: f)
 async def scan_food(
+    request: Request,
     image: UploadFile = File(..., description="Food photo (JPEG/PNG, max 10MB)"),
     meal_type: str = Form("snack", description="breakfast | lunch | dinner | snack"),
     current_user: User = Depends(get_current_user),
