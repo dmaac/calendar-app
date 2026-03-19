@@ -85,3 +85,18 @@ export const logWater = async (ml: number): Promise<{ water_ml: number }> => {
   const res = await api.post('/api/food/water', { ml });
   return res.data;
 };
+
+export interface FoodSuggestion {
+  food_name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fats_g: number;
+  count: number;
+}
+
+/** Busca alimentos en el historial del usuario (autocomplete). */
+export const searchFoodHistory = async (q: string, limit = 10): Promise<FoodSuggestion[]> => {
+  const res = await api.get(`/api/food/search?q=${encodeURIComponent(q)}&limit=${limit}`);
+  return res.data;
+};

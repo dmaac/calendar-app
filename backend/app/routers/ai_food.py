@@ -14,7 +14,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from ..core.database import get_session
 from ..models.user import User
@@ -310,6 +310,48 @@ async def delete_food_log(
     await session.delete(log)
     await session.commit()
     return {"message": "Deleted"}
+
+
+# ─── Food Search ──────────────────────────────────────────────────────────────
+
+@router.get("/food/search")
+async def search_food_history(
+    q: str = Query(..., description="Search query (min 2 chars)"),
+    limit: int = Query(10, ge=1, le=20),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Search user's previous food logs by name (autocomplete).
+    Returns distinct foods ordered by frequency (most logged first).
+    Requires q >= 2 characters.
+    """
+    if len(q.strip()) < 2:
+        return []
+
+    result = await session.execute(
+        text(
+            "SELECT food_name, calories, protein_g, carbs_g, fats_g, COUNT(*) as count "
+            "FROM ai_food_log "
+            "WHERE user_id = :uid AND LOWER(food_name) LIKE LOWER(:q) "
+            "GROUP BY food_name, calories, protein_g, carbs_g, fats_g "
+            "ORDER BY count DESC "
+            "LIMIT :limit"
+        ),
+        {"uid": current_user.id, "q": f"%{q.strip()}%", "limit": limit},
+    )
+    rows = result.mappings().all()
+    return [
+        {
+            "food_name": row["food_name"],
+            "calories": row["calories"],
+            "protein_g": row["protein_g"],
+            "carbs_g": row["carbs_g"],
+            "fats_g": row["fats_g"],
+            "count": row["count"],
+        }
+        for row in rows
+    ]
 
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────

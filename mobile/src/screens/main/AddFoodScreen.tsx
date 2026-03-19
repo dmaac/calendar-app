@@ -2,7 +2,7 @@
  * AddFoodScreen — Registro manual de alimentos
  * El usuario escribe nombre + macros sin necesitar foto.
  */
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, useLayout, mealColors } from '../../theme';
+import { colors, typography, spacing, radius, useLayout, mealColors, shadows } from '../../theme';
 import * as foodService from '../../services/food.service';
-import { MealType } from '../../services/food.service';
+import { MealType, FoodSuggestion, searchFoodHistory } from '../../services/food.service';
 
 const MEAL_OPTIONS = (Object.entries(mealColors) as [MealType, typeof mealColors[string]][]).map(
   ([key, v]) => ({ key, ...v })
@@ -87,6 +88,43 @@ export default function AddFoodScreen({ navigation, route }: any) {
   const [fiber, setFiber] = useState('');
   const [serving, setServing] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<FoodSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleFoodNameChange = (value: string) => {
+    setFoodName(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await searchFoodHistory(value.trim());
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch {
+        // silently ignore search errors
+      }
+    }, 400);
+  };
+
+  const handleSelectSuggestion = (item: FoodSuggestion) => {
+    setFoodName(item.food_name);
+    setCalories(String(item.calories));
+    setProtein(String(item.protein_g));
+    setCarbs(String(item.carbs_g));
+    setFats(String(item.fats_g));
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  const handleFoodNameBlur = () => {
+    // Delay hide so tap on suggestion registers first
+    setTimeout(() => setShowSuggestions(false), 150);
+  };
 
   const parse = (v: string) => parseFloat(v.replace(',', '.')) || 0;
 
@@ -175,17 +213,48 @@ export default function AddFoodScreen({ navigation, route }: any) {
 
         {/* Food name */}
         <Text style={styles.sectionLabel}>Nombre del alimento</Text>
-        <View style={styles.inputWrapper}>
-          <Ionicons name="restaurant-outline" size={18} color={colors.gray} />
-          <TextInput
-            style={styles.nameInput}
-            value={foodName}
-            onChangeText={setFoodName}
-            placeholder="Ej: Pollo a la plancha, Manzana..."
-            placeholderTextColor={colors.disabled}
-            autoCapitalize="sentences"
-            returnKeyType="next"
-          />
+        <View>
+          <View style={styles.inputWrapper}>
+            <Ionicons name="restaurant-outline" size={18} color={colors.gray} />
+            <TextInput
+              style={styles.nameInput}
+              value={foodName}
+              onChangeText={handleFoodNameChange}
+              onBlur={handleFoodNameBlur}
+              placeholder="Ej: Pollo a la plancha, Manzana..."
+              placeholderTextColor={colors.disabled}
+              autoCapitalize="sentences"
+              returnKeyType="next"
+            />
+          </View>
+          {showSuggestions && (
+            <View style={styles.suggestionsContainer}>
+              <FlatList
+                data={suggestions.slice(0, 4)}
+                keyExtractor={(item, index) => `${item.food_name}-${index}`}
+                scrollEnabled={false}
+                keyboardShouldPersistTaps="always"
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.suggestionRow,
+                      index < Math.min(suggestions.length, 4) - 1 && styles.suggestionRowBorder,
+                    ]}
+                    onPress={() => handleSelectSuggestion(item)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.suggestionLeft}>
+                      <Text style={styles.suggestionName} numberOfLines={1}>{item.food_name}</Text>
+                      <Text style={styles.suggestionMacros}>
+                        P {item.protein_g}g · C {item.carbs_g}g · G {item.fats_g}g
+                      </Text>
+                    </View>
+                    <Text style={styles.suggestionCalories}>{Math.round(item.calories)} kcal</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          )}
         </View>
 
         {/* Calories — big & prominent */}
@@ -308,4 +377,43 @@ const styles = StyleSheet.create({
   },
   caloriesUnit: { fontSize: 20, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
   macroGrid: { flexDirection: 'row', gap: spacing.sm },
+  suggestionsContainer: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    borderRadius: radius.md,
+    marginTop: spacing.xs,
+    overflow: 'hidden',
+    ...shadows.md,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+  },
+  suggestionRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.grayLight,
+  },
+  suggestionLeft: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  suggestionName: {
+    ...typography.bodyMd,
+    color: colors.black,
+    fontWeight: '600',
+  },
+  suggestionMacros: {
+    ...typography.caption,
+    color: colors.gray,
+    marginTop: 2,
+  },
+  suggestionCalories: {
+    ...typography.label,
+    color: colors.black,
+    flexShrink: 0,
+  },
 });
