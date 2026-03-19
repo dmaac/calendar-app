@@ -32,9 +32,16 @@ export const scanFood = async (
 
 // Note: scanFood auto-logs on the backend — no separate confirm step needed.
 
+function localDateStr(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /** Lista los logs de comida del día. */
 export const getFoodLogs = async (date?: string): Promise<AIFoodLog[]> => {
-  const d = date ?? new Date().toISOString().split('T')[0];
+  const d = date ?? localDateStr();
   const res = await api.get(`/api/food/logs?date=${d}`);
   return res.data;
 };
@@ -46,12 +53,12 @@ export const deleteFoodLog = async (id: number): Promise<void> => {
 
 /** Edita las macros de un log (usuario corrige el AI). */
 export const editFoodLog = async (id: number, updates: Partial<AIFoodLog>): Promise<void> => {
-  await api.put(`/api/food/logs/${id}`, updates);
+  await api.put(`/api/food/logs/${id}`, null, { params: updates });
 };
 
 /** Resumen del día (calorías, macros, progreso vs objetivo). */
 export const getDailySummary = async (date?: string): Promise<DailySummary> => {
-  const d = date ?? new Date().toISOString().split('T')[0];
+  const d = date ?? localDateStr();
   const res = await api.get(`/api/dashboard/today?date=${d}`);
   return res.data;
 };

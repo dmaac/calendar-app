@@ -13,6 +13,7 @@ import {
   RefreshControl,
   Modal,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -172,6 +173,7 @@ export default function LogScreen({ navigation }: any) {
   const { sidePadding } = useLayout();
   const [logs, setLogs] = useState<AIFoodLog[]>([]);
   const [summary, setSummary] = useState<DailySummary | null>(null);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [waterMl, setWaterMl] = useState(0);
   const [modalMeal, setModalMeal] = useState<MealType | null>(null);
@@ -192,10 +194,12 @@ export default function LogScreen({ navigation }: any) {
       }
     } catch {
       setError(true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  useFocusEffect(useCallback(() => { load(); }, []));
+  useFocusEffect(useCallback(() => { setLoading(true); load(); }, []));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -284,10 +288,10 @@ export default function LogScreen({ navigation }: any) {
       </View>
 
       {/* Error banner */}
-      {error && (
+      {error && !loading && (
         <TouchableOpacity
           style={[styles.errorBanner, { marginHorizontal: sidePadding }]}
-          onPress={load}
+          onPress={() => { setLoading(true); load(); }}
           activeOpacity={0.8}
         >
           <Ionicons name="wifi-outline" size={14} color={colors.white} />
@@ -315,6 +319,11 @@ export default function LogScreen({ navigation }: any) {
         </View>
       </View>
 
+      {loading && !refreshing ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.black} />
+        </View>
+      ) : (
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
@@ -385,6 +394,7 @@ export default function LogScreen({ navigation }: any) {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+      )}
 
       <AddModal
         visible={modalMeal !== null}
@@ -399,6 +409,7 @@ export default function LogScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  loadingOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

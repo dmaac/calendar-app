@@ -92,14 +92,14 @@ export default function EditProfileScreen({ navigation, route }: any) {
     setLoading(true);
     try {
       await saveOnboardingStep({
-        weightKg:        w,
-        heightCm:        h,
-        targetWeightKg:  tw || undefined,
-        goal:            goal as any,
-        dailyCalories:   preview.calories,
-        dailyProteinG:   preview.protein,
-        dailyCarbsG:     preview.carbs,
-        dailyFatsG:      preview.fats,
+        weight_kg:        w,
+        height_cm:        h,
+        target_weight_kg: tw || undefined,
+        goal:             goal as any,
+        daily_calories:   preview.calories,
+        daily_protein_g:  preview.protein,
+        daily_carbs_g:    preview.carbs,
+        daily_fats_g:     preview.fats,
       } as any);
       navigation.goBack();
     } catch {

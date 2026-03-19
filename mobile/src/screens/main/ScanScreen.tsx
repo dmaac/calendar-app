@@ -65,16 +65,16 @@ export default function ScanScreen({ navigation }: any) {
   const [result, setResult] = useState<FoodScanResult | null>(null);
   const [todayScans, setTodayScans] = useState(0);
 
-  // Cargar conteo de escaneos de hoy al entrar
+  // Cargar conteo de escaneos al entrar y cuando volvemos a idle después de un scan
   React.useEffect(() => {
-    if (!isPremium) {
+    if (!isPremium && scanState === 'idle') {
       foodService.getFoodLogs().then((logs) => {
         // Contar solo los que tienen imagen (scan IA), no manuales
         const aiScans = logs.filter((l) => l.image_url);
         setTodayScans(aiScans.length);
       }).catch(() => {});
     }
-  }, [isPremium, scanState]); // re-check cuando cambia scanState (después de confirmar)
+  }, [isPremium, scanState]); // solo cuando idle (carga inicial + después de confirmar)
 
   const requestPermission = async (type: 'camera' | 'library') => {
     if (Platform.OS === 'web') return true;

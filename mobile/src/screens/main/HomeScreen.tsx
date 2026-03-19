@@ -230,25 +230,25 @@ export default function HomeScreen({ navigation }: any) {
       </View>
 
       {/* Loading inicial */}
-      {loading && !refreshing && (
+      {loading && !refreshing ? (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={colors.black} />
         </View>
-      )}
+      ) : (
+        <>
+          {/* Error banner */}
+          {error && (
+            <TouchableOpacity
+              style={[styles.errorBanner, { marginHorizontal: sidePadding }]}
+              onPress={() => { setLoading(true); load(); }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="wifi-outline" size={16} color={colors.white} />
+              <Text style={styles.errorBannerText}>No se pudo cargar. Toca para reintentar</Text>
+            </TouchableOpacity>
+          )}
 
-      {/* Error banner */}
-      {error && !loading && (
-        <TouchableOpacity
-          style={[styles.errorBanner, { marginHorizontal: sidePadding }]}
-          onPress={() => { setLoading(true); load(); }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="wifi-outline" size={16} color={colors.white} />
-          <Text style={styles.errorBannerText}>No se pudo cargar. Toca para reintentar</Text>
-        </TouchableOpacity>
-      )}
-
-      <ScrollView
+          <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -290,6 +290,8 @@ export default function HomeScreen({ navigation }: any) {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+        </>
+      )}
     </View>
   );
 }

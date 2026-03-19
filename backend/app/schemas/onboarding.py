@@ -23,6 +23,10 @@ class OnboardingStepSave(BaseModel):
     health_connected: Optional[bool] = None
     notifications_enabled: Optional[bool] = None
     referral_code: Optional[str] = None
+    daily_calories: Optional[int] = None
+    daily_protein_g: Optional[int] = None
+    daily_carbs_g: Optional[int] = None
+    daily_fats_g: Optional[int] = None
 
 
 class OnboardingComplete(BaseModel):
