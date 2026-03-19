@@ -20,6 +20,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import * as foodService from '../../services/food.service';
 import { FoodScanResult } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+
+const FREE_SCAN_LIMIT = 3;
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type ScanState = 'idle' | 'scanning' | 'result' | 'logged';
@@ -55,10 +58,23 @@ function MacroPill({
 export default function ScanScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
+  const { isPremium } = useAuth();
   const [selectedMeal, setSelectedMeal] = useState<MealType>('lunch');
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [result, setResult] = useState<FoodScanResult | null>(null);
+  const [todayScans, setTodayScans] = useState(0);
+
+  // Cargar conteo de escaneos de hoy al entrar
+  React.useEffect(() => {
+    if (!isPremium) {
+      foodService.getFoodLogs().then((logs) => {
+        // Contar solo los que tienen imagen (scan IA), no manuales
+        const aiScans = logs.filter((l) => l.image_url);
+        setTodayScans(aiScans.length);
+      }).catch(() => {});
+    }
+  }, [isPremium, scanState]); // re-check cuando cambia scanState (después de confirmar)
 
   const requestPermission = async (type: 'camera' | 'library') => {
     if (Platform.OS === 'web') return true;
@@ -110,8 +126,22 @@ export default function ScanScreen({ navigation }: any) {
       setScanState('result');
     } catch (err: any) {
       setScanState('idle');
-      const msg = err?.response?.data?.detail || 'No pudimos analizar la imagen. Intenta de nuevo.';
-      Alert.alert('Error al escanear', msg);
+      const msg = err?.response?.data?.detail || 'No pudimos analizar la imagen.';
+      Alert.alert(
+        'Error al escanear',
+        msg,
+        [
+          { text: 'Reintentar', onPress: () => scanImage(uri) },
+          {
+            text: 'Añadir manualmente',
+            onPress: () => navigation.navigate('Registro', {
+              screen: 'AddFood',
+              params: { mealType: selectedMeal },
+            }),
+          },
+          { text: 'Cancelar', style: 'cancel' },
+        ]
+      );
     }
   };
 
@@ -254,6 +284,37 @@ export default function ScanScreen({ navigation }: any) {
     );
   }
 
+  // ─── Paywall gate — límite de escaneos gratuitos ─────────────────────────
+  if (!isPremium && todayScans >= FREE_SCAN_LIMIT) {
+    return (
+      <View style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding }]}>
+        <View style={styles.limitIcon}>
+          <Ionicons name="lock-closed" size={36} color={colors.white} />
+        </View>
+        <Text style={styles.limitTitle}>Límite diario alcanzado</Text>
+        <Text style={styles.limitSubtitle}>
+          Has usado tus {FREE_SCAN_LIMIT} escaneos gratuitos de hoy.{'\n'}
+          Hazte Premium para escaneos ilimitados.
+        </Text>
+        <TouchableOpacity
+          style={styles.upgradeBtn}
+          onPress={() => navigation.navigate('Perfil', { screen: 'Paywall' })}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.upgradeBtnText}>👑 Ver planes Premium</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.manualFallbackBtn}
+          onPress={() => navigation.navigate('Registro', { screen: 'AddFood', params: { mealType: selectedMeal } })}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="create-outline" size={16} color={colors.black} />
+          <Text style={styles.manualFallbackText}>Añadir manualmente</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   // ─── Idle — main scan UI ─────────────────────────────────────────────────
   return (
     <View style={[styles.screen, { paddingTop: insets.top, paddingHorizontal: sidePadding }]}>
@@ -305,6 +366,21 @@ export default function ScanScreen({ navigation }: any) {
           );
         })}
       </View>
+
+      {/* Banner plan gratuito */}
+      {!isPremium && (
+        <TouchableOpacity
+          style={styles.freeBanner}
+          onPress={() => navigation.navigate('Perfil', { screen: 'Paywall' })}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="flash-outline" size={14} color={colors.badgeText} />
+          <Text style={styles.freeBannerText}>
+            Plan gratuito: {todayScans}/{FREE_SCAN_LIMIT} escaneos usados hoy
+          </Text>
+          <Text style={styles.freeBannerCta}>Mejorar →</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Info */}
       <View style={styles.infoRow}>
@@ -442,6 +518,38 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md, borderRadius: radius.full,
   },
   retryBtnText: { ...typography.button, color: colors.black },
+
+  // Free plan banner
+  freeBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+    backgroundColor: colors.badgeBg, borderRadius: radius.md,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    marginTop: spacing.md,
+  },
+  freeBannerText: { ...typography.caption, color: colors.badgeText, flex: 1 },
+  freeBannerCta: { ...typography.caption, fontWeight: '700', color: colors.badgeText },
+
+  // Paywall gate
+  limitIcon: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: colors.black, alignItems: 'center', justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  limitTitle: { ...typography.titleSm, color: colors.black, marginBottom: spacing.sm },
+  limitSubtitle: { ...typography.subtitle, color: colors.gray, textAlign: 'center', lineHeight: 22, marginBottom: spacing.xl },
+  upgradeBtn: {
+    backgroundColor: colors.black, borderRadius: radius.full,
+    paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
+    marginBottom: spacing.sm, width: '100%', alignItems: 'center',
+  },
+  upgradeBtnText: { ...typography.button, color: colors.white },
+  manualFallbackBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+    backgroundColor: colors.surface, borderRadius: radius.full,
+    paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
+    width: '100%', justifyContent: 'center',
+  },
+  manualFallbackText: { ...typography.label, color: colors.black },
 
   // Success
   successIcon: {

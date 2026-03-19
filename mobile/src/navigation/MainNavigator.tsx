@@ -15,6 +15,7 @@ import HomeScreen     from '../screens/main/HomeScreen';
 import ScanScreen     from '../screens/main/ScanScreen';
 import LogScreen      from '../screens/main/LogScreen';
 import AddFoodScreen  from '../screens/main/AddFoodScreen';
+import EditFoodScreen from '../screens/main/EditFoodScreen';
 import ProfileScreen  from '../screens/main/ProfileScreen';
 import PaywallScreen  from '../screens/main/PaywallScreen';
 
@@ -47,6 +48,7 @@ const LogStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="LogMain"   component={LogScreen} />
     <Stack.Screen name="AddFood"   component={AddFoodScreen} />
+    <Stack.Screen name="EditFood"  component={EditFoodScreen} />
   </Stack.Navigator>
 );
 

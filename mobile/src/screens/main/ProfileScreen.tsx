@@ -9,6 +9,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,11 +74,20 @@ export default function ProfileScreen({ navigation }: any) {
   const { sidePadding } = useLayout();
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<OnboardingProfileRead | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState(false);
+
+  const loadProfile = () => {
+    setProfileLoading(true);
+    setProfileError(false);
+    getOnboardingProfile()
+      .then((p) => { setProfile(p); })
+      .catch(() => { setProfileError(true); })
+      .finally(() => setProfileLoading(false));
+  };
 
   useEffect(() => {
-    getOnboardingProfile()
-      .then(setProfile)
-      .catch(() => {});
+    loadProfile();
   }, []);
 
   const handleLogout = () => {
@@ -122,6 +132,17 @@ export default function ProfileScreen({ navigation }: any) {
             </View>
           )}
         </View>
+
+        {/* Loading / error perfil */}
+        {profileLoading && (
+          <ActivityIndicator size="small" color={colors.black} style={{ marginBottom: spacing.md }} />
+        )}
+        {profileError && !profileLoading && (
+          <TouchableOpacity style={styles.errorRow} onPress={loadProfile} activeOpacity={0.8}>
+            <Ionicons name="refresh-outline" size={14} color={colors.accent} />
+            <Text style={styles.errorRowText}>No se pudo cargar el perfil. Toca para reintentar</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Stats */}
         {profile && (
@@ -266,6 +287,17 @@ const styles = StyleSheet.create({
   premiumBannerIcon: { fontSize: 28 },
   premiumBannerTitle: { ...typography.label, color: colors.white },
   premiumBannerSub: { ...typography.caption, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: '#FFF5F5',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  errorRowText: { ...typography.caption, color: colors.accent, flex: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

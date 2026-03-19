@@ -175,19 +175,24 @@ export default function LogScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [waterMl, setWaterMl] = useState(0);
   const [modalMeal, setModalMeal] = useState<MealType | null>(null);
+  const [error, setError] = useState(false);
 
   const load = async () => {
+    setError(false);
     try {
       const [l, s] = await Promise.allSettled([
         foodService.getFoodLogs(),
         foodService.getDailySummary(),
       ]);
       if (l.status === 'fulfilled') setLogs(l.value);
+      else setError(true);
       if (s.status === 'fulfilled') {
         setSummary(s.value);
         setWaterMl(s.value.water_ml ?? 0);
       }
-    } catch {}
+    } catch {
+      setError(true);
+    }
   };
 
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -196,6 +201,10 @@ export default function LogScreen({ navigation }: any) {
     setRefreshing(true);
     await load();
     setRefreshing(false);
+  };
+
+  const handleEdit = (log: AIFoodLog) => {
+    navigation.navigate('EditFood', { log });
   };
 
   const handleDelete = (log: AIFoodLog) => {
@@ -266,6 +275,18 @@ export default function LogScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
+      {/* Error banner */}
+      {error && (
+        <TouchableOpacity
+          style={[styles.errorBanner, { marginHorizontal: sidePadding }]}
+          onPress={load}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="wifi-outline" size={14} color={colors.white} />
+          <Text style={styles.errorBannerText}>No se pudo cargar. Toca para reintentar</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Calorie summary strip */}
       <View style={[styles.summaryStrip, { marginHorizontal: sidePadding }]}>
         <View style={styles.summaryItem}>
@@ -329,9 +350,14 @@ export default function LogScreen({ navigation }: any) {
                     <View style={styles.foodRight}>
                       <Text style={styles.foodKcal}>{Math.round(log.calories)}</Text>
                       <Text style={styles.foodKcalUnit}>kcal</Text>
-                      <TouchableOpacity onPress={() => handleDelete(log)} style={styles.deleteBtn}>
-                        <Ionicons name="trash-outline" size={14} color={colors.gray} />
-                      </TouchableOpacity>
+                      <View style={styles.foodActions}>
+                        <TouchableOpacity onPress={() => handleEdit(log)} style={styles.actionBtn}>
+                          <Ionicons name="create-outline" size={14} color={colors.gray} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDelete(log)} style={styles.actionBtn}>
+                          <Ionicons name="trash-outline" size={14} color={colors.gray} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 ))
@@ -381,6 +407,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.accent, borderRadius: radius.md,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  errorBannerText: { ...typography.caption, color: colors.white, flex: 1 },
   summaryStrip: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -433,7 +466,8 @@ const styles = StyleSheet.create({
   foodRight: { alignItems: 'flex-end', gap: 2 },
   foodKcal: { ...typography.label, color: colors.black },
   foodKcalUnit: { ...typography.caption, color: colors.gray },
-  deleteBtn: { padding: 4, marginTop: 2 },
+  foodActions: { flexDirection: 'row', gap: 2, marginTop: 2 },
+  actionBtn: { padding: 4 },
   emptyMeal: {
     flexDirection: 'row',
     alignItems: 'center',

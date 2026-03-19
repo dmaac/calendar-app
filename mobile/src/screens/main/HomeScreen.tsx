@@ -10,6 +10,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -146,20 +147,29 @@ export default function HomeScreen({ navigation }: any) {
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [logs, setLogs] = useState<AIFoodLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = async () => {
+    setError(false);
     try {
       const [s, l] = await Promise.allSettled([
         foodService.getDailySummary(),
         foodService.getFoodLogs(),
       ]);
       if (s.status === 'fulfilled') setSummary(s.value);
+      else setError(true);
       if (l.status === 'fulfilled') setLogs(l.value);
-    } catch {}
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useFocusEffect(
     useCallback(() => {
+      setLoading(true);
       load();
     }, [])
   );
@@ -219,6 +229,25 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       </View>
 
+      {/* Loading inicial */}
+      {loading && !refreshing && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.black} />
+        </View>
+      )}
+
+      {/* Error banner */}
+      {error && !loading && (
+        <TouchableOpacity
+          style={[styles.errorBanner, { marginHorizontal: sidePadding }]}
+          onPress={() => { setLoading(true); load(); }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="wifi-outline" size={16} color={colors.white} />
+          <Text style={styles.errorBannerText}>No se pudo cargar. Toca para reintentar</Text>
+        </TouchableOpacity>
+      )}
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
@@ -270,6 +299,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  loadingOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  errorBannerText: { ...typography.caption, color: colors.white, flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
