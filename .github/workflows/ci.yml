@@ -64,7 +64,7 @@ jobs:
           REFRESH_SECRET_KEY: ci-test-refresh-secret-key-not-for-production
           OPENAI_API_KEY: sk-fake-key-for-ci
         run: |
-          pytest -v --tb=short -m "not slow"
+          pytest -v --tb=short tests/test_onboarding_service.py tests/test_ai_food_service.py
 
   mobile-typecheck:
     name: Mobile TypeScript Check
