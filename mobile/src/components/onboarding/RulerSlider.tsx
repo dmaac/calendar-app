@@ -11,6 +11,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { colors, useLayout } from '../../theme';
 
@@ -39,6 +40,8 @@ export default function RulerSlider({
   const scrollRef = useRef<ScrollView>(null);
   const { innerWidth } = useLayout();
   const totalTicks = Math.round((max - min) / step);
+  const webScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isWeb = Platform.OS === 'web';
 
   // Scroll al valor inicial
   useEffect(() => {
@@ -49,18 +52,34 @@ export default function RulerSlider({
     return () => clearTimeout(timer);
   }, []);
 
-  const handleScrollEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const x = e.nativeEvent.contentOffset.x;
+  const snapToValue = useCallback(
+    (x: number, animated = true) => {
       const idx = Math.round(x / TICK_WIDTH);
       const clamped = Math.max(0, Math.min(totalTicks, idx));
       const newVal = +(min + clamped * step).toFixed(1);
-
-      // Snap
-      scrollRef.current?.scrollTo({ x: clamped * TICK_WIDTH, animated: true });
+      scrollRef.current?.scrollTo({ x: clamped * TICK_WIDTH, animated });
       onChange(newVal);
     },
     [min, step, totalTicks, onChange]
+  );
+
+  const handleScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      snapToValue(e.nativeEvent.contentOffset.x);
+    },
+    [snapToValue]
+  );
+
+  // Web: debounce 150ms para detectar fin de scroll
+  const handleWebScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (webScrollTimer.current) clearTimeout(webScrollTimer.current);
+      const x = e.nativeEvent.contentOffset.x;
+      webScrollTimer.current = setTimeout(() => {
+        snapToValue(x);
+      }, 150);
+    },
+    [snapToValue]
   );
 
   const centerX = innerWidth / 2;
@@ -90,10 +109,11 @@ export default function RulerSlider({
           ref={scrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          snapToInterval={TICK_WIDTH}
+          snapToInterval={isWeb ? undefined : TICK_WIDTH}
           decelerationRate={Platform.OS === 'ios' ? 'fast' : 0.9}
-          onMomentumScrollEnd={handleScrollEnd}
-          onScrollEndDrag={handleScrollEnd}
+          onMomentumScrollEnd={isWeb ? undefined : handleScrollEnd}
+          onScrollEndDrag={isWeb ? undefined : handleScrollEnd}
+          onScroll={isWeb ? handleWebScroll : undefined}
           contentContainerStyle={{
             paddingHorizontal: centerX,
           }}
@@ -102,9 +122,11 @@ export default function RulerSlider({
           {Array.from({ length: totalTicks + 1 }).map((_, i) => {
             const isMajor = i % MAJOR_EVERY === 0;
             return (
-              <View
+              <TouchableOpacity
                 key={i}
                 style={[styles.tick, { width: TICK_WIDTH }]}
+                onPress={() => snapToValue(i * TICK_WIDTH)}
+                activeOpacity={0.7}
               >
                 <View
                   style={[
@@ -116,7 +138,7 @@ export default function RulerSlider({
                     },
                   ]}
                 />
-              </View>
+              </TouchableOpacity>
             );
           })}
         </ScrollView>

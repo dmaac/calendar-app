@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, PanResponder, GestureResponderEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, PanResponder, GestureResponderEvent, Platform } from 'react-native';
 import { colors, typography, spacing, radius, useLayout } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
@@ -10,9 +10,9 @@ const MIN = 0.1;
 const MAX = 1.5;
 const STEP = 0.1;
 const PRESETS = [
-  { value: 0.3, label: '0.3 kg/wk' },
-  { value: 0.8, label: '⭐ Recommended' },
-  { value: 1.5, label: '1.5 kg/wk' },
+  { value: 0.3, label: '0.3 kg/sem' },
+  { value: 0.8, label: '⭐ Recomendado' },
+  { value: 1.5, label: '1.5 kg/sem' },
 ];
 
 function clamp(v: number) {
@@ -28,6 +28,7 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
   const trackWidth = innerWidth;
   const trackRef = useRef<View>(null);
   const trackX = useRef(0);
+  const isWeb = Platform.OS === 'web';
 
   const getAnimal = () => speed <= 0.4 ? '🦥' : speed <= 1.0 ? '🐕' : '🐆';
 
@@ -37,19 +38,31 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
     update('weeklySpeedKg', clamp(MIN + ratio * (MAX - MIN)));
   }, [trackWidth]);
 
+  const computeFromX = useCallback((x: number) => {
+    const ratio = Math.max(0, Math.min(1, x / trackWidth));
+    update('weeklySpeedKg', clamp(MIN + ratio * (MAX - MIN)));
+  }, [trackWidth]);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (e) => {
-        trackRef.current?.measure((_fx, _fy, _w, _h, px) => {
-          trackX.current = px;
-        });
+        if (Platform.OS === 'web') {
+          // On web, locationX is relative to the element — use it directly
+          computeFromX(e.nativeEvent.locationX);
+        } else {
+          trackRef.current?.measure((_fx, _fy, _w, _h, px) => {
+            trackX.current = px;
+          });
+        }
       },
       onPanResponderMove: (e) => {
-        const x = e.nativeEvent.pageX - trackX.current;
-        const ratio = Math.max(0, Math.min(1, x / trackWidth));
-        update('weeklySpeedKg', clamp(MIN + ratio * (MAX - MIN)));
+        if (Platform.OS === 'web') {
+          computeFromX(e.nativeEvent.locationX);
+        } else {
+          computeFromX(e.nativeEvent.pageX - trackX.current);
+        }
       },
     })
   ).current;

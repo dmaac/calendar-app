@@ -1,8 +1,10 @@
 /**
  * ScrollPicker — wheel picker cross-platform (iOS / Android / Web)
  * Muestra 5 ítems, el central es el seleccionado.
+ * Web: usa onScroll con debounce + tap directo en ítem.
+ * Native: usa onMomentumScrollEnd + snapToInterval.
  */
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +13,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { colors } from '../../theme';
 
@@ -33,55 +36,57 @@ export default function ScrollPicker({
 }: ScrollPickerProps) {
   const scrollRef = useRef<ScrollView>(null);
   const [localIndex, setLocalIndex] = useState(selectedIndex);
-  const isScrolling = useRef(false);
+  const webScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Scroll inicial al índice seleccionado
   useEffect(() => {
     const timer = setTimeout(() => {
-      scrollRef.current?.scrollTo({
-        y: selectedIndex * ITEM_HEIGHT,
-        animated: false,
-      });
+      scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_HEIGHT, animated: false });
+      setLocalIndex(selectedIndex);
     }, 150);
     return () => clearTimeout(timer);
   }, []);
 
-  const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(items.length - 1, index));
-
-    // Snap suave al ítem más cercano
-    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
-
+  const snapToIndex = useCallback((rawIndex: number, animated = true) => {
+    const clamped = Math.max(0, Math.min(items.length - 1, rawIndex));
+    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated });
     setLocalIndex(clamped);
     onSelect(clamped);
-    isScrolling.current = false;
+  }, [items.length, onSelect]);
+
+  // Native: snap al soltar el scroll
+  const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    snapToIndex(Math.round(y / ITEM_HEIGHT));
   };
+
+  // Web: debounce de 150ms para detectar fin de scroll
+  const handleWebScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (webScrollTimer.current) clearTimeout(webScrollTimer.current);
+    const y = e.nativeEvent.contentOffset.y;
+    webScrollTimer.current = setTimeout(() => {
+      snapToIndex(Math.round(y / ITEM_HEIGHT));
+    }, 150);
+  };
+
+  const isWeb = Platform.OS === 'web';
 
   return (
     <View style={[styles.container, { width }]}>
-      {/* Overlay superior: fade out */}
-      <View style={styles.fadeTop} pointerEvents="none" />
-
-      {/* Highlight del ítem seleccionado */}
-      <View style={styles.selectionHighlight} pointerEvents="none" />
-
-      {/* Overlay inferior: fade out */}
-      <View style={styles.fadeBottom} pointerEvents="none" />
-
       <ScrollView
         ref={scrollRef}
+        style={{ height: PICKER_HEIGHT }}
         showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
+        snapToInterval={isWeb ? undefined : ITEM_HEIGHT}
         decelerationRate={Platform.OS === 'ios' ? 'fast' : 0.9}
-        onMomentumScrollEnd={handleScrollEnd}
-        onScrollEndDrag={handleScrollEnd}
+        onMomentumScrollEnd={isWeb ? undefined : handleScrollEnd}
+        onScrollEndDrag={isWeb ? undefined : handleScrollEnd}
+        onScroll={isWeb ? handleWebScroll : undefined}
+        scrollEventThrottle={16}
         contentContainerStyle={{
           paddingTop: ITEM_HEIGHT * 2,
           paddingBottom: ITEM_HEIGHT * 2,
         }}
-        scrollEventThrottle={16}
       >
         {items.map((item, i) => {
           const isSelected = i === localIndex;
@@ -90,9 +95,11 @@ export default function ScrollPicker({
           const fontSize = distance === 0 ? 20 : 16;
 
           return (
-            <View
+            <TouchableOpacity
               key={`${item}-${i}`}
               style={[styles.item, { height: ITEM_HEIGHT }]}
+              onPress={() => snapToIndex(i)}
+              activeOpacity={0.7}
             >
               <Text
                 style={[
@@ -107,10 +114,15 @@ export default function ScrollPicker({
               >
                 {item}
               </Text>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </ScrollView>
+
+      {/* Overlays encima del ScrollView para no bloquear eventos */}
+      <View style={styles.fadeTop} pointerEvents="none" />
+      <View style={styles.selectionHighlight} pointerEvents="none" />
+      <View style={styles.fadeBottom} pointerEvents="none" />
     </View>
   );
 }
@@ -129,7 +141,7 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     backgroundColor: colors.surface,
     borderRadius: 10,
-    zIndex: 0,
+    zIndex: 2,
   },
   fadeTop: {
     position: 'absolute',
@@ -137,9 +149,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: ITEM_HEIGHT * 2,
-    zIndex: 2,
-    // Gradiente simulado con opacidad
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    zIndex: 3,
+    backgroundColor: 'rgba(255,255,255,0.75)',
   },
   fadeBottom: {
     position: 'absolute',
@@ -147,13 +158,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: ITEM_HEIGHT * 2,
-    zIndex: 2,
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    zIndex: 3,
+    backgroundColor: 'rgba(255,255,255,0.75)',
   },
   item: {
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 3,
   },
   itemText: {
     textAlign: 'center',
