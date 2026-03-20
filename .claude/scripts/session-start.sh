@@ -69,5 +69,5 @@ MSG="🚀 Cal AI Agent System — Nueva sesión iniciada ($SESSION_ID)"
 [ -n "$ACTIVE_AGENTS" ] && MSG="$MSG | $ACTIVE_AGENTS"
 MSG="$MSG | Budget: 185K tokens disponibles (modo FULL) | Estado en .claude/agents/shared/"
 
-# Output JSON para Claude Code
-printf '{"systemMessage": "%s"}' "$MSG"
+# Output JSON para Claude Code (sanitize quotes/backslashes to prevent malformed JSON)
+jq -n --arg msg "$MSG" '{"systemMessage": $msg}'

@@ -1,6 +1,7 @@
 ---
 name: influencer-partnership-manager
 description: Influencer and creator partnership specialist for mobile apps. Use for influencer strategy, outreach templates, rate negotiation, brief writing, contract terms, and performance tracking for Cal AI.
+model: claude-sonnet-4-6
 ---
 
 > **TOKEN BUDGET**: Al iniciar, lee `.claude/agents/shared/token_budget.json`. Ajusta verbosidad según `budget_mode`: FULL=normal | REDUCED=sin ejemplos | MINIMAL=solo esencial | EMERGENCY=solo checkpoint. Guarda estado en `.claude/agents/shared/agent_memory.json` al terminar.

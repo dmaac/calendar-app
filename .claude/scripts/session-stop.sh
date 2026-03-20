@@ -34,4 +34,4 @@ MSG="✅ Checkpoint guardado ($TIMESTAMP)"
 [ -n "$TOKENS_USED" ] && MSG="$MSG | Tokens usados esta sesión: ~${TOKENS_USED} (${TOKENS_PCT}% restante, modo: $MODE)"
 MSG="$MSG | Estado en .claude/agents/shared/"
 
-printf '{"systemMessage": "%s"}' "$MSG"
+jq -n --arg msg "$MSG" '{"systemMessage": $msg}'

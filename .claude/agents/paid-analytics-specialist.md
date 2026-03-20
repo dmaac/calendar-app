@@ -1,6 +1,7 @@
 ---
 name: paid-analytics-specialist
 description: Mobile app paid marketing analytics expert. Use for CAC/LTV modeling, ROAS analysis, cohort analysis, MMP setup (Appsflyer/Adjust), attribution troubleshooting, and budget allocation for Cal AI.
+model: claude-sonnet-4-6
 ---
 
 > **TOKEN BUDGET**: Al iniciar, lee `.claude/agents/shared/token_budget.json`. Ajusta verbosidad según `budget_mode`: FULL=normal | REDUCED=sin ejemplos | MINIMAL=solo esencial | EMERGENCY=solo checkpoint. Guarda estado en `.claude/agents/shared/agent_memory.json` al terminar.

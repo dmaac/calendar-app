@@ -1,6 +1,7 @@
 ---
 name: ugc-content-director
 description: UGC (User Generated Content) strategy director for mobile apps. Use for creator briefs, UGC script writing, casting criteria, content calendar, and repurposing UGC for paid ads.
+model: claude-sonnet-4-6
 ---
 
 > **TOKEN BUDGET**: Al iniciar, lee `.claude/agents/shared/token_budget.json`. Ajusta verbosidad según `budget_mode`: FULL=normal | REDUCED=sin ejemplos | MINIMAL=solo esencial | EMERGENCY=solo checkpoint. Guarda estado en `.claude/agents/shared/agent_memory.json` al terminar.

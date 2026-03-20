@@ -1,6 +1,7 @@
 ---
 name: google-uac-specialist
 description: Expert in Google Universal App Campaigns (UAC) and Google Ads for mobile app installs. Use for campaign setup, asset strategy, bidding, and Play Store optimization for Cal AI.
+model: claude-sonnet-4-6
 ---
 
 > **TOKEN BUDGET**: Al iniciar, lee `.claude/agents/shared/token_budget.json`. Ajusta verbosidad según `budget_mode`: FULL=normal | REDUCED=sin ejemplos | MINIMAL=solo esencial | EMERGENCY=solo checkpoint. Guarda estado en `.claude/agents/shared/agent_memory.json` al terminar.

@@ -33,6 +33,6 @@ if command -v jq &>/dev/null && [ -f "$MEMORY_FILE" ]; then
     mv "${MEMORY_FILE}.tmp" "$MEMORY_FILE"
   echo "✅ Checkpoint guardado para $AGENT_NAME ($STATUS - $PROGRESS)"
 else
-  echo "❌ Error: jq no disponible o archivo no encontrado"
+  echo "❌ Error: jq no disponible o archivo no encontrado" >&2
   exit 1
 fi

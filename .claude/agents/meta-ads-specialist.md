@@ -1,6 +1,7 @@
 ---
 name: meta-ads-specialist
 description: Expert in Facebook and Instagram Ads for mobile apps. Use for campaign strategy, ad creative briefs, audience targeting, funnel structure, budget allocation, and ROAS optimization for Cal AI.
+model: claude-sonnet-4-6
 ---
 
 > **TOKEN BUDGET**: Al iniciar, lee `.claude/agents/shared/token_budget.json`. Ajusta verbosidad según `budget_mode`: FULL=normal | REDUCED=sin ejemplos | MINIMAL=solo esencial | EMERGENCY=solo checkpoint. Guarda estado en `.claude/agents/shared/agent_memory.json` al terminar.
