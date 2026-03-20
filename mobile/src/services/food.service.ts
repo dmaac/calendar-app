@@ -53,7 +53,7 @@ export const deleteFoodLog = async (id: number): Promise<void> => {
 
 /** Edita las macros de un log (usuario corrige el AI). */
 export const editFoodLog = async (id: number, updates: Partial<AIFoodLog>): Promise<void> => {
-  await api.put(`/api/food/logs/${id}`, null, { params: updates });
+  await api.put(`/api/food/logs/${id}`, updates);
 };
 
 /** Resumen del día (calorías, macros, progreso vs objetivo). */

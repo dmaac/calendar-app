@@ -166,7 +166,7 @@ const ApiService = {
     if (query) params.append('query', query);
     params.append('limit', limit.toString());
     const res = await api.get(`/foods/?${params}`);
-    return res.data;
+    return res.data.items ?? res.data;
   },
 
   async getFood(id: number) {
@@ -182,7 +182,7 @@ const ApiService = {
 
   async getMeals(date: string) {
     const res = await api.get(`/meals/?target_date=${date}`);
-    return res.data;
+    return res.data.items ?? res.data;
   },
 
   async deleteMeal(id: number) {
