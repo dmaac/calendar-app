@@ -64,7 +64,7 @@ export interface OnboardingProfileRead {
   birth_date?: string;
   goal?: string;
   target_weight_kg?: number;
-  weight_speed_kg?: number;
+  weekly_speed_kg?: number;
   pain_points?: string[];
   diet_type?: string;
   accomplishments?: string[];

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from .core.database import create_db_and_tables
 from .core.config import settings
 from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router
@@ -43,6 +44,9 @@ if _slowapi_available:
     limiter = Limiter(key_func=get_remote_address)
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# GZip compression for API responses
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Configure CORS for React Native
 app.add_middleware(

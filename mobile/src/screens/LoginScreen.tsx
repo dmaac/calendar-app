@@ -35,7 +35,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     try {
       await login(email, password);
     } catch (error: any) {
-      Alert.alert('Error al iniciar sesión', error?.response?.data?.detail || 'Verifica tu email y contraseña');
+      Alert.alert('Error al iniciar sesión', error?.message || error?.response?.data?.detail || 'Verifica tu email y contraseña');
     } finally {
       setLoading(false);
     }

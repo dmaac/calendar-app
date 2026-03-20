@@ -38,9 +38,13 @@ async def cache_delete(key: str):
 
 async def cache_delete_pattern(pattern: str):
     r = get_redis()
-    keys = await r.keys(pattern)
-    if keys:
-        await r.delete(*keys)
+    cursor = 0
+    while True:
+        cursor, keys = await r.scan(cursor, match=pattern, count=100)
+        if keys:
+            await r.delete(*keys)
+        if cursor == 0:
+            break
 
 
 def user_profile_key(user_id: int) -> str:

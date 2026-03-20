@@ -129,8 +129,13 @@ export const useOnboarding = () => {
 function calculatePlan(data: OnboardingData): NutritionPlan {
   const { heightCm, weightKg, birthDate, goal, targetWeightKg, weeklySpeedKg, gender } = data;
 
-  // Edad
-  const age = new Date().getFullYear() - birthDate.year;
+  // Edad (cálculo preciso comparando mes/día)
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.year;
+  const monthDiff = now.getMonth() - birthDate.monthIndex;
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.day)) {
+    age--;
+  }
 
   // BMR — Fórmula Mifflin-St Jeor
   const bmr = gender === 'Female'

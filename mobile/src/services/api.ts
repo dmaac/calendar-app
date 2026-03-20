@@ -92,7 +92,6 @@ api.interceptors.response.use(
 
       try {
         const tokens = await authService.refreshSession();
-        _isRefreshing = false;
 
         if (tokens) {
           processQueue(tokens.access_token);
@@ -104,9 +103,10 @@ api.interceptors.response.use(
           return Promise.reject(error);
         }
       } catch (refreshError) {
-        _isRefreshing = false;
         processQueue(null);
         return Promise.reject(refreshError);
+      } finally {
+        _isRefreshing = false;
       }
     }
 

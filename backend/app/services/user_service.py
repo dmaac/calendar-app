@@ -19,7 +19,7 @@ class UserService:
 
     async def create_user(self, user_create: UserCreate) -> User:
         hashed_password = get_password_hash(user_create.password)
-        user_data = user_create.dict()
+        user_data = user_create.model_dump()
         del user_data["password"]
 
         user = User(**user_data, hashed_password=hashed_password)

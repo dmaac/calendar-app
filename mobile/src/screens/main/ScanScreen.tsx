@@ -2,7 +2,7 @@
  * ScanScreen — Escaneo de alimentos con IA
  * Flujo: seleccionar imagen (cámara/galería) → subir al backend → ver resultado → confirmar log
  */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -64,6 +64,14 @@ export default function ScanScreen({ navigation }: any) {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [result, setResult] = useState<FoodScanResult | null>(null);
   const [todayScans, setTodayScans] = useState(0);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    };
+  }, []);
 
   // Cargar conteo de escaneos al entrar y cuando volvemos a idle después de un scan
   React.useEffect(() => {
@@ -148,7 +156,7 @@ export default function ScanScreen({ navigation }: any) {
   const handleConfirm = () => {
     setScanState('logged');
     // Navigate to log after a moment
-    setTimeout(() => {
+    confirmTimerRef.current = setTimeout(() => {
       setScanState('idle');
       setImageUri(null);
       setResult(null);

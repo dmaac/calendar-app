@@ -18,3 +18,4 @@ PyJWT
 aiofiles
 httpx
 google-auth
+gunicorn

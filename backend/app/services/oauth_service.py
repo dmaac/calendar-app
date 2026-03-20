@@ -6,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from app.models.user import User
 from app.core.security import get_password_hash
+from app.core.config import settings
 
 APPLE_KEYS_URL = "https://appleid.apple.com/auth/keys"
 
@@ -30,7 +31,7 @@ async def verify_apple_token(identity_token: str) -> Optional[dict]:
             identity_token,
             public_key,
             algorithms=["RS256"],
-            audience="your.bundle.id",  # Will be overridden from settings
+            audience=settings.apple_client_id,
             options={"verify_exp": True}
         )
         return claims
@@ -84,6 +85,8 @@ async def upsert_oauth_user(
         name = f"{first_name or ''} {last_name or ''}".strip() or email.split("@")[0]
         user = User(
             email=email,
+            first_name=first_name or '',
+            last_name=last_name or '',
             hashed_password=None,
             provider=provider,
             provider_id=provider_id,
