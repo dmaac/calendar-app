@@ -25,6 +25,7 @@ from ..services.ai_scan_service import (
     get_food_logs,
     get_daily_summary,
 )
+from ..core.cache import cache_get, cache_set, cache_delete, daily_summary_key, CACHE_TTL
 from pydantic import BaseModel
 
 try:
@@ -45,6 +46,15 @@ class ManualFoodLog(BaseModel):
     fiber_g: Optional[float] = None
     serving_size: Optional[str] = None
     meal_type: str = "snack"
+
+
+class UpdateFoodLog(BaseModel):
+    food_name: Optional[str] = None
+    calories: Optional[float] = None
+    carbs_g: Optional[float] = None
+    protein_g: Optional[float] = None
+    fats_g: Optional[float] = None
+    meal_type: Optional[str] = None
 
 
 class WaterLog(BaseModel):
@@ -99,6 +109,11 @@ async def scan_food(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
 
+    try:
+        await cache_delete(daily_summary_key(current_user.id, date_type.today().isoformat()))
+    except Exception:
+        pass
+
     return result
 
 
@@ -138,6 +153,11 @@ async def manual_food_log(
     session.add(log)
     await session.commit()
     await session.refresh(log)
+
+    try:
+        await cache_delete(daily_summary_key(current_user.id, date_type.today().isoformat()))
+    except Exception:
+        pass
 
     return {
         "id": log.id,
@@ -186,6 +206,12 @@ async def log_water(
     session.add(summary)
     await session.commit()
     await session.refresh(summary)
+
+    try:
+        await cache_delete(daily_summary_key(current_user.id, today.isoformat()))
+    except Exception:
+        pass
+
     return {"water_ml": summary.water_ml}
 
 
@@ -248,12 +274,7 @@ async def get_food_log(
 @router.put("/food/logs/{log_id}")
 async def update_food_log(
     log_id: int,
-    food_name: Optional[str] = None,
-    calories: Optional[float] = None,
-    carbs_g: Optional[float] = None,
-    protein_g: Optional[float] = None,
-    fats_g: Optional[float] = None,
-    meal_type: Optional[str] = None,
+    body: UpdateFoodLog,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -268,24 +289,29 @@ async def update_food_log(
     if not log:
         raise HTTPException(status_code=404, detail="Food log not found")
 
-    if food_name is not None:
-        log.food_name = food_name
-    if calories is not None:
-        log.calories = calories
-    if carbs_g is not None:
-        log.carbs_g = carbs_g
-    if protein_g is not None:
-        log.protein_g = protein_g
-    if fats_g is not None:
-        log.fats_g = fats_g
-    if meal_type is not None:
-        if meal_type not in {"breakfast", "lunch", "dinner", "snack"}:
+    if body.food_name is not None:
+        log.food_name = body.food_name
+    if body.calories is not None:
+        log.calories = body.calories
+    if body.carbs_g is not None:
+        log.carbs_g = body.carbs_g
+    if body.protein_g is not None:
+        log.protein_g = body.protein_g
+    if body.fats_g is not None:
+        log.fats_g = body.fats_g
+    if body.meal_type is not None:
+        if body.meal_type not in {"breakfast", "lunch", "dinner", "snack"}:
             raise HTTPException(status_code=422, detail="Invalid meal_type")
-        log.meal_type = meal_type
+        log.meal_type = body.meal_type
 
     log.was_edited = True
     session.add(log)
     await session.commit()
+
+    try:
+        await cache_delete(daily_summary_key(current_user.id, log.logged_at.date().isoformat()))
+    except Exception:
+        pass
 
     return {"message": "Updated", "id": log.id}
 
@@ -307,8 +333,15 @@ async def delete_food_log(
     if not log:
         raise HTTPException(status_code=404, detail="Food log not found")
 
+    log_date = log.logged_at.date().isoformat()
     await session.delete(log)
     await session.commit()
+
+    try:
+        await cache_delete(daily_summary_key(current_user.id, log_date))
+    except Exception:
+        pass
+
     return {"message": "Deleted"}
 
 
@@ -374,8 +407,24 @@ async def dashboard_today(
     except ValueError:
         raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
 
-    return await get_daily_summary(
+    cache_key = daily_summary_key(current_user.id, target_date)
+
+    try:
+        cached = await cache_get(cache_key)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass  # cache failure — fall through to DB
+
+    result = await get_daily_summary(
         user_id=current_user.id,
         date=target_date,
         session=session,
     )
+
+    try:
+        await cache_set(cache_key, result, CACHE_TTL["daily_summary"])
+    except Exception:
+        pass  # cache failure — return result anyway
+
+    return result

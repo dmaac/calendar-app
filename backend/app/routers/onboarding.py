@@ -11,6 +11,7 @@ from ..schemas.onboarding import (
 )
 from ..services.onboarding_service import OnboardingService
 from .auth import get_current_user
+from ..core.cache import cache_get, cache_set, cache_delete, onboarding_key, CACHE_TTL
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
@@ -24,6 +25,12 @@ async def save_onboarding_step(
     """Save a single onboarding step (partial update — only provided fields are stored)."""
     service = OnboardingService(session)
     profile = await service.save_or_update_profile(current_user.id, data)
+
+    try:
+        await cache_delete(onboarding_key(current_user.id))
+    except Exception:
+        pass
+
     return profile
 
 
@@ -40,6 +47,12 @@ async def complete_onboarding(
     """
     service = OnboardingService(session)
     profile = await service.complete_onboarding(current_user.id, data)
+
+    try:
+        await cache_delete(onboarding_key(current_user.id))
+    except Exception:
+        pass
+
     return profile
 
 
@@ -49,6 +62,15 @@ async def get_onboarding_profile(
     session: AsyncSession = Depends(get_session),
 ):
     """Return the current user's onboarding profile."""
+    cache_key = onboarding_key(current_user.id)
+
+    try:
+        cached = await cache_get(cache_key)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass  # cache failure — fall through to DB
+
     service = OnboardingService(session)
     profile = await service.get_profile(current_user.id)
 
@@ -57,5 +79,10 @@ async def get_onboarding_profile(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Onboarding profile not found. Start the onboarding flow first.",
         )
+
+    try:
+        await cache_set(cache_key, profile.model_dump(mode="json"), CACHE_TTL["onboarding"])
+    except Exception:
+        pass  # cache failure — return profile anyway
 
     return profile
