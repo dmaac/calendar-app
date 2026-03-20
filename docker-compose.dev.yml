@@ -3,15 +3,15 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: calendar_db
+      POSTGRES_USER: ${POSTGRES_USER:-calapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-calapp_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-calendar_db}
     ports:
       - "5432:5432"
     volumes:
       - calai_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d calendar_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-calapp} -d ${POSTGRES_DB:-calendar_db}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -28,6 +28,34 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-calapp}:${POSTGRES_PASSWORD:-calapp_secret}@postgres:5432/${POSTGRES_DB:-calendar_db}"
+      REDIS_URL: "redis://redis:6379/0"
+    volumes:
+      # Hot-reload: mount source so code changes are reflected without rebuild
+      - ./backend/app:/app/app
+    # Override CMD to run uvicorn with --reload in dev
+    command: >
+      uvicorn app.main:app
+        --host 0.0.0.0
+        --port 8000
+        --reload
+        --reload-dir /app/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   calai_postgres:

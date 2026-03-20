@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import validator
 from typing import Optional, List
+import os
 
 
 class Settings(BaseSettings):
@@ -42,8 +43,31 @@ class Settings(BaseSettings):
     # OpenAI (AI Food Scan)
     openai_api_key: str = ""
 
-    # CORS
+    # CORS — default to wildcard for local dev only.
+    # In production set CORS_ORIGINS to a comma-separated list of allowed origins.
     cors_origins: List[str] = ["*"]
+
+    # Deployment environment — set ENV=production in prod to enforce stricter checks.
+    env: str = "development"
+
+    @validator('secret_key', always=True)
+    def secret_key_must_not_be_empty(cls, v, values):
+        if not v or not v.strip():
+            raise ValueError(
+                "SECRET_KEY must be set. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        return v
+
+    @validator('cors_origins', always=True)
+    def cors_no_wildcard_in_production(cls, v, values):
+        env = values.get('env', 'development')
+        if env == 'production' and '*' in v:
+            raise ValueError(
+                "CORS_ORIGINS must not contain '*' in production. "
+                "Set CORS_ORIGINS to a comma-separated list of allowed origins."
+            )
+        return v
 
     @validator('database_url_async', always=True, pre=True)
     def derive_async_url(cls, v, values):
