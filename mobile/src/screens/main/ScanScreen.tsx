@@ -64,6 +64,8 @@ export default function ScanScreen({ navigation }: any) {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [result, setResult] = useState<FoodScanResult | null>(null);
   const [todayScans, setTodayScans] = useState(0);
+  const [scansLoading, setScansLoading] = useState(false);
+  const [scansError, setScansError] = useState(false);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cleanup timer on unmount
@@ -76,11 +78,17 @@ export default function ScanScreen({ navigation }: any) {
   // Cargar conteo de escaneos al entrar y cuando volvemos a idle después de un scan
   React.useEffect(() => {
     if (!isPremium && scanState === 'idle') {
+      setScansLoading(true);
+      setScansError(false);
       foodService.getFoodLogs().then((logs) => {
         // Contar solo los que tienen imagen (scan IA), no manuales
         const aiScans = logs.filter((l) => l.image_url);
         setTodayScans(aiScans.length);
-      }).catch(() => {});
+      }).catch(() => {
+        setScansError(true);
+      }).finally(() => {
+        setScansLoading(false);
+      });
     }
   }, [isPremium, scanState]); // solo cuando idle (carga inicial + después de confirmar)
 
@@ -293,7 +301,8 @@ export default function ScanScreen({ navigation }: any) {
   }
 
   // ─── Paywall gate — límite de escaneos gratuitos ─────────────────────────
-  if (!isPremium && todayScans >= FREE_SCAN_LIMIT) {
+  // Only block after the scan count has finished loading to avoid a false gate.
+  if (!isPremium && !scansLoading && todayScans >= FREE_SCAN_LIMIT) {
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding }]}>
         <View style={styles.limitIcon}>
@@ -377,17 +386,40 @@ export default function ScanScreen({ navigation }: any) {
 
       {/* Banner plan gratuito */}
       {!isPremium && (
-        <TouchableOpacity
-          style={styles.freeBanner}
-          onPress={() => navigation.navigate('Perfil', { screen: 'Paywall' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="flash-outline" size={14} color={colors.badgeText} />
-          <Text style={styles.freeBannerText}>
-            Plan gratuito: {todayScans}/{FREE_SCAN_LIMIT} escaneos usados hoy
-          </Text>
-          <Text style={styles.freeBannerCta}>Mejorar →</Text>
-        </TouchableOpacity>
+        scansError ? (
+          // Error state — tapping retries the count fetch
+          <TouchableOpacity
+            style={[styles.freeBanner, { backgroundColor: colors.accent + '22' }]}
+            onPress={() => {
+              setScansError(false);
+              setScansLoading(true);
+              foodService.getFoodLogs().then((logs) => {
+                setTodayScans(logs.filter((l) => l.image_url).length);
+              }).catch(() => setScansError(true))
+                .finally(() => setScansLoading(false));
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="wifi-outline" size={14} color={colors.accent} />
+            <Text style={[styles.freeBannerText, { color: colors.accent }]}>
+              No se pudo verificar el límite. Toca para reintentar.
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.freeBanner}
+            onPress={() => navigation.navigate('Perfil', { screen: 'Paywall' })}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="flash-outline" size={14} color={colors.badgeText} />
+            <Text style={styles.freeBannerText}>
+              {scansLoading
+                ? 'Cargando escaneos...'
+                : `Plan gratuito: ${todayScans}/${FREE_SCAN_LIMIT} escaneos usados hoy`}
+            </Text>
+            {!scansLoading && <Text style={styles.freeBannerCta}>Mejorar →</Text>}
+          </TouchableOpacity>
+        )
       )}
 
       {/* Info */}

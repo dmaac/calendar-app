@@ -3,6 +3,94 @@
  * UI completa lista para conectar RevenueCat (Rama 5 config)
  * Por ahora muestra los planes y avisa que la compra se habilitará próximamente.
  */
+
+// =============================================================================
+// TODO: RevenueCat Integration Checklist
+// =============================================================================
+//
+// 1. INSTALL PACKAGE
+//    npx expo install react-native-purchases
+//    (uses Expo config plugin — no native code changes needed for managed workflow)
+//    Docs: https://www.revenuecat.com/docs/getting-started/installation/expo
+//
+// 2. ADD CONFIG PLUGIN (app.json / app.config.js)
+//    "plugins": [
+//      ["react-native-purchases", {
+//        "androidApiKey": "YOUR_REVENUECAT_ANDROID_KEY",
+//        "iosApiKey":     "YOUR_REVENUECAT_IOS_KEY"
+//      }]
+//    ]
+//
+// 3. INITIALIZE SDK  — do this once, as early as possible (e.g. App.tsx or
+//    AuthContext, right after the user is identified).
+//
+//    import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+//
+//    const RC_API_KEY = Platform.OS === 'ios'
+//      ? 'YOUR_REVENUECAT_IOS_KEY'
+//      : 'YOUR_REVENUECAT_ANDROID_KEY';
+//
+//    Purchases.setLogLevel(LOG_LEVEL.DEBUG); // disable in production
+//    await Purchases.configure({ apiKey: RC_API_KEY });
+//
+//    // Identify the logged-in user so purchases are linked to their account:
+//    await Purchases.logIn(user.id);
+//
+// 4. FETCH OFFERINGS — load real packages to replace the hardcoded PLANS object.
+//
+//    const offerings = await Purchases.getOfferings();
+//    const current   = offerings.current;        // your default offering
+//    const monthly   = current?.monthly;          // Package | null
+//    const annual    = current?.annual;           // Package | null
+//    // Use package.product.priceString for the display price.
+//
+// 5. REPLACE handleSubscribe WITH REAL PURCHASE
+//
+//    const handleSubscribe = async () => {
+//      const pkg = selectedPlan === 'annual' ? annualPackage : monthlyPackage;
+//      if (!pkg) return;
+//      setLoading(true);
+//      try {
+//        const { customerInfo } = await Purchases.purchasePackage(pkg);
+//        const isPro = customerInfo.entitlements.active['premium'] !== undefined;
+//        if (isPro) {
+//          // Update local auth context / backend to reflect premium status
+//          navigation.goBack();
+//        }
+//      } catch (err: any) {
+//        if (!err.userCancelled) {
+//          Alert.alert('Error', 'No se pudo completar la compra. Inténtalo de nuevo.');
+//        }
+//      } finally {
+//        setLoading(false);
+//      }
+//    };
+//
+// 6. REPLACE handleRestore WITH REAL RESTORE
+//
+//    const handleRestore = async () => {
+//      try {
+//        const customerInfo = await Purchases.restorePurchases();
+//        const isPro = customerInfo.entitlements.active['premium'] !== undefined;
+//        Alert.alert(
+//          isPro ? 'Compra restaurada' : 'Sin compras previas',
+//          isPro ? '¡Tu suscripción Premium ha sido restaurada!' : 'No encontramos compras anteriores.'
+//        );
+//      } catch {
+//        Alert.alert('Error', 'No se pudo restaurar la compra.');
+//      }
+//    };
+//
+// 7. ENTITLEMENT ID
+//    Create an entitlement called "premium" in the RevenueCat dashboard and
+//    attach both the monthly and annual products to it.
+//
+// 8. ENVIRONMENT KEYS (store securely — do NOT commit raw keys)
+//    Use expo-constants + EAS Secrets or a .env file that is gitignored:
+//    REVENUECAT_IOS_KEY=appl_xxxxxxxxxxxxxxxxxxxxxxxx
+//    REVENUECAT_ANDROID_KEY=goog_xxxxxxxxxxxxxxxxxxxxxxxx
+//
+// =============================================================================
 import React, { useState } from 'react';
 import {
   View,
