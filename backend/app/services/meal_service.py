@@ -133,6 +133,7 @@ class MealService:
             "total_sugar": total_sugar,
             "target_calories": summary.target_calories,
             "water_ml": summary.water_ml,
+            "meals_count": len(meals),
         }
 
     async def get_weekly_summary(self, user_id: int, end_date: date) -> List[dict]:

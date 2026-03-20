@@ -13,6 +13,14 @@ class FoodService:
     async def get_food_by_id(self, food_id: int) -> Optional[Food]:
         return await self.session.get(Food, food_id)
 
+    async def get_foods_by_ids(self, food_ids: List[int]) -> dict:
+        """Batch-load foods by a list of IDs. Returns a dict mapping food_id -> Food."""
+        if not food_ids:
+            return {}
+        statement = select(Food).where(col(Food.id).in_(food_ids))  # type: ignore
+        result = await self.session.exec(statement)
+        return {food.id: food for food in result.all()}
+
     async def search_foods(self, query: str, limit: int = 20, offset: int = 0) -> Tuple[List[Food], int]:
         count_stmt = select(func.count()).select_from(Food).where(
             Food.name.ilike(f"%{query}%")  # type: ignore

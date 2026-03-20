@@ -65,8 +65,6 @@ async def get_daily_summary(
     data = await meal_service.get_daily_summary_with_fiber_sugar(current_user.id, target_date)
     profile = await nutrition_service.get_profile(current_user.id)
 
-    meals = await meal_service.get_meals_by_date(current_user.id, target_date)
-
     return DailySummaryResponse(
         date=data["date"],
         total_calories=data["total_calories"],
@@ -80,7 +78,7 @@ async def get_daily_summary(
         target_carbs=profile.target_carbs_g if profile else 250.0,
         target_fat=profile.target_fat_g if profile else 65.0,
         water_ml=data["water_ml"],
-        meals_count=len(meals),
+        meals_count=data["meals_count"],
     )
 
 
@@ -98,7 +96,6 @@ async def get_weekly_summary(
 
     result = []
     for data in summaries:
-        meals = await meal_service.get_meals_by_date(current_user.id, data["date"])
         result.append(
             DailySummaryResponse(
                 date=data["date"],
@@ -113,7 +110,7 @@ async def get_weekly_summary(
                 target_carbs=profile.target_carbs_g if profile else 250.0,
                 target_fat=profile.target_fat_g if profile else 65.0,
                 water_ml=data["water_ml"],
-                meals_count=len(meals),
+                meals_count=data["meals_count"],
             )
         )
 
@@ -134,7 +131,6 @@ async def get_history(
 
     result = []
     for data in summaries:
-        meals = await meal_service.get_meals_by_date(current_user.id, data["date"])
         result.append(
             DailySummaryResponse(
                 date=data["date"],
@@ -149,7 +145,7 @@ async def get_history(
                 target_carbs=profile.target_carbs_g if profile else 250.0,
                 target_fat=profile.target_fat_g if profile else 65.0,
                 water_ml=data["water_ml"],
-                meals_count=len(meals),
+                meals_count=data["meals_count"],
             )
         )
 
@@ -171,9 +167,12 @@ async def get_meals(
     from ..services.food_service import FoodService
     food_service = FoodService(session)
 
+    food_ids = list({meal.food_id for meal in meals})
+    food_map = await food_service.get_foods_by_ids(food_ids)
+
     items = []
     for meal in meals:
-        food = await food_service.get_food_by_id(meal.food_id)
+        food = food_map.get(meal.food_id)
         items.append(
             MealLogRead(
                 id=meal.id,
