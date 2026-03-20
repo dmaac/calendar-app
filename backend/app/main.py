@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,6 +6,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from .core.database import create_db_and_tables
 from .core.config import settings
 from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router
+
+logger = logging.getLogger(__name__)
 
 try:
     from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -71,3 +74,43 @@ app.include_router(subscriptions_router)
 @app.get("/", tags=["root"])
 async def read_root():
     return {"message": "Calendar API is running!"}
+
+
+@app.get("/health", tags=["health"])
+async def health_check():
+    """
+    Production health check.
+    Returns 200 with component statuses, or 503 if any critical dependency is down.
+    """
+    from sqlalchemy import text as sa_text
+    from .core.database import async_engine
+    from .core.token_store import get_redis
+
+    health: dict = {"status": "healthy", "db": "ok", "redis": "ok"}
+    degraded = False
+
+    # --- DB check ---
+    try:
+        async with async_engine.connect() as conn:
+            await conn.execute(sa_text("SELECT 1"))
+    except Exception as exc:
+        logger.warning("Health check: DB unavailable — %s", exc)
+        health["db"] = "unavailable"
+        degraded = True
+
+    # --- Redis check ---
+    try:
+        r = get_redis()
+        await r.ping()
+    except Exception as exc:
+        logger.warning("Health check: Redis unavailable — %s", exc)
+        health["redis"] = "unavailable"
+        degraded = True
+
+    if degraded:
+        health["status"] = "degraded"
+        from fastapi import Response
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=503, content=health)
+
+    return health

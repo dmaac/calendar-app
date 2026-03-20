@@ -9,12 +9,15 @@ DELETE /api/food/logs/{id} — delete a log
 GET  /api/dashboard/today  — daily summary for authenticated user
 """
 
+import logging
 from datetime import date as date_type
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy import select, text
+
+logger = logging.getLogger(__name__)
 
 from ..core.database import get_session
 from ..models.user import User
@@ -31,6 +34,10 @@ from pydantic import BaseModel
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address
+    # NOTE: Rate limiting is currently IP-based (get_remote_address).
+    # For production, upgrade to per-user limiting by replacing the key_func:
+    #   key_func=lambda req: str(req.state.user_id)  # set in a middleware after auth
+    # This prevents a single user from bypassing limits via different IPs (VPN, mobile).
     _limiter = Limiter(key_func=get_remote_address)
     _rate_limit_enabled = True
 except ImportError:
@@ -85,19 +92,36 @@ async def scan_food(
             detail=f"meal_type must be one of: {', '.join(valid_types)}",
         )
 
-    # Read image
-    if image.content_type not in ("image/jpeg", "image/jpg", "image/png", "image/webp"):
+    # Validate content type (MIME check; also catches missing Content-Type)
+    _ACCEPTED_TYPES = {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+    }
+    if image.content_type not in _ACCEPTED_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Only JPEG, PNG, and WebP images are supported",
+            detail="Unsupported image type. Accepted formats: JPEG, PNG, WebP, HEIC",
         )
 
+    # Read image bytes then enforce 10 MB limit
     image_bytes = await image.read()
     if len(image_bytes) > 10 * 1024 * 1024:  # 10 MB
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Image must be smaller than 10 MB",
+            detail="Image file too large. Maximum allowed size is 10 MB",
         )
+
+    logger.info(
+        "Food scan requested: user_id=%s meal_type=%s size_bytes=%d content_type=%s",
+        current_user.id,
+        meal_type,
+        len(image_bytes),
+        image.content_type,
+    )
 
     try:
         result = await scan_and_log_food(
@@ -107,6 +131,7 @@ async def scan_food(
             session=session,
         )
     except ValueError as e:
+        logger.error("Food scan failed: user_id=%s error=%s", current_user.id, e)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
 
     try:
