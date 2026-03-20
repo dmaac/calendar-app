@@ -364,13 +364,10 @@ async def get_daily_summary(
         )
     )
 
-    # Fire all three concurrently within the same session
-    import asyncio
-    logs_result, profile_result, water_result = await asyncio.gather(
-        session.execute(logs_stmt),
-        session.execute(profile_stmt),
-        session.execute(water_stmt),
-    )
+    # Execute sequentially — AsyncSession is not safe for concurrent use
+    logs_result = await session.execute(logs_stmt)
+    profile_result = await session.execute(profile_stmt)
+    water_result = await session.execute(water_stmt)
 
     row = logs_result.one()
     profile_row = profile_result.first()
