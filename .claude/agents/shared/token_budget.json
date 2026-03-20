@@ -1,0 +1,18 @@
+{
+  "session_id": "session_1773969720",
+  "started_at": "2026-03-20T01:22:00Z",
+  "model": "claude-sonnet-4-6",
+  "context_window_estimate": 200000,
+  "estimated_used": 15175,
+  "estimated_remaining": 184825,
+  "budget_mode": "FULL",
+  "budget_pct_remaining": 92,
+  "tool_call_count": 1,
+  "last_updated": "2026-03-20T01:22:01Z",
+  "mode_thresholds": {
+    "FULL": "100-60% — operación normal, respuestas completas",
+    "REDUCED": "60-30% — omitir ejemplos, respuestas concisas",
+    "MINIMAL": "30-10% — solo esencial, checkpoint pronto",
+    "EMERGENCY": "<10% — escribir checkpoint ahora, no iniciar tareas nuevas"
+  }
+}

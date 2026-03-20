@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "project": "cal-ai",
+    "last_session_id": "session_1773969720",
+    "last_checkpoint": "2026-03-20T01:22:00Z",
+    "total_sessions": 1
+  },
+  "current_sprint": {
+    "goal": "",
+    "started": "",
+    "tasks_pending": [],
+    "tasks_completed": [],
+    "blockers": []
+  },
+  "pending_decisions": [],
+  "shared_context": {
+    "app_status": "in_development",
+    "current_focus": "",
+    "important_notes": []
+  },
+  "agent_states": {}
+}

@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/marco/calendar-app/.claude/scripts/session-start.sh 2>/dev/null || true",
+            "timeout": 10,
+            "statusMessage": "Cargando estado y memoria compartida..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/marco/calendar-app/.claude/scripts/session-stop.sh 2>/dev/null || true",
+            "timeout": 10,
+            "statusMessage": "Guardando checkpoint de sesión..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|Read|Glob|Grep|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/marco/calendar-app/.claude/scripts/token-tracker.sh 2>/dev/null || true",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

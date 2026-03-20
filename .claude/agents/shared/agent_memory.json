@@ -1,0 +1,5 @@
+{
+  "_readme": "Memoria compartida entre los 44 agentes (43 especializados + token-monitor). Cada agente lee y escribe su estado aquí. Si una sesión se corta, el próximo Claude lee esto y retoma.",
+  "_last_updated": "",
+  "_agents": {}
+}
