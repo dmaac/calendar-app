@@ -1,4 +1,4 @@
-# 🚀 Quick Start - Calendar App Backend
+# 🚀 Quick Start - Fitsi Backend
 
 ## ✅ Sistema Listo Para Usar
 

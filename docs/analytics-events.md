@@ -1,4 +1,4 @@
-# Cal AI — Analytics Event Schema
+# Fitsi — Analytics Event Schema
 
 > Version: 1.0 | Last updated: 2026-03-19
 > Naming convention: `snake_case`. All events include a shared context block.

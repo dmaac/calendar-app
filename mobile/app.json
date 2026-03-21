@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Cal AI",
-    "slug": "cal-ai",
-    "scheme": "calai",
+    "name": "Fitsi",
+    "slug": "fitsi",
+    "scheme": "fitsi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.calai.app"
+      "bundleIdentifier": "com.fitsi.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +24,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.calai.app"
+      "package": "com.fitsi.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,6 +40,6 @@
         "projectId": "YOUR_PROJECT_ID_HERE"
       }
     },
-    "owner": "calai"
+    "owner": "fitsi"
   }
 }

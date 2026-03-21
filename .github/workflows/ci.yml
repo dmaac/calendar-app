@@ -1,5 +1,5 @@
 # =============================================================================
-# CI Pipeline — Cal AI Clone
+# CI Pipeline — Fitsi
 # =============================================================================
 # Runs on every PR to main/develop and on push to main/develop.
 # Backend and mobile jobs run in parallel for fast feedback.
@@ -159,7 +159,7 @@ jobs:
         with:
           context: ./backend
           push: false
-          tags: calai-backend:ci-${{ github.sha }}
+          tags: fitsi-backend:ci-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

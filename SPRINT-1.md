@@ -1,5 +1,5 @@
 # SPRINT-1 — App Store Submission
-**Goal:** Ship Cal AI to the App Store. All code is complete; this sprint covers credentials, SDK integrations, infra, and store setup.
+**Goal:** Ship Fitsi to the App Store. All code is complete; this sprint covers credentials, SDK integrations, infra, and store setup.
 **Dates:** 2026-03-19 → 2026-04-02 (2 weeks)
 
 ---

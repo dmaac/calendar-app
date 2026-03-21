@@ -1,5 +1,5 @@
 # =============================================================================
-# Deploy Pipeline — Cal AI Backend
+# Deploy Pipeline — Fitsi Backend
 # =============================================================================
 # Triggers on push to main (after CI passes).
 # Builds the Docker image, pushes to GHCR, and optionally deploys.
@@ -14,6 +14,7 @@ on:
       - "backend/**"
       - "docker-compose.yml"
       - "docker-compose.prod.yml"
+      - "nginx/**"
       - ".github/workflows/deploy.yml"
 
   # Allow manual trigger for rollback / re-deploy
@@ -103,7 +104,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     environment:
       name: staging
-      url: https://api-staging.calai.app
+      url: https://api-staging.fitsi.app
     steps:
       - uses: actions/checkout@v4
 
@@ -117,10 +118,10 @@ jobs:
           # Examples:
           #
           # SSH to VPS:
-          #   ssh deploy@staging.calai.app "cd /opt/calai && docker compose pull && docker compose up -d"
+          #   ssh deploy@staging.fitsi.app "cd /opt/fitsi && docker compose pull && docker compose up -d"
           #
           # AWS ECS:
-          #   aws ecs update-service --cluster calai-staging --service backend --force-new-deployment
+          #   aws ecs update-service --cluster fitsi-staging --service backend --force-new-deployment
           #
           # Kubernetes:
           #   kubectl set image deployment/backend backend=$IMAGE_TAG -n staging
@@ -132,7 +133,7 @@ jobs:
           echo "Waiting for staging to become healthy..."
           # Uncomment when staging URL is live:
           # for i in $(seq 1 30); do
-          #   STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api-staging.calai.app/health || true)
+          #   STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api-staging.fitsi.app/health || true)
           #   if [ "$STATUS" = "200" ]; then
           #     echo "Staging is healthy."
           #     exit 0
@@ -154,7 +155,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
     environment:
       name: production
-      url: https://api.calai.app
+      url: https://api.fitsi.app
     steps:
       - uses: actions/checkout@v4
 

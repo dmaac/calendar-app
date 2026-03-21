@@ -62,8 +62,8 @@ _docs_url = None if settings.is_production else "/docs"
 _redoc_url = None if settings.is_production else "/redoc"
 
 app = FastAPI(
-    title="Calendar API",
-    description="A REST API for managing calendar activities with user authentication",
+    title="Fitsi API",
+    description="A REST API for Fitsi nutrition tracking app with AI food scanning",
     version="1.0.0",
     lifespan=lifespan,
     redirect_slashes=False,
@@ -106,7 +106,7 @@ app.include_router(subscriptions_router)
 
 @app.get("/", tags=["root"])
 async def read_root():
-    return {"message": "Calendar API is running!"}
+    return {"message": "Fitsi API is running!"}
 
 
 @app.get("/health", tags=["health"])

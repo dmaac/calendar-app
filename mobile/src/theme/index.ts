@@ -1,6 +1,6 @@
 import { Platform, useWindowDimensions } from 'react-native';
 
-// ─── Design tokens (Cal AI style) ──────────────────────────────────────────
+// ─── Design tokens (Fitsi style) ───────────────────────────────────────────
 export const colors = {
   // Fondos
   bg: '#FFFFFF',

@@ -28,17 +28,17 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
 
     // Desayuno 8:00 AM
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Cal AI', body: '🌅 ¡Buenos días! Registra tu desayuno' },
+      content: { title: 'Fitsi', body: '🌅 ¡Buenos días! Registra tu desayuno' },
       trigger: { type: 'calendar', hour: 8, minute: 0, repeats: true } as any,
     });
     // Almuerzo 1:00 PM
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Cal AI', body: '🥗 ¡Hora de comer! No olvides fotografiar tu almuerzo' },
+      content: { title: 'Fitsi', body: '🥗 ¡Hora de comer! No olvides fotografiar tu almuerzo' },
       trigger: { type: 'calendar', hour: 13, minute: 0, repeats: true } as any,
     });
     // Resumen nocturno 8:30 PM
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Cal AI', body: '✅ Revisa tu resumen del día y cierra fuerte' },
+      content: { title: 'Fitsi', body: '✅ Revisa tu resumen del día y cierra fuerte' },
       trigger: { type: 'calendar', hour: 20, minute: 30, repeats: true } as any,
     });
   };
@@ -80,7 +80,7 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.notifTop}>
-                <Text style={styles.notifApp}>Cal AI</Text>
+                <Text style={styles.notifApp}>Fitsi</Text>
                 <Text style={styles.notifTime}>{n.time}</Text>
               </View>
               <Text style={styles.notifText}>{n.text}</Text>

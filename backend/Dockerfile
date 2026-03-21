@@ -1,14 +1,17 @@
 # =============================================================================
-# Cal AI Clone — Backend Dockerfile (multi-stage, production-ready)
+# Fitsi — Backend Dockerfile (multi-stage, production-ready)
 # =============================================================================
-# Build:  docker build -t calai-backend .
-# Run:    docker run -p 8000:8000 --env-file .env calai-backend
+# Build:  docker build -t fitsi-backend .
+# Run:    docker run -p 8000:8000 --env-file .env fitsi-backend
 # =============================================================================
 
 # ---------------------------------------------------------------------------
 # Stage 1: builder — compile wheels so the final image stays small
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim AS builder
+
+# Prevent .pyc files and enable unbuffered output during build
+ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /build
 
@@ -29,10 +32,14 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim AS production
 
+# Prevent .pyc files, enable unbuffered stdout/stderr for container logging
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 # Labels (OCI standard)
-LABEL org.opencontainers.image.title="calai-backend" \
-      org.opencontainers.image.description="Cal AI Clone — FastAPI backend" \
-      org.opencontainers.image.source="https://github.com/calai/calendar-app"
+LABEL org.opencontainers.image.title="fitsi-backend" \
+      org.opencontainers.image.description="Fitsi — FastAPI backend" \
+      org.opencontainers.image.source="https://github.com/fitsi/calendar-app"
 
 WORKDIR /app
 
@@ -67,6 +74,9 @@ EXPOSE 8000
 # Health check — hit the /health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
+
+# Graceful shutdown: gunicorn listens for SIGTERM by default
+STOPSIGNAL SIGTERM
 
 # Use tini as PID 1 for proper signal handling (SIGTERM → graceful shutdown)
 ENTRYPOINT ["tini", "--"]

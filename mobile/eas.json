@@ -8,10 +8,15 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "resourceClass": "medium"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "http://localhost:8000",
+        "EXPO_PUBLIC_APP_NAME": "Fitsi Dev",
         "EXPO_PUBLIC_ENABLE_AI_SCAN": "true",
         "EXPO_PUBLIC_ENABLE_PAYWALL": "false"
       },
@@ -20,10 +25,15 @@
     "preview": {
       "distribution": "internal",
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "resourceClass": "medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-staging.calai.app",
+        "EXPO_PUBLIC_API_URL": "https://api-staging.fitsi.app",
+        "EXPO_PUBLIC_APP_NAME": "Fitsi Preview",
         "EXPO_PUBLIC_ENABLE_AI_SCAN": "true",
         "EXPO_PUBLIC_ENABLE_PAYWALL": "true"
       },
@@ -32,14 +42,17 @@
     "production": {
       "autoIncrement": true,
       "ios": {
-        "image": "latest"
+        "image": "latest",
+        "resourceClass": "m-medium"
       },
       "android": {
         "image": "latest",
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "resourceClass": "medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.calai.app",
+        "EXPO_PUBLIC_API_URL": "https://api.fitsi.app",
+        "EXPO_PUBLIC_APP_NAME": "Fitsi",
         "EXPO_PUBLIC_ENABLE_AI_SCAN": "true",
         "EXPO_PUBLIC_ENABLE_PAYWALL": "true"
       },

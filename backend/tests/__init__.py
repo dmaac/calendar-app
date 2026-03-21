@@ -1,3 +1,3 @@
 """
-Test suite for Calendar App Backend
+Test suite for Fitsi Backend
 """

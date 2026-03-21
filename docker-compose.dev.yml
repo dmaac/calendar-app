@@ -1,5 +1,5 @@
 # =============================================================================
-# Cal AI Clone — Docker Compose DEVELOPMENT overlay
+# Fitsi — Docker Compose DEVELOPMENT overlay
 # =============================================================================
 # Usage:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 #
@@ -26,8 +26,13 @@ services:
         --port 8000
         --reload
         --reload-dir /app/app
+        --log-level debug
     volumes:
       # Mount source code so changes are reflected immediately
       - ./backend/app:/app/app
+      # Mount alembic so migrations can be run from inside the container
+      - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini
     environment:
       ENV: development
+      LOG_LEVEL: debug

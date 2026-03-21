@@ -1,4 +1,4 @@
-# Calendar API Documentation
+# Fitsi API Documentation
 
 ## Base URL
 ```

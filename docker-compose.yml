@@ -1,11 +1,11 @@
 # =============================================================================
-# Cal AI Clone — Docker Compose (default / staging)
+# Fitsi — Docker Compose (default / staging)
 # =============================================================================
 # Usage:  docker compose up --build
 # =============================================================================
 
 networks:
-  calai_network:
+  fitsi_network:
     driver: bridge
 
 volumes:
@@ -18,15 +18,15 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     networks:
-      - calai_network
+      - fitsi_network
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-calapp}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-calapp_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-calendar_db}
+      POSTGRES_USER: ${POSTGRES_USER:-fitsi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitsi_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-fitsi_db}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-calapp} -d ${POSTGRES_DB:-calendar_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fitsi} -d ${POSTGRES_DB:-fitsi_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,7 +38,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     networks:
-      - calai_network
+      - fitsi_network
     volumes:
       - redis_data:/data
     command: >
@@ -61,15 +61,21 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     networks:
-      - calai_network
+      - fitsi_network
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     env_file:
       - ./backend/.env
     environment:
       # Override DB/Redis URLs so they resolve inside the Docker network.
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-calapp}:${POSTGRES_PASSWORD:-calapp_secret}@db:5432/${POSTGRES_DB:-calendar_db}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-fitsi}:${POSTGRES_PASSWORD:-fitsi_secret}@db:5432/${POSTGRES_DB:-fitsi_db}"
       REDIS_URL: "redis://redis:6379/0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy

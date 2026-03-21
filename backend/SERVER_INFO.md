@@ -1,4 +1,4 @@
-# 🌐 Server Information - Calendar App Backend
+# 🌐 Server Information - Fitsi Backend
 
 ## ✅ Servidor Activo y Funcionando
 
@@ -208,7 +208,7 @@ curl http://localhost:8000/
 
 Respuesta esperada:
 ```json
-{"message":"Calendar API is running!"}
+{"message":"Fitsi API is running!"}
 ```
 
 ### Verificar Base de Datos

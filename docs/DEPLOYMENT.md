@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying the Calendar App to production environments.
+This guide covers deploying Fitsi to production environments.
 
 ## Prerequisites
 

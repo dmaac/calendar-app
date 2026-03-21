@@ -1,4 +1,4 @@
-# Cal AI — App Store Listing (Latin America / Spanish)
+# Fitsi — App Store Listing (Latin America / Spanish)
 
 > Target stores: Apple App Store & Google Play Store
 > Language: Spanish (Latin America)
@@ -8,7 +8,7 @@
 
 ## App Name
 ```
-Cal AI: Cuenta Calorías con IA
+Fitsi: Cuenta Calorías con IA
 ```
 Character count: 30 ✓
 
@@ -33,21 +33,21 @@ Character count: 70 ✓
 ## Full Description (4000 chars max)
 
 ```
-¿Cansado de contar calorías a mano? Cal AI lo hace por ti.
+¿Cansado de contar calorías a mano? Fitsi lo hace por ti.
 
 Solo saca una foto a tu plato y nuestra inteligencia artificial detecta qué comiste, calcula las calorías y registra los macros en menos de 10 segundos. Sin buscar alimentos en tablas interminables. Sin adivinar porciones. Solo tú, tu cámara y tu progreso.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📸 ESCANEO CON IA EN SEGUNDOS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Apunta la cámara a cualquier comida — un plato casero, comida rápida, restaurante, o incluso un snack empaquetado — y Cal AI identifica el alimento y te entrega calorías, proteínas, carbohidratos y grasas al instante.
+Apunta la cámara a cualquier comida — un plato casero, comida rápida, restaurante, o incluso un snack empaquetado — y Fitsi identifica el alimento y te entrega calorías, proteínas, carbohidratos y grasas al instante.
 
 ¿No quieres tomar foto? También puedes añadir alimentos manualmente con búsqueda inteligente que recuerda tus comidas frecuentes.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎯 TU PLAN PERSONALIZADO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Cal AI genera tu objetivo calórico y de macros basado en tu edad, peso, estatura, nivel de actividad y meta personal (perder peso, mantener o ganar masa muscular). El plan es tuyo, se adapta a ti, no al revés.
+Fitsi genera tu objetivo calórico y de macros basado en tu edad, peso, estatura, nivel de actividad y meta personal (perder peso, mantener o ganar masa muscular). El plan es tuyo, se adapta a ti, no al revés.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 DASHBOARD DIARIO CLARO
@@ -62,7 +62,7 @@ Registra tu consumo de agua con un toque. Mantén tu racha diaria activa y convi
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔒 TUS DATOS, SIEMPRE SEGUROS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Tu información de salud es privada. Cal AI no vende ni comparte tus datos con terceros. Puedes exportar o eliminar tu cuenta en cualquier momento.
+Tu información de salud es privada. Fitsi no vende ni comparte tus datos con terceros. Puedes exportar o eliminar tu cuenta en cualquier momento.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👑 CAL AI PREMIUM
@@ -87,7 +87,7 @@ IDEAL PARA:
 ✓ Diabéticos y personas que monitorean carbohidratos
 ✓ Cualquiera que quiera entender mejor lo que come
 
-Descarga Cal AI gratis y empieza hoy. Tu versión más saludable te está esperando.
+Descarga Fitsi gratis y empieza hoy. Tu versión más saludable te está esperando.
 ```
 
 Character count: ~2,850 ✓ (well within 4,000 limit)
@@ -106,7 +106,7 @@ Character count: 93 ✓
 ## What's New (Version 1.0)
 
 ```
-¡Bienvenido a Cal AI!
+¡Bienvenido a Fitsi!
 
 • Escaneo de alimentos con IA en menos de 10 segundos
 • Dashboard diario con anillo de calorías y macros
@@ -115,7 +115,7 @@ Character count: 93 ✓
 • Plan nutricional personalizado desde el onboarding
 • Racha diaria para mantener el hábito
 
-Gracias por ser de los primeros en usar Cal AI. Tu feedback nos ayuda a mejorar — cuéntanos qué piensas desde Perfil → Soporte.
+Gracias por ser de los primeros en usar Fitsi. Tu feedback nos ayuda a mejorar — cuéntanos qué piensas desde Perfil → Soporte.
 ```
 
 ---
@@ -142,7 +142,7 @@ Not required — no alcohol, no adult content.
 
 | Product ID | Name | Price |
 |---|---|---|
-| `calai_monthly` | Cal AI Premium Mensual | $9.99 / mes |
-| `calai_annual` | Cal AI Premium Anual | $59.99 / año |
+| `fitsi_monthly` | Fitsi Premium Mensual | $9.99 / mes |
+| `fitsi_annual` | Fitsi Premium Anual | $59.99 / año |
 
 Free trial: 7 days on both plans.

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Calendar App - Starting Services"
+echo "🚀 Fitsi - Starting Services"
 echo "=================================="
 
 # Backend status check
