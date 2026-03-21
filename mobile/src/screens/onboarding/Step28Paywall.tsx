@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   planBadge: {
     position: 'absolute',
     top: 0, right: 0,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     borderBottomLeftRadius: 8,
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   planRadioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'transparent' },
-  planRadioSelected: { backgroundColor: colors.black },
+  planRadioSelected: { backgroundColor: colors.primary },
   planLabel: { ...typography.label, color: colors.black },
   planSavings: { ...typography.caption, color: colors.accent, fontWeight: '600' },
   planPrice: { ...typography.label, color: colors.black, fontWeight: '800' },

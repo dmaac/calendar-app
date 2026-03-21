@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...typography.titleSm, color: colors.black },
   saveBtn: {
-    backgroundColor: colors.black, paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary, paddingHorizontal: spacing.md,
     paddingVertical: 8, borderRadius: radius.full,
   },
   saveBtnText: { ...typography.label, color: colors.white },
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: radius.lg,
     padding: spacing.md, borderWidth: 2, borderColor: 'transparent',
   },
-  goalCardActive: { backgroundColor: colors.black, borderColor: colors.black },
+  goalCardActive: { backgroundColor: colors.primary, borderColor: colors.black },
   goalLabel: { ...typography.bodyMd, color: colors.black },
   previewCard: {
     backgroundColor: colors.surface, borderRadius: radius.lg,

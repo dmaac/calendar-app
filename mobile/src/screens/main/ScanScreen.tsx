@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     borderRadius: radius.full, backgroundColor: colors.surface,
   },
-  mealChipActive: { backgroundColor: colors.black },
+  mealChipActive: { backgroundColor: colors.primary },
   mealChipText: { ...typography.label, color: colors.black },
   mealChipTextActive: { color: colors.white },
 
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
 
   confirmBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: spacing.sm, backgroundColor: colors.black,
+    gap: spacing.sm, backgroundColor: colors.primary,
     paddingVertical: spacing.md, borderRadius: radius.full,
     marginBottom: spacing.sm,
   },
@@ -540,13 +540,13 @@ const styles = StyleSheet.create({
   // Paywall gate
   limitIcon: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: colors.black, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
     marginBottom: spacing.md,
   },
   limitTitle: { ...typography.titleSm, color: colors.black, marginBottom: spacing.sm },
   limitSubtitle: { ...typography.subtitle, color: colors.gray, textAlign: 'center', lineHeight: 22, marginBottom: spacing.xl },
   upgradeBtn: {
-    backgroundColor: colors.black, borderRadius: radius.full,
+    backgroundColor: colors.primary, borderRadius: radius.full,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
     marginBottom: spacing.sm, width: '100%', alignItems: 'center',
   },

@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm + 4,
   },
   cardSelected: {
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
   },
   iconContainer: {
     width: 28,

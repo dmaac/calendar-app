@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   notifIcon: {
     width: 36, height: 36,
     borderRadius: 8,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

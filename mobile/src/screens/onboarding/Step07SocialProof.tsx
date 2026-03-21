@@ -77,7 +77,7 @@ function ChartCard() {
       {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendLine, { backgroundColor: colors.black }]} />
+          <View style={[styles.legendLine, { backgroundColor: colors.primary }]} />
           <Text style={styles.legendText}>Nuestra app</Text>
         </View>
         <View style={styles.legendItem}>

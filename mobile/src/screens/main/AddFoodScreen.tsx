@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...typography.titleSm, color: colors.black },
   saveBtn: {
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: radius.full,
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     borderRadius: radius.lg,
     paddingVertical: spacing.lg,
   },

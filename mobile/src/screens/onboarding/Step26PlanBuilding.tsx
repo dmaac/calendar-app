@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 100, height: 100,
     borderRadius: 50,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     borderRadius: 3,
   },
   stepsList: { width: '100%', gap: spacing.sm },
@@ -150,8 +150,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  stepDotActive: { backgroundColor: colors.black },
-  stepDotDone: { backgroundColor: colors.black },
+  stepDotActive: { backgroundColor: colors.primary },
+  stepDotDone: { backgroundColor: colors.primary },
   stepText: { ...typography.label, color: colors.gray },
   stepTextActive: { color: colors.black },
 });

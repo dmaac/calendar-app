@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     height: 6,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     borderRadius: 3,
   },
   thumb: {
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: colors.surface,
   },
-  chipActive: { backgroundColor: colors.black },
+  chipActive: { backgroundColor: colors.primary },
   chipText: { ...typography.label, color: colors.black },
   chipTextActive: { color: colors.white },
 });

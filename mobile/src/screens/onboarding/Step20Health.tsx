@@ -57,7 +57,7 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
             <View style={styles.dot} />
             <View style={styles.dot} />
           </View>
-          <View style={[styles.appIcon, { backgroundColor: colors.black }]}>
+          <View style={[styles.appIcon, { backgroundColor: colors.primary }]}>
             <Ionicons name="nutrition" size={40} color={colors.white} />
           </View>
         </View>

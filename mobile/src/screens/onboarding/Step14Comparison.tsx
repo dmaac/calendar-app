@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   barSmall: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.grayLight },
-  barLarge: { backgroundColor: colors.black },
+  barLarge: { backgroundColor: colors.primary },
   barValueSmall: { ...typography.titleMd, color: colors.black },
   barValueLarge: { fontSize: 28, fontWeight: '800', color: colors.white, letterSpacing: -0.5 },
   caption: { ...typography.caption, color: colors.gray, textAlign: 'center', lineHeight: 18 },

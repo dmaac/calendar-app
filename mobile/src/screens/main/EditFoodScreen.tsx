@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...typography.titleSm, color: colors.black },
   saveBtn: {
-    backgroundColor: colors.black, paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary, paddingHorizontal: spacing.md,
     paddingVertical: 8, borderRadius: radius.full,
   },
   saveBtnText: { ...typography.label, color: colors.white },
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   nameInput: { flex: 1, ...typography.option, color: colors.black },
   caloriesWrapper: {
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center',
-    gap: spacing.sm, backgroundColor: colors.black, borderRadius: radius.lg,
+    gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.lg,
     paddingVertical: spacing.lg,
   },
   caloriesInput: {

@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, ...typography.option, color: colors.black },
   btn: {
-    height: 56, borderRadius: radius.full, backgroundColor: colors.black,
+    height: 56, borderRadius: radius.full, backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm,
   },
   btnDisabled: { backgroundColor: colors.disabled },

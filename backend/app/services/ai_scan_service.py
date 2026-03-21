@@ -341,7 +341,7 @@ async def get_daily_summary(
         )
         .where(
             AIFoodLog.user_id == user_id,
-            func.date(AIFoodLog.logged_at) == date,
+            func.date(AIFoodLog.logged_at) == date_obj,
         )
     )
 
@@ -364,13 +364,10 @@ async def get_daily_summary(
         )
     )
 
-    # Fire all three concurrently within the same session
-    import asyncio
-    logs_result, profile_result, water_result = await asyncio.gather(
-        session.execute(logs_stmt),
-        session.execute(profile_stmt),
-        session.execute(water_stmt),
-    )
+    # Execute sequentially — asyncio.gather con la misma sesión no está soportado
+    logs_result   = await session.execute(logs_stmt)
+    profile_result = await session.execute(profile_stmt)
+    water_result  = await session.execute(water_stmt)
 
     row = logs_result.one()
     profile_row = profile_result.first()
@@ -382,7 +379,7 @@ async def get_daily_summary(
     target_fats_g = (profile_row.daily_fats_g if profile_row and profile_row.daily_fats_g else 65)
     water_ml = float(water_row.water_ml or 0) if water_row else 0.0
 
-    streak = await _calculate_streak(user_id=user_id, today=date, session=session)
+    streak = await _calculate_streak(user_id=user_id, today=date_obj, session=session)
 
     return {
         "date": date,
@@ -400,7 +397,7 @@ async def get_daily_summary(
     }
 
 
-async def _calculate_streak(user_id: int, today: str, session: AsyncSession) -> int:
+async def _calculate_streak(user_id: int, today, session: AsyncSession) -> int:
     """
     Count consecutive days with ≥1 food log ending on `today`.
     Uses a pure-SQL window approach: assigns a group number to each consecutive

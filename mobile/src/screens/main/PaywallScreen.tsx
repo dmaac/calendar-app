@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   planCardActive: {
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     borderColor: colors.black,
   },
   planBadge: {
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   // CTA
   ctaBtn: {
     height: 58, borderRadius: radius.full,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: spacing.sm,
   },

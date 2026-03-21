@@ -48,11 +48,11 @@ if _slowapi_available:
 # GZip compression for API responses
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
-# Configure CORS for React Native
+# Configure CORS for React Native + Web
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

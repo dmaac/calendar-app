@@ -43,7 +43,13 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
 
     # CORS
-    cors_origins: List[str] = ["*"]
+    cors_origins: List[str] = [
+        "http://localhost:8081",
+        "http://localhost:8082",
+        "http://localhost:8083",
+        "http://localhost:19006",
+        "http://localhost:3000",
+    ]
 
     @validator('database_url_async', always=True, pre=True)
     def derive_async_url(cls, v, values):

@@ -120,7 +120,7 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
 const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
   caloriesCard: {
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     borderRadius: 20,
     padding: spacing.xl,
     alignItems: 'center',

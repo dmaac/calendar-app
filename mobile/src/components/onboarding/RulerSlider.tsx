@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 2,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     zIndex: 10,
   },
   tick: {

@@ -109,7 +109,7 @@ function AddModal({
             Añadir a {mealType ? MEAL_META[mealType]?.label : 'comida'}
           </Text>
           <TouchableOpacity style={modalStyles.option} onPress={onScan} activeOpacity={0.7}>
-            <View style={[modalStyles.optIcon, { backgroundColor: colors.black }]}>
+            <View style={[modalStyles.optIcon, { backgroundColor: colors.primary }]}>
               <Ionicons name="camera" size={20} color={colors.white} />
             </View>
             <View>
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },

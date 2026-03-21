@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   appleBtn: { width: '100%', height: 56 },
   socialBtn: {
     height: 56, borderRadius: radius.full,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: spacing.sm,
   },

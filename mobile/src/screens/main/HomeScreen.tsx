@@ -1,6 +1,6 @@
 /**
- * HomeScreen — Dashboard diario Cal AI style
- * Muestra: anillo de calorías, macros, comidas del día.
+ * HomeScreen — Dashboard diario
+ * Dark premium redesign — norte.digital aesthetic
  */
 import React, { useState, useCallback } from 'react';
 import {
@@ -15,12 +15,22 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, shadows, useLayout, mealColors } from '../../theme';
+import { colors, typography, spacing, radius, useLayout, mealColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import * as foodService from '../../services/food.service';
 import { AIFoodLog, DailySummary } from '../../types';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+function formatDate(): string {
+  const d = new Date();
+  return `${DAY_NAMES[d.getDay()]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+}
 
 // ─── Calorie ring ─────────────────────────────────────────────────────────────
 
@@ -33,12 +43,14 @@ function CalorieRing({
   target: number;
   size?: number;
 }) {
-  const strokeWidth = 12;
-  const r = (size - strokeWidth) / 2;
+  const strokeWidth = 10;
+  const glowWidth = 18;
+  const r = (size - glowWidth) / 2;
   const circ = 2 * Math.PI * r;
   const progress = target > 0 ? Math.min(consumed / target, 1) : 0;
   const dash = progress * circ;
-  const remaining = Math.max(target - consumed, 0);
+  const over = consumed > target;
+  const strokeColor = over ? colors.accent : colors.primary;
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -48,35 +60,49 @@ function CalorieRing({
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={colors.surface}
+          stroke={colors.surfaceHigh}
           strokeWidth={strokeWidth}
           fill="none"
         />
+        {/* Glow layer (wider, low opacity) */}
+        {progress > 0 && (
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke={strokeColor}
+            strokeWidth={glowWidth}
+            strokeOpacity={0.15}
+            fill="none"
+            strokeDasharray={`${dash} ${circ - dash}`}
+            strokeDashoffset={circ / 4}
+            strokeLinecap="round"
+          />
+        )}
         {/* Progress */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke={consumed > target ? colors.protein : colors.black}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={`${dash} ${circ - dash}`}
-          strokeDashoffset={circ / 4}
-          strokeLinecap="round"
-        />
+        {progress > 0 && (
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={`${dash} ${circ - dash}`}
+            strokeDashoffset={circ / 4}
+            strokeLinecap="round"
+          />
+        )}
       </Svg>
       <Text style={styles.ringCalories}>{Math.round(consumed)}</Text>
       <Text style={styles.ringUnit}>kcal</Text>
-      <Text style={styles.ringRemaining}>
-        {remaining > 0 ? `${Math.round(remaining)} restantes` : '¡Objetivo cumplido!'}
-      </Text>
     </View>
   );
 }
 
-// ─── Macro bar ────────────────────────────────────────────────────────────────
+// ─── Macro chip ───────────────────────────────────────────────────────────────
 
-function MacroBar({
+function MacroChip({
   label,
   value,
   target,
@@ -91,23 +117,23 @@ function MacroBar({
 }) {
   const progress = target > 0 ? Math.min(value / target, 1) : 0;
   return (
-    <View style={styles.macroItem}>
-      <View style={styles.macroHeader}>
-        <Text style={styles.macroLabel}>{label}</Text>
-        <Text style={styles.macroValue}>
-          {Math.round(value)}<Text style={styles.macroTarget}>/{Math.round(target)}{unit}</Text>
-        </Text>
+    <View style={styles.macroChip}>
+      <View style={styles.macroChipDot}>
+        <View style={[styles.macroChipDotFill, { backgroundColor: color }]} />
       </View>
-      <View style={styles.macroTrack}>
-        <View style={[styles.macroFill, { width: `${progress * 100}%`, backgroundColor: color }]} />
+      <Text style={styles.macroChipLabel}>{label}</Text>
+      <Text style={styles.macroChipValue}>
+        <Text style={{ color: colors.white, fontWeight: '700' }}>{Math.round(value)}</Text>
+        <Text style={{ color: colors.textMuted }}>/{Math.round(target)}{unit}</Text>
+      </Text>
+      <View style={styles.macroChipTrack}>
+        <View style={[styles.macroChipFill, { width: `${progress * 100}%` as any, backgroundColor: color }]} />
       </View>
     </View>
   );
 }
 
 // ─── Meal section ─────────────────────────────────────────────────────────────
-
-const MEAL_META = mealColors;
 
 function MealSection({
   mealType,
@@ -116,7 +142,7 @@ function MealSection({
   mealType: string;
   logs: AIFoodLog[];
 }) {
-  const meta = MEAL_META[mealType] ?? { label: mealType, icon: 'restaurant-outline', color: colors.gray };
+  const meta = mealColors[mealType] ?? { label: mealType, icon: 'restaurant-outline', color: colors.textSecondary };
   const total = logs.reduce((s, l) => s + l.calories, 0);
 
   if (logs.length === 0) return null;
@@ -124,14 +150,17 @@ function MealSection({
   return (
     <View style={styles.mealSection}>
       <View style={styles.mealHeader}>
-        <Ionicons name={meta.icon as any} size={16} color={meta.color} />
+        <View style={[styles.mealIconDot, { backgroundColor: meta.color + '22' }]}>
+          <Ionicons name={meta.icon as any} size={13} color={meta.color} />
+        </View>
         <Text style={styles.mealTitle}>{meta.label}</Text>
-        <Text style={styles.mealCalories}>{Math.round(total)} kcal</Text>
+        <Text style={[styles.mealCalories, { color: meta.color }]}>{Math.round(total)} kcal</Text>
       </View>
       {logs.map((log) => (
         <View key={log.id} style={styles.foodRow}>
+          <View style={styles.foodDash} />
           <Text style={styles.foodName} numberOfLines={1}>{log.food_name}</Text>
-          <Text style={styles.foodKcal}>{Math.round(log.calories)} kcal</Text>
+          <Text style={styles.foodKcal}>{Math.round(log.calories)}</Text>
         </View>
       ))}
     </View>
@@ -143,7 +172,7 @@ function MealSection({
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { contentWidth, sidePadding } = useLayout();
+  const { sidePadding } = useLayout();
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [logs, setLogs] = useState<AIFoodLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -180,21 +209,16 @@ export default function HomeScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Buenos días';
-    if (h < 18) return 'Buenas tardes';
-    return 'Buenas noches';
-  };
-
-  const consumed = summary?.total_calories ?? 0;
-  const target = summary?.target_calories ?? 2000;
-  const protein = summary?.total_protein_g ?? 0;
-  const proteinTarget = summary?.target_protein_g ?? 150;
-  const carbs = summary?.total_carbs_g ?? 0;
-  const carbsTarget = summary?.target_carbs_g ?? 200;
-  const fats = summary?.total_fats_g ?? 0;
-  const fatsTarget = summary?.target_fats_g ?? 65;
+  const consumed      = summary?.total_calories     ?? 0;
+  const target        = summary?.target_calories     ?? 2000;
+  const protein       = summary?.total_protein_g     ?? 0;
+  const proteinTarget = summary?.target_protein_g    ?? 150;
+  const carbs         = summary?.total_carbs_g       ?? 0;
+  const carbsTarget   = summary?.target_carbs_g      ?? 200;
+  const fats          = summary?.total_fats_g        ?? 0;
+  const fatsTarget    = summary?.target_fats_g       ?? 65;
+  const streak        = summary?.streak_days         ?? 0;
+  const remaining     = Math.max(target - consumed, 0);
 
   const mealOrder = ['breakfast', 'lunch', 'dinner', 'snack'];
   const logsByMeal: Record<string, AIFoodLog[]> = {};
@@ -203,98 +227,132 @@ export default function HomeScreen({ navigation }: any) {
   }
   const hasMeals = logs.length > 0;
 
-  const streak = summary?.streak_days ?? 0;
+  // Extra bottom padding so content clears the floating tab bar
+  const tabBarOffset = 64 + insets.bottom + 12 + spacing.xl;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
         <View>
-          <Text style={styles.greeting}>{greeting()},</Text>
-          <Text style={styles.userName}>{user?.first_name || 'Usuario'} 👋</Text>
+          <Text style={styles.headerDate}>{formatDate()}</Text>
+          <Text style={styles.headerName}>{user?.first_name || 'Hola'}</Text>
         </View>
         <View style={styles.headerRight}>
           {streak > 0 && (
             <View style={styles.streakBadge}>
-              <Text style={styles.streakFire}>🔥</Text>
+              <Ionicons name="flame" size={13} color={colors.accent} />
               <Text style={styles.streakCount}>{streak}</Text>
             </View>
           )}
           <TouchableOpacity
             style={styles.scanBtn}
             onPress={() => navigation.navigate('Escanear')}
+            activeOpacity={0.8}
           >
-            <Ionicons name="camera" size={20} color={colors.white} />
+            <Ionicons name="camera" size={18} color={colors.white} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Loading inicial */}
       {loading && !refreshing ? (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.black} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <>
-          {/* Error banner */}
           {error && (
             <TouchableOpacity
               style={[styles.errorBanner, { marginHorizontal: sidePadding }]}
               onPress={() => { setLoading(true); load(); }}
               activeOpacity={0.8}
             >
-              <Ionicons name="wifi-outline" size={16} color={colors.white} />
-              <Text style={styles.errorBannerText}>No se pudo cargar. Toca para reintentar</Text>
+              <Ionicons name="wifi-outline" size={14} color={colors.white} />
+              <Text style={styles.errorBannerText}>Sin conexión — toca para reintentar</Text>
             </TouchableOpacity>
           )}
 
           <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Calorie card */}
-        <View style={styles.card}>
-          <View style={styles.ringRow}>
-            <CalorieRing consumed={consumed} target={target} />
-            <View style={styles.macros}>
-              <MacroBar label="Proteína" value={protein} target={proteinTarget} color={colors.protein} />
-              <MacroBar label="Carbos" value={carbs} target={carbsTarget} color={colors.carbs} />
-              <MacroBar label="Grasas" value={fats} target={fatsTarget} color={colors.fats} />
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding, paddingBottom: tabBarOffset }]}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+              />
+            }
+          >
+            {/* ── Calorie card ── */}
+            <View style={styles.calorieCard}>
+              <View style={styles.ringRow}>
+                <CalorieRing consumed={consumed} target={target} />
+                <View style={styles.ringInfo}>
+                  <Text style={styles.ringBigNumber}>{Math.round(remaining)}</Text>
+                  <Text style={styles.ringLabel}>kcal restantes</Text>
+                  <View style={styles.ringDivider} />
+                  <Text style={styles.ringSubLabel}>
+                    <Text style={{ color: colors.white, fontWeight: '700' }}>{Math.round(consumed)}</Text>
+                    <Text style={{ color: colors.textMuted }}> / {Math.round(target)}</Text>
+                  </Text>
+                  <Text style={styles.ringSubUnit}>consumidas</Text>
+                </View>
+              </View>
+
+              {/* Macros row */}
+              <View style={styles.macrosRow}>
+                <MacroChip label="Prot." value={protein} target={proteinTarget} color={colors.protein} />
+                <View style={styles.macroDivider} />
+                <MacroChip label="Carbos" value={carbs} target={carbsTarget} color={colors.carbs} />
+                <View style={styles.macroDivider} />
+                <MacroChip label="Grasas" value={fats} target={fatsTarget} color={colors.fats} />
+              </View>
             </View>
-          </View>
-        </View>
 
-        {/* Today's meals */}
-        <Text style={styles.sectionTitle}>Hoy</Text>
-        {hasMeals ? (
-          <View style={styles.card}>
-            {mealOrder.map((mt) => (
-              <MealSection key={mt} mealType={mt} logs={logsByMeal[mt]} />
-            ))}
-          </View>
-        ) : (
-          <View style={[styles.card, styles.emptyCard]}>
-            <Ionicons name="restaurant-outline" size={36} color={colors.grayLight} />
-            <Text style={styles.emptyText}>Sin comidas registradas</Text>
-            <Text style={styles.emptyHint}>Escanea tu comida con la cámara</Text>
-            <TouchableOpacity
-              style={styles.scanCta}
-              onPress={() => navigation.navigate('Escanear')}
-            >
-              <Ionicons name="camera-outline" size={18} color={colors.white} />
-              <Text style={styles.scanCtaText}>Escanear ahora</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+            {/* ── Meals ── */}
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>HOY</Text>
+              {hasMeals && (
+                <Text style={styles.sectionMeta}>{logs.length} registros</Text>
+              )}
+            </View>
 
-        <View style={{ height: spacing.xl }} />
-      </ScrollView>
+            {hasMeals ? (
+              <View style={styles.mealsCard}>
+                {mealOrder.map((mt, i) =>
+                  logsByMeal[mt].length > 0 ? (
+                    <View key={mt}>
+                      {i > 0 && <View style={styles.mealDivider} />}
+                      <MealSection mealType={mt} logs={logsByMeal[mt]} />
+                    </View>
+                  ) : null
+                )}
+              </View>
+            ) : (
+              <View style={styles.emptyCard}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="restaurant-outline" size={28} color={colors.textMuted} />
+                </View>
+                <Text style={styles.emptyText}>Sin registros</Text>
+                <Text style={styles.emptyHint}>Escanea tu comida con la cámara</Text>
+                <TouchableOpacity
+                  style={styles.scanCta}
+                  onPress={() => navigation.navigate('Escanear')}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="camera-outline" size={16} color={colors.white} />
+                  <Text style={styles.scanCtaText}>Escanear ahora</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
         </>
       )}
     </View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   screen: {
@@ -305,24 +363,46 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accentDim,
     borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.accent + '40',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
   },
-  errorBannerText: { ...typography.caption, color: colors.white, flex: 1 },
+  errorBannerText: {
+    ...typography.caption,
+    color: colors.accent,
+    flex: 1,
+  },
+
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  headerDate: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+    letterSpacing: 1,
+    textTransform: 'uppercase' as const,
+  },
+  headerName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.white,
+    letterSpacing: -0.5,
+    marginTop: 2,
   },
   headerRight: {
     flexDirection: 'row',
@@ -332,164 +412,268 @@ const styles = StyleSheet.create({
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.badgeBg,
-    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.accentDim,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radius.full,
-    gap: 3,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.accent + '30',
   },
-  streakFire: { fontSize: 14 },
-  streakCount: { fontSize: 13, fontWeight: '800', color: colors.badgeText },
-  greeting: {
-    ...typography.caption,
-    color: colors.gray,
-  },
-  userName: {
-    ...typography.titleSm,
-    color: colors.black,
-    marginTop: 2,
+  streakCount: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.accent,
   },
   scanBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.black,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+      },
+      android: { elevation: 6 },
+    }),
   },
+
   scroll: {
     paddingTop: spacing.sm,
   },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
+
+  // Calorie card
+  calorieCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.grayLight,
+    borderColor: colors.primary + '30',  // blue border subtle
     padding: spacing.md,
     marginBottom: spacing.md,
-    ...shadows.sm,
   },
   ringRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  ringInfo: {
+    flex: 1,
+  },
+  ringBigNumber: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: colors.white,
+    letterSpacing: -1.5,
+    lineHeight: 48,
+  },
+  ringLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+  ringDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
+  },
+  ringSubLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  ringSubUnit: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 1,
   },
   ringCalories: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
-    color: colors.black,
+    color: colors.white,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   ringUnit: {
     ...typography.caption,
-    color: colors.gray,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
-  ringRemaining: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.accent,
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  macros: {
-    flex: 1,
-    gap: spacing.sm,
-  },
-  macroItem: {
-    gap: 4,
-  },
-  macroHeader: {
+
+  // Macros row
+  macrosRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+  },
+  macroChip: {
+    flex: 1,
     alignItems: 'center',
+    gap: 3,
   },
-  macroLabel: {
-    ...typography.caption,
-    color: colors.gray,
+  macroChipDot: {
+    marginBottom: 2,
   },
-  macroValue: {
-    ...typography.caption,
-    fontWeight: '700',
-    color: colors.black,
-  },
-  macroTarget: {
-    fontWeight: '400',
-    color: colors.gray,
-  },
-  macroTrack: {
-    height: 5,
-    backgroundColor: colors.surface,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  macroFill: {
-    height: 5,
+  macroChipDotFill: {
+    width: 6,
+    height: 6,
     borderRadius: 3,
   },
-  sectionTitle: {
-    ...typography.label,
-    color: colors.black,
-    marginBottom: spacing.sm,
+  macroChipLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  macroChipValue: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  macroChipTrack: {
+    width: '80%',
+    height: 3,
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 3,
+  },
+  macroChipFill: {
+    height: 3,
+    borderRadius: 2,
+  },
+  macroDivider: {
+    width: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: 4,
+  },
+
+  // Section header
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 1.2,
+  },
+  sectionMeta: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+
+  // Meals card
+  mealsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.xs,
+    overflow: 'hidden',
+  },
+  mealDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
+  },
   mealSection: {
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
   },
   mealHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
     marginBottom: 6,
+  },
+  mealIconDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   mealTitle: {
     ...typography.label,
-    color: colors.black,
+    color: colors.white,
     flex: 1,
   },
   mealCalories: {
-    ...typography.caption,
+    fontSize: 12,
     fontWeight: '700',
-    color: colors.black,
   },
   foodRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.sm,
     paddingVertical: 3,
-    paddingLeft: spacing.md,
+    paddingLeft: 4,
+  },
+  foodDash: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.textMuted,
+    marginLeft: spacing.sm,
   },
   foodName: {
     ...typography.caption,
-    color: colors.gray,
+    color: colors.textSecondary,
     flex: 1,
   },
   foodKcal: {
-    ...typography.caption,
-    color: colors.gray,
+    fontSize: 11,
     fontWeight: '600',
+    color: colors.textMuted,
   },
+
+  // Empty state
   emptyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.xxl,
     gap: spacing.sm,
+  },
+  emptyIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
   emptyText: {
     ...typography.bodyMd,
-    color: colors.black,
+    color: colors.white,
+    fontWeight: '700',
   },
   emptyHint: {
     ...typography.caption,
-    color: colors.gray,
+    color: colors.textSecondary,
   },
   scanCta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.black,
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm + 2,
     borderRadius: radius.full,
