@@ -9,15 +9,28 @@
  */
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import * as authService from './auth.service';
 
 // ─── Base URL ─────────────────────────────────────────────────────────────────
 
 const getBaseUrl = (): string => {
   if (__DEV__) {
-    if (Platform.OS === 'web')     return 'http://localhost:8000';
-    if (Platform.OS === 'android') return 'http://10.0.2.2:8000';
-    return 'http://172.20.10.13:8000'; // iOS físico — cambiar por tu IP local
+    if (Platform.OS === 'web') return 'http://localhost:8000';
+
+    // Detecta automáticamente la IP del Mac desde el host de Metro bundler
+    // Funciona en iOS y Android, dispositivo físico y emulador sin hardcodear IP
+    const hostUri: string | undefined =
+      Constants.expoConfig?.hostUri ??
+      (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ??
+      (Constants as any).manifest?.debuggerHost;
+
+    if (hostUri) {
+      const host = hostUri.split(':')[0]; // solo la IP, sin puerto
+      return `http://${host}:8000`;
+    }
+
+    return 'http://192.168.1.6:8000'; // fallback
   }
   return process.env.EXPO_PUBLIC_API_URL ?? 'https://api.calai.app';
 };
