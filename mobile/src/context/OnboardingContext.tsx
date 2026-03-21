@@ -79,6 +79,9 @@ export interface NutritionPlan {
   healthScore: number;
   targetDate: string;       // ISO date string
   weeklyLossKg: number;
+  blocked?: boolean;
+  blockReason?: string;
+  warning?: string;
 }
 
 interface OnboardingContextType {
@@ -137,6 +140,21 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
     age--;
   }
 
+  // Age gate
+  if (age < 13) {
+    return {
+      dailyCalories: 0,
+      dailyCarbsG: 0,
+      dailyProteinG: 0,
+      dailyFatsG: 0,
+      healthScore: 0,
+      targetDate: new Date().toISOString(),
+      weeklyLossKg: weeklySpeedKg,
+      blocked: true,
+      blockReason: 'Debes tener al menos 13 años para usar esta app.',
+    };
+  }
+
   // BMR — Fórmula Mifflin-St Jeor
   const bmr = gender === 'Female'
     ? 10 * weightKg + 6.25 * heightCm - 5 * age - 161
@@ -150,11 +168,9 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
 
   const tdee = Math.round(bmr * activityMultiplier);
 
-  // Ajuste según objetivo
-  const deficit =
-    goal === 'lose' ? -500 :
-    goal === 'gain' ? +400 :
-    0;
+  // Ajuste según objetivo — matches backend: daily_deficit = (weeklySpeedKg * 7700) / 7
+  const dailyAdjustment = Math.round((weeklySpeedKg * 7700) / 7);
+  const deficit = goal === 'lose' ? -dailyAdjustment : goal === 'gain' ? dailyAdjustment : 0;
 
   const dailyCalories = Math.max(1200, Math.min(4000, tdee + deficit));
 
@@ -175,7 +191,7 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
                       bmi >= 25 && bmi <= 29.9 ? 7.0 :
                       bmi < 18.5 ? 6.5 : 5.5;
 
-  return {
+  const plan: NutritionPlan = {
     dailyCalories,
     dailyCarbsG,
     dailyProteinG,
@@ -184,6 +200,12 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
     targetDate: targetDate.toISOString(),
     weeklyLossKg: weeklySpeedKg,
   };
+
+  if (age < 18) {
+    plan.warning = 'Menores de 18 años deben consultar con un profesional de salud.';
+  }
+
+  return plan;
 }
 
 // ─── Provider ────────────────────────────────────────────────────────────────

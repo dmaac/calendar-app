@@ -1,17 +1,32 @@
+import logging
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel.ext.asyncio.session import AsyncSession
 from ..core.database import get_session
 from ..core.config import settings
-from ..core.security import create_access_token, verify_token
+from ..core.security import create_access_token, verify_token, validate_password_strength
 from ..models.user import User, UserCreate, UserRead
 from ..services.user_service import UserService
 from ..schemas.auth import Token, RefreshRequest, AppleAuthRequest, GoogleAuthRequest
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+# ─── Rate limiting (applied per-endpoint below) ─────────────────────────────
+try:
+    from slowapi import Limiter
+    from slowapi.util import get_remote_address
+    _limiter = Limiter(key_func=get_remote_address)
+    _rate_limit_enabled = True
+except ImportError:
+    _rate_limit_enabled = False
+
+# Helper decorator: no-op when slowapi is not installed
+_rl = lambda limit_str: (_limiter.limit(limit_str) if _rate_limit_enabled else lambda f: f)
 
 
 async def get_current_user(
@@ -39,13 +54,29 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
+    # SEC: Reject deactivated users even if token is still valid
+    if not user.is_active:
+        raise credentials_exception
+
     return user
 
 
 @router.post("/register", response_model=UserRead)
+@_rl("5/minute")  # SEC: Rate limit registration to prevent enumeration/spam
 async def register_user(
-    user_create: UserCreate, session: AsyncSession = Depends(get_session)
+    request: Request,
+    user_create: UserCreate,
+    session: AsyncSession = Depends(get_session),
 ):
+    # SEC: Validate password strength before hashing
+    try:
+        validate_password_strength(user_create.password)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
+
     user_service = UserService(session)
 
     # Check if user already exists
@@ -60,9 +91,11 @@ async def register_user(
 
 
 @router.post("/login", response_model=Token)
+@_rl("10/minute")  # SEC: Rate limit login to mitigate brute force
 async def login_user(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
 ):
     from ..core.security import create_refresh_token, verify_refresh_token
     from ..core.token_store import save_refresh_token
@@ -71,6 +104,7 @@ async def login_user(
     user = await user_service.authenticate_user(form_data.username, form_data.password)
 
     if not user:
+        # SEC: Generic error message prevents user enumeration
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -78,9 +112,11 @@ async def login_user(
         )
 
     if not user_service.is_active(user):
+        # SEC: Same generic message -- do not reveal that the account exists but is disabled
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
@@ -94,7 +130,7 @@ async def login_user(
     try:
         await save_refresh_token(user.id, payload["jti"], settings.refresh_token_expire_days)
     except Exception:
-        pass  # Redis unavailable — degrade gracefully
+        logger.warning("Redis unavailable during login for user_id=%s", user.id)
 
     return {
         "access_token": access_token,
@@ -105,14 +141,16 @@ async def login_user(
 
 
 @router.post("/refresh")
+@_rl("20/minute")  # SEC: Rate limit refresh to prevent token stuffing
 async def refresh_token(
-    request: RefreshRequest,
+    request: Request,
+    body: RefreshRequest,
     session: AsyncSession = Depends(get_session),
 ):
     from ..core.security import verify_refresh_token, create_access_token, create_refresh_token
     from ..core.token_store import is_refresh_token_valid, save_refresh_token, revoke_refresh_token
 
-    payload = verify_refresh_token(request.refresh_token)
+    payload = verify_refresh_token(body.refresh_token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
@@ -120,6 +158,14 @@ async def refresh_token(
     jti = payload["jti"]
 
     if not await is_refresh_token_valid(user_id, jti):
+        # SEC: If a revoked refresh token is reused, revoke ALL tokens for this user
+        # (potential token theft detection)
+        from ..core.token_store import revoke_all_user_tokens
+        await revoke_all_user_tokens(user_id)
+        logger.warning(
+            "Revoked refresh token reuse detected for user_id=%s jti=%s — all tokens revoked",
+            user_id, jti,
+        )
         raise HTTPException(status_code=401, detail="Refresh token revoked")
 
     # Rolling refresh: revoke old, issue new pair
@@ -135,12 +181,12 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(
-    request: RefreshRequest,
+    body: RefreshRequest,
 ):
     from ..core.security import verify_refresh_token
     from ..core.token_store import revoke_refresh_token
 
-    payload = verify_refresh_token(request.refresh_token)
+    payload = verify_refresh_token(body.refresh_token)
     if payload:
         try:
             await revoke_refresh_token(int(payload["sub"]), payload["jti"])
@@ -150,15 +196,17 @@ async def logout(
 
 
 @router.post("/apple")
+@_rl("10/minute")
 async def apple_login(
-    request: AppleAuthRequest,
+    request: Request,
+    body: AppleAuthRequest,
     session: AsyncSession = Depends(get_session),
 ):
     from ..services.oauth_service import verify_apple_token, upsert_oauth_user
     from ..core.security import create_access_token, create_refresh_token, verify_refresh_token
     from ..core.token_store import save_refresh_token
 
-    claims = await verify_apple_token(request.identity_token)
+    claims = await verify_apple_token(body.identity_token)
     if not claims:
         raise HTTPException(status_code=401, detail="Invalid Apple token")
 
@@ -167,8 +215,8 @@ async def apple_login(
         provider="apple",
         provider_id=claims["sub"],
         email=claims.get("email", ""),
-        first_name=request.first_name,
-        last_name=request.last_name,
+        first_name=body.first_name,
+        last_name=body.last_name,
     )
 
     access_token = create_access_token({"sub": str(user.id)})
@@ -177,21 +225,23 @@ async def apple_login(
     try:
         await save_refresh_token(user.id, payload["jti"], settings.refresh_token_expire_days)
     except Exception:
-        pass
+        logger.warning("Redis unavailable during Apple login for user_id=%s", user.id)
 
     return {"access_token": access_token, "refresh_token": refresh_token_str, "token_type": "bearer", "user_id": user.id}
 
 
 @router.post("/google")
+@_rl("10/minute")
 async def google_login(
-    request: GoogleAuthRequest,
+    request: Request,
+    body: GoogleAuthRequest,
     session: AsyncSession = Depends(get_session),
 ):
     from ..services.oauth_service import verify_google_token, upsert_oauth_user
     from ..core.security import create_access_token, create_refresh_token, verify_refresh_token
     from ..core.token_store import save_refresh_token
 
-    claims = await verify_google_token(request.id_token, settings.google_client_id)
+    claims = await verify_google_token(body.id_token, settings.google_client_id)
     if not claims:
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
@@ -210,7 +260,7 @@ async def google_login(
     try:
         await save_refresh_token(user.id, payload["jti"], settings.refresh_token_expire_days)
     except Exception:
-        pass
+        logger.warning("Redis unavailable during Google login for user_id=%s", user.id)
 
     return {"access_token": access_token, "refresh_token": refresh_token_str, "token_type": "bearer", "user_id": user.id}
 

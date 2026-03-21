@@ -47,8 +47,17 @@ class Settings(BaseSettings):
     # In production set CORS_ORIGINS to a comma-separated list of allowed origins.
     cors_origins: List[str] = ["*"]
 
+    # Allowed CORS methods and headers (restrict in production).
+    cors_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    cors_headers: List[str] = [
+        "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With",
+    ]
+
     # Deployment environment — set ENV=production in prod to enforce stricter checks.
     env: str = "development"
+
+    # Password policy
+    password_min_length: int = 8
 
     @validator('secret_key', always=True)
     def secret_key_must_not_be_empty(cls, v, values):
@@ -56,6 +65,24 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SECRET_KEY must be set. "
                 "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        if len(v.strip()) < 32:
+            raise ValueError(
+                "SECRET_KEY must be at least 32 characters. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        return v
+
+    @validator('refresh_secret_key', always=True)
+    def refresh_secret_key_must_not_be_empty(cls, v, values):
+        if not v or not v.strip():
+            raise ValueError(
+                "REFRESH_SECRET_KEY must be set. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        if len(v.strip()) < 32:
+            raise ValueError(
+                "REFRESH_SECRET_KEY must be at least 32 characters."
             )
         return v
 
@@ -69,6 +96,14 @@ class Settings(BaseSettings):
             )
         return v
 
+    @validator('openai_api_key', always=True)
+    def warn_openai_key_in_production(cls, v, values):
+        env = values.get('env', 'development')
+        if env == 'production' and not v:
+            import warnings
+            warnings.warn("OPENAI_API_KEY is not set — AI food scanning will be unavailable.")
+        return v
+
     @validator('database_url_async', always=True, pre=True)
     def derive_async_url(cls, v, values):
         if not v and 'database_url' in values:
@@ -78,6 +113,10 @@ class Settings(BaseSettings):
                     .replace('postgres://', 'postgresql+asyncpg://', 1)
                     .replace('sqlite://', 'sqlite+aiosqlite://', 1))
         return v
+
+    @property
+    def is_production(self) -> bool:
+        return self.env == "production"
 
     class Config:
         env_file = ".env"

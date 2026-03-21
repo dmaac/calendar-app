@@ -14,7 +14,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.calai.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,10 +23,23 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.calai.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/YOUR_PROJECT_ID_HERE"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_PROJECT_ID_HERE"
+      }
+    },
+    "owner": "calai"
   }
 }

@@ -1,8 +1,16 @@
 /**
  * HomeScreen — Dashboard diario Cal AI style
  * Muestra: anillo de calorías, macros, comidas del día.
+ *
+ * UX Polish:
+ * - Skeleton shimmer loading instead of spinner
+ * - Animated calorie number counting
+ * - Fade-in content animation on data load
+ * - Haptic feedback on scan button and refresh
+ * - Full accessibility labels and roles
+ * - User-friendly error state with retry
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,8 +18,8 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   Platform,
+  Animated,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +29,10 @@ import { colors, typography, spacing, radius, shadows, useLayout, mealColors } f
 import { useAuth } from '../../context/AuthContext';
 import * as foodService from '../../services/food.service';
 import { AIFoodLog, DailySummary } from '../../types';
+import { HomeSkeleton } from '../../components/SkeletonLoader';
+import AnimatedNumber from '../../components/AnimatedNumber';
+import useFadeIn from '../../hooks/useFadeIn';
+import { haptics } from '../../hooks/useHaptics';
 
 // ─── Calorie ring ─────────────────────────────────────────────────────────────
 
@@ -41,7 +53,11 @@ function CalorieRing({
   const remaining = Math.max(target - consumed, 0);
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
+      accessibilityLabel={`${Math.round(consumed)} de ${Math.round(target)} kilocalorías consumidas, ${Math.round(remaining)} restantes`}
+      accessibilityRole="progressbar"
+    >
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
         {/* Track */}
         <Circle
@@ -65,10 +81,10 @@ function CalorieRing({
           strokeLinecap="round"
         />
       </Svg>
-      <Text style={styles.ringCalories}>{Math.round(consumed)}</Text>
+      <AnimatedNumber value={consumed} style={styles.ringCalories} />
       <Text style={styles.ringUnit}>kcal</Text>
       <Text style={styles.ringRemaining}>
-        {remaining > 0 ? `${Math.round(remaining)} restantes` : '¡Objetivo cumplido!'}
+        {remaining > 0 ? `${Math.round(remaining)} restantes` : 'Objetivo cumplido'}
       </Text>
     </View>
   );
@@ -90,8 +106,28 @@ function MacroBar({
   unit?: string;
 }) {
   const progress = target > 0 ? Math.min(value / target, 1) : 0;
+
+  // Animated fill width
+  const fillAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fillAnim, {
+      toValue: progress,
+      duration: 500,
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
+
+  const fillWidth = fillAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
   return (
-    <View style={styles.macroItem}>
+    <View
+      style={styles.macroItem}
+      accessibilityLabel={`${label}: ${Math.round(value)} de ${Math.round(target)} ${unit}`}
+      accessibilityRole="progressbar"
+    >
       <View style={styles.macroHeader}>
         <Text style={styles.macroLabel}>{label}</Text>
         <Text style={styles.macroValue}>
@@ -99,7 +135,7 @@ function MacroBar({
         </Text>
       </View>
       <View style={styles.macroTrack}>
-        <View style={[styles.macroFill, { width: `${progress * 100}%`, backgroundColor: color }]} />
+        <Animated.View style={[styles.macroFill, { width: fillWidth as any, backgroundColor: color }]} />
       </View>
     </View>
   );
@@ -122,14 +158,21 @@ function MealSection({
   if (logs.length === 0) return null;
 
   return (
-    <View style={styles.mealSection}>
+    <View
+      style={styles.mealSection}
+      accessibilityLabel={`${meta.label}: ${Math.round(total)} kilocalorías, ${logs.length} alimento${logs.length > 1 ? 's' : ''}`}
+    >
       <View style={styles.mealHeader}>
         <Ionicons name={meta.icon as any} size={16} color={meta.color} />
         <Text style={styles.mealTitle}>{meta.label}</Text>
         <Text style={styles.mealCalories}>{Math.round(total)} kcal</Text>
       </View>
       {logs.map((log) => (
-        <View key={log.id} style={styles.foodRow}>
+        <View
+          key={log.id}
+          style={styles.foodRow}
+          accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorías`}
+        >
           <Text style={styles.foodName} numberOfLines={1}>{log.food_name}</Text>
           <Text style={styles.foodKcal}>{Math.round(log.calories)} kcal</Text>
         </View>
@@ -149,6 +192,9 @@ export default function HomeScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // Fade-in animation for content
+  const fadeStyle = useFadeIn(!loading && !error);
 
   const load = async () => {
     setError(false);
@@ -176,13 +222,15 @@ export default function HomeScreen({ navigation }: any) {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    haptics.light();
     await load();
+    haptics.success();
     setRefreshing(false);
   };
 
   const greeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return 'Buenos días';
+    if (h < 12) return 'Buenos dias';
     if (h < 18) return 'Buenas tardes';
     return 'Buenas noches';
   };
@@ -209,30 +257,40 @@ export default function HomeScreen({ navigation }: any) {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
-        <View>
+        <View accessibilityRole="header">
           <Text style={styles.greeting}>{greeting()},</Text>
-          <Text style={styles.userName}>{user?.first_name || 'Usuario'} 👋</Text>
+          <Text style={styles.userName}>{user?.first_name || 'Usuario'}</Text>
         </View>
         <View style={styles.headerRight}>
           {streak > 0 && (
-            <View style={styles.streakBadge}>
+            <View
+              style={styles.streakBadge}
+              accessibilityLabel={`Racha de ${streak} dia${streak > 1 ? 's' : ''}`}
+              accessibilityRole="text"
+            >
               <Text style={styles.streakFire}>🔥</Text>
               <Text style={styles.streakCount}>{streak}</Text>
             </View>
           )}
           <TouchableOpacity
             style={styles.scanBtn}
-            onPress={() => navigation.navigate('Escanear')}
+            onPress={() => {
+              haptics.light();
+              navigation.navigate('Escanear');
+            }}
+            accessibilityLabel="Escanear comida con la camara"
+            accessibilityRole="button"
+            accessibilityHint="Abre la camara para escanear alimentos con IA"
           >
             <Ionicons name="camera" size={20} color={colors.white} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Loading inicial */}
+      {/* Loading skeleton */}
       {loading && !refreshing ? (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.black} />
+        <View style={{ paddingHorizontal: sidePadding }}>
+          <HomeSkeleton />
         </View>
       ) : (
         <>
@@ -240,8 +298,14 @@ export default function HomeScreen({ navigation }: any) {
           {error && (
             <TouchableOpacity
               style={[styles.errorBanner, { marginHorizontal: sidePadding }]}
-              onPress={() => { setLoading(true); load(); }}
+              onPress={() => {
+                haptics.light();
+                setLoading(true);
+                load();
+              }}
               activeOpacity={0.8}
+              accessibilityLabel="Error al cargar datos. Toca para reintentar"
+              accessibilityRole="button"
             >
               <Ionicons name="wifi-outline" size={16} color={colors.white} />
               <Text style={styles.errorBannerText}>No se pudo cargar. Toca para reintentar</Text>
@@ -249,47 +313,61 @@ export default function HomeScreen({ navigation }: any) {
           )}
 
           <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Calorie card */}
-        <View style={styles.card}>
-          <View style={styles.ringRow}>
-            <CalorieRing consumed={consumed} target={target} />
-            <View style={styles.macros}>
-              <MacroBar label="Proteína" value={protein} target={proteinTarget} color={colors.protein} />
-              <MacroBar label="Carbos" value={carbs} target={carbsTarget} color={colors.carbs} />
-              <MacroBar label="Grasas" value={fats} target={fatsTarget} color={colors.fats} />
-            </View>
-          </View>
-        </View>
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.black}
+              />
+            }
+          >
+            <Animated.View style={fadeStyle}>
+              {/* Calorie card */}
+              <View style={styles.card} accessibilityLabel="Resumen de calorias del dia">
+                <View style={styles.ringRow}>
+                  <CalorieRing consumed={consumed} target={target} />
+                  <View style={styles.macros}>
+                    <MacroBar label="Proteina" value={protein} target={proteinTarget} color={colors.protein} />
+                    <MacroBar label="Carbos" value={carbs} target={carbsTarget} color={colors.carbs} />
+                    <MacroBar label="Grasas" value={fats} target={fatsTarget} color={colors.fats} />
+                  </View>
+                </View>
+              </View>
 
-        {/* Today's meals */}
-        <Text style={styles.sectionTitle}>Hoy</Text>
-        {hasMeals ? (
-          <View style={styles.card}>
-            {mealOrder.map((mt) => (
-              <MealSection key={mt} mealType={mt} logs={logsByMeal[mt]} />
-            ))}
-          </View>
-        ) : (
-          <View style={[styles.card, styles.emptyCard]}>
-            <Ionicons name="restaurant-outline" size={36} color={colors.grayLight} />
-            <Text style={styles.emptyText}>Sin comidas registradas</Text>
-            <Text style={styles.emptyHint}>Escanea tu comida con la cámara</Text>
-            <TouchableOpacity
-              style={styles.scanCta}
-              onPress={() => navigation.navigate('Escanear')}
-            >
-              <Ionicons name="camera-outline" size={18} color={colors.white} />
-              <Text style={styles.scanCtaText}>Escanear ahora</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              {/* Today's meals */}
+              <Text style={styles.sectionTitle} accessibilityRole="header">Hoy</Text>
+              {hasMeals ? (
+                <View style={styles.card}>
+                  {mealOrder.map((mt) => (
+                    <MealSection key={mt} mealType={mt} logs={logsByMeal[mt]} />
+                  ))}
+                </View>
+              ) : (
+                <View style={[styles.card, styles.emptyCard]} accessibilityLabel="Sin comidas registradas hoy">
+                  <Ionicons name="restaurant-outline" size={36} color={colors.grayLight} />
+                  <Text style={styles.emptyText}>Sin comidas registradas</Text>
+                  <Text style={styles.emptyHint}>Escanea tu comida con la camara</Text>
+                  <TouchableOpacity
+                    style={styles.scanCta}
+                    onPress={() => {
+                      haptics.light();
+                      navigation.navigate('Escanear');
+                    }}
+                    accessibilityLabel="Escanear ahora"
+                    accessibilityRole="button"
+                    accessibilityHint="Abre la camara para escanear tu primer alimento del dia"
+                  >
+                    <Ionicons name="camera-outline" size={18} color={colors.white} />
+                    <Text style={styles.scanCtaText}>Escanear ahora</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
-        <View style={{ height: spacing.xl }} />
-      </ScrollView>
+              <View style={{ height: spacing.xl }} />
+            </Animated.View>
+          </ScrollView>
         </>
       )}
     </View>
@@ -300,12 +378,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.bg,
-  },
-  loadingOverlay: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -350,9 +422,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scanBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.black,
     alignItems: 'center',
     justifyContent: 'center',
@@ -494,6 +566,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 2,
     borderRadius: radius.full,
     marginTop: spacing.sm,
+    minHeight: 44,
   },
   scanCtaText: {
     ...typography.label,

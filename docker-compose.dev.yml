@@ -1,62 +1,33 @@
+# =============================================================================
+# Cal AI Clone — Docker Compose DEVELOPMENT overlay
+# =============================================================================
+# Usage:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# What this overlay adds:
+#   - Exposed DB and Redis ports for local tooling (pgAdmin, redis-cli, etc.)
+#   - Hot-reload via source mount + uvicorn --reload
+#   - No gunicorn, no tini — fast iteration loop
+# =============================================================================
+
 services:
-  postgres:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-calapp}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-calapp_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-calendar_db}
+  db:
     ports:
       - "5432:5432"
-    volumes:
-      - calai_postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-calapp} -d ${POSTGRES_DB:-calendar_db}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   redis:
-    image: redis:7-alpine
-    restart: unless-stopped
     ports:
       - "6379:6379"
-    volumes:
-      - calai_redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./backend/.env
-    environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-calapp}:${POSTGRES_PASSWORD:-calapp_secret}@postgres:5432/${POSTGRES_DB:-calendar_db}"
-      REDIS_URL: "redis://redis:6379/0"
-    volumes:
-      # Hot-reload: mount source so code changes are reflected without rebuild
-      - ./backend/app:/app/app
-    # Override CMD to run uvicorn with --reload in dev
+    # Override CMD to run uvicorn with hot-reload instead of gunicorn
     command: >
       uvicorn app.main:app
         --host 0.0.0.0
         --port 8000
         --reload
         --reload-dir /app/app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-volumes:
-  calai_postgres:
-  calai_redis:
+    volumes:
+      # Mount source code so changes are reflected immediately
+      - ./backend/app:/app/app
+    environment:
+      ENV: development

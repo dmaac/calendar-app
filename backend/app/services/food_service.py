@@ -45,8 +45,8 @@ class FoodService:
         items = list(result.all())
         return items, total
 
-    async def create_food(self, food_create: FoodCreate) -> Food:
-        food = Food(**food_create.dict())
+    async def create_food(self, food_create: FoodCreate, created_by: Optional[int] = None) -> Food:
+        food = Food(**food_create.dict(), created_by=created_by)
         self.session.add(food)
         await self.session.commit()
         await self.session.refresh(food)

@@ -10,12 +10,12 @@ GET  /api/dashboard/today  — daily summary for authenticated user
 """
 
 import logging
-from datetime import date as date_type
+from datetime import date as date_type, datetime, time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy import select, text
+from sqlalchemy import select, text, func
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,11 @@ class UpdateFoodLog(BaseModel):
 class WaterLog(BaseModel):
     ml: int  # millilitres to add
 
+# ─── Free-tier scan quota (server-side enforcement) ──────────────────────────
+# This MUST match the client-side constant in ScanScreen.tsx (FREE_SCAN_LIMIT).
+# The client-side check is UX-only; this is the authoritative gate.
+FREE_SCAN_LIMIT_PER_DAY = 3
+
 router = APIRouter(prefix="/api", tags=["ai-food"])
 
 # ─── Scan ─────────────────────────────────────────────────────────────────────
@@ -115,6 +120,32 @@ async def scan_food(
             detail="Image file too large. Maximum allowed size is 10 MB",
         )
 
+    # ── Server-side free-tier scan quota ────────────────────────────────────
+    # Premium users have unlimited scans.  Free users are capped per day.
+    if not current_user.is_premium:
+        today_start = datetime.combine(date_type.today(), time.min)
+        today_end = datetime.combine(date_type.today(), time.max)
+        scan_count_result = await session.execute(
+            select(func.count(AIFoodLog.id)).where(
+                AIFoodLog.user_id == current_user.id,
+                AIFoodLog.logged_at >= today_start,
+                AIFoodLog.logged_at <= today_end,
+            )
+        )
+        today_scan_count = scan_count_result.scalar() or 0
+        if today_scan_count >= FREE_SCAN_LIMIT_PER_DAY:
+            logger.warning(
+                "Scan quota exceeded: user_id=%s scans_today=%d limit=%d",
+                current_user.id, today_scan_count, FREE_SCAN_LIMIT_PER_DAY,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    f"Daily scan limit reached ({FREE_SCAN_LIMIT_PER_DAY} scans). "
+                    "Upgrade to Premium for unlimited scans."
+                ),
+            )
+
     logger.info(
         "Food scan requested: user_id=%s meal_type=%s size_bytes=%d content_type=%s",
         current_user.id,
@@ -132,7 +163,10 @@ async def scan_food(
         )
     except ValueError as e:
         logger.error("Food scan failed: user_id=%s error=%s", current_user.id, e)
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # SEC: The ai_scan_service already produces user-safe error messages in ValueError.
+        # We pass them through but cap length to avoid any accidental data leakage.
+        safe_msg = str(e)[:200] if str(e) else "AI scan failed. Please try again."
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=safe_msg)
 
     try:
         await cache_delete(daily_summary_key(current_user.id, date_type.today().isoformat()))
