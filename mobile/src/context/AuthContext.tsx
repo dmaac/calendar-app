@@ -51,9 +51,9 @@ export const useAuth = () => {
 
 // ─── Google OAuth config ──────────────────────────────────────────────────────
 // Redirect URI for Google — in production use your bundle ID
-const GOOGLE_CLIENT_ID_IOS     = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ?? '';
-const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID ?? '';
-const GOOGLE_CLIENT_ID_WEB     = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ?? '';
+const GOOGLE_CLIENT_ID_IOS     = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
+const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '';
+const GOOGLE_CLIENT_ID_WEB     = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
 
 const googleClientId = Platform.select({
   ios:     GOOGLE_CLIENT_ID_IOS,
@@ -169,7 +169,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ── Google Sign In ─────────────────────────────────────────────────────────
   const loginWithGoogle = useCallback(async () => {
     if (!googleClientId) {
-      throw new Error('Google client ID not configured. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS/ANDROID/WEB in .env');
+      throw new Error('Google client ID not configured. Set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID / EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID / EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env');
     }
     await googlePromptAsync();
     // Result is handled by the useEffect watching googleResponse

@@ -10,6 +10,8 @@ from .routers import auth_router, activities_router, foods_router, meals_router,
 
 logger = logging.getLogger(__name__)
 
+APP_VERSION = "1.1.0"
+
 try:
     from slowapi import Limiter, _rate_limit_exceeded_handler
     from slowapi.util import get_remote_address
@@ -64,7 +66,7 @@ _redoc_url = None if settings.is_production else "/redoc"
 app = FastAPI(
     title="Fitsi API",
     description="A REST API for Fitsi nutrition tracking app with AI food scanning",
-    version="1.0.0",
+    version=APP_VERSION,
     lifespan=lifespan,
     redirect_slashes=False,
     docs_url=_docs_url,
@@ -106,7 +108,7 @@ app.include_router(subscriptions_router)
 
 @app.get("/", tags=["root"])
 async def read_root():
-    return {"message": "Fitsi API is running!"}
+    return {"message": "Fitsi API is running!", "version": APP_VERSION}
 
 
 @app.get("/health", tags=["health"])
@@ -120,7 +122,16 @@ async def health_check():
     from .core.database import async_engine
     from .core.token_store import get_redis
 
-    health: dict = {"status": "healthy"}
+    health: dict = {
+        "status": "healthy",
+        "version": APP_VERSION,
+        "environment": settings.env,
+        "components": {
+            "db": "ok",
+            "redis": "ok",
+            "ai": "ok",
+        },
+    }
     degraded = False
 
     # --- DB check ---
@@ -129,7 +140,7 @@ async def health_check():
             await conn.execute(sa_text("SELECT 1"))
     except Exception as exc:
         logger.warning("Health check: DB unavailable — %s", exc)
-        health["db"] = "unavailable"
+        health["components"]["db"] = "unavailable"
         degraded = True
 
     # --- Redis check ---
@@ -138,8 +149,17 @@ async def health_check():
         await r.ping()
     except Exception as exc:
         logger.warning("Health check: Redis unavailable — %s", exc)
-        health["redis"] = "unavailable"
+        health["components"]["redis"] = "unavailable"
         degraded = True
+
+    # --- AI provider check ---
+    try:
+        ai_available = bool(settings.openai_api_key or getattr(settings, "anthropic_api_key", None))
+        if not ai_available:
+            health["components"]["ai"] = "not_configured"
+    except Exception as exc:
+        logger.warning("Health check: AI config error — %s", exc)
+        health["components"]["ai"] = "error"
 
     if degraded:
         health["status"] = "degraded"
