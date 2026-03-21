@@ -14,12 +14,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography, spacing, radius, useLayout, mealColors, shadows } from '../../theme';
 import * as foodService from '../../services/food.service';
 import { MealType, FoodSuggestion, searchFoodHistory } from '../../services/food.service';
+import { haptics } from '../../hooks/useHaptics';
 
 const MEAL_OPTIONS = (Object.entries(mealColors) as [MealType, typeof mealColors[string]][]).map(
   ([key, v]) => ({ key, ...v })
@@ -130,14 +132,17 @@ export default function AddFoodScreen({ navigation, route }: any) {
 
   const handleSave = async () => {
     if (!foodName.trim()) {
+      haptics.error();
       Alert.alert('Error', 'Ingresa el nombre del alimento');
       return;
     }
     if (!calories || parse(calories) <= 0) {
+      haptics.error();
       Alert.alert('Error', 'Ingresa las calorías');
       return;
     }
 
+    haptics.light();
     setLoading(true);
     try {
       await foodService.manualLogFood({
@@ -150,8 +155,10 @@ export default function AddFoodScreen({ navigation, route }: any) {
         serving_size: serving.trim() || undefined,
         meal_type: mealType,
       });
+      haptics.success();
       navigation.goBack();
     } catch {
+      haptics.error();
       Alert.alert('Error', 'No se pudo guardar el registro. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
@@ -194,8 +201,11 @@ export default function AddFoodScreen({ navigation, route }: any) {
                 styles.mealChip,
                 mealType === opt.key && { backgroundColor: opt.color, borderColor: opt.color },
               ]}
-              onPress={() => setMealType(opt.key)}
+              onPress={() => { haptics.selection(); setMealType(opt.key); }}
               activeOpacity={0.7}
+              accessibilityLabel={opt.label}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: mealType === opt.key }}
             >
               <Ionicons
                 name={opt.icon as any}

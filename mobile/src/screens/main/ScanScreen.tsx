@@ -29,6 +29,8 @@ import * as foodService from '../../services/food.service';
 import { FoodScanResult } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { haptics } from '../../hooks/useHaptics';
+import usePulse from '../../hooks/usePulse';
+import SuccessCheckmark from '../../components/SuccessCheckmark';
 
 const FREE_SCAN_LIMIT = 3;
 
@@ -83,8 +85,23 @@ export default function ScanScreen({ navigation }: any) {
   const resultScale = useRef(new Animated.Value(0.92)).current;
   const resultOpacity = useRef(new Animated.Value(0)).current;
 
-  // Success checkmark animation
-  const successScale = useRef(new Animated.Value(0)).current;
+  // Pulse animation on camera circle in idle state
+  const cameraCirclePulse = usePulse({ active: scanState === 'idle', duration: 2200, maxScale: 1.06 });
+
+  // Scanning state shimmer
+  const scanShimmer = useRef(new Animated.Value(0.6)).current;
+  useEffect(() => {
+    if (scanState === 'scanning') {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanShimmer, { toValue: 1, duration: 600, useNativeDriver: true }),
+          Animated.timing(scanShimmer, { toValue: 0.6, duration: 600, useNativeDriver: true }),
+        ]),
+      );
+      loop.start();
+      return () => loop.stop();
+    }
+  }, [scanState]);
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -352,16 +369,14 @@ export default function ScanScreen({ navigation }: any) {
     );
   }
 
-  // ─── Logged confirmation ─────────────────────────────────────────────────
+  // ─── Logged confirmation with animated checkmark + particles ────────────
   if (scanState === 'logged') {
     return (
       <View
         style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
         accessibilityLabel="Alimento registrado exitosamente. Redirigiendo a tu registro."
       >
-        <Animated.View style={[styles.successIcon, { transform: [{ scale: successScale }] }]}>
-          <Ionicons name="checkmark" size={44} color={colors.white} />
-        </Animated.View>
+        <SuccessCheckmark size={88} showParticles={true} />
         <Text style={styles.successText}>Registrado!</Text>
         <Text style={styles.successHint}>Redirigiendo a tu registro...</Text>
       </View>
@@ -384,7 +399,9 @@ export default function ScanScreen({ navigation }: any) {
         )}
         <View style={styles.scanningOverlay}>
           <ActivityIndicator size="large" color={colors.white} />
-          <Text style={styles.scanningText}>Analizando con IA...</Text>
+          <Animated.Text style={[styles.scanningText, { opacity: scanShimmer }]}>
+            Analizando con IA...
+          </Animated.Text>
           <Text style={styles.scanningHint}>Esto puede tardar hasta 10 segundos</Text>
         </View>
       </View>
@@ -459,9 +476,9 @@ export default function ScanScreen({ navigation }: any) {
         <View style={styles.cornerTR} />
         <View style={styles.cornerBL} />
         <View style={styles.cornerBR} />
-        <View style={styles.cameraCircle}>
+        <Animated.View style={[styles.cameraCircle, cameraCirclePulse]}>
           <Ionicons name="camera" size={40} color={colors.white} />
-        </View>
+        </Animated.View>
         <Text style={styles.viewfinderText}>Toca para abrir camara</Text>
       </TouchableOpacity>
 

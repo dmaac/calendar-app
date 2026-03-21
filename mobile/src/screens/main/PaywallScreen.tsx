@@ -1,97 +1,14 @@
 /**
- * PaywallScreen — Pantalla de suscripción Premium
- * UI completa lista para conectar RevenueCat (Rama 5 config)
- * Por ahora muestra los planes y avisa que la compra se habilitará próximamente.
+ * PaywallScreen — Pantalla de suscripcion Premium
+ *
+ * Integrates with RevenueCat for real in-app purchases.
+ * Falls back to hardcoded prices when offerings are unavailable (web, dev).
+ *
+ * Product IDs: fitsiai_monthly ($9.99/mo), fitsiai_annual ($59.99/yr)
+ * Entitlement: "premium"
+ * Trial: 7-day free trial
  */
-
-// =============================================================================
-// TODO: RevenueCat Integration Checklist
-// =============================================================================
-//
-// 1. INSTALL PACKAGE
-//    npx expo install react-native-purchases
-//    (uses Expo config plugin — no native code changes needed for managed workflow)
-//    Docs: https://www.revenuecat.com/docs/getting-started/installation/expo
-//
-// 2. ADD CONFIG PLUGIN (app.json / app.config.js)
-//    "plugins": [
-//      ["react-native-purchases", {
-//        "androidApiKey": "YOUR_REVENUECAT_ANDROID_KEY",
-//        "iosApiKey":     "YOUR_REVENUECAT_IOS_KEY"
-//      }]
-//    ]
-//
-// 3. INITIALIZE SDK  — do this once, as early as possible (e.g. App.tsx or
-//    AuthContext, right after the user is identified).
-//
-//    import Purchases, { LOG_LEVEL } from 'react-native-purchases';
-//
-//    const RC_API_KEY = Platform.OS === 'ios'
-//      ? 'YOUR_REVENUECAT_IOS_KEY'
-//      : 'YOUR_REVENUECAT_ANDROID_KEY';
-//
-//    Purchases.setLogLevel(LOG_LEVEL.DEBUG); // disable in production
-//    await Purchases.configure({ apiKey: RC_API_KEY });
-//
-//    // Identify the logged-in user so purchases are linked to their account:
-//    await Purchases.logIn(user.id);
-//
-// 4. FETCH OFFERINGS — load real packages to replace the hardcoded PLANS object.
-//
-//    const offerings = await Purchases.getOfferings();
-//    const current   = offerings.current;        // your default offering
-//    const monthly   = current?.monthly;          // Package | null
-//    const annual    = current?.annual;           // Package | null
-//    // Use package.product.priceString for the display price.
-//
-// 5. REPLACE handleSubscribe WITH REAL PURCHASE
-//
-//    const handleSubscribe = async () => {
-//      const pkg = selectedPlan === 'annual' ? annualPackage : monthlyPackage;
-//      if (!pkg) return;
-//      setLoading(true);
-//      try {
-//        const { customerInfo } = await Purchases.purchasePackage(pkg);
-//        const isPro = customerInfo.entitlements.active['premium'] !== undefined;
-//        if (isPro) {
-//          // Update local auth context / backend to reflect premium status
-//          navigation.goBack();
-//        }
-//      } catch (err: any) {
-//        if (!err.userCancelled) {
-//          Alert.alert('Error', 'No se pudo completar la compra. Inténtalo de nuevo.');
-//        }
-//      } finally {
-//        setLoading(false);
-//      }
-//    };
-//
-// 6. REPLACE handleRestore WITH REAL RESTORE
-//
-//    const handleRestore = async () => {
-//      try {
-//        const customerInfo = await Purchases.restorePurchases();
-//        const isPro = customerInfo.entitlements.active['premium'] !== undefined;
-//        Alert.alert(
-//          isPro ? 'Compra restaurada' : 'Sin compras previas',
-//          isPro ? '¡Tu suscripción Premium ha sido restaurada!' : 'No encontramos compras anteriores.'
-//        );
-//      } catch {
-//        Alert.alert('Error', 'No se pudo restaurar la compra.');
-//      }
-//    };
-//
-// 7. ENTITLEMENT ID
-//    Create an entitlement called "premium" in the RevenueCat dashboard and
-//    attach both the monthly and annual products to it.
-//
-// 8. ENVIRONMENT KEYS (store securely — do NOT commit raw keys)
-//    Use expo-constants + EAS Secrets or a .env file that is gitignored:
-//    REVENUECAT_IOS_KEY=appl_xxxxxxxxxxxxxxxxxxxxxxxx
-//    REVENUECAT_ANDROID_KEY=goog_xxxxxxxxxxxxxxxxxxxxxxxx
-//
-// =============================================================================
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -100,36 +17,42 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PurchasesPackage } from 'react-native-purchases';
 import { colors, typography, spacing, radius, shadows, useLayout } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
+import * as purchaseService from '../../services/purchase.service';
 
 type Plan = 'monthly' | 'annual';
 
 const FEATURES = [
   { icon: 'camera',            label: 'Escaneos ilimitados con IA' },
-  { icon: 'analytics',         label: 'Análisis detallado de macros' },
+  { icon: 'analytics',         label: 'Analisis detallado de macros' },
   { icon: 'flame',             label: 'Seguimiento de racha diaria' },
   { icon: 'nutrition',         label: 'Base de datos de alimentos premium' },
-  { icon: 'trending-down',     label: 'Predicción de progreso semanal' },
+  { icon: 'trending-down',     label: 'Prediccion de progreso semanal' },
   { icon: 'notifications',     label: 'Recordatorios inteligentes' },
-  { icon: 'barbell',           label: 'Integración con Apple/Google Health' },
+  { icon: 'barbell',           label: 'Integracion con Apple/Google Health' },
   { icon: 'people',            label: 'Recetas personalizadas con IA' },
 ];
 
-const PLANS = {
+// Fallback prices when RevenueCat offerings are not available (web / dev)
+const FALLBACK_PLANS = {
   monthly: {
     label: 'Mensual',
     price: '$9.99',
     period: '/mes',
-    badge: null,
+    badge: null as string | null,
+    perMonth: null as string | null,
     priceId: 'fitsiai_monthly',
   },
   annual: {
     label: 'Anual',
     price: '$59.99',
-    period: '/año',
+    period: '/ano',
     badge: '50% OFF',
     perMonth: '$5.00/mes',
     priceId: 'fitsiai_annual',
@@ -138,24 +61,148 @@ const PLANS = {
 
 export default function PaywallScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { sidePadding, contentWidth } = useLayout();
+  const { sidePadding } = useLayout();
+  const { setPremiumStatus } = useAuth();
+
   const [selectedPlan, setSelectedPlan] = useState<Plan>('annual');
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [loadingOfferings, setLoadingOfferings] = useState(true);
 
-  const handleSubscribe = async () => {
-    // TODO: Rama 5 — conectar RevenueCat
-    // const pkg = selectedPlan === 'annual' ? annualPackage : monthlyPackage;
-    // await Purchases.purchasePackage(pkg);
-    Alert.alert(
-      'Próximamente',
-      'Las compras se habilitarán cuando configuremos RevenueCat. ¡Ya casi está listo!',
-      [{ text: 'OK' }]
-    );
+  // RevenueCat packages
+  const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
+  const [annualPackage, setAnnualPackage] = useState<PurchasesPackage | null>(null);
+
+  // Display plan data (from RC offerings or fallback)
+  const [plans, setPlans] = useState(FALLBACK_PLANS);
+
+  // ── Load offerings on mount ───────────────────────────────────────────────
+  useEffect(() => {
+    loadOfferings();
+  }, []);
+
+  const loadOfferings = async () => {
+    try {
+      setLoadingOfferings(true);
+      const packages = await purchaseService.getCurrentPackages();
+
+      if (packages.monthly) {
+        setMonthlyPackage(packages.monthly);
+      }
+      if (packages.annual) {
+        setAnnualPackage(packages.annual);
+      }
+
+      // Update display prices from real offerings
+      if (packages.monthly || packages.annual) {
+        setPlans({
+          monthly: {
+            label: 'Mensual',
+            price: packages.monthly?.product.priceString ?? FALLBACK_PLANS.monthly.price,
+            period: '/mes',
+            badge: null,
+            perMonth: null,
+            priceId: 'fitsiai_monthly',
+          },
+          annual: {
+            label: 'Anual',
+            price: packages.annual?.product.priceString ?? FALLBACK_PLANS.annual.price,
+            period: '/ano',
+            badge: '50% OFF',
+            perMonth: packages.annual
+              ? `${(packages.annual.product.price / 12).toFixed(2)}/mes`
+              : FALLBACK_PLANS.annual.perMonth,
+            priceId: 'fitsiai_annual',
+          },
+        });
+      }
+    } catch (err) {
+      console.error('[PaywallScreen] Failed to load offerings:', err);
+    } finally {
+      setLoadingOfferings(false);
+    }
   };
 
-  const handleRestore = () => {
-    Alert.alert('Restaurar compra', 'Esta función estará disponible pronto.');
-  };
+  // ── Purchase flow ─────────────────────────────────────────────────────────
+  const handleSubscribe = useCallback(async () => {
+    const pkg = selectedPlan === 'annual' ? annualPackage : monthlyPackage;
+
+    if (!pkg) {
+      // No package available — likely web or SDK not initialized
+      Alert.alert(
+        'No disponible',
+        'Las compras in-app solo estan disponibles en la app nativa. Descarga la app desde la App Store o Google Play.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const result = await purchaseService.purchasePackage(pkg);
+
+      if (result.userCancelled) {
+        // User cancelled — do nothing
+        return;
+      }
+
+      if (result.success && result.isPremium) {
+        // Purchase successful — update local premium status
+        setPremiumStatus(true);
+        Alert.alert(
+          'Bienvenido a Premium',
+          'Tu suscripcion ha sido activada exitosamente. Disfruta de todas las funciones de Fitsi IA.',
+          [{ text: 'Continuar', onPress: () => navigation.goBack?.() }]
+        );
+        return;
+      }
+
+      if (result.error) {
+        Alert.alert('Error', result.error, [{ text: 'OK' }]);
+      }
+    } catch (err) {
+      console.error('[PaywallScreen] Unexpected purchase error:', err);
+      Alert.alert(
+        'Error',
+        'Ocurrio un error inesperado. Intentalo de nuevo.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedPlan, annualPackage, monthlyPackage, setPremiumStatus, navigation]);
+
+  // ── Restore purchases ─────────────────────────────────────────────────────
+  const handleRestore = useCallback(async () => {
+    setRestoring(true);
+
+    try {
+      const result = await purchaseService.restorePurchases();
+
+      if (result.isPremium) {
+        setPremiumStatus(true);
+        Alert.alert(
+          'Compra restaurada',
+          'Tu suscripcion Premium ha sido restaurada exitosamente.',
+          [{ text: 'Continuar', onPress: () => navigation.goBack?.() }]
+        );
+      } else if (result.success) {
+        Alert.alert(
+          'Sin compras previas',
+          'No encontramos suscripciones anteriores asociadas a tu cuenta.',
+          [{ text: 'OK' }]
+        );
+      } else if (result.error) {
+        Alert.alert('Error', result.error, [{ text: 'OK' }]);
+      }
+    } catch (err) {
+      console.error('[PaywallScreen] Restore error:', err);
+      Alert.alert('Error', 'No se pudo restaurar la compra. Intentalo de nuevo.', [{ text: 'OK' }]);
+    } finally {
+      setRestoring(false);
+    }
+  }, [setPremiumStatus, navigation]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -174,11 +221,11 @@ export default function PaywallScreen({ navigation }: any) {
         {/* Hero */}
         <View style={styles.hero}>
           <View style={styles.crownBadge}>
-            <Text style={styles.crownEmoji}>👑</Text>
+            <Text style={styles.crownEmoji}>{'\u{1F451}'}</Text>
           </View>
           <Text style={styles.heroTitle}>Fitsi IA Premium</Text>
           <Text style={styles.heroSubtitle}>
-            Desbloquea el poder total de la IA{'\n'}para tu nutrición
+            Desbloquea el poder total de la IA{'\n'}para tu nutricion
           </Text>
         </View>
 
@@ -197,69 +244,89 @@ export default function PaywallScreen({ navigation }: any) {
 
         {/* Plans */}
         <Text style={styles.sectionTitle}>Elige tu plan</Text>
-        <View style={styles.plansRow}>
-          {(Object.entries(PLANS) as [Plan, typeof PLANS[Plan]][]).map(([key, plan]) => {
-            const isSelected = selectedPlan === key;
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[styles.planCard, isSelected && styles.planCardActive]}
-                onPress={() => setSelectedPlan(key)}
-                activeOpacity={0.8}
-              >
-                {'badge' in plan && plan.badge && (
-                  <View style={styles.planBadge}>
-                    <Text style={styles.planBadgeText}>{plan.badge}</Text>
-                  </View>
-                )}
-                <Text style={[styles.planLabel, isSelected && styles.planLabelActive]}>
-                  {plan.label}
-                </Text>
-                <Text style={[styles.planPrice, isSelected && styles.planPriceActive]}>
-                  {plan.price}
-                </Text>
-                <Text style={[styles.planPeriod, isSelected && { color: colors.white + 'CC' }]}>
-                  {plan.period}
-                </Text>
-                {'perMonth' in plan && plan.perMonth && (
-                  <Text style={[styles.planPerMonth, isSelected && { color: colors.white + 'BB' }]}>
-                    {plan.perMonth}
+
+        {loadingOfferings ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.black} />
+            <Text style={styles.loadingText}>Cargando planes...</Text>
+          </View>
+        ) : (
+          <View style={styles.plansRow}>
+            {(Object.entries(plans) as [Plan, typeof plans[Plan]][]).map(([key, plan]) => {
+              const isSelected = selectedPlan === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.planCard, isSelected && styles.planCardActive]}
+                  onPress={() => setSelectedPlan(key)}
+                  activeOpacity={0.8}
+                >
+                  {plan.badge && (
+                    <View style={styles.planBadge}>
+                      <Text style={styles.planBadgeText}>{plan.badge}</Text>
+                    </View>
+                  )}
+                  <Text style={[styles.planLabel, isSelected && styles.planLabelActive]}>
+                    {plan.label}
                   </Text>
-                )}
-                {isSelected && (
-                  <View style={styles.planCheck}>
-                    <Ionicons name="checkmark-circle" size={18} color={colors.white} />
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  <Text style={[styles.planPrice, isSelected && styles.planPriceActive]}>
+                    {plan.price}
+                  </Text>
+                  <Text style={[styles.planPeriod, isSelected && { color: colors.white + 'CC' }]}>
+                    {plan.period}
+                  </Text>
+                  {plan.perMonth && (
+                    <Text style={[styles.planPerMonth, isSelected && { color: colors.white + 'BB' }]}>
+                      {plan.perMonth}
+                    </Text>
+                  )}
+                  {isSelected && (
+                    <View style={styles.planCheck}>
+                      <Ionicons name="checkmark-circle" size={18} color={colors.white} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {/* CTA */}
         <TouchableOpacity
-          style={[styles.ctaBtn, loading && { opacity: 0.7 }]}
+          style={[styles.ctaBtn, (loading || loadingOfferings) && { opacity: 0.7 }]}
           onPress={handleSubscribe}
-          disabled={loading}
+          disabled={loading || loadingOfferings}
           activeOpacity={0.85}
         >
-          <Text style={styles.ctaBtnText}>
-            {loading ? 'Procesando...' : 'Iniciar prueba gratuita 7 días'}
-          </Text>
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.white} />
+          ) : (
+            <Text style={styles.ctaBtnText}>
+              Iniciar prueba gratuita 7 dias
+            </Text>
+          )}
         </TouchableOpacity>
         <Text style={styles.ctaNote}>
-          Cancela cuando quieras · Sin compromiso
+          Cancela cuando quieras {'\u00B7'} Sin compromiso
         </Text>
 
         {/* Restore */}
-        <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore}>
-          <Text style={styles.restoreText}>Restaurar compra anterior</Text>
+        <TouchableOpacity
+          style={styles.restoreBtn}
+          onPress={handleRestore}
+          disabled={restoring}
+        >
+          {restoring ? (
+            <ActivityIndicator size="small" color={colors.gray} />
+          ) : (
+            <Text style={styles.restoreText}>Restaurar compra anterior</Text>
+          )}
         </TouchableOpacity>
 
         {/* Legal */}
         <Text style={styles.legal}>
-          Al suscribirte aceptas los Términos de servicio y la Política de privacidad.
-          La suscripción se renueva automáticamente. Cancela en cualquier momento
+          Al suscribirte aceptas los Terminos de servicio y la Politica de privacidad.
+          La suscripcion se renueva automaticamente. Cancela en cualquier momento
           desde los ajustes de tu {Platform.OS === 'ios' ? 'Apple ID' : 'Google Play'}.
         </Text>
 
@@ -316,6 +383,16 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   featureLabel: { ...typography.bodyMd, color: colors.black, flex: 1 },
+
+  // Loading
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
+  },
+  loadingText: { ...typography.caption, color: colors.gray },
 
   // Plans
   sectionTitle: {

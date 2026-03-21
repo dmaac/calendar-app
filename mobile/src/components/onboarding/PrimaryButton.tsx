@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { colors, radius, typography } from '../../theme';
+import { haptics } from '../../hooks/useHaptics';
 
 interface PrimaryButtonProps {
   label: string;
@@ -27,11 +28,12 @@ export default function PrimaryButton({
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
-    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
+    haptics.light();
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 30, bounciness: 4 }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 4 }).start();
   };
 
   const isDisabled = disabled || loading;
@@ -60,6 +62,9 @@ export default function PrimaryButton({
         disabled={isDisabled}
         activeOpacity={1}
         style={btnStyle}
+        accessibilityLabel={loading ? 'Cargando' : label}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isDisabled }}
       >
         {loading ? (
           <ActivityIndicator color={variant === 'primary' ? colors.white : colors.black} size="small" />

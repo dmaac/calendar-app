@@ -3,10 +3,11 @@
  * Cada paso es un componente independiente.
  * El estado vive en OnboardingContext.
  */
-import React, { useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useCallback, useRef, useEffect, useState } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { colors } from '../../theme';
+import { haptics } from '../../hooks/useHaptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import Step01Splash         from './Step01Splash';
@@ -48,22 +49,67 @@ export const TOTAL_STEPS = 30;
 
 export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
   const { currentStep, setCurrentStep } = useOnboarding();
+  const [direction, setDirection] = useState<'forward' | 'back'>('forward');
+
+  // Smooth fade + slide transition between onboarding steps
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const prevStep = useRef(currentStep);
+
+  useEffect(() => {
+    if (prevStep.current !== currentStep) {
+      const isForward = currentStep > prevStep.current;
+      setDirection(isForward ? 'forward' : 'back');
+      prevStep.current = currentStep;
+
+      // Reset for entrance
+      fadeAnim.setValue(0);
+      slideAnim.setValue(isForward ? 30 : -30);
+
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [currentStep]);
 
   const goNext = useCallback(() => {
+    haptics.light();
     if (currentStep >= TOTAL_STEPS) {
       handleComplete();
     } else {
-      setCurrentStep(currentStep + 1);
+      // Animate out, then switch step
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: -30, duration: 150, useNativeDriver: true }),
+      ]).start(() => {
+        setCurrentStep(currentStep + 1);
+      });
     }
   }, [currentStep]);
 
   const goBack = useCallback(() => {
+    haptics.light();
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 30, duration: 150, useNativeDriver: true }),
+      ]).start(() => {
+        setCurrentStep(currentStep - 1);
+      });
     }
   }, [currentStep]);
 
   const handleComplete = async () => {
+    haptics.success();
     await AsyncStorage.setItem('onboarding_completed', 'true');
     onComplete();
   };
@@ -108,7 +154,14 @@ export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorP
 
   return (
     <View style={styles.root}>
-      {renderStep()}
+      <Animated.View
+        style={[
+          styles.transitionWrap,
+          { opacity: fadeAnim, transform: [{ translateX: slideAnim }] },
+        ]}
+      >
+        {renderStep()}
+      </Animated.View>
     </View>
   );
 }
@@ -117,6 +170,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  transitionWrap: {
+    flex: 1,
   },
 });
 

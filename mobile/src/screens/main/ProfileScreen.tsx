@@ -17,6 +17,7 @@ import { colors, typography, spacing, radius, shadows, useLayout } from '../../t
 import { useAuth } from '../../context/AuthContext';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
+import { haptics } from '../../hooks/useHaptics';
 
 const GOAL_LABELS: Record<string, string> = {
   lose:     'Perder peso',
@@ -91,12 +92,16 @@ export default function ProfileScreen({ navigation }: any) {
   }, []);
 
   const handleLogout = () => {
+    haptics.heavy();
     Alert.alert('Cerrar sesión', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Cerrar sesión',
         style: 'destructive',
-        onPress: logout,
+        onPress: () => {
+          haptics.medium();
+          logout();
+        },
       },
     ]);
   };

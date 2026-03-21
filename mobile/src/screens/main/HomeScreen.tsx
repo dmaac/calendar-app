@@ -32,6 +32,7 @@ import { AIFoodLog, DailySummary } from '../../types';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import AnimatedNumber from '../../components/AnimatedNumber';
 import useFadeIn from '../../hooks/useFadeIn';
+import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
 
 // ─── Calorie ring ─────────────────────────────────────────────────────────────
@@ -49,8 +50,37 @@ function CalorieRing({
   const r = (size - strokeWidth) / 2;
   const circ = 2 * Math.PI * r;
   const progress = target > 0 ? Math.min(consumed / target, 1) : 0;
-  const dash = progress * circ;
   const remaining = Math.max(target - consumed, 0);
+
+  // Animated ring fill — grows from 0 to target on load
+  const fillAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    fillAnim.setValue(0);
+    Animated.timing(fillAnim, {
+      toValue: progress,
+      duration: 900,
+      delay: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
+
+  // Listen to animated value for SVG strokeDasharray (can't use native driver for SVG)
+  const [animDash, setAnimDash] = useState(0);
+  useEffect(() => {
+    const id = fillAnim.addListener(({ value }) => {
+      setAnimDash(value * circ);
+    });
+    return () => fillAnim.removeListener(id);
+  }, [circ]);
+
+  // Haptic notification when calorie goal is met
+  const prevConsumed = useRef(0);
+  useEffect(() => {
+    if (consumed >= target && prevConsumed.current < target && target > 0) {
+      haptics.success();
+    }
+    prevConsumed.current = consumed;
+  }, [consumed, target]);
 
   return (
     <View
@@ -68,7 +98,7 @@ function CalorieRing({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Progress */}
+        {/* Animated progress */}
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -76,7 +106,7 @@ function CalorieRing({
           stroke={consumed > target ? colors.protein : colors.black}
           strokeWidth={strokeWidth}
           fill="none"
-          strokeDasharray={`${dash} ${circ - dash}`}
+          strokeDasharray={`${animDash} ${circ - animDash}`}
           strokeDashoffset={circ / 4}
           strokeLinecap="round"
         />
@@ -98,21 +128,25 @@ function MacroBar({
   target,
   color,
   unit = 'g',
+  delay = 0,
 }: {
   label: string;
   value: number;
   target: number;
   color: string;
   unit?: string;
+  delay?: number;
 }) {
   const progress = target > 0 ? Math.min(value / target, 1) : 0;
 
-  // Animated fill width
+  // Animated fill width — grows from left with staggered delay
   const fillAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    fillAnim.setValue(0);
     Animated.timing(fillAnim, {
       toValue: progress,
-      duration: 500,
+      duration: 700,
+      delay: 300 + delay,
       useNativeDriver: false,
     }).start();
   }, [progress]);
@@ -131,7 +165,8 @@ function MacroBar({
       <View style={styles.macroHeader}>
         <Text style={styles.macroLabel}>{label}</Text>
         <Text style={styles.macroValue}>
-          {Math.round(value)}<Text style={styles.macroTarget}>/{Math.round(target)}{unit}</Text>
+          <AnimatedNumber value={value} style={styles.macroValue} />
+          <Text style={styles.macroTarget}>/{Math.round(target)}{unit}</Text>
         </Text>
       </View>
       <View style={styles.macroTrack}>
@@ -195,6 +230,9 @@ export default function HomeScreen({ navigation }: any) {
 
   // Fade-in animation for content
   const fadeStyle = useFadeIn(!loading && !error);
+
+  // Pulse animation on scan button when no meals logged (draws attention)
+  const pulseStyle = usePulse({ active: !loading && logs.length === 0, duration: 2000 });
 
   const load = async () => {
     setError(false);
@@ -273,7 +311,6 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           )}
           <TouchableOpacity
-            style={styles.scanBtn}
             onPress={() => {
               haptics.light();
               navigation.navigate('Escanear');
@@ -281,8 +318,11 @@ export default function HomeScreen({ navigation }: any) {
             accessibilityLabel="Escanear comida con la camara"
             accessibilityRole="button"
             accessibilityHint="Abre la camara para escanear alimentos con IA"
+            activeOpacity={0.85}
           >
-            <Ionicons name="camera" size={20} color={colors.white} />
+            <Animated.View style={[styles.scanBtn, pulseStyle]}>
+              <Ionicons name="camera" size={20} color={colors.white} />
+            </Animated.View>
           </TouchableOpacity>
         </View>
       </View>
@@ -329,9 +369,9 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={styles.ringRow}>
                   <CalorieRing consumed={consumed} target={target} />
                   <View style={styles.macros}>
-                    <MacroBar label="Proteina" value={protein} target={proteinTarget} color={colors.protein} />
-                    <MacroBar label="Carbos" value={carbs} target={carbsTarget} color={colors.carbs} />
-                    <MacroBar label="Grasas" value={fats} target={fatsTarget} color={colors.fats} />
+                    <MacroBar label="Proteina" value={protein} target={proteinTarget} color={colors.protein} delay={0} />
+                    <MacroBar label="Carbos" value={carbs} target={carbsTarget} color={colors.carbs} delay={100} />
+                    <MacroBar label="Grasas" value={fats} target={fatsTarget} color={colors.fats} delay={200} />
                   </View>
                 </View>
               </View>

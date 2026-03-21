@@ -17,6 +17,7 @@ import { Platform } from 'react-native';
 import { User } from '../types';
 import * as authService from '../services/auth.service';
 import ApiService from '../services/api';
+import * as purchaseService from '../services/purchase.service';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -39,6 +40,7 @@ interface AuthContextType {
   markOnboardingComplete: () => Promise<void>;
   resetOnboarding: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  setPremiumStatus: (isPremium: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -116,6 +118,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Load user profile
       const userData = await ApiService.getCurrentUser();
       setUser(userData);
+
+      // Initialize RevenueCat and identify user
+      await purchaseService.initializePurchases(String(userData.id));
+
+      // Check premium status from RevenueCat (source of truth for subscriptions)
+      const rcPremium = await purchaseService.checkSubscriptionStatus();
+      if (rcPremium && !userData.is_premium) {
+        // RevenueCat says premium but backend doesn't — update local state
+        // (backend will be synced via webhooks)
+        userData.is_premium = true;
+        setUser({ ...userData });
+      }
     } catch (err) {
       // Session invalid — clear and start fresh
       await authService.clearTokens();
@@ -127,6 +141,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchAndSetUser = async () => {
     const userData = await ApiService.getCurrentUser();
     setUser(userData);
+
+    // Identify user with RevenueCat after login/register
+    await purchaseService.initializePurchases(String(userData.id));
+    await purchaseService.identifyUser(String(userData.id));
+
     return userData;
   };
 
@@ -187,6 +206,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     await authService.logout();
+    await purchaseService.logOutPurchases();
     // Keep onboarding_completed so returning users see Login, not onboarding again
     await AsyncStorage.multiRemove(['onboarding_data_v2', 'onboarding_current_step']);
     setUser(null);
@@ -211,6 +231,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(userData);
   }, []);
 
+  // ── Set premium status (called after successful purchase) ────────────────
+  const setPremiumStatus = useCallback((isPremium: boolean) => {
+    setUser(prev => prev ? { ...prev, is_premium: isPremium } : prev);
+  }, []);
+
   // ─────────────────────────────────────────────────────────────────────────
   const value: AuthContextType = {
     user,
@@ -226,6 +251,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     markOnboardingComplete,
     resetOnboarding,
     refreshUser,
+    setPremiumStatus,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

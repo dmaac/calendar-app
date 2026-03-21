@@ -2,7 +2,7 @@
  * LogScreen — Diario de alimentos del día
  * Comidas agrupadas por tipo · Eliminar · Añadir manualmente · Tracking de agua
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,8 @@ import { colors, typography, spacing, radius, shadows, useLayout, mealColors } f
 import * as foodService from '../../services/food.service';
 import { AIFoodLog, DailySummary } from '../../types';
 import { MealType } from '../../services/food.service';
+import { haptics } from '../../hooks/useHaptics';
+import { HomeSkeleton } from '../../components/SkeletonLoader';
 
 const MEAL_META = mealColors;
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -31,8 +34,38 @@ const WATER_AMOUNTS = [150, 200, 250, 350, 500];
 
 function WaterCard({ waterMl, onAdd }: { waterMl: number; onAdd: (ml: number) => void }) {
   const pct = Math.min(waterMl / 2000, 1);
+
+  // Animated fill width for water progress
+  const fillAnim = useRef(new Animated.Value(pct)).current;
+  useEffect(() => {
+    Animated.timing(fillAnim, {
+      toValue: pct,
+      duration: 400,
+      useNativeDriver: false,
+    }).start();
+  }, [pct]);
+
+  const fillWidth = fillAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  // Bounce animation when water is added
+  const bounceAnim = useRef(new Animated.Value(1)).current;
+  const handleAdd = (ml: number) => {
+    haptics.medium();
+    bounceAnim.setValue(1.15);
+    Animated.spring(bounceAnim, {
+      toValue: 1,
+      friction: 4,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+    onAdd(ml);
+  };
+
   return (
-    <View style={waterStyles.card}>
+    <Animated.View style={[waterStyles.card, { transform: [{ scale: bounceAnim }] }]}>
       <View style={waterStyles.header}>
         <Ionicons name="water" size={18} color={colors.fats} />
         <Text style={waterStyles.title}>Agua</Text>
@@ -40,19 +73,30 @@ function WaterCard({ waterMl, onAdd }: { waterMl: number; onAdd: (ml: number) =>
           {waterMl} <Text style={waterStyles.unit}>/ 2000 ml</Text>
         </Text>
       </View>
-      <View style={waterStyles.track}>
-        <View style={[waterStyles.fill, { width: `${pct * 100}%` }]} />
+      <View
+        style={waterStyles.track}
+        accessibilityLabel={`Agua: ${waterMl} de 2000 mililitros`}
+        accessibilityRole="progressbar"
+      >
+        <Animated.View style={[waterStyles.fill, { width: fillWidth as any }]} />
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
         <View style={waterStyles.btnRow}>
           {WATER_AMOUNTS.map((ml) => (
-            <TouchableOpacity key={ml} style={waterStyles.btn} onPress={() => onAdd(ml)} activeOpacity={0.7}>
+            <TouchableOpacity
+              key={ml}
+              style={waterStyles.btn}
+              onPress={() => handleAdd(ml)}
+              activeOpacity={0.7}
+              accessibilityLabel={`Agregar ${ml} mililitros de agua`}
+              accessibilityRole="button"
+            >
               <Text style={waterStyles.btnText}>+{ml}ml</Text>
             </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -212,6 +256,7 @@ export default function LogScreen({ navigation }: any) {
   };
 
   const handleDelete = (log: AIFoodLog) => {
+    haptics.heavy();
     Alert.alert('Eliminar registro', `¿Eliminar "${log.food_name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -220,8 +265,10 @@ export default function LogScreen({ navigation }: any) {
         onPress: async () => {
           try {
             await foodService.deleteFoodLog(log.id);
+            haptics.success();
             setLogs((prev) => prev.filter((l) => l.id !== log.id));
           } catch {
+            haptics.error();
             Alert.alert('Error', 'No se pudo eliminar el registro.');
           }
         },
@@ -240,15 +287,20 @@ export default function LogScreen({ navigation }: any) {
     }
   };
 
-  const openAddModal = (mt: MealType) => setModalMeal(mt);
+  const openAddModal = (mt: MealType) => {
+    haptics.light();
+    setModalMeal(mt);
+  };
   const closeModal = () => setModalMeal(null);
 
   const handleScan = () => {
+    haptics.light();
     closeModal();
     navigation.navigate('Escanear');
   };
 
   const handleManual = () => {
+    haptics.light();
     const mt = modalMeal;
     closeModal();
     navigation.navigate('AddFood', { mealType: mt });
@@ -320,8 +372,8 @@ export default function LogScreen({ navigation }: any) {
       </View>
 
       {loading && !refreshing ? (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.black} />
+        <View style={[styles.loadingOverlay, { paddingHorizontal: sidePadding }]}>
+          <HomeSkeleton />
         </View>
       ) : (
       <ScrollView

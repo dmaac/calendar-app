@@ -1,7 +1,9 @@
-import { Platform, useWindowDimensions } from 'react-native';
+import { Platform, useColorScheme, useWindowDimensions } from 'react-native';
 
 // ─── Design tokens (Fitsi IA style) ───────────────────────────────────────────
-export const colors = {
+
+/** Light mode palette */
+export const lightColors = {
   // Fondos
   bg: '#FFFFFF',
   surface: '#F5F5F7',
@@ -13,8 +15,8 @@ export const colors = {
   grayLight: '#E5E5EA',
 
   // Acciones
-  primary: '#111111',       // botón primario
-  accent: '#FF7A5C',        // naranja highlight
+  primary: '#111111',
+  accent: '#FF7A5C',
 
   // Estados
   disabled: '#C7C7CC',
@@ -28,15 +30,58 @@ export const colors = {
   fats: '#3B82F6',
   success: '#10B981',
 
-  // Tabs (app principal)
+  // Tabs
   tabActive: '#111111',
   tabInactive: '#C7C7CC',
   border: '#E5E5EA',
 
-  // Badge (streak, premium)
+  // Badge
   badgeBg: '#FEF3C7',
   badgeText: '#92400E',
 };
+
+/** Dark mode palette — WCAG AA contrast compliant */
+export const darkColors: typeof lightColors = {
+  bg: '#0A0A0A',
+  surface: '#1C1C1E',
+  surfaceAlt: '#2C2C2E',
+
+  black: '#F5F5F7',
+  gray: '#AEAEB2',
+  grayLight: '#3A3A3C',
+
+  primary: '#F5F5F7',
+  accent: '#FF8F75',
+
+  disabled: '#636366',
+  disabledBg: '#2C2C2E',
+  white: '#FFFFFF',
+
+  calories: '#F5F5F7',
+  carbs: '#FBBF24',
+  protein: '#F87171',
+  fats: '#60A5FA',
+  success: '#34D399',
+
+  tabActive: '#F5F5F7',
+  tabInactive: '#636366',
+  border: '#3A3A3C',
+
+  badgeBg: '#422006',
+  badgeText: '#FDE68A',
+};
+
+// Default export for backward compatibility — light palette
+export const colors = lightColors;
+
+/**
+ * useThemeColors — Returns the correct color palette based on device color scheme.
+ * Screens and components can progressively adopt this hook.
+ */
+export function useThemeColors() {
+  const scheme = useColorScheme();
+  return scheme === 'dark' ? darkColors : lightColors;
+}
 
 // ─── Meal type colors (shared across LogScreen, HomeScreen, ScanScreen, AddFoodScreen) ─
 export const mealColors: Record<string, { label: string; icon: string; color: string }> = {

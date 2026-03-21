@@ -29,6 +29,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      "react-native-purchases"
+    ],
     "updates": {
       "url": "https://u.expo.dev/YOUR_PROJECT_ID_HERE"
     },
