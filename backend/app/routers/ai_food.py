@@ -9,12 +9,15 @@ DELETE /api/food/logs/{id} — delete a log
 GET  /api/dashboard/today  — daily summary for authenticated user
 """
 
-from datetime import date as date_type
+import logging
+from datetime import date as date_type, datetime, time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy import select, text
+from sqlalchemy import select, text, func
+
+logger = logging.getLogger(__name__)
 
 from ..core.database import get_session
 from ..models.user import User
@@ -25,11 +28,16 @@ from ..services.ai_scan_service import (
     get_food_logs,
     get_daily_summary,
 )
+from ..core.cache import cache_get, cache_set, cache_delete, daily_summary_key, CACHE_TTL
 from pydantic import BaseModel
 
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address
+    # NOTE: Rate limiting is currently IP-based (get_remote_address).
+    # For production, upgrade to per-user limiting by replacing the key_func:
+    #   key_func=lambda req: str(req.state.user_id)  # set in a middleware after auth
+    # This prevents a single user from bypassing limits via different IPs (VPN, mobile).
     _limiter = Limiter(key_func=get_remote_address)
     _rate_limit_enabled = True
 except ImportError:
@@ -47,8 +55,22 @@ class ManualFoodLog(BaseModel):
     meal_type: str = "snack"
 
 
+class UpdateFoodLog(BaseModel):
+    food_name: Optional[str] = None
+    calories: Optional[float] = None
+    carbs_g: Optional[float] = None
+    protein_g: Optional[float] = None
+    fats_g: Optional[float] = None
+    meal_type: Optional[str] = None
+
+
 class WaterLog(BaseModel):
     ml: int  # millilitres to add
+
+# ─── Free-tier scan quota (server-side enforcement) ──────────────────────────
+# This MUST match the client-side constant in ScanScreen.tsx (FREE_SCAN_LIMIT).
+# The client-side check is UX-only; this is the authoritative gate.
+FREE_SCAN_LIMIT_PER_DAY = 3
 
 router = APIRouter(prefix="/api", tags=["ai-food"])
 
@@ -75,19 +97,62 @@ async def scan_food(
             detail=f"meal_type must be one of: {', '.join(valid_types)}",
         )
 
-    # Read image
-    if image.content_type not in ("image/jpeg", "image/jpg", "image/png", "image/webp"):
+    # Validate content type (MIME check; also catches missing Content-Type)
+    _ACCEPTED_TYPES = {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+    }
+    if image.content_type not in _ACCEPTED_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Only JPEG, PNG, and WebP images are supported",
+            detail="Unsupported image type. Accepted formats: JPEG, PNG, WebP, HEIC",
         )
 
+    # Read image bytes then enforce 10 MB limit
     image_bytes = await image.read()
     if len(image_bytes) > 10 * 1024 * 1024:  # 10 MB
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Image must be smaller than 10 MB",
+            detail="Image file too large. Maximum allowed size is 10 MB",
         )
+
+    # ── Server-side free-tier scan quota ────────────────────────────────────
+    # Premium users have unlimited scans.  Free users are capped per day.
+    if not current_user.is_premium:
+        today_start = datetime.combine(date_type.today(), time.min)
+        today_end = datetime.combine(date_type.today(), time.max)
+        scan_count_result = await session.execute(
+            select(func.count(AIFoodLog.id)).where(
+                AIFoodLog.user_id == current_user.id,
+                AIFoodLog.logged_at >= today_start,
+                AIFoodLog.logged_at <= today_end,
+            )
+        )
+        today_scan_count = scan_count_result.scalar() or 0
+        if today_scan_count >= FREE_SCAN_LIMIT_PER_DAY:
+            logger.warning(
+                "Scan quota exceeded: user_id=%s scans_today=%d limit=%d",
+                current_user.id, today_scan_count, FREE_SCAN_LIMIT_PER_DAY,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    f"Daily scan limit reached ({FREE_SCAN_LIMIT_PER_DAY} scans). "
+                    "Upgrade to Premium for unlimited scans."
+                ),
+            )
+
+    logger.info(
+        "Food scan requested: user_id=%s meal_type=%s size_bytes=%d content_type=%s",
+        current_user.id,
+        meal_type,
+        len(image_bytes),
+        image.content_type,
+    )
 
     try:
         result = await scan_and_log_food(
@@ -97,7 +162,16 @@ async def scan_food(
             session=session,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        logger.error("Food scan failed: user_id=%s error=%s", current_user.id, e)
+        # SEC: The ai_scan_service already produces user-safe error messages in ValueError.
+        # We pass them through but cap length to avoid any accidental data leakage.
+        safe_msg = str(e)[:200] if str(e) else "AI scan failed. Please try again."
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=safe_msg)
+
+    try:
+        await cache_delete(daily_summary_key(current_user.id, date_type.today().isoformat()))
+    except Exception:
+        pass
 
     return result
 
@@ -138,6 +212,11 @@ async def manual_food_log(
     session.add(log)
     await session.commit()
     await session.refresh(log)
+
+    try:
+        await cache_delete(daily_summary_key(current_user.id, date_type.today().isoformat()))
+    except Exception:
+        pass
 
     return {
         "id": log.id,
@@ -186,6 +265,12 @@ async def log_water(
     session.add(summary)
     await session.commit()
     await session.refresh(summary)
+
+    try:
+        await cache_delete(daily_summary_key(current_user.id, today.isoformat()))
+    except Exception:
+        pass
+
     return {"water_ml": summary.water_ml}
 
 
@@ -248,12 +333,7 @@ async def get_food_log(
 @router.put("/food/logs/{log_id}")
 async def update_food_log(
     log_id: int,
-    food_name: Optional[str] = None,
-    calories: Optional[float] = None,
-    carbs_g: Optional[float] = None,
-    protein_g: Optional[float] = None,
-    fats_g: Optional[float] = None,
-    meal_type: Optional[str] = None,
+    body: UpdateFoodLog,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -268,24 +348,29 @@ async def update_food_log(
     if not log:
         raise HTTPException(status_code=404, detail="Food log not found")
 
-    if food_name is not None:
-        log.food_name = food_name
-    if calories is not None:
-        log.calories = calories
-    if carbs_g is not None:
-        log.carbs_g = carbs_g
-    if protein_g is not None:
-        log.protein_g = protein_g
-    if fats_g is not None:
-        log.fats_g = fats_g
-    if meal_type is not None:
-        if meal_type not in {"breakfast", "lunch", "dinner", "snack"}:
+    if body.food_name is not None:
+        log.food_name = body.food_name
+    if body.calories is not None:
+        log.calories = body.calories
+    if body.carbs_g is not None:
+        log.carbs_g = body.carbs_g
+    if body.protein_g is not None:
+        log.protein_g = body.protein_g
+    if body.fats_g is not None:
+        log.fats_g = body.fats_g
+    if body.meal_type is not None:
+        if body.meal_type not in {"breakfast", "lunch", "dinner", "snack"}:
             raise HTTPException(status_code=422, detail="Invalid meal_type")
-        log.meal_type = meal_type
+        log.meal_type = body.meal_type
 
     log.was_edited = True
     session.add(log)
     await session.commit()
+
+    try:
+        await cache_delete(daily_summary_key(current_user.id, log.logged_at.date().isoformat()))
+    except Exception:
+        pass
 
     return {"message": "Updated", "id": log.id}
 
@@ -307,8 +392,15 @@ async def delete_food_log(
     if not log:
         raise HTTPException(status_code=404, detail="Food log not found")
 
+    log_date = log.logged_at.date().isoformat()
     await session.delete(log)
     await session.commit()
+
+    try:
+        await cache_delete(daily_summary_key(current_user.id, log_date))
+    except Exception:
+        pass
+
     return {"message": "Deleted"}
 
 
@@ -374,8 +466,24 @@ async def dashboard_today(
     except ValueError:
         raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
 
-    return await get_daily_summary(
+    cache_key = daily_summary_key(current_user.id, target_date)
+
+    try:
+        cached = await cache_get(cache_key)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass  # cache failure — fall through to DB
+
+    result = await get_daily_summary(
         user_id=current_user.id,
         date=target_date,
         session=session,
     )
+
+    try:
+        await cache_set(cache_key, result, CACHE_TTL["daily_summary"])
+    except Exception:
+        pass  # cache failure — return result anyway
+
+    return result

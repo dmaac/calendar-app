@@ -1,6 +1,6 @@
-# Calendar App
+# Fitsi IA
 
-A complete mobile calendar application built with React Native (Expo) frontend and FastAPI backend, featuring user authentication, activity scheduling, and PostgreSQL database.
+A nutrition tracking mobile app with AI-powered food scanning, built with React Native (Expo) frontend and FastAPI backend, featuring user authentication, macro tracking, and PostgreSQL database.
 
 ## Features
 

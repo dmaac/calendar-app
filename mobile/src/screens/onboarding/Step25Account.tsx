@@ -15,9 +15,9 @@ import * as onboardingService from '../../services/onboarding.service';
 WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_CLIENT_ID = Platform.select({
-  ios:     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ?? '',
-  android: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID ?? '',
-  default: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ?? '',
+  ios:     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
+  android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
+  default: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
 }) ?? '';
 
 export default function Step25Account({ onNext, onBack, step, totalSteps }: StepProps) {

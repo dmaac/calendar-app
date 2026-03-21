@@ -1,6 +1,12 @@
 /**
  * ScanScreen — Escaneo de alimentos con IA
- * Flujo: seleccionar imagen (cámara/galería) → subir al backend → ver resultado → confirmar log
+ * Flujo: seleccionar imagen (camara/galeria) -> subir al backend -> ver resultado -> confirmar log
+ *
+ * UX Polish:
+ * - Scale animation on result card appearance
+ * - Haptic feedback on scan complete, confirm, meal selection
+ * - Full accessibility labels and roles on all interactive elements
+ * - Fade-in animation for scanning/result states
  */
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -13,6 +19,7 @@ import {
   ScrollView,
   Platform,
   Image,
+  Animated,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +28,7 @@ import { colors, typography, spacing, radius, shadows, useLayout } from '../../t
 import * as foodService from '../../services/food.service';
 import { FoodScanResult } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { haptics } from '../../hooks/useHaptics';
 
 const FREE_SCAN_LIMIT = 3;
 
@@ -47,7 +55,10 @@ function MacroPill({
   color: string;
 }) {
   return (
-    <View style={[styles.macroPill, { borderColor: color + '40', backgroundColor: color + '10' }]}>
+    <View
+      style={[styles.macroPill, { borderColor: color + '40', backgroundColor: color + '10' }]}
+      accessibilityLabel={`${label}: ${Math.round(value)} ${unit}`}
+    >
       <Text style={[styles.macroPillValue, { color }]}>{Math.round(value)}{unit}</Text>
       <Text style={styles.macroPillLabel}>{label}</Text>
     </View>
@@ -64,7 +75,16 @@ export default function ScanScreen({ navigation }: any) {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [result, setResult] = useState<FoodScanResult | null>(null);
   const [todayScans, setTodayScans] = useState(0);
+  const [scansLoading, setScansLoading] = useState(false);
+  const [scansError, setScansError] = useState(false);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Scale animation for result card
+  const resultScale = useRef(new Animated.Value(0.92)).current;
+  const resultOpacity = useRef(new Animated.Value(0)).current;
+
+  // Success checkmark animation
+  const successScale = useRef(new Animated.Value(0)).current;
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -73,16 +93,58 @@ export default function ScanScreen({ navigation }: any) {
     };
   }, []);
 
-  // Cargar conteo de escaneos al entrar y cuando volvemos a idle después de un scan
+  // Animate result card entrance
+  useEffect(() => {
+    if (scanState === 'result') {
+      haptics.success();
+      resultScale.setValue(0.92);
+      resultOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(resultScale, {
+          toValue: 1,
+          friction: 7,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+        Animated.timing(resultOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [scanState]);
+
+  // Animate success checkmark
+  useEffect(() => {
+    if (scanState === 'logged') {
+      haptics.success();
+      successScale.setValue(0);
+      Animated.spring(successScale, {
+        toValue: 1,
+        friction: 5,
+        tension: 100,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [scanState]);
+
+  // Cargar conteo de escaneos al entrar y cuando volvemos a idle despues de un scan
   React.useEffect(() => {
     if (!isPremium && scanState === 'idle') {
+      setScansLoading(true);
+      setScansError(false);
       foodService.getFoodLogs().then((logs) => {
         // Contar solo los que tienen imagen (scan IA), no manuales
         const aiScans = logs.filter((l) => l.image_url);
         setTodayScans(aiScans.length);
-      }).catch(() => {});
+      }).catch(() => {
+        setScansError(true);
+      }).finally(() => {
+        setScansLoading(false);
+      });
     }
-  }, [isPremium, scanState]); // solo cuando idle (carga inicial + después de confirmar)
+  }, [isPremium, scanState]); // solo cuando idle (carga inicial + despues de confirmar)
 
   const requestPermission = async (type: 'camera' | 'library') => {
     if (Platform.OS === 'web') return true;
@@ -96,13 +158,14 @@ export default function ScanScreen({ navigation }: any) {
   };
 
   const pickImage = async (source: 'camera' | 'library') => {
+    haptics.light();
     const ok = await requestPermission(source);
     if (!ok) {
       Alert.alert(
         'Permiso denegado',
         source === 'camera'
-          ? 'Necesitamos acceso a la cámara para escanear tu comida.'
-          : 'Necesitamos acceso a la galería para seleccionar fotos.',
+          ? 'Necesitamos acceso a la camara para escanear tu comida.'
+          : 'Necesitamos acceso a la galeria para seleccionar fotos.',
       );
       return;
     }
@@ -134,6 +197,7 @@ export default function ScanScreen({ navigation }: any) {
       setScanState('result');
     } catch (err: any) {
       setScanState('idle');
+      haptics.error();
       const msg = err?.response?.data?.detail || 'No pudimos analizar la imagen.';
       Alert.alert(
         'Error al escanear',
@@ -141,7 +205,7 @@ export default function ScanScreen({ navigation }: any) {
         [
           { text: 'Reintentar', onPress: () => scanImage(uri) },
           {
-            text: 'Añadir manualmente',
+            text: 'Anadir manualmente',
             onPress: () => navigation.navigate('Registro', {
               screen: 'AddFood',
               params: { mealType: selectedMeal },
@@ -154,6 +218,7 @@ export default function ScanScreen({ navigation }: any) {
   };
 
   const handleConfirm = () => {
+    haptics.medium();
     setScanState('logged');
     // Navigate to log after a moment
     confirmTimerRef.current = setTimeout(() => {
@@ -165,6 +230,7 @@ export default function ScanScreen({ navigation }: any) {
   };
 
   const handleRetry = () => {
+    haptics.light();
     setScanState('idle');
     setImageUri(null);
     setResult(null);
@@ -185,15 +251,26 @@ export default function ScanScreen({ navigation }: any) {
               source={{ uri: imageUri }}
               style={[styles.previewImage, { width: contentWidth - sidePadding * 2 }]}
               resizeMode="cover"
+              accessibilityLabel="Foto del alimento escaneado"
+              accessibilityRole="image"
             />
           )}
 
-          {/* Result card */}
-          <View style={styles.resultCard}>
+          {/* Result card — animated scale entrance */}
+          <Animated.View
+            style={[
+              styles.resultCard,
+              { transform: [{ scale: resultScale }], opacity: resultOpacity },
+            ]}
+            accessibilityLabel={`Resultado del escaneo: ${result.food_name}, ${Math.round(result.calories)} kilocalorías, confianza ${confidence} por ciento`}
+          >
             <View style={styles.resultHeader}>
               <Text style={styles.resultFood}>{result.food_name}</Text>
               {result.cache_hit && (
-                <View style={styles.cacheBadge}>
+                <View
+                  style={styles.cacheBadge}
+                  accessibilityLabel="Resultado obtenido de cache"
+                >
                   <Ionicons name="flash" size={12} color="#F59E0B" />
                   <Text style={styles.cacheBadgeText}>Cache</Text>
                 </View>
@@ -214,7 +291,7 @@ export default function ScanScreen({ navigation }: any) {
 
             {/* Macros */}
             <View style={styles.macroRow}>
-              <MacroPill label="Proteína" value={result.protein_g}  unit="g" color={colors.protein} />
+              <MacroPill label="Proteina" value={result.protein_g}  unit="g" color={colors.protein} />
               <MacroPill label="Carbos"   value={result.carbs_g}    unit="g" color={colors.carbs}   />
               <MacroPill label="Grasas"   value={result.fats_g}     unit="g" color={colors.fats}    />
             </View>
@@ -234,21 +311,37 @@ export default function ScanScreen({ navigation }: any) {
             {(() => {
               const mt = MEAL_TYPES.find(m => m.value === selectedMeal)!;
               return (
-                <View style={[styles.mealBadge, { backgroundColor: mt.color + '15' }]}>
+                <View
+                  style={[styles.mealBadge, { backgroundColor: mt.color + '15' }]}
+                  accessibilityLabel={`Tipo de comida: ${mt.label}`}
+                >
                   <Ionicons name={mt.icon as any} size={14} color={mt.color} />
                   <Text style={[styles.mealBadgeText, { color: mt.color }]}>{mt.label}</Text>
                 </View>
               );
             })()}
-          </View>
+          </Animated.View>
 
           {/* Actions */}
-          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.confirmBtn}
+            onPress={handleConfirm}
+            activeOpacity={0.85}
+            accessibilityLabel="Guardar en mi registro"
+            accessibilityRole="button"
+            accessibilityHint="Confirma y guarda este alimento en tu diario"
+          >
             <Ionicons name="checkmark-circle" size={20} color={colors.white} />
             <Text style={styles.confirmBtnText}>Guardar en mi registro</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.retryBtn} onPress={handleRetry} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={handleRetry}
+            activeOpacity={0.7}
+            accessibilityLabel="Escanear otra foto"
+            accessibilityRole="button"
+          >
             <Ionicons name="refresh-outline" size={18} color={colors.black} />
             <Text style={styles.retryBtnText}>Escanear otra foto</Text>
           </TouchableOpacity>
@@ -262,11 +355,14 @@ export default function ScanScreen({ navigation }: any) {
   // ─── Logged confirmation ─────────────────────────────────────────────────
   if (scanState === 'logged') {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
-        <View style={styles.successIcon}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+        accessibilityLabel="Alimento registrado exitosamente. Redirigiendo a tu registro."
+      >
+        <Animated.View style={[styles.successIcon, { transform: [{ scale: successScale }] }]}>
           <Ionicons name="checkmark" size={44} color={colors.white} />
-        </View>
-        <Text style={styles.successText}>¡Registrado!</Text>
+        </Animated.View>
+        <Text style={styles.successText}>Registrado!</Text>
         <Text style={styles.successHint}>Redirigiendo a tu registro...</Text>
       </View>
     );
@@ -275,7 +371,10 @@ export default function ScanScreen({ navigation }: any) {
   // ─── Scanning loader ─────────────────────────────────────────────────────
   if (scanState === 'scanning') {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+        accessibilityLabel="Analizando imagen con inteligencia artificial. Esto puede tardar hasta 10 segundos."
+      >
         {imageUri && (
           <Image
             source={{ uri: imageUri }}
@@ -292,32 +391,47 @@ export default function ScanScreen({ navigation }: any) {
     );
   }
 
-  // ─── Paywall gate — límite de escaneos gratuitos ─────────────────────────
-  if (!isPremium && todayScans >= FREE_SCAN_LIMIT) {
+  // ─── Paywall gate — limite de escaneos gratuitos ─────────────────────────
+  // Only block after the scan count has finished loading to avoid a false gate.
+  if (!isPremium && !scansLoading && todayScans >= FREE_SCAN_LIMIT) {
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding }]}>
-        <View style={styles.limitIcon}>
+        <View
+          style={styles.limitIcon}
+          accessibilityLabel="Limite diario alcanzado"
+        >
           <Ionicons name="lock-closed" size={36} color={colors.white} />
         </View>
-        <Text style={styles.limitTitle}>Límite diario alcanzado</Text>
+        <Text style={styles.limitTitle}>Limite diario alcanzado</Text>
         <Text style={styles.limitSubtitle}>
           Has usado tus {FREE_SCAN_LIMIT} escaneos gratuitos de hoy.{'\n'}
           Hazte Premium para escaneos ilimitados.
         </Text>
         <TouchableOpacity
           style={styles.upgradeBtn}
-          onPress={() => navigation.navigate('Perfil', { screen: 'Paywall' })}
+          onPress={() => {
+            haptics.light();
+            navigation.navigate('Perfil', { screen: 'Paywall' });
+          }}
           activeOpacity={0.85}
+          accessibilityLabel="Ver planes Premium"
+          accessibilityRole="button"
+          accessibilityHint="Navega a la pantalla de suscripciones Premium"
         >
-          <Text style={styles.upgradeBtnText}>👑 Ver planes Premium</Text>
+          <Text style={styles.upgradeBtnText}>Ver planes Premium</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.manualFallbackBtn}
-          onPress={() => navigation.navigate('Registro', { screen: 'AddFood', params: { mealType: selectedMeal } })}
+          onPress={() => {
+            haptics.light();
+            navigation.navigate('Registro', { screen: 'AddFood', params: { mealType: selectedMeal } });
+          }}
           activeOpacity={0.7}
+          accessibilityLabel="Anadir alimento manualmente"
+          accessibilityRole="button"
         >
           <Ionicons name="create-outline" size={16} color={colors.black} />
-          <Text style={styles.manualFallbackText}>Añadir manualmente</Text>
+          <Text style={styles.manualFallbackText}>Anadir manualmente</Text>
         </TouchableOpacity>
       </View>
     );
@@ -328,8 +442,8 @@ export default function ScanScreen({ navigation }: any) {
     <View style={[styles.screen, { paddingTop: insets.top, paddingHorizontal: sidePadding }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Escanear comida</Text>
-        <Text style={styles.subtitle}>La IA detecta nutrientes automáticamente</Text>
+        <Text style={styles.title} accessibilityRole="header">Escanear comida</Text>
+        <Text style={styles.subtitle}>La IA detecta nutrientes automaticamente</Text>
       </View>
 
       {/* Camera viewfinder area */}
@@ -337,6 +451,9 @@ export default function ScanScreen({ navigation }: any) {
         style={[styles.viewfinder, { width: contentWidth - sidePadding * 2 }]}
         onPress={() => pickImage('camera')}
         activeOpacity={0.85}
+        accessibilityLabel="Abrir camara para escanear comida"
+        accessibilityRole="button"
+        accessibilityHint="Toma una foto de tu alimento para analizar sus nutrientes con IA"
       >
         <View style={styles.cornerTL} />
         <View style={styles.cornerTR} />
@@ -345,26 +462,39 @@ export default function ScanScreen({ navigation }: any) {
         <View style={styles.cameraCircle}>
           <Ionicons name="camera" size={40} color={colors.white} />
         </View>
-        <Text style={styles.viewfinderText}>Toca para abrir cámara</Text>
+        <Text style={styles.viewfinderText}>Toca para abrir camara</Text>
       </TouchableOpacity>
 
       {/* Gallery button */}
-      <TouchableOpacity style={styles.galleryBtn} onPress={() => pickImage('library')} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.galleryBtn}
+        onPress={() => pickImage('library')}
+        activeOpacity={0.7}
+        accessibilityLabel="Elegir foto de la galeria"
+        accessibilityRole="button"
+        accessibilityHint="Selecciona una foto existente de tu galeria"
+      >
         <Ionicons name="images-outline" size={18} color={colors.black} />
-        <Text style={styles.galleryBtnText}>Elegir de galería</Text>
+        <Text style={styles.galleryBtnText}>Elegir de galeria</Text>
       </TouchableOpacity>
 
       {/* Meal type selector */}
       <Text style={styles.sectionLabel}>Tipo de comida</Text>
-      <View style={styles.mealTypes}>
+      <View style={styles.mealTypes} accessibilityRole="radiogroup">
         {MEAL_TYPES.map((mt) => {
           const isSelected = selectedMeal === mt.value;
           return (
             <TouchableOpacity
               key={mt.value}
               style={[styles.mealChip, isSelected && styles.mealChipActive]}
-              onPress={() => setSelectedMeal(mt.value)}
+              onPress={() => {
+                haptics.selection();
+                setSelectedMeal(mt.value);
+              }}
               activeOpacity={0.7}
+              accessibilityLabel={mt.label}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSelected }}
             >
               <Ionicons name={mt.icon as any} size={15} color={isSelected ? colors.white : mt.color} />
               <Text style={[styles.mealChipText, isSelected && styles.mealChipTextActive]}>
@@ -377,23 +507,54 @@ export default function ScanScreen({ navigation }: any) {
 
       {/* Banner plan gratuito */}
       {!isPremium && (
-        <TouchableOpacity
-          style={styles.freeBanner}
-          onPress={() => navigation.navigate('Perfil', { screen: 'Paywall' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="flash-outline" size={14} color={colors.badgeText} />
-          <Text style={styles.freeBannerText}>
-            Plan gratuito: {todayScans}/{FREE_SCAN_LIMIT} escaneos usados hoy
-          </Text>
-          <Text style={styles.freeBannerCta}>Mejorar →</Text>
-        </TouchableOpacity>
+        scansError ? (
+          // Error state — tapping retries the count fetch
+          <TouchableOpacity
+            style={[styles.freeBanner, { backgroundColor: colors.accent + '22' }]}
+            onPress={() => {
+              haptics.light();
+              setScansError(false);
+              setScansLoading(true);
+              foodService.getFoodLogs().then((logs) => {
+                setTodayScans(logs.filter((l) => l.image_url).length);
+              }).catch(() => setScansError(true))
+                .finally(() => setScansLoading(false));
+            }}
+            activeOpacity={0.8}
+            accessibilityLabel="Error al verificar limite de escaneos. Toca para reintentar."
+            accessibilityRole="button"
+          >
+            <Ionicons name="wifi-outline" size={14} color={colors.accent} />
+            <Text style={[styles.freeBannerText, { color: colors.accent }]}>
+              No se pudo verificar el limite. Toca para reintentar.
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.freeBanner}
+            onPress={() => {
+              haptics.light();
+              navigation.navigate('Perfil', { screen: 'Paywall' });
+            }}
+            activeOpacity={0.8}
+            accessibilityLabel={scansLoading ? 'Cargando conteo de escaneos' : `Plan gratuito: ${todayScans} de ${FREE_SCAN_LIMIT} escaneos usados hoy. Toca para ver planes Premium.`}
+            accessibilityRole="button"
+          >
+            <Ionicons name="flash-outline" size={14} color={colors.badgeText} />
+            <Text style={styles.freeBannerText}>
+              {scansLoading
+                ? 'Cargando escaneos...'
+                : `Plan gratuito: ${todayScans}/${FREE_SCAN_LIMIT} escaneos usados hoy`}
+            </Text>
+            {!scansLoading && <Text style={styles.freeBannerCta}>Mejorar</Text>}
+          </TouchableOpacity>
+        )
       )}
 
       {/* Info */}
-      <View style={styles.infoRow}>
+      <View style={styles.infoRow} accessibilityLabel="IA de ultima generacion. Resultados en segundos.">
         <Ionicons name="shield-checkmark-outline" size={14} color={colors.gray} />
-        <Text style={styles.infoText}>IA de última generación · Resultados en segundos</Text>
+        <Text style={styles.infoText}>IA de ultima generacion -- Resultados en segundos</Text>
       </View>
     </View>
   );
@@ -424,6 +585,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     gap: spacing.sm,
     alignSelf: 'center',
+    minHeight: 44,
   },
   cornerTL: { position: 'absolute', top: 14, left: 14, width: CORNER, height: CORNER, borderTopWidth: 3, borderLeftWidth: 3, borderColor: colors.white, borderRadius: 4 },
   cornerTR: { position: 'absolute', top: 14, right: 14, width: CORNER, height: CORNER, borderTopWidth: 3, borderRightWidth: 3, borderColor: colors.white, borderRadius: 4 },
@@ -445,6 +607,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     borderRadius: radius.full,
     backgroundColor: colors.surface,
+    minHeight: 44,
   },
   galleryBtnText: { ...typography.label, color: colors.black },
 
@@ -455,6 +618,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     borderRadius: radius.full, backgroundColor: colors.surface,
+    minHeight: 44,
   },
   mealChipActive: { backgroundColor: colors.black },
   mealChipText: { ...typography.label, color: colors.black },
@@ -517,13 +681,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: spacing.sm, backgroundColor: colors.black,
     paddingVertical: spacing.md, borderRadius: radius.full,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.sm, minHeight: 52,
   },
   confirmBtnText: { ...typography.button, color: colors.white },
   retryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: spacing.sm, backgroundColor: colors.surface,
     paddingVertical: spacing.md, borderRadius: radius.full,
+    minHeight: 48,
   },
   retryBtnText: { ...typography.button, color: colors.black },
 
@@ -532,7 +697,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
     backgroundColor: colors.badgeBg, borderRadius: radius.md,
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.md, minHeight: 44,
   },
   freeBannerText: { ...typography.caption, color: colors.badgeText, flex: 1 },
   freeBannerCta: { ...typography.caption, fontWeight: '700', color: colors.badgeText },
@@ -549,13 +714,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.black, borderRadius: radius.full,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
     marginBottom: spacing.sm, width: '100%', alignItems: 'center',
+    minHeight: 52,
   },
   upgradeBtnText: { ...typography.button, color: colors.white },
   manualFallbackBtn: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
     backgroundColor: colors.surface, borderRadius: radius.full,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
-    width: '100%', justifyContent: 'center',
+    width: '100%', justifyContent: 'center', minHeight: 48,
   },
   manualFallbackText: { ...typography.label, color: colors.black },
 

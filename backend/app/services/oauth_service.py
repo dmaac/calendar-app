@@ -1,4 +1,5 @@
 """Apple and Google OAuth token verification."""
+import logging
 import httpx
 import jwt as pyjwt
 from typing import Optional
@@ -7,6 +8,8 @@ from sqlmodel import select
 from app.models.user import User
 from app.core.security import get_password_hash
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 APPLE_KEYS_URL = "https://appleid.apple.com/auth/keys"
 
@@ -36,7 +39,7 @@ async def verify_apple_token(identity_token: str) -> Optional[dict]:
         )
         return claims
     except Exception as e:
-        print(f"Apple token verification failed: {e}")
+        logger.warning("Apple token verification failed: %s", e)
         return None
 
 

@@ -7,9 +7,9 @@
 
 ## ¿Qué es este proyecto?
 
-**Cal AI Clone** — App de tracking de calorías con IA.
+**Fitsi IA** — App de tracking de calorías con IA.
 - El usuario saca una foto a su comida → la IA identifica los nutrientes → se registra automáticamente.
-- Onboarding de 30 pasos (clonado de Cal AI) que recopila datos del usuario para generar un plan personalizado.
+- Onboarding de 30 pasos que recopila datos del usuario para generar un plan personalizado.
 - Modelo de negocio: freemium con paywall (suscripción mensual/anual + one-time offer).
 
 **Usuario objetivo:** Personas que quieren perder/mantener/ganar peso sin el esfuerzo de contar calorías manualmente.
@@ -66,7 +66,7 @@ calendar-app/
 
 ---
 
-## Design System (Cal AI style)
+## Design System (Fitsi IA style)
 
 ```typescript
 // Colores
@@ -201,7 +201,7 @@ Leyenda: ⬜ PENDIENTE | 🔄 EN PROGRESO | ✅ COMPLETO | ❌ CON ERRORES
 
 ## Figma reference
 
-- Board: Cal AI's Onboarding - Broken down (Community)
+- Board: Fitsi IA Onboarding - Broken down (Community)
 - File key: `VgUp4jmiVXFFqZpbgQIanp`
 - API Token: en `~/.claude/settings.json` bajo mcpServers.figma
 - Para re-fetchear imágenes: `curl -H "X-Figma-Token: <token>" "https://api.figma.com/v1/files/VgUp4jmiVXFFqZpbgQIanp"`

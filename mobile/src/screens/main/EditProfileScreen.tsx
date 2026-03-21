@@ -78,7 +78,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
     ageYears,
     profile.gender ?? 'male',
     goal,
-    profile.workouts_per_week ? parseInt(profile.workouts_per_week) : 3,
+    profile.workouts_per_week ?? 3,
   );
 
   const handleSave = async () => {

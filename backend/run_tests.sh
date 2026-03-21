@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Script para ejecutar tests del backend de Calendar App
-# Autor: Calendar App Team
+# Script para ejecutar tests del backend de Fitsi IA
+# Autor: Fitsi IA Team
 # Fecha: 2025-09-29
 
 set -e  # Exit on error
 
 echo "=============================================="
-echo "  Calendar App Backend - Test Runner"
+echo "  Fitsi IA Backend - Test Runner"
 echo "=============================================="
 echo ""
 

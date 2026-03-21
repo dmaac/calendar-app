@@ -133,7 +133,7 @@ async def create_food(
     session: AsyncSession = Depends(get_session),
 ):
     food_service = FoodService(session)
-    food = await food_service.create_food(food_create)
+    food = await food_service.create_food(food_create, created_by=current_user.id)
     return food
 
 
@@ -145,15 +145,24 @@ async def update_food(
     session: AsyncSession = Depends(get_session),
 ):
     food_service = FoodService(session)
-    food = await food_service.update_food(food_id, food_update)
 
+    # SECURITY: Verify ownership before allowing modification (IDOR prevention)
+    food = await food_service.get_food_by_id(food_id)
     if not food:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Food not found",
         )
+    # Only the creator can update their own foods.
+    # System foods (created_by=None) cannot be modified by regular users.
+    if food.created_by is None or food.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify this food",
+        )
 
-    return food
+    updated_food = await food_service.update_food(food_id, food_update)
+    return updated_food
 
 
 @router.delete("/{food_id}")
@@ -164,10 +173,20 @@ async def delete_food(
 ):
     food_service = FoodService(session)
 
-    if not await food_service.delete_food(food_id):
+    # SECURITY: Verify ownership before allowing deletion (IDOR prevention)
+    food = await food_service.get_food_by_id(food_id)
+    if not food:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Food not found",
         )
+    # Only the creator can delete their own foods.
+    # System foods (created_by=None) cannot be deleted by regular users.
+    if food.created_by is None or food.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this food",
+        )
 
+    await food_service.delete_food(food_id)
     return {"message": "Food deleted successfully"}

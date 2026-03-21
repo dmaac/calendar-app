@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.2",
   "info": {
-    "title": "Calendar API",
+    "title": "Fitsi IA API",
     "description": "A REST API for managing calendar activities with user authentication",
     "version": "1.0.0"
   },

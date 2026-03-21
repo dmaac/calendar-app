@@ -19,6 +19,9 @@ class FoodBase(SQLModel):
 
 class Food(FoodBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    # Owner of this food entry — used for authorization (IDOR prevention).
+    # NULL means system/admin-created (e.g., seed data) and is immutable by regular users.
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -28,6 +31,7 @@ class FoodCreate(FoodBase):
 
 class FoodRead(FoodBase):
     id: int
+    created_by: Optional[int] = None
     created_at: datetime
 
 

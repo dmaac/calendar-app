@@ -7,7 +7,7 @@
 
 ## 🎉 Resumen
 
-El sistema Calendar App Backend ha sido **completamente inicializado** y está listo para usar. Se han ejecutado todas las pruebas y el sistema está operacional.
+El sistema Fitsi IA Backend ha sido **completamente inicializado** y está listo para usar. Se han ejecutado todas las pruebas y el sistema está operacional.
 
 ## ✅ Componentes Inicializados
 
