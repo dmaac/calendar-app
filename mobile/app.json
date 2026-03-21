@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Fitsi",
-    "slug": "fitsi",
-    "scheme": "fitsi",
+    "name": "Fitsi IA",
+    "slug": "fitsiai",
+    "scheme": "fitsiai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fitsi.app"
+      "bundleIdentifier": "com.fitsiai.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +24,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.fitsi.app"
+      "package": "com.fitsiai.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,6 +40,6 @@
         "projectId": "YOUR_PROJECT_ID_HERE"
       }
     },
-    "owner": "fitsi"
+    "owner": "fitsiai"
   }
 }

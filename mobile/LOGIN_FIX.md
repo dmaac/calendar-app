@@ -1,4 +1,4 @@
-# 🔧 Fix de Login - Fitsi Mobile
+# 🔧 Fix de Login - Fitsi IA Mobile
 
 ## ✅ Problema Resuelto
 
@@ -96,7 +96,7 @@ const [credentials, setCredentials] = useState<LoginRequest>({
 ### Verificar Backend está Activo
 ```bash
 curl http://localhost:8000/
-# Debería responder: {"message":"Fitsi API is running!"}
+# Debería responder: {"message":"Fitsi IA API is running!"}
 ```
 
 ### Verificar Login desde Terminal

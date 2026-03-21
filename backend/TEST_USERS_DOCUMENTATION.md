@@ -1,4 +1,4 @@
-# 👥 Documentación de Usuarios de Prueba - Fitsi
+# 👥 Documentación de Usuarios de Prueba - Fitsi IA
 
 ## ✅ Resumen
 

@@ -1,4 +1,4 @@
-# Branching Strategy — Fitsi
+# Branching Strategy — Fitsi IA
 
 ## Ramas
 

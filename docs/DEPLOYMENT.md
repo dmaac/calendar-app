@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying Fitsi to production environments.
+This guide covers deploying Fitsi IA to production environments.
 
 ## Prerequisites
 

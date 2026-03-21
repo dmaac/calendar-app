@@ -1,5 +1,5 @@
 /**
- * ErrorBoundary — Global React error boundary for Fitsi
+ * ErrorBoundary — Global React error boundary for Fitsi IA
  *
  * Catches unhandled JS errors anywhere in the component tree and shows a
  * friendly "Algo salió mal" fallback screen with a "Reintentar" button that

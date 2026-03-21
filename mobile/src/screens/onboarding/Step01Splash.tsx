@@ -26,7 +26,7 @@ export default function Step01Splash({ onNext }: StepProps) {
         <Animated.View style={[styles.content, { opacity }]}>
           <View style={styles.logoRow}>
             <Ionicons name="calendar" size={44} color={colors.black} />
-            <Text style={styles.appName}>Fitsi</Text>
+            <Text style={styles.appName}>Fitsi IA</Text>
           </View>
         </Animated.View>
       </View>

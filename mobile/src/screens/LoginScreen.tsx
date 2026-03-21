@@ -56,7 +56,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           <View style={styles.logoCircle}>
             <Text style={styles.logoEmoji}>🥗</Text>
           </View>
-          <Text style={styles.appName}>Fitsi</Text>
+          <Text style={styles.appName}>Fitsi IA</Text>
           <Text style={styles.appTagline}>Tu asistente de nutrición con IA</Text>
         </View>
 

@@ -1,5 +1,5 @@
 # =============================================================================
-# Gunicorn configuration for Fitsi Backend (production)
+# Gunicorn configuration for Fitsi IA Backend (production)
 # =============================================================================
 # Usage:  gunicorn app.main:app -c gunicorn.conf.py
 # Docs:   https://docs.gunicorn.org/en/stable/settings.html
@@ -58,7 +58,7 @@ access_log_format = (
 # ---------------------------------------------------------------------------
 # Process naming
 # ---------------------------------------------------------------------------
-proc_name = "fitsi-backend"
+proc_name = "fitsiai-backend"
 
 # ---------------------------------------------------------------------------
 # Server mechanics

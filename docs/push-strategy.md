@@ -1,4 +1,4 @@
-# Fitsi — Push Notification Strategy
+# Fitsi IA — Push Notification Strategy
 
 > Version: 1.0 | Last updated: 2026-03-19
 > Target: Latin America (UTC-3 to UTC-8)
@@ -56,7 +56,7 @@
 |---|---|
 | Title | Buenos días, {{first_name}} |
 | Body | ¿Ya desayunaste? Registra tu desayuno y arranca el día con pie derecho. 🌅 |
-| CTA deep link | `fitsi://scan?meal=breakfast` |
+| CTA deep link | `fitsiai://scan?meal=breakfast` |
 | Badge | +1 |
 | Sound | default |
 
@@ -74,7 +74,7 @@
 |---|---|
 | Title | Hora del almuerzo |
 | Body | No olvides registrar lo que comiste. 2 segundos con la cámara y listo. 📸 |
-| CTA deep link | `fitsi://scan?meal=lunch` |
+| CTA deep link | `fitsiai://scan?meal=lunch` |
 | Badge | +1 |
 | Sound | default |
 
@@ -92,7 +92,7 @@
 |---|---|
 | Title | Casi termina el día |
 | Body | ¿Ya anotaste la cena? Cierra bien tu registro de hoy. 🍽️ |
-| CTA deep link | `fitsi://scan?meal=dinner` |
+| CTA deep link | `fitsiai://scan?meal=dinner` |
 | Badge | +1 |
 | Sound | default |
 
@@ -111,7 +111,7 @@
 |---|---|
 | Title | ¡Casi en tu objetivo! |
 | Body | Te quedan solo {{remaining_kcal}} kcal para hoy. Elige bien tu próxima comida. 💪 |
-| CTA deep link | `fitsi://home` |
+| CTA deep link | `fitsiai://home` |
 | Badge | +1 |
 | Sound | default |
 
@@ -130,7 +130,7 @@
 |---|---|
 | Title | Superaste tu objetivo de hoy |
 | Body | No hay problema, mañana es un día nuevo. Mantén el registro y sigue avanzando. 🔄 |
-| CTA deep link | `fitsi://log` |
+| CTA deep link | `fitsiai://log` |
 | Badge | +1 |
 | Sound | default |
 
@@ -148,7 +148,7 @@
 |---|---|
 | Title | Tu racha de {{streak_days}} días está en riesgo 🔥 |
 | Body | Solo necesitas registrar una comida para mantenerla viva. ¡No la pierdas ahora! |
-| CTA deep link | `fitsi://scan` |
+| CTA deep link | `fitsiai://scan` |
 | Badge | +1 |
 | Sound | default |
 
@@ -170,7 +170,7 @@
 |---|---|
 | Title | ¡{{streak_days}} días de racha! 🔥 |
 | Body | Llevas {{streak_days}} días registrando tus comidas. Eso es un hábito que está cambiando tu vida. |
-| CTA deep link | `fitsi://home` |
+| CTA deep link | `fitsiai://home` |
 | Badge | +1 |
 | Sound | celebration (custom sound, fallback to default) |
 
@@ -184,9 +184,9 @@
 
 | Field | Content |
 |---|---|
-| Title | Tu semana en Fitsi |
+| Title | Tu semana en Fitsi IA |
 | Body | Registraste {{days_logged}}/7 días la semana pasada. Tu promedio: {{avg_calories}} kcal/día. ¡Revisa tu progreso! |
-| CTA deep link | `fitsi://history` |
+| CTA deep link | `fitsiai://history` |
 | Badge | +1 |
 | Sound | default |
 
@@ -205,7 +205,7 @@
 |---|---|
 | Title | Te quedaste sin escaneos por segunda vez |
 | Body | Pasa a Premium y escanea sin límite. 7 días gratis, cancela cuando quieras. 👑 |
-| CTA deep link | `fitsi://paywall?source=push_scan_limit` |
+| CTA deep link | `fitsiai://paywall?source=push_scan_limit` |
 | Badge | +1 |
 | Sound | default |
 
@@ -224,7 +224,7 @@
 |---|---|
 | Title | Te extrañamos, {{first_name}} |
 | Body | Han pasado 3 días. Tu plan sigue esperándote — en 10 segundos vuelves a estar al día. 💚 |
-| CTA deep link | `fitsi://home` |
+| CTA deep link | `fitsiai://home` |
 | Badge | +1 |
 | Sound | default |
 
@@ -261,7 +261,7 @@ The permission prompt (iOS) should only be shown at high-intent moments — neve
   "title": "Tu racha de 7 días está en riesgo 🔥",
   "body": "Solo necesitas registrar una comida para mantenerla viva.",
   "data": {
-    "deep_link": "fitsi://scan",
+    "deep_link": "fitsiai://scan",
     "template_id": "streak_at_risk",
     "user_id": "{{uuid}}",
     "sent_at": "2026-03-19T21:30:00Z"

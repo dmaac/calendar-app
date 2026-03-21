@@ -1,4 +1,4 @@
-# Fitsi API Documentation
+# Fitsi IA API Documentation
 
 ## Base URL
 ```

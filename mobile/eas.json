@@ -16,7 +16,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "http://localhost:8000",
-        "EXPO_PUBLIC_APP_NAME": "Fitsi Dev",
+        "EXPO_PUBLIC_APP_NAME": "Fitsi IA Dev",
         "EXPO_PUBLIC_ENABLE_AI_SCAN": "true",
         "EXPO_PUBLIC_ENABLE_PAYWALL": "false"
       },
@@ -32,8 +32,8 @@
         "resourceClass": "medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-staging.fitsi.app",
-        "EXPO_PUBLIC_APP_NAME": "Fitsi Preview",
+        "EXPO_PUBLIC_API_URL": "https://api-staging.fitsiai.app",
+        "EXPO_PUBLIC_APP_NAME": "Fitsi IA Preview",
         "EXPO_PUBLIC_ENABLE_AI_SCAN": "true",
         "EXPO_PUBLIC_ENABLE_PAYWALL": "true"
       },
@@ -51,8 +51,8 @@
         "resourceClass": "medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.fitsi.app",
-        "EXPO_PUBLIC_APP_NAME": "Fitsi",
+        "EXPO_PUBLIC_API_URL": "https://api.fitsiai.app",
+        "EXPO_PUBLIC_APP_NAME": "Fitsi IA",
         "EXPO_PUBLIC_ENABLE_AI_SCAN": "true",
         "EXPO_PUBLIC_ENABLE_PAYWALL": "true"
       },

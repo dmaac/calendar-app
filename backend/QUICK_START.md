@@ -1,4 +1,4 @@
-# 🚀 Quick Start - Fitsi Backend
+# 🚀 Quick Start - Fitsi IA Backend
 
 ## ✅ Sistema Listo Para Usar
 

@@ -1,4 +1,4 @@
-# 🌐 Server Information - Fitsi Backend
+# 🌐 Server Information - Fitsi IA Backend
 
 ## ✅ Servidor Activo y Funcionando
 

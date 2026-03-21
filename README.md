@@ -1,4 +1,4 @@
-# Fitsi
+# Fitsi IA
 
 A nutrition tracking mobile app with AI-powered food scanning, built with React Native (Expo) frontend and FastAPI backend, featuring user authentication, macro tracking, and PostgreSQL database.
 

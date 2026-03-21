@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Fitsi - Starting Services"
+echo "🚀 Fitsi IA - Starting Services"
 echo "=================================="
 
 # Backend status check

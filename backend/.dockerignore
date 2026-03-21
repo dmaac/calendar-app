@@ -1,5 +1,5 @@
 # =============================================================================
-# Fitsi Backend — Docker build context exclusions
+# Fitsi IA Backend — Docker build context exclusions
 # =============================================================================
 # Keep the build context small and prevent secrets from leaking into images.
 # =============================================================================

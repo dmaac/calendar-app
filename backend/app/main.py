@@ -64,8 +64,8 @@ _docs_url = None if settings.is_production else "/docs"
 _redoc_url = None if settings.is_production else "/redoc"
 
 app = FastAPI(
-    title="Fitsi API",
-    description="A REST API for Fitsi nutrition tracking app with AI food scanning",
+    title="Fitsi IA API",
+    description="A REST API for Fitsi IA nutrition tracking app with AI food scanning",
     version=APP_VERSION,
     lifespan=lifespan,
     redirect_slashes=False,
@@ -108,7 +108,7 @@ app.include_router(subscriptions_router)
 
 @app.get("/", tags=["root"])
 async def read_root():
-    return {"message": "Fitsi API is running!", "version": APP_VERSION}
+    return {"message": "Fitsi IA API is running!", "version": APP_VERSION}
 
 
 @app.get("/health", tags=["health"])

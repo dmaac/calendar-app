@@ -1,5 +1,5 @@
 /**
- * useHaptics — Centralized haptic feedback for Fitsi
+ * useHaptics — Centralized haptic feedback for Fitsi IA
  *
  * Wraps expo-haptics with a Platform guard (no-op on web) and provides
  * semantic methods so callers don't need to import expo-haptics directly.

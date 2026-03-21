@@ -1,4 +1,4 @@
-# Testing Report - Fitsi Backend
+# Testing Report - Fitsi IA Backend
 
 **Fecha:** 29 de Septiembre, 2025
 **Estado:** ✅ TODOS LOS TESTS PASARON

@@ -1,11 +1,11 @@
 # =============================================================================
-# Fitsi — Docker Compose (default / staging)
+# Fitsi IA — Docker Compose (default / staging)
 # =============================================================================
 # Usage:  docker compose up --build
 # =============================================================================
 
 networks:
-  fitsi_network:
+  fitsiai_network:
     driver: bridge
 
 volumes:
@@ -18,15 +18,15 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     networks:
-      - fitsi_network
+      - fitsiai_network
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-fitsi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitsi_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-fitsi_db}
+      POSTGRES_USER: ${POSTGRES_USER:-fitsiai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitsiai_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-fitsiai_db}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fitsi} -d ${POSTGRES_DB:-fitsi_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fitsiai} -d ${POSTGRES_DB:-fitsiai_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,7 +38,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     networks:
-      - fitsi_network
+      - fitsiai_network
     volumes:
       - redis_data:/data
     command: >
@@ -61,14 +61,14 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     networks:
-      - fitsi_network
+      - fitsiai_network
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     env_file:
       - ./backend/.env
     environment:
       # Override DB/Redis URLs so they resolve inside the Docker network.
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-fitsi}:${POSTGRES_PASSWORD:-fitsi_secret}@db:5432/${POSTGRES_DB:-fitsi_db}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-fitsiai}:${POSTGRES_PASSWORD:-fitsiai_secret}@db:5432/${POSTGRES_DB:-fitsiai_db}"
       REDIS_URL: "redis://redis:6379/0"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

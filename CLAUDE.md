@@ -7,7 +7,7 @@
 
 ## ¿Qué es este proyecto?
 
-**Fitsi** — App de tracking de calorías con IA.
+**Fitsi IA** — App de tracking de calorías con IA.
 - El usuario saca una foto a su comida → la IA identifica los nutrientes → se registra automáticamente.
 - Onboarding de 30 pasos que recopila datos del usuario para generar un plan personalizado.
 - Modelo de negocio: freemium con paywall (suscripción mensual/anual + one-time offer).
@@ -66,7 +66,7 @@ calendar-app/
 
 ---
 
-## Design System (Fitsi style)
+## Design System (Fitsi IA style)
 
 ```typescript
 // Colores
@@ -201,7 +201,7 @@ Leyenda: ⬜ PENDIENTE | 🔄 EN PROGRESO | ✅ COMPLETO | ❌ CON ERRORES
 
 ## Figma reference
 
-- Board: Fitsi Onboarding - Broken down (Community)
+- Board: Fitsi IA Onboarding - Broken down (Community)
 - File key: `VgUp4jmiVXFFqZpbgQIanp`
 - API Token: en `~/.claude/settings.json` bajo mcpServers.figma
 - Para re-fetchear imágenes: `curl -H "X-Figma-Token: <token>" "https://api.figma.com/v1/files/VgUp4jmiVXFFqZpbgQIanp"`

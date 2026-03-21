@@ -380,7 +380,7 @@ function LongTermChart() {
   const gw = cw - pad.l - pad.r;
   const gh = ch - pad.t - pad.b;
 
-  // Fitsi line: steady decline
+  // Fitsi IA line: steady decline
   const calPoints = [
     [0, 0.1], [0.2, 0.25], [0.4, 0.42], [0.6, 0.58], [0.8, 0.72], [1, 0.85],
   ];
@@ -401,7 +401,7 @@ function LongTermChart() {
       <Svg width={cw} height={ch}>
         {/* Grid line */}
         <Line x1={pad.l} y1={ch - pad.b} x2={cw - pad.r} y2={ch - pad.b} stroke={C.grayLight} strokeWidth={1} />
-        {/* Fitsi line (black) */}
+        {/* Fitsi IA line (black) */}
         <Path d={calPath} stroke={C.black} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         {/* Traditional line (red/salmon) */}
         <Path d={tradPath} stroke={C.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -596,7 +596,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const renderSplash = () => (
     <View style={styles.splashContainer}>
       <Ionicons name="calendar" size={52} color={C.black} />
-      <Text style={styles.splashTitle}>Fitsi</Text>
+      <Text style={styles.splashTitle}>Fitsi IA</Text>
     </View>
   );
 

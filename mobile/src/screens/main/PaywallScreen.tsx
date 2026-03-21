@@ -124,7 +124,7 @@ const PLANS = {
     price: '$9.99',
     period: '/mes',
     badge: null,
-    priceId: 'fitsi_monthly',
+    priceId: 'fitsiai_monthly',
   },
   annual: {
     label: 'Anual',
@@ -132,7 +132,7 @@ const PLANS = {
     period: '/año',
     badge: '50% OFF',
     perMonth: '$5.00/mes',
-    priceId: 'fitsi_annual',
+    priceId: 'fitsiai_annual',
   },
 };
 
@@ -176,7 +176,7 @@ export default function PaywallScreen({ navigation }: any) {
           <View style={styles.crownBadge}>
             <Text style={styles.crownEmoji}>👑</Text>
           </View>
-          <Text style={styles.heroTitle}>Fitsi Premium</Text>
+          <Text style={styles.heroTitle}>Fitsi IA Premium</Text>
           <Text style={styles.heroSubtitle}>
             Desbloquea el poder total de la IA{'\n'}para tu nutrición
           </Text>

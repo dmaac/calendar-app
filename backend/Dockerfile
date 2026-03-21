@@ -1,8 +1,8 @@
 # =============================================================================
-# Fitsi — Backend Dockerfile (multi-stage, production-ready)
+# Fitsi IA — Backend Dockerfile (multi-stage, production-ready)
 # =============================================================================
-# Build:  docker build -t fitsi-backend .
-# Run:    docker run -p 8000:8000 --env-file .env fitsi-backend
+# Build:  docker build -t fitsiai-backend .
+# Run:    docker run -p 8000:8000 --env-file .env fitsiai-backend
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -37,9 +37,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 # Labels (OCI standard)
-LABEL org.opencontainers.image.title="fitsi-backend" \
-      org.opencontainers.image.description="Fitsi — FastAPI backend" \
-      org.opencontainers.image.source="https://github.com/fitsi/calendar-app"
+LABEL org.opencontainers.image.title="fitsiai-backend" \
+      org.opencontainers.image.description="Fitsi IA — FastAPI backend" \
+      org.opencontainers.image.source="https://github.com/fitsiai/calendar-app"
 
 WORKDIR /app
 

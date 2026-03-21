@@ -1,6 +1,6 @@
 ---
 name: onboarding-builder
-description: "Use this agent to build multi-step onboarding flows for mobile apps. Specializes in step-by-step wizards, animated transitions, data persistence (AsyncStorage), progress tracking, conditional branching, and syncing onboarding data with backend APIs. Ideal for Fitsi-style 20-30 step onboarding flows.\n\nExamples:\n- user: \"Build step 15 of the onboarding — pain points selection\"\n  assistant: \"Let me use the onboarding-builder to create the pain points step.\"\n\n- user: \"The onboarding flow loses data when the app restarts\"\n  assistant: \"I'll launch the onboarding-builder to fix persistence.\""
+description: "Use this agent to build multi-step onboarding flows for mobile apps. Specializes in step-by-step wizards, animated transitions, data persistence (AsyncStorage), progress tracking, conditional branching, and syncing onboarding data with backend APIs. Ideal for Fitsi IA-style 20-30 step onboarding flows.\n\nExamples:\n- user: \"Build step 15 of the onboarding — pain points selection\"\n  assistant: \"Let me use the onboarding-builder to create the pain points step.\"\n\n- user: \"The onboarding flow loses data when the app restarts\"\n  assistant: \"I'll launch the onboarding-builder to fix persistence.\""
 model: opus
 memory: project
 permissionMode: bypassPermissions

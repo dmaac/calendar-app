@@ -1,6 +1,6 @@
-# Fitsi API Backend
+# Fitsi IA API Backend
 
-FastAPI backend for Fitsi with PostgreSQL database, SQLModel ORM, and JWT authentication.
+FastAPI backend for Fitsi IA with PostgreSQL database, SQLModel ORM, and JWT authentication.
 
 ## Features
 
