@@ -59,6 +59,9 @@ class OnboardingProfile(SQLModel, table=True):
     # Step 24 - Referral code
     referral_code: Optional[str] = Field(default=None)
 
+    # User timezone (IANA, e.g. "America/Santiago")
+    timezone: Optional[str] = Field(default=None)
+
     # Calculated nutrition plan (Step 26-27)
     daily_calories: Optional[int] = Field(default=None)
     daily_carbs_g: Optional[int] = Field(default=None)

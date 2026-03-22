@@ -524,7 +524,7 @@ export default function LogScreen({ navigation }: any) {
               // Reload to refresh summary
               load();
             } catch {
-              showNotification({ message: 'Error al eliminar comidas', type: 'error', icon: 'alert-circle' });
+              showNotification({ message: 'Error al eliminar comidas', type: 'warning', icon: 'alert-circle' });
             }
           },
         },
@@ -821,7 +821,7 @@ export default function LogScreen({ navigation }: any) {
                       )}
                     </React.Fragment>
                   );
-                }))
+                })
               ) : (
                 <TouchableOpacity
                   style={styles.emptyMeal}

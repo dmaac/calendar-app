@@ -23,6 +23,7 @@ from .corporate import (
     FamilyGroup,
     FamilyMembership,
 )
+from .nutrition_adherence import DailyNutritionAdherence
 
 __all__ = [
     "User",
@@ -51,4 +52,5 @@ __all__ = [
     "CorporateTeam",
     "FamilyGroup",
     "FamilyMembership",
+    "DailyNutritionAdherence",
 ]

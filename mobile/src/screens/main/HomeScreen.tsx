@@ -50,6 +50,9 @@ import NotificationCenter, {
 import { syncWidgetData } from '../../services/widgetData.service';
 import NutritionAlerts from '../../components/NutritionAlert';
 import useNutritionAlerts from '../../hooks/useNutritionAlerts';
+import NutritionSemaphore from '../../components/NutritionSemaphore';
+import CalorieComparisonCard from '../../components/CalorieComparisonCard';
+import useNutritionRisk from '../../hooks/useNutritionRisk';
 // MINIMALIST REDESIGN Phase 1: TrialBanner removed from HomeScreen
 // import TrialBanner from '../../components/TrialBanner';
 
@@ -338,6 +341,14 @@ export default function HomeScreen({ navigation }: any) {
   // Nutrition alerts
   const { alerts: nutritionAlerts, refetch: refetchAlerts } = useNutritionAlerts();
 
+  // Nutrition risk engine
+  const {
+    riskScore,
+    status: riskStatus,
+    daysSinceLastLog,
+    refetch: refetchRisk,
+  } = useNutritionRisk();
+
   // Notification center state
   const {
     notifications,
@@ -440,10 +451,10 @@ export default function HomeScreen({ navigation }: any) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
-    await Promise.all([load(), refetchAlerts()]);
+    await Promise.all([load(), refetchAlerts(), refetchRisk()]);
     haptics.success();
     setRefreshing(false);
-  }, [load, refetchAlerts]);
+  }, [load, refetchAlerts, refetchRisk]);
 
   // Memoize greeting to avoid calling t() on every render
   const greetingText = useMemo(() => {
@@ -528,6 +539,12 @@ export default function HomeScreen({ navigation }: any) {
   const onQuickFavorites = useCallback(() => { haptics.light(); navigation.navigate('Favorites'); }, [navigation]);
   const onQuickReports = useCallback(() => { haptics.light(); navigation.navigate('Reports'); }, [navigation]);
 
+  // ---- Risk-adaptive QuickAction callbacks ----
+  const onQuickLog = useCallback(() => { haptics.light(); navigation.navigate('Registro'); }, [navigation]);
+  const onCopyYesterday = useCallback(() => { haptics.light(); navigation.navigate('Registro'); }, [navigation]);
+  const onSuggestedMeal = useCallback(() => { haptics.light(); navigation.navigate('Recipes'); }, [navigation]);
+  const isHighRisk = riskScore > 40;
+
   const onScanFromEmpty = useCallback(() => {
     haptics.light();
     track('scan_button_pressed', { source: 'empty_state' });
@@ -607,6 +624,26 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           )}
 
+          {/* Risk semaphore — prominent when riskScore > 60 */}
+          {riskScore > 60 && (
+            <View style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}>
+              <NutritionSemaphore riskScore={riskScore} status={riskStatus} size={100} />
+            </View>
+          )}
+
+          {/* Re-engagement banner — user hasn't logged in 3+ days */}
+          {daysSinceLastLog >= 3 && (
+            <View style={[styles.reengageBanner, { marginHorizontal: sidePadding }]}>
+              <FitsiMascot expression="sad" size="small" animation="sad" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.reengageTitle}>Te echamos de menos!</Text>
+                <Text style={styles.reengageMsg}>
+                  Llevas {daysSinceLastLog} dias sin registrar. Fitsi te espera para retomar tu seguimiento.
+                </Text>
+              </View>
+            </View>
+          )}
+
           <Animated.ScrollView
             showsVerticalScrollIndicator={false}
             bounces={true}
@@ -644,6 +681,9 @@ export default function HomeScreen({ navigation }: any) {
                 </View>
               </View>
 
+              {/* Calorie comparison bar */}
+              <CalorieComparisonCard logged={consumed} target={target} status={riskStatus} />
+
               {/* Best Day Banner */}
               {summary && (summary.meals_logged ?? 0) > 0 && (
                 <TouchableOpacity
@@ -662,44 +702,87 @@ export default function HomeScreen({ navigation }: any) {
                 </TouchableOpacity>
               )}
 
-              {/* Quick Actions — 3 only: Scan, Water, Favorites */}
+              {/* Quick Actions — adaptive based on risk score */}
               <View style={styles.quickActionsRow}>
-                <TouchableOpacity
-                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={onQuickScan}
-                  activeOpacity={0.8}
-                  accessibilityLabel="Escanear comida"
-                  accessibilityRole="button"
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
-                    <Ionicons name="camera" size={18} color={c.white} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Scan</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={onQuickWater}
-                  activeOpacity={0.8}
-                  accessibilityLabel="Registrar agua"
-                  accessibilityRole="button"
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
-                    <Ionicons name="water" size={18} color={c.white} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Water</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={onQuickFavorites}
-                  activeOpacity={0.8}
-                  accessibilityLabel="Ver favoritos"
-                  accessibilityRole="button"
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: '#EF4444' }]}>
-                    <Ionicons name="heart" size={18} color={c.white} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Favoritos</Text>
-                </TouchableOpacity>
+                {isHighRisk ? (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onQuickLog}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Registro rapido de comida"
+                      accessibilityRole="button"
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: '#22C55E' }]}>
+                        <Ionicons name="add-circle" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Registro Rapido</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onCopyYesterday}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Copiar comidas de ayer"
+                      accessibilityRole="button"
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
+                        <Ionicons name="copy" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Copiar ayer</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onSuggestedMeal}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Ver comida sugerida"
+                      accessibilityRole="button"
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: '#F97316' }]}>
+                        <Ionicons name="restaurant" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Comida sugerida</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onQuickScan}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Escanear comida"
+                      accessibilityRole="button"
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
+                        <Ionicons name="camera" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Scan</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onQuickWater}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Registrar agua"
+                      accessibilityRole="button"
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
+                        <Ionicons name="water" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Water</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onQuickFavorites}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Ver favoritos"
+                      accessibilityRole="button"
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: '#EF4444' }]}>
+                        <Ionicons name="heart" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Favoritos</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
 
               {/* Motivational banner — no meals logged and it's past 2pm */}
@@ -775,6 +858,17 @@ export default function HomeScreen({ navigation }: any) {
         onDismiss={dismissNotification}
         onClearAll={clearAllNotifications}
       />
+
+      {/* Critical overlay — semi-transparent red when status is critical */}
+      {riskStatus === 'critical' && (
+        <View style={styles.criticalOverlay} pointerEvents="none" accessibilityLabel="Alerta critica: tu riesgo nutricional es critico">
+          <View style={styles.criticalBadge}>
+            <Ionicons name="warning" size={24} color="#FFFFFF" />
+            <Text style={styles.criticalText}>ALERTA CRITICA</Text>
+            <Text style={styles.criticalSubtext}>Tu riesgo nutricional requiere atencion inmediata</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -1020,5 +1114,61 @@ const styles = StyleSheet.create({
     ...typography.caption,
     lineHeight: 18,
     opacity: 0.85,
+  },
+  // ─── Risk UI styles ─────────────────────────────────────────────────────
+  semaphoreContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  reengageBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  reengageTitle: {
+    ...typography.label,
+    fontWeight: '700',
+    color: '#991B1B',
+    marginBottom: 2,
+  },
+  reengageMsg: {
+    ...typography.caption,
+    color: '#991B1B',
+    lineHeight: 18,
+    opacity: 0.85,
+  },
+  criticalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(220, 38, 38, 0.12)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingBottom: 100,
+  },
+  criticalBadge: {
+    backgroundColor: '#DC2626',
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  criticalText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  criticalSubtext: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
