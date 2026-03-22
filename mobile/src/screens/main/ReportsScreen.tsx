@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Rect, Line, Circle, Path, G, Text as SvgText } from 'react-native-svg';
-import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
+import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import FitsiMascot from '../../components/FitsiMascot';
 

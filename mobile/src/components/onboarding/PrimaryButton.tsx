@@ -10,12 +10,14 @@ import {
 import { colors, radius, typography } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 
-interface PrimaryButtonProps {
+export interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
   variant?: 'primary' | 'outline' | 'ghost';
+  accessibilityLabel?: string;
+  accessibilityRole?: string;
 }
 
 export default function PrimaryButton({
@@ -24,6 +26,8 @@ export default function PrimaryButton({
   disabled = false,
   loading = false,
   variant = 'primary',
+  accessibilityLabel: customAccessibilityLabel,
+  accessibilityRole: customAccessibilityRole,
 }: PrimaryButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -62,8 +66,8 @@ export default function PrimaryButton({
         disabled={isDisabled}
         activeOpacity={1}
         style={btnStyle}
-        accessibilityLabel={loading ? 'Cargando' : label}
-        accessibilityRole="button"
+        accessibilityLabel={customAccessibilityLabel ?? (loading ? 'Cargando' : label)}
+        accessibilityRole={(customAccessibilityRole as any) ?? "button"}
         accessibilityState={{ disabled: isDisabled }}
       >
         {loading ? (

@@ -15,11 +15,12 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   RefreshControl,
   Platform,
   Animated,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -327,6 +328,19 @@ export default function HomeScreen({ navigation }: any) {
   // Pulse animation on scan button when no meals logged (draws attention)
   const pulseStyle = usePulse({ active: !loading && logs.length === 0, duration: 2000 });
 
+  // Parallax: header greeting moves slower than scroll content
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [0, 20],
+    extrapolate: 'clamp',
+  });
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [1, 0.6],
+    extrapolate: 'clamp',
+  });
+
   const load = async () => {
     setError(false);
     try {
@@ -419,9 +433,9 @@ export default function HomeScreen({ navigation }: any) {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
-      {/* Header */}
+      {/* Header with parallax */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Animated.View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, transform: [{ translateY: headerTranslateY }], opacity: headerOpacity }}>
           <FitsiMascot
             expression="strong"
             size="small"
@@ -431,7 +445,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={[styles.greeting, { color: c.gray }]}>{greeting()},</Text>
             <Text style={[styles.userName, { color: c.black }]}>{user?.first_name || t('profile.user')}</Text>
           </View>
-        </View>
+        </Animated.View>
         <View style={styles.headerRight}>
           <StreakBadge
             days={streak}
@@ -483,11 +497,16 @@ export default function HomeScreen({ navigation }: any) {
             </TouchableOpacity>
           )}
 
-          <ScrollView
+          <Animated.ScrollView
             showsVerticalScrollIndicator={false}
             bounces={true}
             overScrollMode="never"
             contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
+            scrollEventThrottle={16}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -630,7 +649,7 @@ export default function HomeScreen({ navigation }: any) {
 
               <View style={{ height: spacing.xl }} />
             </Animated.View>
-          </ScrollView>
+          </Animated.ScrollView>
         </>
       )}
 

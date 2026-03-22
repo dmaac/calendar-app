@@ -14,6 +14,7 @@ export default function Step01Splash({ onNext }: StepProps) {
   const iconScale = useRef(new Animated.Value(0.3)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
   const taglineTranslateY = useRef(new Animated.Value(10)).current;
+  const screenOpacity = useRef(new Animated.Value(1)).current;
   const [displayedText, setDisplayedText] = useState('');
 
   useEffect(() => {
@@ -76,8 +77,14 @@ export default function Step01Splash({ onNext }: StepProps) {
       ]).start();
     }, taglineDelay);
 
-    // Auto-advance after all animations complete
-    const timer = setTimeout(onNext, 2400);
+    // Auto-advance: fade out the whole screen, then navigate
+    const timer = setTimeout(() => {
+      Animated.timing(screenOpacity, {
+        toValue: 0,
+        duration: 350,
+        useNativeDriver: true,
+      }).start(() => onNext());
+    }, 2400);
     return () => {
       clearTimeout(timer);
       clearTimeout(taglineTimer);
@@ -86,8 +93,8 @@ export default function Step01Splash({ onNext }: StepProps) {
   }, []);
 
   return (
-    <View
-      style={styles.root}
+    <Animated.View
+      style={[styles.root, { opacity: screenOpacity }]}
       accessibilityLabel="Fitsi IA cargando"
       accessibilityRole="none"
     >
@@ -111,7 +118,7 @@ export default function Step01Splash({ onNext }: StepProps) {
           </Animated.Text>
         </Animated.View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

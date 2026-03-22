@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

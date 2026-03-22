@@ -1,9 +1,10 @@
 /**
  * recipes.ts — Hardcoded recipe database for Fitsi IA
- * 20 recipes across breakfast, lunch, dinner, snack with varied diet types.
+ * 50 recipes across breakfast, lunch, dinner, snack with varied diet types.
+ * Includes Chilean/Latin, Keto/Low-Carb, and Vegan categories.
  */
 
-export type DietType = 'classic' | 'vegetarian' | 'vegan' | 'pescatarian';
+export type DietType = 'classic' | 'vegetarian' | 'vegan' | 'pescatarian' | 'keto' | 'latin';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export interface Recipe {

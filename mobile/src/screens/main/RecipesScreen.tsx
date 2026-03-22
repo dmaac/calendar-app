@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
+import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { recipes, Recipe, MealType, DietType } from '../../data/recipes';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import FitsiMascot from '../../components/FitsiMascot';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
 type MealFilter = 'all' | MealType;
 
@@ -117,6 +118,7 @@ export default function RecipesScreen({ navigation }: any) {
   const [mealFilter, setMealFilter] = useState<MealFilter>('all');
   const [dietFilter, setDietFilter] = useState<DietType | 'all'>('all');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 200);
 
   const filtered = useMemo(() => {
     let result = recipes;
@@ -126,12 +128,12 @@ export default function RecipesScreen({ navigation }: any) {
     if (dietFilter !== 'all') {
       result = result.filter((r) => r.dietType === dietFilter);
     }
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase().trim();
       result = result.filter((r) => r.name.toLowerCase().includes(q));
     }
     return result;
-  }, [mealFilter, dietFilter, search]);
+  }, [mealFilter, dietFilter, debouncedSearch]);
 
   // Stable callback to avoid re-creating renderItem closures
   const handleRecipePress = useCallback((recipe: Recipe) => {

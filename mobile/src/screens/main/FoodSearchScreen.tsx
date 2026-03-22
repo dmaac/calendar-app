@@ -2,7 +2,7 @@
  * FoodSearchScreen — Search and select foods to log.
  * Modern design with search bar, frequent foods, and results list.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import FitsiMascot from '../../components/FitsiMascot';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,27 +94,18 @@ export default function FoodSearchScreen({ navigation, route }: any) {
   const { sidePadding } = useLayout();
   const c = useThemeColors();
   const [search, setSearch] = useState('');
-  const [results, setResults] = useState<FoodItem[]>(FREQUENT_FOODS);
-  const [loading, setLoading] = useState(false);
+  const debouncedSearch = useDebouncedValue(search, 200);
   const mealType = route?.params?.mealType ?? 'snack';
 
-  // Debounced search filter
-  useEffect(() => {
-    if (!search.trim()) {
-      setResults(FREQUENT_FOODS);
-      return;
-    }
-    setLoading(true);
-    const timeout = setTimeout(() => {
-      const q = search.toLowerCase().trim();
-      const filtered = FREQUENT_FOODS.filter(
-        (f) => f.name.toLowerCase().includes(q) || f.brand.toLowerCase().includes(q),
-      );
-      setResults(filtered);
-      setLoading(false);
-    }, 200);
-    return () => clearTimeout(timeout);
-  }, [search]);
+  const results = useMemo(() => {
+    if (!debouncedSearch.trim()) return FREQUENT_FOODS;
+    const q = debouncedSearch.toLowerCase().trim();
+    return FREQUENT_FOODS.filter(
+      (f) => f.name.toLowerCase().includes(q) || f.brand.toLowerCase().includes(q),
+    );
+  }, [debouncedSearch]);
+
+  const loading = search !== debouncedSearch && search.trim().length > 0;
 
   const handleSelect = useCallback((food: FoodItem) => {
     haptics.light();
