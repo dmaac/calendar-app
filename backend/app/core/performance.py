@@ -21,7 +21,6 @@ Usage::
         return performance_stats()
 """
 
-import bisect
 import logging
 import threading
 import time
