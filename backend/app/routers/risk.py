@@ -9,6 +9,8 @@ POST /api/risk/backfill   — recalculate last N days (max 90) (Item 66).
 GET  /api/risk/analytics  — aggregated risk analytics for the authenticated user.
 GET  /api/risk/admin/dashboard — admin-only aggregated risk stats.
 POST /api/risk/event      — track a risk analytics event.
+GET  /api/risk/recovery-plan — 24h or 3-day recovery plan (Item 141).
+GET  /api/risk/patterns   — detected patterns (weekend, etc.) (Item 145).
 """
 
 # Note: Do NOT use `from __future__ import annotations` here.
@@ -41,7 +43,8 @@ from ..models.nutrition_adherence import DailyNutritionAdherence
 from ..models.onboarding_profile import OnboardingProfile
 from ..models.user import User
 from ..services.integrated_health_service import calculate_integrated_health_score
-from ..services.nutrition_risk_service import calculate_daily_adherence, get_user_risk_summary, recalculate_on_food_log
+from ..services.nutrition_risk_service import calculate_daily_adherence, detect_weekend_pattern, get_user_risk_summary, recalculate_on_food_log
+from ..services.recovery_plan_service import generate_24h_recovery_plan, generate_3day_recovery_plan
 from ..services.risk_analytics_service import (
     get_admin_risk_dashboard,
     get_intervention_variant,
@@ -181,10 +184,12 @@ async def get_risk_summary(
 @_rl("30/minute")
 async def get_daily_adherence(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Calculate and return today's adherence record (timezone-aware)."""
+    _t0 = time_mod.perf_counter()
     # Resolve user timezone from onboarding profile
     profile_result = await session.exec(
         select(OnboardingProfile).where(OnboardingProfile.user_id == current_user.id)
@@ -199,6 +204,7 @@ async def get_daily_adherence(
         user_tz = timezone.utc
     today = datetime.now(user_tz).date()
     record = await calculate_daily_adherence(current_user.id, today, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return DailyAdherenceResponse(
         date=record.date,
         calories_target=record.calories_target,
@@ -222,14 +228,17 @@ async def get_daily_adherence(
 @_rl("30/minute")
 async def get_adherence_history(
     request: Request,
+    response: Response,
     days: int = Query(default=7, ge=1, le=90),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Return the last N days of adherence records."""
+    """Return the last N days of adherence records (single query, no N+1)."""
+    _t0 = time_mod.perf_counter()
     today = date.today()
     start = today - timedelta(days=days - 1)
 
+    # Item 79: Single query with order_by — all fields in one DB round-trip
     result = await session.exec(
         select(DailyNutritionAdherence)
         .where(
@@ -240,6 +249,7 @@ async def get_adherence_history(
         .order_by(DailyNutritionAdherence.date.desc())
     )
     records = list(result.all())
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
 
     return [
         DailyAdherenceResponse(
@@ -305,11 +315,14 @@ def _adherence_to_response(record: DailyNutritionAdherence) -> DailyAdherenceRes
 @_rl("10/minute")
 async def recalculate_today(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Recalculate today's adherence record and return the updated result."""
+    _t0 = time_mod.perf_counter()
     record = await recalculate_on_food_log(current_user.id, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return _adherence_to_response(record)
 
 
@@ -367,6 +380,119 @@ async def post_risk_event(
         event_type=event.event_type,
         variant=get_intervention_variant(current_user.id),
     )
+
+
+# --- Recovery plan & patterns endpoints (Items 141, 145) ---
+
+
+class SuggestedMealResponse(BaseModel):
+    meal_type: str
+    description: str
+    est_calories: int
+    est_protein_g: int
+
+
+class WaterRecommendationResponse(BaseModel):
+    current_water_ml: int
+    target_water_ml: int
+    remaining_water_ml: int
+    message: str
+    glasses_remaining: int
+
+
+class RecoveryPlanMacroResponse(BaseModel):
+    calories: int
+    protein_g: int
+    carbs_g: int
+    fats_g: int
+
+
+class RecoveryPlan24hResponse(BaseModel):
+    horizon: str
+    status: str
+    targets: RecoveryPlanMacroResponse
+    logged: RecoveryPlanMacroResponse
+    remaining_calories: int
+    remaining_protein_g: int
+    remaining_carbs_g: int
+    remaining_fats_g: int
+    suggested_meals: List[SuggestedMealResponse]
+    motivation: str
+    water_recommendation: Optional[WaterRecommendationResponse] = None
+
+
+class DayPlanResponse(BaseModel):
+    date: str
+    day_label: str
+    calorie_target: int
+    protein_target_g: int
+    suggested_meals: List[SuggestedMealResponse]
+
+
+class RecoveryPlan3dPeriodResponse(BaseModel):
+    start: str
+    end: str
+
+
+class RecoveryPlan3dMacroResponse(BaseModel):
+    calories: int
+    protein_g: int
+    carbs_g: Optional[int] = None
+    fats_g: Optional[int] = None
+
+
+class RecoveryPlan3dResponse(BaseModel):
+    horizon: str
+    status: str
+    period: RecoveryPlan3dPeriodResponse
+    targets_3d: RecoveryPlanMacroResponse
+    logged_3d: RecoveryPlan3dMacroResponse
+    deficit_calories: int
+    deficit_protein_g: int
+    daily_plans: List[DayPlanResponse]
+    motivation: str
+    water_recommendation: Optional[WaterRecommendationResponse] = None
+
+
+class WeekendPatternResponse(BaseModel):
+    weekend_avg_calories: int
+    weekday_avg_calories: int
+    weekend_avg_risk: int
+    weekday_avg_risk: int
+    weekend_risk_higher: bool
+    pattern_detected: bool
+    pct_difference: float
+    data_days: int
+    weekend_days: int
+    weekday_days: int
+
+
+@router.get("/recovery-plan")
+@_rl("30/minute")
+async def get_recovery_plan(
+    request: Request,
+    horizon: str = Query(default="24h", regex="^(24h|3d)$"),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return a recovery plan (24h or 3-day) with meal suggestions and water recommendation."""
+    if horizon == "3d":
+        data = await generate_3day_recovery_plan(current_user.id, session)
+    else:
+        data = await generate_24h_recovery_plan(current_user.id, session)
+    return data
+
+
+@router.get("/patterns", response_model=WeekendPatternResponse)
+@_rl("30/minute")
+async def get_patterns(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return detected nutrition patterns (weekend vs weekday) for the authenticated user."""
+    data = await detect_weekend_pattern(current_user.id, session)
+    return WeekendPatternResponse(**data)
 
 
 @router.get("/admin/dashboard", response_model=AdminRiskDashboardResponse)

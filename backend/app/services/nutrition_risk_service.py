@@ -1314,3 +1314,83 @@ async def recalculate_on_food_log(user_id: int, session: AsyncSession) -> DailyN
     invalidate_risk_cache(user_id)
     today = date.today()
     return await calculate_daily_adherence(user_id, today, session)
+
+
+# ---------------------------------------------------------------------------
+# Weekend pattern detection (Item 145)
+# ---------------------------------------------------------------------------
+
+async def detect_weekend_pattern(user_id: int, session: AsyncSession) -> dict:
+    """
+    Compare avg calories/risk for weekdays vs weekends over the last 4 weeks.
+
+    Returns:
+        {
+            "weekend_avg_calories": float,
+            "weekday_avg_calories": float,
+            "weekend_avg_risk": float,
+            "weekday_avg_risk": float,
+            "weekend_risk_higher": bool,
+            "pattern_detected": bool,
+            "pct_difference": float,
+        }
+
+    Pattern is detected if weekend avg calories are >20% higher than weekday avg.
+    """
+    today = date.today()
+    four_weeks_ago = today - timedelta(days=28)
+
+    # Fetch all adherence records for the last 4 weeks
+    result = await session.exec(
+        select(DailyNutritionAdherence).where(
+            DailyNutritionAdherence.user_id == user_id,
+            DailyNutritionAdherence.date >= four_weeks_ago,
+            DailyNutritionAdherence.date <= today,
+        )
+    )
+    records = list(result.all())
+
+    weekend_calories: list[int] = []
+    weekday_calories: list[int] = []
+    weekend_risk: list[int] = []
+    weekday_risk: list[int] = []
+
+    for r in records:
+        # Python: weekday() returns 0=Monday ... 6=Sunday
+        # Weekend = Saturday(5) or Sunday(6)
+        if r.date.weekday() >= 5:
+            weekend_calories.append(r.calories_logged)
+            weekend_risk.append(r.nutrition_risk_score)
+        else:
+            weekday_calories.append(r.calories_logged)
+            weekday_risk.append(r.nutrition_risk_score)
+
+    weekend_avg_cal = round(sum(weekend_calories) / len(weekend_calories)) if weekend_calories else 0
+    weekday_avg_cal = round(sum(weekday_calories) / len(weekday_calories)) if weekday_calories else 0
+    weekend_avg_risk = round(sum(weekend_risk) / len(weekend_risk)) if weekend_risk else 0
+    weekday_avg_risk = round(sum(weekday_risk) / len(weekday_risk)) if weekday_risk else 0
+
+    # Calculate percentage difference
+    if weekday_avg_cal > 0:
+        pct_difference = round(((weekend_avg_cal - weekday_avg_cal) / weekday_avg_cal) * 100, 1)
+    else:
+        pct_difference = 0.0
+
+    # Pattern detected if weekend avg is >20% higher than weekday
+    pattern_detected = pct_difference > 20.0
+
+    # Weekend risk is higher if weekend avg risk score is higher
+    weekend_risk_higher = weekend_avg_risk > weekday_avg_risk
+
+    return {
+        "weekend_avg_calories": weekend_avg_cal,
+        "weekday_avg_calories": weekday_avg_cal,
+        "weekend_avg_risk": weekend_avg_risk,
+        "weekday_avg_risk": weekday_avg_risk,
+        "weekend_risk_higher": weekend_risk_higher,
+        "pattern_detected": pattern_detected,
+        "pct_difference": pct_difference,
+        "data_days": len(records),
+        "weekend_days": len(weekend_calories),
+        "weekday_days": len(weekday_calories),
+    }
