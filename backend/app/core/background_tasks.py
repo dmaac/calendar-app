@@ -33,7 +33,7 @@ async def send_notification_async(user_id: int, title: str, body: str):
         "NOTIFICATION [user=%s] title=%r body=%r",
         user_id, title, body,
     )
-    # TODO: Integrate with FCM/APNs
+    # TODO: Integrate with FCM/APNs for real push notifications
     # from app.services.push import send_push
     # await send_push(user_id, title, body)
 

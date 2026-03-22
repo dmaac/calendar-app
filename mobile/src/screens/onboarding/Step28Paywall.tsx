@@ -188,8 +188,7 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
       if (result.error) {
         Alert.alert('Error', result.error, [{ text: 'OK' }]);
       }
-    } catch (err) {
-      console.error('[Step28Paywall] Purchase error:', err);
+    } catch {
       Alert.alert('Error', 'No se pudo completar la compra. Intenta de nuevo.', [{ text: 'OK' }]);
     } finally {
       setLoading(false);

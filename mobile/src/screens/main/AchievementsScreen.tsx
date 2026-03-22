@@ -156,7 +156,7 @@ const ACHIEVEMENTS: Achievement[] = [
 // ─── Simulated user stats (replace with real data from API/context) ─────────
 
 function useUserStats() {
-  // TODO: Replace with real API call or context value
+  // TODO: Replace with GET /api/achievements endpoint or AuthContext user stats
   return {
     total_scans: 5,
     streak_days: 4,

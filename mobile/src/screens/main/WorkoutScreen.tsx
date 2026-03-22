@@ -237,7 +237,7 @@ export default function WorkoutScreen({ navigation }: any) {
   const [activeCategory, setActiveCategory] = useState<ExerciseCategory | null>(null);
   const [duration, setDuration] = useState(30);
   const [notes, setNotes] = useState('');
-  const [userWeight] = useState(DEFAULT_WEIGHT_KG); // TODO: pull from user profile
+  const [userWeight] = useState(DEFAULT_WEIGHT_KG); // TODO: Pull real weight from user profile/onboarding data
 
   // ── Derived ──
   const estimatedCalories = useMemo(
