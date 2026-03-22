@@ -67,7 +67,8 @@ const macroStyles = StyleSheet.create({
 const DEFAULT_LOG: AIFoodLog = {
   id: 0, logged_at: new Date().toISOString(), meal_type: 'lunch',
   food_name: '', calories: 0, carbs_g: 0, protein_g: 0, fats_g: 0,
-  fiber_g: null, image_url: null, ai_confidence: null, was_edited: false,
+  fiber_g: null, sugar_g: null, sodium_mg: null, serving_size: null,
+  image_url: null, ai_confidence: null, was_edited: false,
 };
 
 export default function EditFoodScreen({ navigation, route }: any) {

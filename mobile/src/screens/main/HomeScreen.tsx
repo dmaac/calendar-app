@@ -107,22 +107,22 @@ const MOCK_LOGS: AIFoodLog[] = [
   {
     id: -1, logged_at: new Date().toISOString(), meal_type: 'breakfast',
     food_name: 'Avena con frutas', calories: 320, carbs_g: 52, protein_g: 12, fats_g: 8,
-    fiber_g: 5, image_url: null, ai_confidence: 0.95, was_edited: false,
+    fiber_g: 5, sugar_g: null, sodium_mg: null, serving_size: null, image_url: null, ai_confidence: 0.95, was_edited: false,
   },
   {
     id: -2, logged_at: new Date().toISOString(), meal_type: 'lunch',
     food_name: 'Pollo a la plancha con arroz', calories: 520, carbs_g: 48, protein_g: 42, fats_g: 14,
-    fiber_g: 3, image_url: null, ai_confidence: 0.92, was_edited: false,
+    fiber_g: 3, sugar_g: null, sodium_mg: null, serving_size: null, image_url: null, ai_confidence: 0.92, was_edited: false,
   },
   {
     id: -3, logged_at: new Date().toISOString(), meal_type: 'snack',
     food_name: 'Yogurt griego con miel', calories: 180, carbs_g: 18, protein_g: 16, fats_g: 6,
-    fiber_g: 0, image_url: null, ai_confidence: 0.88, was_edited: false,
+    fiber_g: 0, sugar_g: null, sodium_mg: null, serving_size: null, image_url: null, ai_confidence: 0.88, was_edited: false,
   },
   {
     id: -4, logged_at: new Date().toISOString(), meal_type: 'lunch',
     food_name: 'Ensalada cesar', calories: 220, carbs_g: 12, protein_g: 12, fats_g: 10,
-    fiber_g: 4, image_url: null, ai_confidence: 0.90, was_edited: false,
+    fiber_g: 4, sugar_g: null, sodium_mg: null, serving_size: null, image_url: null, ai_confidence: 0.90, was_edited: false,
   },
 ];
 

@@ -31,10 +31,10 @@ const MOCK_HISTORY_SUMMARY: DailySummary = {
 };
 
 const MOCK_HISTORY_LOGS: AIFoodLog[] = [
-  { id: -10, logged_at: '', meal_type: 'breakfast', food_name: 'Tostadas con palta', calories: 350, carbs_g: 38, protein_g: 10, fats_g: 18, fiber_g: 7, image_url: null, ai_confidence: 0.93, was_edited: false },
-  { id: -11, logged_at: '', meal_type: 'lunch', food_name: 'Pasta con bolognesa', calories: 620, carbs_g: 72, protein_g: 32, fats_g: 18, fiber_g: 4, image_url: null, ai_confidence: 0.90, was_edited: false },
-  { id: -12, logged_at: '', meal_type: 'dinner', food_name: 'Sopa de lentejas', calories: 380, carbs_g: 45, protein_g: 22, fats_g: 8, fiber_g: 12, image_url: null, ai_confidence: 0.87, was_edited: false },
-  { id: -13, logged_at: '', meal_type: 'snack', food_name: 'Manzana con mantequilla de mani', calories: 250, carbs_g: 30, protein_g: 6, fats_g: 14, fiber_g: 5, image_url: null, ai_confidence: 0.94, was_edited: false },
+  { id: -10, logged_at: '', meal_type: 'breakfast', food_name: 'Tostadas con palta', calories: 350, carbs_g: 38, protein_g: 10, fats_g: 18, fiber_g: 7, sugar_g: null, sodium_mg: null, serving_size: null, image_url: null, ai_confidence: 0.93, was_edited: false },
+  { id: -11, logged_at: '', meal_type: 'lunch', food_name: 'Pasta con bolognesa', calories: 620, carbs_g: 72, protein_g: 32, fats_g: 18, fiber_g: 4, sugar_g: null, sodium_mg: null, serving_size: null, image_url: null, ai_confidence: 0.90, was_edited: false },
+  { id: -12, logged_at: '', meal_type: 'dinner', food_name: 'Sopa de lentejas', calories: 380, carbs_g: 45, protein_g: 22, fats_g: 8, fiber_g: 12, sugar_g: null, sodium_mg: null, serving_size: null, image_url: null, ai_confidence: 0.87, was_edited: false },
+  { id: -13, logged_at: '', meal_type: 'snack', food_name: 'Manzana con mantequilla de mani', calories: 250, carbs_g: 30, protein_g: 6, fats_g: 14, fiber_g: 5, sugar_g: null, sodium_mg: null, serving_size: null, image_url: null, ai_confidence: 0.94, was_edited: false },
 ];
 
 function formatDate(d: Date): string {
