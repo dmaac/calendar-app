@@ -14,6 +14,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Alert,
   ScrollView,
   Platform,
   Image,
@@ -988,6 +989,13 @@ const styles = StyleSheet.create({
   scanningHint: { ...typography.caption, color: 'rgba(255,255,255,0.7)' },
 
   // Result
+  resultTopRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  resultThumbnail: {
+    width: 72, height: 72, borderRadius: radius.md,
+  },
   previewImage: {
     height: 200, borderRadius: radius.xl, marginBottom: spacing.md,
   },
@@ -1000,6 +1008,29 @@ const styles = StyleSheet.create({
   resultHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   resultFood: { ...typography.titleSm, flex: 1 },
   resultConfidence: { ...typography.caption },
+  editNameInput: {
+    ...typography.titleSm,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    minHeight: 40,
+  },
+  editCalorieRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  editCalorieInput: {
+    fontSize: 36, fontWeight: '800' as const, letterSpacing: -1,
+    borderWidth: 1, borderRadius: radius.sm,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
+    textAlign: 'center', minWidth: 120,
+  },
+  editMacroInput: {
+    fontSize: 16, fontWeight: '800' as const,
+    textAlign: 'center',
+    paddingVertical: 2,
+  },
   cacheBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: spacing.sm,

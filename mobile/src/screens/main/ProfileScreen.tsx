@@ -21,6 +21,7 @@ import { useAnalytics } from '../../hooks/useAnalytics';
 import { haptics } from '../../hooks/useHaptics';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
+import ReferralCard from '../../components/ReferralCard';
 // GOAL_LABELS is now resolved via i18n in the component
 
 // ─── Mock profile for offline / backend unavailable ──────────────────────────
@@ -363,24 +364,8 @@ export default function ProfileScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
-        {/* Invite Friends */}
-        <TouchableOpacity
-          style={[styles.referralBanner, { backgroundColor: c.accent + '10', borderColor: c.accent + '30' }]}
-          onPress={() => navigation.navigate('Referral')}
-          activeOpacity={0.85}
-          accessibilityLabel="Invitar amigos. Comparte tu codigo de referido"
-          accessibilityRole="button"
-          accessibilityHint="Navega al programa de referidos"
-        >
-          <View style={styles.referralBannerLeft}>
-            <Ionicons name="gift-outline" size={22} color={c.accent} />
-            <View>
-              <Text style={[styles.referralBannerTitle, { color: c.black }]}>{t('profile.inviteFriends')}</Text>
-              <Text style={[styles.referralBannerSub, { color: c.gray }]}>{t('profile.shareCode')}</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={c.gray} />
-        </TouchableOpacity>
+        {/* Invite Friends — ReferralCard with code generation + share */}
+        <ReferralCard onViewDetails={() => navigation.navigate('Referral')} />
 
         {/* Configuración */}
         <Animated.View style={section3Style}>

@@ -50,6 +50,7 @@ import NotificationCenter, {
   useNotifications,
 } from '../../components/NotificationCenter';
 import { syncWidgetData } from '../../services/widgetData.service';
+import DailyChallenges from '../../components/DailyChallenges';
 
 // ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
 const DAILY_TIPS = [

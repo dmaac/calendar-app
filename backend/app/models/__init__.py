@@ -12,6 +12,7 @@ from .subscription import Subscription
 from .push_token import PushToken
 from .feedback import Feedback
 from .workout import WorkoutLog
+from .experiment import Experiment, ExperimentAssignment, ExperimentConversion
 
 __all__ = [
     "User",
@@ -28,4 +29,7 @@ __all__ = [
     "PushToken",
     "Feedback",
     "WorkoutLog",
+    "Experiment",
+    "ExperimentAssignment",
+    "ExperimentConversion",
 ]
