@@ -149,26 +149,29 @@ const CalorieRing = React.memo(function CalorieRing({
   const strokeWidth = 12;
   const r = (size - strokeWidth) / 2;
   const circ = 2 * Math.PI * r;
-  const progress = target > 0 ? Math.min(consumed / target, 1) : 0;
-  const remaining = Math.max(target - consumed, 0);
+  const safeConsumed = Math.round(consumed);
+  const safeTarget = Math.round(target);
+  const progress = safeTarget > 0 ? Math.min(safeConsumed / safeTarget, 1) : 0;
+  const remaining = Math.max(safeTarget - safeConsumed, 0);
 
-  // Animated ring fill — grows from 0 to target on load
+  // Use integer-safe progress (multiply by 100 to avoid float in Animated)
+  const progressInt = Math.round(progress * 100);
   const fillAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     fillAnim.setValue(0);
     Animated.timing(fillAnim, {
-      toValue: progress,
+      toValue: progressInt,
       duration: 900,
       delay: 200,
       useNativeDriver: false,
     }).start();
-  }, [progress]);
+  }, [progressInt]);
 
   // Listen to animated value for SVG strokeDasharray (can't use native driver for SVG)
   const [animDash, setAnimDash] = useState(0);
   useEffect(() => {
     const id = fillAnim.addListener(({ value }) => {
-      setAnimDash(value * circ);
+      setAnimDash((value / 100) * circ);
     });
     return () => fillAnim.removeListener(id);
   }, [circ]);
@@ -240,24 +243,8 @@ const MacroBar = React.memo(function MacroBar({
   delay?: number;
   colors: ReturnType<typeof useThemeColors>;
 }) {
-  const progress = target > 0 ? Math.min(value / target, 1) : 0;
-
-  // Animated fill width — grows from left with staggered delay
-  const fillAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    fillAnim.setValue(0);
-    Animated.timing(fillAnim, {
-      toValue: progress,
-      duration: 700,
-      delay: 300 + delay,
-      useNativeDriver: false,
-    }).start();
-  }, [progress]);
-
-  const fillWidth = fillAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
+  const progress = target > 0 ? Math.min(Math.round(value) / Math.round(target), 1) : 0;
+  const fillPercent = `${Math.round(progress * 100)}%`;
 
   return (
     <View
@@ -269,12 +256,12 @@ const MacroBar = React.memo(function MacroBar({
       <View style={styles.macroHeader}>
         <Text style={[styles.macroLabel, { color: c.gray }]}>{label}</Text>
         <Text style={[styles.macroValue, { color: c.black }]}>
-          <AnimatedNumber value={Math.round(value)} style={[styles.macroValue, { color: c.black }]} />
+          {Math.round(value)}
           <Text style={[styles.macroTarget, { color: c.gray }]}>/{Math.round(target)}{unit}</Text>
         </Text>
       </View>
       <View style={[styles.macroTrack, { backgroundColor: c.surface }]}>
-        <Animated.View style={[styles.macroFill, { width: fillWidth as any, backgroundColor: color }]} />
+        <View style={[styles.macroFill, { width: fillPercent as any, backgroundColor: color }]} />
       </View>
     </View>
   );
