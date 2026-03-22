@@ -182,7 +182,7 @@ async def test_user_fixture(async_session: AsyncSession) -> User:
         email="test@example.com",
         first_name="Test",
         last_name="User",
-        hashed_password=get_password_hash("testpassword123"),
+        hashed_password=get_password_hash("Testpassword123"),
         is_active=True,
         provider="email",
         is_premium=False,
@@ -200,7 +200,7 @@ async def premium_user_fixture(async_session: AsyncSession) -> User:
         email="premium@example.com",
         first_name="Premium",
         last_name="User",
-        hashed_password=get_password_hash("premiumpass123"),
+        hashed_password=get_password_hash("Premiumpass123"),
         is_active=True,
         provider="email",
         is_premium=True,
@@ -218,7 +218,7 @@ async def inactive_user_fixture(async_session: AsyncSession) -> User:
         email="inactive@example.com",
         first_name="Inactive",
         last_name="User",
-        hashed_password=get_password_hash("inactivepass123"),
+        hashed_password=get_password_hash("Inactivepass123"),
         is_active=False,
         provider="email",
     )
@@ -233,7 +233,7 @@ async def inactive_user_fixture(async_session: AsyncSession) -> User:
 async def create_user_and_get_headers(
     client: AsyncClient,
     email: str = "testuser@example.com",
-    password: str = "testpassword123",
+    password: str = "Testpassword123",
     first_name: str = "Test",
     last_name: str = "User",
 ) -> tuple[dict, int]:
@@ -263,7 +263,7 @@ async def create_user_and_get_headers(
 async def auth_headers_fixture(client: AsyncClient) -> dict:
     """Register a user and return auth headers."""
     headers, _ = await create_user_and_get_headers(
-        client, email="auth@example.com", password="authpassword123"
+        client, email="auth@example.com", password="Authpassword123"
     )
     return headers
 
@@ -272,7 +272,7 @@ async def auth_headers_fixture(client: AsyncClient) -> dict:
 async def auth_user_and_headers_fixture(client: AsyncClient) -> tuple[dict, int]:
     """Register a user and return (headers, user_id)."""
     return await create_user_and_get_headers(
-        client, email="authu@example.com", password="authpassword123"
+        client, email="authu@example.com", password="Authpassword123"
     )
 
 
