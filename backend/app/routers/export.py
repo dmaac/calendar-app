@@ -66,11 +66,19 @@ async def export_pdf(
     """
     from ..services.export_service import generate_nutrition_report_pdf
 
-    pdf_bytes = await generate_nutrition_report_pdf(
-        user_id=current_user.id,
-        session=session,
-        days=days,
-    )
+    try:
+        pdf_bytes = await generate_nutrition_report_pdf(
+            user_id=current_user.id,
+            session=session,
+            days=days,
+        )
+    except Exception as e:
+        logger.exception("PDF export failed: user_id=%s days=%d", current_user.id, days)
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate PDF report. Please try again later.",
+        )
 
     filename = f"fitsi_report_{current_user.id}_{date.today().strftime('%Y%m%d')}.pdf"
 
@@ -120,38 +128,47 @@ async def export_csv(
     if start_date is None:
         start_date = end_date - timedelta(days=30)
 
-    start_dt = datetime.combine(start_date, dt_time.min)
-    end_dt = datetime.combine(end_date, dt_time.max)
+    try:
+        start_dt = datetime.combine(start_date, dt_time.min)
+        end_dt = datetime.combine(end_date, dt_time.max)
 
-    query = (
-        select(AIFoodLog)
-        .where(
-            AIFoodLog.user_id == user_id,
-            AIFoodLog.logged_at >= start_dt,
-            AIFoodLog.logged_at <= end_dt,
+        query = (
+            select(AIFoodLog)
+            .where(
+                AIFoodLog.user_id == user_id,
+                AIFoodLog.logged_at >= start_dt,
+                AIFoodLog.logged_at <= end_dt,
+            )
+            .order_by(AIFoodLog.logged_at.asc())
         )
-        .order_by(AIFoodLog.logged_at.asc())
-    )
-    result = await session.execute(query)
-    logs = result.scalars().all()
+        result = await session.execute(query)
+        logs = result.scalars().all()
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(_CSV_EXPORT_COLUMNS)
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(_CSV_EXPORT_COLUMNS)
 
-    for log in logs:
-        writer.writerow([
-            log.logged_at.strftime("%Y-%m-%d") if log.logged_at else "",
-            log.meal_type,
-            log.food_name,
-            round(log.calories, 1),
-            round(log.protein_g, 1),
-            round(log.carbs_g, 1),
-            round(log.fats_g, 1),
-            round(log.fiber_g, 1) if log.fiber_g is not None else "",
-        ])
+        for log in logs:
+            writer.writerow([
+                log.logged_at.strftime("%Y-%m-%d") if log.logged_at else "",
+                log.meal_type,
+                log.food_name,
+                round(log.calories, 1),
+                round(log.protein_g, 1),
+                round(log.carbs_g, 1),
+                round(log.fats_g, 1),
+                round(log.fiber_g, 1) if log.fiber_g is not None else "",
+            ])
 
-    csv_bytes = output.getvalue().encode("utf-8")
+        csv_bytes = output.getvalue().encode("utf-8")
+    except Exception as e:
+        logger.exception("CSV export failed: user_id=%s", user_id)
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate CSV export. Please try again later.",
+        )
+
     filename = (
         f"fitsi_food_logs_{user_id}"
         f"_{start_date.strftime('%Y%m%d')}"

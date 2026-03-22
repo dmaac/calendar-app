@@ -133,6 +133,11 @@ export const useOnboarding = () => {
   return ctx;
 };
 
+/** Safe variant that returns null when used outside OnboardingProvider. */
+export const useOnboardingSafe = () => {
+  return useContext(OnboardingContext) ?? null;
+};
+
 // ─── Plan calculator ─────────────────────────────────────────────────────────
 function calculatePlan(data: OnboardingData): NutritionPlan {
   const { heightCm, weightKg, birthDate, goal, targetWeightKg, weeklySpeedKg, gender } = data;

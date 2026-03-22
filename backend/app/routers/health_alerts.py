@@ -348,10 +348,18 @@ async def get_health_alerts(
     since = today - timedelta(days=days - 1)
     user_id: int = current_user.id  # type: ignore[assignment]
 
-    # Fetch required context in parallel-style (all are DB queries)
-    daily_data = await _get_daily_aggregates(user_id, since, today, session)
-    weight_kg = await _get_user_weight(user_id, session)
-    calorie_goal = await _get_calorie_goal(user_id, session)
+    try:
+        # Fetch required context in parallel-style (all are DB queries)
+        daily_data = await _get_daily_aggregates(user_id, since, today, session)
+        weight_kg = await _get_user_weight(user_id, session)
+        calorie_goal = await _get_calorie_goal(user_id, session)
+    except Exception as e:
+        logger.exception("Error fetching health alert data for user %s", user_id)
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to compute health alerts",
+        )
 
     # Run all detection rules
     alerts: List[HealthAlert] = []

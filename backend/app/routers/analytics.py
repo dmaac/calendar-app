@@ -136,6 +136,19 @@ async def analytics_summary(
     Aggregated analytics summary: DAU, WAU, MAU, retention, feature usage, revenue.
     Requires authentication. Consider restricting to admins in production.
     """
+    try:
+        return await _compute_analytics_summary(session)
+    except Exception as e:
+        logger.exception("Analytics summary computation failed")
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to compute analytics summary. Please try again later.",
+        )
+
+
+async def _compute_analytics_summary(session: AsyncSession) -> AnalyticsSummary:
+    """Internal implementation extracted for error handling."""
     today = date.today()
     now = datetime.utcnow()
 

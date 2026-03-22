@@ -28,6 +28,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeColors, typography, spacing, radius, shadows } from '../theme';
+import { useAppTheme } from '../context/ThemeContext';
 import { haptics } from '../hooks/useHaptics';
 
 // Enable LayoutAnimation on Android
@@ -555,13 +556,7 @@ export default function CalendarHeatmap({ dailyData }: CalendarHeatmapProps) {
   const availableWidth = screenWidth - cardPadding - DAY_LABEL_WIDTH;
 
   // Detect dark mode
-  let isDark = false;
-  try {
-    const { useAppTheme } = require('../context/ThemeContext');
-    isDark = useAppTheme().isDark;
-  } catch {
-    // Fallback
-  }
+  const { isDark } = useAppTheme();
 
   const [data, setData] = useState<DaySummary[]>([]);
   const [selectedDay, setSelectedDay] = useState<DaySummary | null>(null);

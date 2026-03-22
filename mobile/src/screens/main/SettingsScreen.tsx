@@ -174,8 +174,8 @@ function ToggleRow({
           haptics.light();
           onToggle(v);
         }}
-        trackColor={{ false: c.grayLight, true: colors.accent }}
-        thumbColor={colors.white}
+        trackColor={{ false: c.grayLight, true: c.accent }}
+        thumbColor={c.white}
         ios_backgroundColor={c.grayLight}
       />
     </View>

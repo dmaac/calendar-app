@@ -764,8 +764,21 @@ export default function LogScreen({ navigation }: any) {
                   accessibilityRole="button"
                   accessibilityHint={`Abre el menu para anadir un alimento a ${meta.label.toLowerCase()}`}
                 >
-                  <Ionicons name="add-circle-outline" size={16} color={c.gray} />
-                  <Text style={[styles.emptyMealText, { color: c.gray }]}>Anadir {meta.label.toLowerCase()}</Text>
+                  <View style={styles.emptyMealContent}>
+                    <View style={[styles.emptyMealIconBg, { backgroundColor: meta.color + '10' }]}>
+                      <Ionicons name="add" size={18} color={meta.color} />
+                    </View>
+                    <View>
+                      <Text style={[styles.emptyMealText, { color: c.gray }]}>Anadir {meta.label.toLowerCase()}</Text>
+                      <Text style={[styles.emptyMealHint, { color: c.disabled }]}>
+                        {mt === 'breakfast' ? 'Empieza bien el dia' :
+                         mt === 'lunch' ? 'Registra tu almuerzo' :
+                         mt === 'dinner' ? 'No olvides la cena' :
+                         'Un snack saludable'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={c.disabled} />
                 </TouchableOpacity>
               )}
             </View>
@@ -918,8 +931,22 @@ const styles = StyleSheet.create({
   emptyMeal: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.xs,
   },
-  emptyMealText: { ...typography.caption },
+  emptyMealContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  emptyMealIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyMealText: { ...typography.caption, fontWeight: '600' },
+  emptyMealHint: { ...typography.caption, fontSize: 11, marginTop: 1 },
 });

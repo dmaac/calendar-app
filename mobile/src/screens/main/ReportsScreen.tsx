@@ -57,6 +57,9 @@ const MONTHLY_SUMMARY = {
 const WEEKLY_MACROS = { protein: 85, carbs: 210, fat: 62 };
 const MONTHLY_MACROS = { protein: 90, carbs: 220, fat: 58 };
 
+const WEEKLY_BEST_DAY = { day: 'Viernes', metric: '125g proteinas', delta: '+5g sobre la meta' };
+const MONTHLY_BEST_DAY = { day: 'Semana 3', metric: '132g proteinas', delta: '+12g sobre la meta' };
+
 const WEEKLY_INSIGHTS = [
   { icon: 'trending-down-outline' as const, text: 'Tu proteina promedio es 85g, debajo de tu meta de 120g. Intenta agregar una porcion extra de proteina al almuerzo.' },
   { icon: 'flame-outline' as const, text: 'Llevas 5 dias seguidos logueando, sigue asi!' },
@@ -312,6 +315,96 @@ const summaryStyles = StyleSheet.create({
   },
 });
 
+// ─── Best day card ──────────────────────────────────────────────────────────
+
+function BestDayCard({
+  bestDay,
+  c,
+}: {
+  bestDay: { day: string; metric: string; delta: string };
+  c: ReturnType<typeof useThemeColors>;
+}) {
+  return (
+    <View
+      style={[bestDayStyles.card, { backgroundColor: c.surface, borderColor: c.border }]}
+      accessibilityLabel={`Mejor dia: ${bestDay.day}, ${bestDay.metric}, ${bestDay.delta}`}
+    >
+      <View style={bestDayStyles.left}>
+        <View style={bestDayStyles.trophyWrap}>
+          <Ionicons name="trophy" size={24} color="#F59E0B" />
+        </View>
+        <View style={bestDayStyles.info}>
+          <Text style={[bestDayStyles.label, { color: c.gray }]}>Mejor Dia</Text>
+          <Text style={[bestDayStyles.day, { color: c.black }]}>{bestDay.day}</Text>
+          <Text style={[bestDayStyles.metric, { color: c.black }]}>{bestDay.metric}</Text>
+        </View>
+      </View>
+      <View style={bestDayStyles.badge}>
+        <Ionicons name="arrow-up" size={12} color="#10B981" />
+        <Text style={bestDayStyles.badgeText}>{bestDay.delta}</Text>
+      </View>
+    </View>
+  );
+}
+
+const bestDayStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  trophyWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  info: {
+    gap: 1,
+  },
+  label: {
+    ...typography.caption,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  day: {
+    ...typography.label,
+    fontSize: 16,
+  },
+  metric: {
+    ...typography.caption,
+    fontWeight: '600',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+});
+
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function ReportsScreen({ navigation }: any) {
@@ -325,6 +418,7 @@ export default function ReportsScreen({ navigation }: any) {
   const summary = isWeek ? WEEKLY_SUMMARY : MONTHLY_SUMMARY;
   const macros = isWeek ? WEEKLY_MACROS : MONTHLY_MACROS;
   const insights = isWeek ? WEEKLY_INSIGHTS : MONTHLY_INSIGHTS;
+  const bestDay = isWeek ? WEEKLY_BEST_DAY : MONTHLY_BEST_DAY;
 
   const adherenceColor =
     summary.adherence >= 80 ? '#10B981' : summary.adherence >= 60 ? '#F59E0B' : c.accent;
@@ -427,6 +521,9 @@ export default function ReportsScreen({ navigation }: any) {
             c={c}
           />
         </View>
+
+        {/* Best Day */}
+        <BestDayCard bestDay={bestDay} c={c} />
 
         {/* Macro pie chart */}
         <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>

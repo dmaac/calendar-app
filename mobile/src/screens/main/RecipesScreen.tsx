@@ -27,7 +27,7 @@ import { useAnalytics } from '../../hooks/useAnalytics';
 import FitsiMascot from '../../components/FitsiMascot';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import * as foodService from '../../services/food.service';
-import { useOnboarding } from '../../context/OnboardingContext';
+import { useOnboardingSafe } from '../../context/OnboardingContext';
 import { DailySummary } from '../../types';
 
 type MealFilter = 'all' | MealType;
@@ -414,14 +414,11 @@ export default function RecipesScreen({ navigation }: any) {
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const [loadingRecs, setLoadingRecs] = useState(true);
 
-  // Get user diet preference from onboarding
-  let dietPreference: DietType | null = null;
-  try {
-    const { data: onboardingData } = useOnboarding();
-    dietPreference = mapDietPreference(onboardingData.dietType);
-  } catch {
-    // OnboardingProvider may not be available — skip preference-based filtering
-  }
+  // Get user diet preference from onboarding (safe — returns null outside provider)
+  const onboardingCtx = useOnboardingSafe();
+  const dietPreference = onboardingCtx
+    ? mapDietPreference(onboardingCtx.data.dietType)
+    : null;
 
   // Fetch daily summary for macro gap calculation
   useEffect(() => {
@@ -599,6 +596,10 @@ export default function RecipesScreen({ navigation }: any) {
         scrollEventThrottle={16}
         bounces={true}
         overScrollMode="never"
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        initialNumToRender={8}
+        updateCellsBatchingPeriod={50}
         ListEmptyComponent={
           <View style={styles.empty}>
             <FitsiMascot expression="thinking" size="medium" animation="thinking" />

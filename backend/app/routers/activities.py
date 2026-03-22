@@ -1,3 +1,4 @@
+import logging
 from typing import List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -8,6 +9,8 @@ from ..models.activity import Activity, ActivityCreate, ActivityRead, ActivityUp
 from ..services.activity_service import ActivityService
 from ..services.streak_service import StreakService
 from .auth import get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
@@ -46,12 +49,19 @@ async def get_user_activities(
 ):
     activity_service = ActivityService(session)
 
-    if start_date and end_date:
-        activities = await activity_service.get_user_activities_by_date_range(
-            current_user.id, start_date, end_date
+    try:
+        if start_date and end_date:
+            activities = await activity_service.get_user_activities_by_date_range(
+                current_user.id, start_date, end_date
+            )
+        else:
+            activities = await activity_service.get_user_activities(current_user.id)
+    except Exception as e:
+        logger.exception("Error fetching activities for user %s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve activities",
         )
-    else:
-        activities = await activity_service.get_user_activities(current_user.id)
 
     return activities
 
@@ -131,8 +141,15 @@ async def get_streak(
     session: AsyncSession = Depends(get_session),
 ):
     """Return current streak and all-time max streak (consecutive days with food logs)."""
-    streak_service = StreakService(session)
-    return await streak_service.calculate_streak(current_user.id)
+    try:
+        streak_service = StreakService(session)
+        return await streak_service.calculate_streak(current_user.id)
+    except Exception as e:
+        logger.exception("Error calculating streak for user %s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to calculate streak",
+        )
 
 
 @router.get("/weekly-summary", tags=["activities"])
@@ -141,5 +158,12 @@ async def get_weekly_summary(
     session: AsyncSession = Depends(get_session),
 ):
     """Return weekly summary: avg calories, active days, best day."""
-    streak_service = StreakService(session)
-    return await streak_service.get_weekly_summary(current_user.id)
+    try:
+        streak_service = StreakService(session)
+        return await streak_service.get_weekly_summary(current_user.id)
+    except Exception as e:
+        logger.exception("Error fetching weekly summary for user %s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve weekly summary",
+        )

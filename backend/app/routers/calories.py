@@ -194,10 +194,18 @@ async def get_net_calories(
     target = target_date or date.today()
     user_id: int = current_user.id  # type: ignore[assignment]
 
-    weight_kg = await _get_user_weight(user_id, session)
-    consumed = await _get_consumed_calories(user_id, target, session)
-    burned = await _get_burned_calories(user_id, target, session, weight_kg)
-    goal = await _get_calorie_goal(user_id, session)
+    try:
+        weight_kg = await _get_user_weight(user_id, session)
+        consumed = await _get_consumed_calories(user_id, target, session)
+        burned = await _get_burned_calories(user_id, target, session, weight_kg)
+        goal = await _get_calorie_goal(user_id, session)
+    except Exception as e:
+        logger.exception("Error computing net calories for user %s", user_id)
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to compute calorie balance",
+        )
 
     net = round(consumed - burned, 1)
     remaining = round(goal - net, 1)

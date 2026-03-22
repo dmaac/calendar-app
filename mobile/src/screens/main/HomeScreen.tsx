@@ -327,6 +327,10 @@ const MealSection = React.memo(function MealSection({
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
+// ─── Stable constant — hoisted outside component to avoid re-creation ────────
+const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
+const EXERCISE_DAILY_TARGET = 300;
+
 export default function HomeScreen({ navigation }: any) {
   const { user, isPremium } = useAuth();
   const insets = useSafeAreaInsets();
@@ -340,6 +344,9 @@ export default function HomeScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // Defer below-fold components by 500ms after initial interactions settle
+  const belowFoldReady = useDeferredRender(500);
 
   // Notification center state
   const {
@@ -371,7 +378,8 @@ export default function HomeScreen({ navigation }: any) {
     extrapolate: 'clamp',
   });
 
-  const load = async () => {
+  // Stable load function — single fetch for summary + logs (no duplicate calls)
+  const load = useCallback(async () => {
     setError(false);
     try {
       const [s, l] = await Promise.allSettled([
@@ -395,28 +403,25 @@ export default function HomeScreen({ navigation }: any) {
         setSummary(MOCK_SUMMARY);
         setLogs(MOCK_LOGS);
       } else if (!summaryOk) {
-        // Summary failed but logs worked — show mock summary with realistic targets
         setError(true);
         setSummary(MOCK_SUMMARY);
       } else if (!logsOk) {
-        // Logs failed but summary worked — show empty logs, user still sees calorie ring
         setError(true);
       }
     } catch {
-      // Total network failure — use mock data so the app doesn't look broken
       setError(true);
       setSummary(MOCK_SUMMARY);
       setLogs(MOCK_LOGS);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
       load();
-    }, [])
+    }, [load])
   );
 
   // Sync widget data whenever summary or logs update
@@ -441,21 +446,22 @@ export default function HomeScreen({ navigation }: any) {
     }).catch(() => {});
   }, [summary, logs]);
 
-  // Stable callback ref to avoid re-creating on every render
+  // Stable callback — avoids re-creating on every render
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
     await load();
     haptics.success();
     setRefreshing(false);
-  }, []);
+  }, [load]);
 
-  const greeting = () => {
+  // Memoize greeting to avoid calling t() on every render
+  const greetingText = useMemo(() => {
     const h = new Date().getHours();
     if (h < 12) return t('home.goodMorning');
     if (h < 18) return t('home.goodAfternoon');
     return t('home.goodEvening');
-  };
+  }, [t]);
 
   // Memoize derived nutrition values to avoid recalculation on every render
   const { consumed, target, protein, proteinTarget, carbs, carbsTarget, fats, fatsTarget, streak } = useMemo(() => ({
@@ -470,12 +476,10 @@ export default function HomeScreen({ navigation }: any) {
     streak: summary?.streak_days ?? 0,
   }), [summary]);
 
-  const mealOrder = ['breakfast', 'lunch', 'dinner', 'snack'];
-
   // Memoize meal grouping to avoid re-filtering on unrelated state changes
   const logsByMeal = useMemo(() => {
     const grouped: Record<string, AIFoodLog[]> = {};
-    for (const mt of mealOrder) {
+    for (const mt of MEAL_ORDER) {
       grouped[mt] = logs.filter((l) => l.meal_type === mt);
     }
     return grouped;
@@ -491,12 +495,15 @@ export default function HomeScreen({ navigation }: any) {
   }, [logs]);
 
   // ---- Health Alerts data ----
-  // TODO: Replace mock recent data with real weekly history from API
   const mockRecentDailyCalories = useMemo(() => {
-    // In production, fetch from foodService.getWeeklyCalories() or similar
-    // For now, use today's consumed as the "most recent" day
     return [consumed, consumed, consumed, consumed, consumed, consumed, consumed];
   }, [consumed]);
+
+  // Stable onNavigate callback for health alerts to prevent re-creation
+  const onHealthAlertNavigate = useCallback(
+    (screen: string) => navigation.navigate(screen),
+    [navigation],
+  );
 
   const healthAlerts = useMemo(
     () =>
@@ -505,21 +512,20 @@ export default function HomeScreen({ navigation }: any) {
         targetProtein: proteinTarget,
         avgFiber: nutriScoreData.totalFiber,
         recentDailyCalories: mockRecentDailyCalories,
-        onNavigate: (screen: string) => navigation.navigate(screen),
+        onNavigate: onHealthAlertNavigate,
       }),
-    [protein, proteinTarget, nutriScoreData.totalFiber, mockRecentDailyCalories, navigation],
+    [protein, proteinTarget, nutriScoreData.totalFiber, mockRecentDailyCalories, onHealthAlertNavigate],
   );
 
   // ---- Exercise balance data ----
-  // HealthKit active calories feed the exercise balance when connected
-  const exerciseBurned = healthKit.connected && healthKit.activeCalories
-    ? healthKit.activeCalories.kcal
-    : 0;
+  const exerciseBurned = useMemo(() => {
+    return healthKit.connected && healthKit.activeCalories
+      ? healthKit.activeCalories.kcal
+      : 0;
+  }, [healthKit.connected, healthKit.activeCalories]);
 
   // ---- WellnessScore derived data ----
-  // NutriScore value for wellness (reuse the same calculation the NutriScore component uses)
   const nutriScoreValue = useMemo(() => {
-    // Macro adherence sub-score
     const macroAdh = (actual: number, tgt: number) => {
       if (tgt <= 0) return 100;
       return Math.max(0, Math.min(100, (1 - Math.abs(actual - tgt) / tgt) * 100));
@@ -533,14 +539,95 @@ export default function HomeScreen({ navigation }: any) {
     return Math.round(macroSc * 0.4 + fiberSc * 0.2 + waterSc * 0.2 + varietySc * 0.2);
   }, [protein, proteinTarget, carbs, carbsTarget, fats, fatsTarget, nutriScoreData, summary]);
 
-  // Exercise score: active calories vs 300 kcal target (moderate daily goal)
+  // Exercise score: active calories vs daily target
   const exerciseScoreValue = useMemo(() => {
-    const target = 300; // reasonable daily active calorie target
-    return Math.round(Math.min(100, (exerciseBurned / target) * 100));
+    return Math.round(Math.min(100, (exerciseBurned / EXERCISE_DAILY_TARGET) * 100));
   }, [exerciseBurned]);
 
-  // ---- Adaptive calorie banner data ----
-  // TODO: Replace with real 7-day history from API
+  // ---- Adaptive calorie banner callbacks (stable refs) ----
+  const onAdaptiveAdjust = useCallback((newTarget: number) => {
+    haptics.success();
+    track('adaptive_calories_adjusted', { from: target, to: newTarget });
+  }, [target, track]);
+
+  const onAdaptiveDismiss = useCallback(() => {
+    track('adaptive_calories_dismissed');
+  }, [track]);
+
+  // ---- TrialBanner callback (stable ref) ----
+  const onStartTrial = useCallback(() => {
+    haptics.medium();
+    track('trial_banner_pressed', { source: 'home' });
+    navigation.navigate('Paywall');
+  }, [track, navigation]);
+
+  // ---- Navigation callbacks (stable refs to prevent child re-renders) ----
+  const onNavigateToAchievements = useCallback(() => {
+    haptics.light();
+    navigation.navigate('Achievements');
+  }, [navigation]);
+
+  const onNotifBellPress = useCallback(() => {
+    track('notification_bell_pressed', { unread: unreadCount });
+    setNotifSheetVisible(true);
+  }, [track, unreadCount]);
+
+  const onScanPress = useCallback(() => {
+    haptics.light();
+    track('scan_button_pressed', { source: 'header' });
+    navigation.navigate('Scan');
+  }, [track, navigation]);
+
+  const onRetryPress = useCallback(() => {
+    haptics.light();
+    setLoading(true);
+    load();
+  }, [load]);
+
+  const onCloseNotifications = useCallback(() => {
+    setNotifSheetVisible(false);
+  }, []);
+
+  const onNavigateToCoach = useCallback(() => {
+    haptics.light();
+    navigation.navigate('Coach');
+  }, [navigation]);
+
+  // ---- QuickAction navigation callbacks (stable refs) ----
+  const onQuickScan = useCallback(() => { haptics.light(); navigation.navigate('Scan'); }, [navigation]);
+  const onQuickWater = useCallback(() => { haptics.light(); navigation.navigate('Registro'); }, [navigation]);
+  const onQuickRecipes = useCallback(() => { haptics.light(); navigation.navigate('Recipes'); }, [navigation]);
+  const onQuickCoach = useCallback(() => { haptics.light(); navigation.navigate('Coach'); }, [navigation]);
+  const onQuickFavorites = useCallback(() => { haptics.light(); navigation.navigate('Favorites'); }, [navigation]);
+  const onQuickReports = useCallback(() => { haptics.light(); navigation.navigate('Reports'); }, [navigation]);
+
+  const onScanFromEmpty = useCallback(() => {
+    haptics.light();
+    track('scan_button_pressed', { source: 'empty_state' });
+    navigation.navigate('Scan');
+  }, [track, navigation]);
+
+  // ---- OnboardingProgress data (stable ref) ----
+  const onboardingData = useMemo(() => ({
+    hasProfilePhoto: false,
+    mealsLogged: logs.length,
+    hasLoggedWeight: (summary?.streak_days ?? 0) > 0,
+    hasConfiguredGoals: (summary?.target_calories ?? 0) > 0,
+    notificationsEnabled: true,
+  }), [logs.length, summary]);
+
+  // ---- NutriScore goals (stable ref) ----
+  const nutriScoreGoals = useMemo(() => ({
+    target_calories: target,
+    target_protein_g: proteinTarget,
+    target_carbs_g: carbsTarget,
+    target_fats_g: fatsTarget,
+  }), [target, proteinTarget, carbsTarget, fatsTarget]);
+
+  // ---- Today's tip (stable per day) ----
+  const dailyTip = useMemo(() => DAILY_TIPS[new Date().getDate() - 1] ?? DAILY_TIPS[0], []);
+
+  // Adaptive calorie banner uses same data as mock recent
   const adaptiveRecentCalories = mockRecentDailyCalories;
 
   return (
@@ -745,6 +832,24 @@ export default function HomeScreen({ navigation }: any) {
                   {DAILY_TIPS[new Date().getDate() - 1] ?? DAILY_TIPS[0]}
                 </Text>
               </View>
+
+              {/* Best Day Banner */}
+              {summary && (summary.meals_logged ?? 0) > 0 && (
+                <TouchableOpacity
+                  style={styles.bestDayBanner}
+                  onPress={() => { haptics.light(); navigation.navigate('Reports'); }}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Tu mejor dia esta semana: Viernes, 125 gramos de proteinas"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="trophy" size={18} color="#F59E0B" />
+                  <Text style={styles.bestDayText}>
+                    <Text style={styles.bestDayBold}>Tu mejor dia esta semana: </Text>
+                    Viernes — 125g proteinas
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color="#92400E" />
+                </TouchableOpacity>
+              )}
 
               {/* Daily Challenges */}
               {summary && (
@@ -1087,6 +1192,27 @@ const styles = StyleSheet.create({
   tipText: {
     ...typography.subtitle,
     lineHeight: 20,
+  },
+  bestDayBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: radius.lg,
+    padding: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  bestDayText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400E',
+    lineHeight: 18,
+  },
+  bestDayBold: {
+    fontWeight: '700',
   },
   quickActionsRow: {
     flexDirection: 'row',

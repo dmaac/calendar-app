@@ -297,30 +297,38 @@ async def get_user_data(
         for f in fb_result.scalars().all()
     ]
 
-    export = {
-        "export_version": "1.1",
-        "exported_at": datetime.utcnow().isoformat(),
-        "gdpr_article": "Article 20 - Right to data portability",
-        "user": profile_data,
-        "onboarding_profile": onboarding_data,
-        "nutrition_profile": nutrition_data,
-        "food_logs": food_logs,
-        "meal_logs": meal_logs,
-        "daily_summaries": daily_summaries,
-        "activities": activities,
-        "workouts": workouts,
-        "subscriptions": subscriptions,
-        "push_tokens": push_tokens,
-        "food_favorites": favorites,
-        "feedback": feedback_list,
-    }
+    try:
+        export = {
+            "export_version": "1.1",
+            "exported_at": datetime.utcnow().isoformat(),
+            "gdpr_article": "Article 20 - Right to data portability",
+            "user": profile_data,
+            "onboarding_profile": onboarding_data,
+            "nutrition_profile": nutrition_data,
+            "food_logs": food_logs,
+            "meal_logs": meal_logs,
+            "daily_summaries": daily_summaries,
+            "activities": activities,
+            "workouts": workouts,
+            "subscriptions": subscriptions,
+            "push_tokens": push_tokens,
+            "food_favorites": favorites,
+            "feedback": feedback_list,
+        }
+
+        json_bytes = json.dumps(export, indent=2, ensure_ascii=False).encode("utf-8")
+    except Exception as e:
+        logger.exception("GDPR data export failed: user_id=%s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to compile data export. Please try again later.",
+        )
 
     logger.info(
         "GDPR data portability export: user_id=%s email=%s sections=%d",
         user_id, current_user.email, len(export) - 3,
     )
 
-    json_bytes = json.dumps(export, indent=2, ensure_ascii=False).encode("utf-8")
     filename = f"fitsi_all_data_{user_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
 
     return StreamingResponse(
@@ -387,24 +395,32 @@ async def delete_user_data(
 
     deleted_counts = {}
 
-    # Delete all child records first (foreign key order)
-    for model, label in _CHILD_TABLES:
-        stmt = delete(model).where(model.user_id == user_id)
-        result = await session.execute(stmt)
-        count = result.rowcount
-        deleted_counts[label] = count
-        if count > 0:
-            logger.info("GDPR erasure: deleted %d rows from %s for user_id=%s", count, label, user_id)
+    try:
+        # Delete all child records first (foreign key order)
+        for model, label in _CHILD_TABLES:
+            stmt = delete(model).where(model.user_id == user_id)
+            result = await session.execute(stmt)
+            count = result.rowcount
+            deleted_counts[label] = count
+            if count > 0:
+                logger.info("GDPR erasure: deleted %d rows from %s for user_id=%s", count, label, user_id)
 
-    # Delete the user record itself
-    user_to_delete = await session.get(User, user_id)
-    if user_to_delete:
-        await session.delete(user_to_delete)
-        deleted_counts["user"] = 1
-    else:
-        deleted_counts["user"] = 0
+        # Delete the user record itself
+        user_to_delete = await session.get(User, user_id)
+        if user_to_delete:
+            await session.delete(user_to_delete)
+            deleted_counts["user"] = 1
+        else:
+            deleted_counts["user"] = 0
 
-    await session.commit()
+        await session.commit()
+    except Exception as e:
+        await session.rollback()
+        logger.exception("GDPR data erasure failed: user_id=%s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Data deletion failed. Please contact support.",
+        )
 
     # Best-effort: blacklist the current access token so it cannot be reused
     try:

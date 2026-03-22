@@ -36,7 +36,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg';
-import { typography, spacing, radius, useThemeColors } from '../../theme';
+import { typography, spacing, radius, useThemeColors, useLayout } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import FitsiMascot from '../../components/FitsiMascot';
 import ShareProgressCard from '../../components/ShareProgressCard';
@@ -457,7 +457,7 @@ export default function ProgressScreen() {
   const { track } = useAnalytics('Progress');
   const C = useProgressColors();
   const screenWidth = Dimensions.get('window').width;
-  const sidePadding = spacing.lg;
+  const { sidePadding } = useLayout();
   const innerWidth = screenWidth - sidePadding * 2;
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('90D');

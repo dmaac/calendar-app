@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -8,6 +9,8 @@ from ..models.workout import WorkoutLogCreate, WorkoutLogRead, WorkoutSummary, W
 from ..services.workout_service import WorkoutService, estimate_calories
 from .auth import get_current_user
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/workouts", tags=["workouts"])
 
 
@@ -17,9 +20,21 @@ async def log_workout(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    service = WorkoutService(session)
-    workout = await service.log_workout(current_user.id, data)
-    return workout
+    try:
+        service = WorkoutService(session)
+        workout = await service.log_workout(current_user.id, data)
+        return workout
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.exception("Error logging workout for user %s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to log workout",
+        )
 
 
 @router.get("/", response_model=List[WorkoutLogRead])
@@ -29,9 +44,16 @@ async def get_workouts(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    service = WorkoutService(session)
-    workouts = await service.get_workouts(current_user.id, date_from, date_to)
-    return workouts
+    try:
+        service = WorkoutService(session)
+        workouts = await service.get_workouts(current_user.id, date_from, date_to)
+        return workouts
+    except Exception as e:
+        logger.exception("Error fetching workouts for user %s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve workouts",
+        )
 
 
 @router.get("/summary", response_model=WorkoutSummary)
@@ -40,9 +62,16 @@ async def get_workout_summary(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    service = WorkoutService(session)
-    summary = await service.get_workout_summary(current_user.id, days)
-    return summary
+    try:
+        service = WorkoutService(session)
+        summary = await service.get_workout_summary(current_user.id, days)
+        return summary
+    except Exception as e:
+        logger.exception("Error computing workout summary for user %s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to compute workout summary",
+        )
 
 
 @router.get("/estimate-calories")

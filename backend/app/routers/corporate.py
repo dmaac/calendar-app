@@ -342,59 +342,76 @@ async def corporate_leaderboard(
     )
     teams = list(teams_result.all())
 
+    if not teams:
+        return CorporateLeaderboardResponse(
+            company_name=company.name,
+            teams=[],
+            period="last_7_days",
+        )
+
     today = date.today()
     week_ago = datetime.combine(today - timedelta(days=7), dt_time.min)
     today_start = datetime.combine(today, dt_time.min)
     today_end = datetime.combine(today, dt_time.max)
 
-    leaderboard_entries: List[TeamLeaderboardEntry] = []
+    team_ids = [t.id for t in teams]
 
-    for team in teams:
-        # Get members in this team
-        members_result = await session.exec(
-            select(CorporateMembership.user_id).where(
-                CorporateMembership.team_id == team.id
-            )
+    # Batch-load all team memberships in a single query instead of N+1
+    all_memberships_result = await session.exec(
+        select(CorporateMembership.team_id, CorporateMembership.user_id).where(
+            CorporateMembership.team_id.in_(team_ids)  # type: ignore[attr-defined]
         )
-        team_user_ids = list(members_result.all())
-        member_count = len(team_user_ids)
+    )
+    team_members_map: dict[int, list[int]] = {t.id: [] for t in teams}
+    all_member_user_ids: list[int] = []
+    for row in all_memberships_result.all():
+        team_members_map[row[0]].append(row[1])
+        all_member_user_ids.append(row[1])
 
-        if member_count == 0:
-            leaderboard_entries.append(
-                TeamLeaderboardEntry(
-                    team_name=team.name,
-                    member_count=0,
-                    avg_nutriscore=0.0,
-                    active_members=0,
-                )
-            )
-            continue
+    # Batch-load avg calories (last 7 days) grouped by team via user mapping
+    avg_stats_map: dict[int, float] = {}
+    active_stats_map: dict[int, int] = {}
 
-        # Average calories over the last 7 days for team members
+    if all_member_user_ids:
+        # Average calories per user over last 7 days
         avg_result = await session.exec(
-            select(func.avg(AIFoodLog.calories)).where(
-                AIFoodLog.user_id.in_(team_user_ids),  # type: ignore[attr-defined]
+            select(
+                AIFoodLog.user_id,
+                func.avg(AIFoodLog.calories).label("avg_cal"),
+            ).where(
+                AIFoodLog.user_id.in_(all_member_user_ids),  # type: ignore[attr-defined]
                 AIFoodLog.logged_at >= week_ago,
-            )
+            ).group_by(AIFoodLog.user_id)
         )
-        avg_nutriscore = round(float(avg_result.one() or 0), 1)
+        user_avg_map = {row[0]: float(row[1] or 0) for row in avg_result.all()}
 
-        # Active members today
+        # Active users today
         active_result = await session.exec(
-            select(func.count(func.distinct(AIFoodLog.user_id))).where(
-                AIFoodLog.user_id.in_(team_user_ids),  # type: ignore[attr-defined]
+            select(AIFoodLog.user_id).where(
+                AIFoodLog.user_id.in_(all_member_user_ids),  # type: ignore[attr-defined]
                 AIFoodLog.logged_at >= today_start,
                 AIFoodLog.logged_at <= today_end,
-            )
+            ).distinct()
         )
-        active_members = active_result.one() or 0
+        active_user_ids = set(row for row in active_result.all())
 
+        # Aggregate per team
+        for team in teams:
+            t_user_ids = team_members_map[team.id]
+            if t_user_ids:
+                team_avgs = [user_avg_map[uid] for uid in t_user_ids if uid in user_avg_map]
+                avg_stats_map[team.id] = round(sum(team_avgs) / len(team_avgs), 1) if team_avgs else 0.0
+                active_stats_map[team.id] = sum(1 for uid in t_user_ids if uid in active_user_ids)
+
+    leaderboard_entries: List[TeamLeaderboardEntry] = []
+    for team in teams:
+        member_count = len(team_members_map[team.id])
         leaderboard_entries.append(
             TeamLeaderboardEntry(
                 team_name=team.name,
                 member_count=member_count,
-                avg_nutriscore=avg_nutriscore,
-                active_members=active_members,
+                avg_nutriscore=avg_stats_map.get(team.id, 0.0),
+                active_members=active_stats_map.get(team.id, 0),
             )
         )
 
