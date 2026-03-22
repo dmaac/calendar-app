@@ -32,14 +32,7 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 import AnimatedNumber from '../../components/AnimatedNumber';
 import StreakBadge from '../../components/StreakBadge';
 import FitsiMascot from '../../components/FitsiMascot';
-// MINIMALIST REDESIGN Phase 1: removed from HomeScreen
-// import HealthAlerts, { generateHealthAlerts } from '../../components/HealthAlerts';
-// import HealthKitCard from '../../components/HealthKitCard';
-// import FastingTimer from '../../components/FastingTimer';
-// import WellnessScore from '../../components/WellnessScore';
 import useFadeIn from '../../hooks/useFadeIn';
-// MINIMALIST REDESIGN Phase 1: HealthKit card removed
-// import useHealthKit from '../../hooks/useHealthKit';
 import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
@@ -56,21 +49,8 @@ import useNutritionRisk from '../../hooks/useNutritionRisk';
 import RiskSkeleton from '../../components/RiskSkeleton';
 import RecoveryPlanCard, { RecoveryPlanData } from '../../components/RecoveryPlanCard';
 import { apiClient } from '../../services/apiClient';
-// MINIMALIST REDESIGN Phase 1: TrialBanner removed from HomeScreen
-// import TrialBanner from '../../components/TrialBanner';
-
-// ─── Below-the-fold components: lazy loaded to speed up initial render ────────
-// MINIMALIST REDESIGN Phase 1: removed from HomeScreen
-// const NutriScore = lazy(() => import('../../components/NutriScore'));
-// const ExerciseBalanceCard = lazy(() => import('../../components/ExerciseBalanceCard'));
-// const AdaptiveCalorieBanner = lazy(() => import('../../components/AdaptiveCalorieBanner'));
-// const SleepTracker = lazy(() => import('../../components/SleepTracker'));
-// const MoodTracker = lazy(() => import('../../components/MoodTracker'));
-// const DailyChallenges = lazy(() => import('../../components/DailyChallenges'));
-// const OnboardingProgress = lazy(() => import('../../components/OnboardingProgress'));
 
 // ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
-// MINIMALIST REDESIGN Phase 1: tips removed from HomeScreen, kept array for future use
 const DAILY_TIPS = [
   'Beber agua antes de comer puede ayudarte a reducir la ingesta calorica.',
   'La proteina en el desayuno aumenta la saciedad durante toda la manana.',
