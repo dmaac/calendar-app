@@ -611,19 +611,23 @@
                     const tiers = Object.keys(tierBuckets).map(Number).sort((a, b) => a - b);
                     const tierCount = tiers.length;
 
-                    // Hierarchy = top 35% of canvas
-                    const hierTop = 25;
-                    const hierBottom = h * 0.32;
+                    // Layout constants — use FULL canvas width, account for padding
+                    const pad = 20;
+                    const usableW = w - pad * 2;
+
+                    // Hierarchy = top 25% of canvas
+                    const hierTop = pad + 10;
+                    const hierBottom = h * 0.24;
                     const tierSpacing = (hierBottom - hierTop) / Math.max(tierCount - 1, 1);
-                    const MAX_PER_ROW = 25;
+                    const MAX_PER_ROW = 30;
 
                     tiers.forEach((tier, ti) => {
                         const names = tierBuckets[tier];
                         const baseY = hierTop + ti * tierSpacing;
-                        // Pyramid width: narrow at top, wide at bottom
-                        const widthPct = 0.06 + (ti / Math.max(tierCount - 1, 1)) * 0.88;
-                        const totalW = w * widthPct;
-                        const startX = (w - totalW) / 2;
+                        // Pyramid width: 8% at top → 96% at bottom
+                        const widthPct = 0.08 + (ti / Math.max(tierCount - 1, 1)) * 0.88;
+                        const totalW = usableW * widthPct;
+                        const startX = pad + (usableW - totalW) / 2;
 
                         if (names.length <= MAX_PER_ROW) {
                             const gap = totalW / Math.max(names.length, 1);
@@ -632,42 +636,50 @@
                             });
                         } else {
                             const rows = Math.ceil(names.length / MAX_PER_ROW);
-                            const rowH = Math.min(tierSpacing * 0.5 / rows, 14);
+                            const rowH = Math.min(tierSpacing * 0.4 / rows, 12);
                             names.forEach((name, ni) => {
                                 const row = Math.floor(ni / MAX_PER_ROW);
                                 const col = ni % MAX_PER_ROW;
                                 const inRow = Math.min(MAX_PER_ROW, names.length - row * MAX_PER_ROW);
-                                const rowW = totalW;
-                                const rStartX = (w - rowW) / 2;
-                                const gap = rowW / Math.max(inRow, 1);
-                                fixedPos[name] = { x: rStartX + (col + 0.5) * gap, y: baseY + row * rowH };
+                                const gap = totalW / Math.max(inRow, 1);
+                                fixedPos[name] = { x: startX + (col + 0.5) * gap, y: baseY + row * rowH };
                             });
                         }
                     });
 
                     // ── Step 4: Compute positions for ALL SPECIALISTS ──
-                    // Grid layout: each team gets a column, agents stack vertically
+                    // Distribute across FULL canvas width in team blocks
                     const specTeamNames = Object.keys(specByTeam).sort();
-                    const specStartY = h * 0.38;
-                    const availH = h * 0.60;
-                    const cols = Math.min(specTeamNames.length, 12);
-                    const colW = w / cols;
-                    const nodeSpacing = 13; // px between nodes vertically
+                    const specStartY = h * 0.30;
+                    const specEndY = h - pad;
+                    const specH = specEndY - specStartY;
+
+                    // Layout: 6 columns of teams, teams wrap vertically
+                    const gridCols = 6;
+                    const teamBlockW = usableW / gridCols;
+                    const teamBlockH = specH / Math.ceil(specTeamNames.length / gridCols);
+                    const sp = 11; // node spacing within team block
 
                     specTeamNames.forEach((team, ti) => {
                         const names = specByTeam[team];
-                        const colIdx = ti % cols;
-                        const colRow = Math.floor(ti / cols);
-                        const cx = (colIdx + 0.5) * colW;
-                        const baseRow = colRow * (availH / Math.ceil(specTeamNames.length / cols));
-                        // Stack agents vertically within their column
-                        const agentsPerCol = Math.ceil(Math.sqrt(names.length));
+                        const gridCol = ti % gridCols;
+                        const gridRow = Math.floor(ti / gridCols);
+
+                        // Block position
+                        const blockX = pad + gridCol * teamBlockW;
+                        const blockY = specStartY + gridRow * teamBlockH;
+                        const blockCenterX = blockX + teamBlockW / 2;
+
+                        // Lay agents in a compact grid within their block
+                        const perRow = Math.ceil(Math.sqrt(names.length * (teamBlockW / teamBlockH)));
+                        const clampedPerRow = Math.max(perRow, 3);
+
                         names.forEach((name, ni) => {
-                            const subCol = ni % agentsPerCol;
-                            const subRow = Math.floor(ni / agentsPerCol);
+                            const c = ni % clampedPerRow;
+                            const r = Math.floor(ni / clampedPerRow);
                             fixedPos[name] = {
-                                x: cx + (subCol - agentsPerCol / 2) * nodeSpacing,
-                                y: specStartY + baseRow + subRow * nodeSpacing
+                                x: blockCenterX + (c - clampedPerRow / 2) * sp,
+                                y: blockY + 8 + r * sp
                             };
                         });
                     });
