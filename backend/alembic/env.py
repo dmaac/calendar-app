@@ -90,10 +90,20 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """Create an async engine and run migrations inside a sync wrapper."""
+    _connect_args = {}
+    _db_url = settings.database_url_async
+    if "supabase" in _db_url or "pooler.supabase" in _db_url:
+        import ssl
+        _ssl_ctx = ssl.create_default_context()
+        _ssl_ctx.check_hostname = False
+        _ssl_ctx.verify_mode = ssl.CERT_NONE
+        _connect_args = {"ssl": _ssl_ctx, "statement_cache_size": 0}
+
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
-        poolclass=pool.NullPool,  # NullPool is required for migration use
+        poolclass=pool.NullPool,
+        connect_args=_connect_args,
     )
 
     async with connectable.connect() as connection:
