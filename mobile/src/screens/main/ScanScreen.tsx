@@ -491,6 +491,55 @@ export default function ScanScreen({ navigation }: any) {
             )}
           </View>
 
+          {/* AI Provider badge */}
+          {result.ai_provider && (
+            <View
+              style={[
+                styles.aiProviderBadge,
+                {
+                  backgroundColor:
+                    result.ai_provider === 'claude' ? '#7C3AED15' :
+                    result.ai_provider === 'openai' ? '#10B98115' :
+                    c.surface,
+                },
+              ]}
+              accessibilityLabel={`Analizado por ${
+                result.ai_provider === 'claude' ? 'Claude AI' :
+                result.ai_provider === 'openai' ? 'GPT-4o' :
+                'Demo'
+              }`}
+            >
+              <Ionicons
+                name={
+                  result.ai_provider === 'claude' ? 'sparkles' :
+                  result.ai_provider === 'openai' ? 'flash' :
+                  'code-working-outline'
+                }
+                size={13}
+                color={
+                  result.ai_provider === 'claude' ? '#7C3AED' :
+                  result.ai_provider === 'openai' ? '#10B981' :
+                  c.gray
+                }
+              />
+              <Text
+                style={[
+                  styles.aiProviderBadgeText,
+                  {
+                    color:
+                      result.ai_provider === 'claude' ? '#7C3AED' :
+                      result.ai_provider === 'openai' ? '#10B981' :
+                      c.gray,
+                  },
+                ]}
+              >
+                {result.ai_provider === 'claude' ? 'Claude AI' :
+                 result.ai_provider === 'openai' ? 'GPT-4o' :
+                 'Demo'}
+              </Text>
+            </View>
+          )}
+
           {/* Result card — animated scale entrance */}
           <Animated.View
             style={[
@@ -1037,6 +1086,14 @@ const styles = StyleSheet.create({
     paddingVertical: 3, borderRadius: radius.full,
   },
   cacheBadgeText: { fontSize: 11, fontWeight: '700' },
+  aiProviderBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4, borderRadius: radius.full,
+    marginBottom: spacing.sm,
+  },
+  aiProviderBadgeText: { fontSize: 12, fontWeight: '700' },
   calorieBox: { alignItems: 'center', paddingVertical: spacing.sm, gap: 2 },
   calorieValue: { fontSize: 52, fontWeight: '800', letterSpacing: -2 },
   calorieUnit: { ...typography.label },

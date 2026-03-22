@@ -36,6 +36,14 @@ const TOGGLE_KEYS = {
   autoAdjustMacros: '@fitsi_auto_adjust_macros',
 };
 
+const AI_PROVIDER_KEY = '@fitsi_ai_provider';
+const AI_PROVIDER_OPTIONS = [
+  { value: 'auto', label: 'Auto (recomendado)' },
+  { value: 'claude', label: 'Claude AI' },
+  { value: 'openai', label: 'GPT-4o' },
+] as const;
+type AIProviderValue = typeof AI_PROVIDER_OPTIONS[number]['value'];
+
 // ─── Appearance mode button ──────────────────────────────────────────────────
 
 function AppearanceButton({
@@ -254,6 +262,9 @@ export default function SettingsScreen({ navigation }: any) {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [scheduleReminders, setScheduleReminders] = useState(true);
 
+  // AI provider preference
+  const [aiProvider, setAiProvider] = useState<AIProviderValue>('auto');
+
   // Cal AI feature toggles
   const [badgeCelebrations, setBadgeCelebrations] = useState(true);
   const [liveActivity, setLiveActivity] = useState(false);
@@ -265,18 +276,20 @@ export default function SettingsScreen({ navigation }: any) {
   useEffect(() => {
     const loadToggles = async () => {
       try {
-        const [badge, live, burned, rollover, autoAdj] = await Promise.all([
+        const [badge, live, burned, rollover, autoAdj, savedProvider] = await Promise.all([
           AsyncStorage.getItem(TOGGLE_KEYS.badgeCelebrations),
           AsyncStorage.getItem(TOGGLE_KEYS.liveActivity),
           AsyncStorage.getItem(TOGGLE_KEYS.addBurnedCalories),
           AsyncStorage.getItem(TOGGLE_KEYS.rolloverCalories),
           AsyncStorage.getItem(TOGGLE_KEYS.autoAdjustMacros),
+          AsyncStorage.getItem(AI_PROVIDER_KEY),
         ]);
         if (badge !== null) setBadgeCelebrations(badge === 'true');
         if (live !== null) setLiveActivity(live === 'true');
         if (burned !== null) setAddBurnedCalories(burned === 'true');
         if (rollover !== null) setRolloverCalories(rollover === 'true');
         if (autoAdj !== null) setAutoAdjustMacros(autoAdj === 'true');
+        if (savedProvider !== null) setAiProvider(savedProvider as AIProviderValue);
       } catch {}
     };
     loadToggles();
@@ -496,6 +509,21 @@ export default function SettingsScreen({ navigation }: any) {
             onPress={() => {
               haptics.light();
               setUnitSystem((u) => (u === 'metric' ? 'imperial' : 'metric'));
+            }}
+            c={c}
+          />
+          <SettingsRow
+            icon="sparkles-outline"
+            iconColor="#7C3AED"
+            label="AI Provider"
+            value={AI_PROVIDER_OPTIONS.find((o) => o.value === aiProvider)?.label ?? 'Auto'}
+            onPress={() => {
+              haptics.light();
+              const nextIdx = (AI_PROVIDER_OPTIONS.findIndex((o) => o.value === aiProvider) + 1) % AI_PROVIDER_OPTIONS.length;
+              const next = AI_PROVIDER_OPTIONS[nextIdx].value;
+              setAiProvider(next);
+              track('setting_changed', { setting: 'ai_provider', value: next });
+              AsyncStorage.setItem(AI_PROVIDER_KEY, next);
             }}
             c={c}
           />

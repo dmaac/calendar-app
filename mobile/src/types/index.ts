@@ -186,6 +186,7 @@ export interface FoodScanResult {
   logged_at: string;
   image_url: string | null;
   ai_confidence: number;
+  ai_provider: string | null;
   cache_hit: boolean;
 }
 

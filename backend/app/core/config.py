@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # OpenAI (AI Food Scan)
     openai_api_key: str = ""
 
+    # Anthropic (Claude Vision)
+    anthropic_api_key: str = ""
+
+    # AI provider selection: "claude", "openai", "auto" (Claude -> OpenAI -> mock)
+    ai_provider: str = "auto"
+
     # CORS — default to wildcard for local dev only.
     # In production set CORS_ORIGINS to a comma-separated list of allowed origins.
     cors_origins: List[str] = ["*"]

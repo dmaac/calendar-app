@@ -2,14 +2,19 @@
 AI Food Scan Service
 --------------------
 1. Hash image -> check Redis cache -> check DB cache
-2. On miss: call GPT-4o Vision -> parse JSON response
+2. On miss: call AI Vision (Claude or GPT-4o based on AI_PROVIDER setting)
 3. Store result in DB + Redis (30-day TTL)
 4. Save AIFoodLog row for the user
 
-All OpenAI calls are async via httpx to stay non-blocking.
+Provider selection (AI_PROVIDER setting):
+- "claude":  Use Claude Vision only (requires ANTHROPIC_API_KEY)
+- "openai":  Use GPT-4o Vision only (requires OPENAI_API_KEY)
+- "auto":    Try Claude first, fallback to GPT-4o, then mock
+
+All API calls are async via httpx to stay non-blocking.
 
 SEC: Prompt injection mitigated via system-level prompt separation
-SEC: OpenAI errors are sanitized before reaching the client
+SEC: API errors are sanitized before reaching the client
 SEC: Numeric fields validated before database insert
 """
 
@@ -31,6 +36,7 @@ from ..models.ai_food_log import AIFoodLog
 from ..models.ai_scan_cache import AIScanCache
 from ..core.config import settings
 from ..core.cache import cache_get, cache_set, ai_scan_key
+from .claude_vision_service import scan_with_claude
 
 logger = logging.getLogger(__name__)
 
@@ -327,6 +333,64 @@ async def _call_gpt4o_vision(image_bytes: bytes, mime_type: str = "image/jpeg") 
     return dict(GENERIC_FALLBACK_RESPONSE)
 
 
+# ─── Provider dispatch ────────────────────────────────────────────────────────
+
+
+async def _call_ai_vision(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
+    """
+    Dispatch to the correct AI provider based on settings.ai_provider.
+
+    - "claude":  Claude only (requires ANTHROPIC_API_KEY)
+    - "openai":  GPT-4o only (requires OPENAI_API_KEY)
+    - "auto":    Try Claude first, fallback to GPT-4o, then mock
+
+    Always returns a dict with nutrition fields. Never raises — falls back to mock.
+    """
+    provider = settings.ai_provider.lower().strip()
+    has_claude = bool(settings.anthropic_api_key)
+    has_openai = bool(settings.openai_api_key)
+
+    if provider == "claude":
+        if not has_claude:
+            logger.info("AI_PROVIDER=claude but ANTHROPIC_API_KEY not set — returning mock")
+            return _generate_mock_scan()
+        # Compress image before sending
+        compressed_bytes, compressed_mime = _compress_image(image_bytes)
+        try:
+            result = await scan_with_claude(compressed_bytes, compressed_mime)
+            result.setdefault("ai_provider", "claude")
+            return result
+        except ValueError as e:
+            logger.error("Claude Vision failed: %s — returning fallback", e)
+            return dict(GENERIC_FALLBACK_RESPONSE)
+
+    elif provider == "openai":
+        if not has_openai:
+            logger.info("AI_PROVIDER=openai but OPENAI_API_KEY not set — returning mock")
+            return _generate_mock_scan()
+        result = await _call_gpt4o_vision(image_bytes, mime_type)
+        result.setdefault("ai_provider", "openai")
+        return result
+
+    else:  # "auto" — try Claude first, fallback to GPT-4o, then mock
+        if has_claude:
+            compressed_bytes, compressed_mime = _compress_image(image_bytes)
+            try:
+                result = await scan_with_claude(compressed_bytes, compressed_mime)
+                result.setdefault("ai_provider", "claude")
+                return result
+            except ValueError as e:
+                logger.warning("Claude Vision failed (%s), falling back to GPT-4o", e)
+
+        if has_openai:
+            result = await _call_gpt4o_vision(image_bytes, mime_type)
+            result.setdefault("ai_provider", "openai")
+            return result
+
+        logger.info("No AI API keys configured — returning mock scan result")
+        return _generate_mock_scan()
+
+
 # ─── Cache helpers ────────────────────────────────────────────────────────────
 
 def _hash_image(image_bytes: bytes) -> str:
@@ -392,7 +456,7 @@ async def _save_scan_cache(image_hash: str, result: dict, session: AsyncSession)
             protein_g=_sanitize_numeric(result["protein_g"], "protein_g"),
             fats_g=_sanitize_numeric(result["fats_g"], "fats_g"),
             fiber_g=_sanitize_numeric(result.get("fiber_g"), "fiber_g", 0.0),
-            ai_provider="gpt-4o",
+            ai_provider=result.get("ai_provider", "unknown"),
             ai_response=json.dumps(result),
         )
         session.add(cache_row)
@@ -406,7 +470,7 @@ async def _save_scan_cache(image_hash: str, result: dict, session: AsyncSession)
         "protein_g": _sanitize_numeric(result["protein_g"], "protein_g"),
         "fats_g": _sanitize_numeric(result["fats_g"], "fats_g"),
         "fiber_g": _sanitize_numeric(result.get("fiber_g"), "fiber_g", 0.0),
-        "ai_provider": "gpt-4o",
+        "ai_provider": result.get("ai_provider", "unknown"),
     }
     try:
         await cache_set(ai_scan_key(image_hash), json.dumps(scan_data), ttl=30 * 24 * 3600)
@@ -440,13 +504,16 @@ async def scan_and_log_food(
         ai_confidence = 0.95  # Cached results are considered high confidence
         raw_response = json.dumps(cached)
     else:
-        # 2. Call GPT-4o Vision
-        result = await _call_gpt4o_vision(image_bytes)
+        # 2. Call AI Vision (provider selected via AI_PROVIDER setting)
+        result = await _call_ai_vision(image_bytes)
         ai_confidence = float(result.get("confidence", 0.8))
         raw_response = result.get("_raw", "")
 
         # 3. Cache the result
         await _save_scan_cache(image_hash, result, session)
+
+    # Determine which provider produced this result
+    ai_provider_name = result.get("ai_provider", "mock")
 
     # 4. Create food log entry — SEC: sanitize all AI-produced values
     log = AIFoodLog(
@@ -463,7 +530,7 @@ async def scan_and_log_food(
         sugar_g=_sanitize_numeric(result.get("sugar_g"), "sugar_g") if result.get("sugar_g") is not None else None,
         sodium_mg=_sanitize_numeric(result.get("sodium_mg"), "sodium_mg") if result.get("sodium_mg") is not None else None,
         serving_size=_sanitize_string(result.get("serving_size", ""), 200),
-        ai_provider="gpt-4o",
+        ai_provider=ai_provider_name,
         ai_confidence=ai_confidence,
         ai_raw_response=raw_response if not cache_hit else None,
         logged_at=datetime.now(timezone.utc),
@@ -486,6 +553,7 @@ async def scan_and_log_food(
         "meal_type": log.meal_type,
         "logged_at": log.logged_at.isoformat(),
         "image_url": log.image_url,
+        "ai_provider": ai_provider_name,
         "ai_confidence": ai_confidence,
         "cache_hit": cache_hit,
     }

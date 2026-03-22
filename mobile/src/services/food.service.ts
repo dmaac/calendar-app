@@ -4,7 +4,10 @@
  * El endpoint /api/food/scan recibe multipart/form-data con la imagen.
  */
 import { api } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FoodScanResult, AIFoodLog, DailySummary } from '../types';
+
+const AI_PROVIDER_KEY = '@fitsi_ai_provider';
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -23,8 +26,18 @@ export const scanFood = async (
     type: 'image/jpeg',
   } as any);
 
+  const headers: Record<string, string> = { 'Content-Type': 'multipart/form-data' };
+
+  // Send AI provider preference if user has configured one
+  try {
+    const provider = await AsyncStorage.getItem(AI_PROVIDER_KEY);
+    if (provider && provider !== 'auto') {
+      headers['X-AI-Provider'] = provider;
+    }
+  } catch {}
+
   const res = await api.post('/api/food/scan', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers,
     timeout: 60000, // AI calls pueden tardar hasta 60s (backend retries up to 3x)
   });
   return res.data;
