@@ -5,7 +5,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from packaging.version import Version, InvalidVersion
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
@@ -21,6 +21,8 @@ from .core.logging_config import setup_logging
 from .core.response_cache import ResponseCacheMiddleware, response_cache_stats
 from .core.validation import RequestValidationMiddleware
 from .core.performance import PerformanceMiddleware, performance_stats
+from .models.user import User
+from .routers.admin import require_admin
 from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router, webhooks_router, corporate_router, family_router, favorites_router, alerts_router
 
 logger = logging.getLogger(__name__)
@@ -609,8 +611,10 @@ async def api_health_check():
 
 
 @app.get("/api/cache/stats", tags=["admin"])
-async def get_cache_stats():
-    """Cache performance stats: hits, misses, hit ratio, total keys."""
+async def get_cache_stats(
+    current_user: User = Depends(require_admin),
+):
+    """Cache performance stats: hits, misses, hit ratio, total keys. Admin only."""
     from .core.cache import cache_stats
     try:
         return await cache_stats()
@@ -619,27 +623,35 @@ async def get_cache_stats():
 
 
 @app.get("/metrics", tags=["admin"], include_in_schema=False)
-async def prometheus_metrics():
-    """Prometheus-compatible metrics endpoint."""
+async def prometheus_metrics(
+    current_user: User = Depends(require_admin),
+):
+    """Prometheus-compatible metrics endpoint. Admin only."""
     from .core.metrics import collect_metrics
     return Response(content=collect_metrics(), media_type="text/plain; charset=utf-8")
 
 
 @app.get("/api/metrics/performance", tags=["admin"])
-async def get_performance_metrics():
-    """Performance metrics: avg/p50/p95/p99 response times, slow requests, top slow endpoints."""
+async def get_performance_metrics(
+    current_user: User = Depends(require_admin),
+):
+    """Performance metrics: avg/p50/p95/p99 response times, slow requests, top slow endpoints. Admin only."""
     return performance_stats()
 
 
 @app.get("/api/cache/response/stats", tags=["admin"])
-async def get_response_cache_stats():
-    """In-memory response cache stats: hits, misses, hit ratio, entry count."""
+async def get_response_cache_stats(
+    current_user: User = Depends(require_admin),
+):
+    """In-memory response cache stats: hits, misses, hit ratio, entry count. Admin only."""
     return response_cache_stats()
 
 
 @app.get("/api/circuit-breakers", tags=["admin"])
-async def get_circuit_breaker_status():
-    """Status of all registered circuit breakers."""
+async def get_circuit_breaker_status(
+    current_user: User = Depends(require_admin),
+):
+    """Status of all registered circuit breakers. Admin only."""
     from .core.circuit_breaker import all_breaker_statuses
     return {"breakers": all_breaker_statuses()}
 
@@ -647,6 +659,7 @@ async def get_circuit_breaker_status():
 @app.get("/api/stats/users", tags=["admin"])
 async def get_user_stats(
     request: Request,
+    current_user: User = Depends(require_admin),
 ):
     """
     Admin stats: total_users, active_today, premium_count, avg_meals_per_day.

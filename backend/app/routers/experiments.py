@@ -146,8 +146,13 @@ async def experiment_results(
 ):
     """
     View experiment results with per-variant conversion rates and significance.
-    Accessible to all authenticated users (admin-only restriction can be added later).
+    Requires admin privileges.
     """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
     try:
         results = await get_experiment_results(experiment_id, session)
     except ValueError as exc:

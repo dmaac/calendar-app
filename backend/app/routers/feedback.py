@@ -23,6 +23,7 @@ from ..core.pagination import PaginatedResponse, build_paginated_response, pagin
 from ..models.user import User
 from ..models.feedback import Feedback, FeedbackType, FeedbackStatus
 from .auth import get_current_user
+from .admin import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,7 @@ async def list_feedback(
     date_from: Optional[str] = Query(None, description="Filter: start date YYYY-MM-DD (inclusive)"),
     date_to: Optional[str] = Query(None, description="Filter: end date YYYY-MM-DD (inclusive)"),
     order: SortOrder = Query(SortOrder.desc, description="Sort order by created_at"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -197,7 +198,7 @@ async def list_feedback(
 @router.get("/{feedback_id}", response_model=FeedbackResponse)
 async def get_feedback(
     feedback_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     """Get a single feedback entry by ID."""
@@ -215,7 +216,7 @@ async def get_feedback(
 async def update_feedback(
     feedback_id: int,
     body: FeedbackStatusUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     """Update feedback status or admin notes."""

@@ -21,6 +21,7 @@ from ..models.subscription import Subscription
 from ..models.user import User
 from ..models.workout import WorkoutLog
 from .auth import get_current_user
+from .admin import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -129,12 +130,12 @@ async def _compute_retention(
 
 @router.get("/summary", response_model=AnalyticsSummary)
 async def analytics_summary(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     """
     Aggregated analytics summary: DAU, WAU, MAU, retention, feature usage, revenue.
-    Requires authentication. Consider restricting to admins in production.
+    Requires admin privileges.
     """
     try:
         return await _compute_analytics_summary(session)
