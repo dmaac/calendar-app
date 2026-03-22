@@ -668,6 +668,8 @@ export default function HomeScreen({ navigation }: any) {
                   style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
                   onPress={onQuickScan}
                   activeOpacity={0.8}
+                  accessibilityLabel="Escanear comida"
+                  accessibilityRole="button"
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
                     <Ionicons name="camera" size={18} color={c.white} />
@@ -678,6 +680,8 @@ export default function HomeScreen({ navigation }: any) {
                   style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
                   onPress={onQuickWater}
                   activeOpacity={0.8}
+                  accessibilityLabel="Registrar agua"
+                  accessibilityRole="button"
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
                     <Ionicons name="water" size={18} color={c.white} />
@@ -688,6 +692,8 @@ export default function HomeScreen({ navigation }: any) {
                   style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
                   onPress={onQuickFavorites}
                   activeOpacity={0.8}
+                  accessibilityLabel="Ver favoritos"
+                  accessibilityRole="button"
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: '#EF4444' }]}>
                     <Ionicons name="heart" size={18} color={c.white} />

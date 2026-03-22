@@ -278,7 +278,7 @@ export default function ProfileScreen({ navigation }: any) {
           <ActivityIndicator size="small" color={c.black} style={{ marginBottom: spacing.md }} />
         )}
         {profileError && !profileLoading && (
-          <TouchableOpacity style={[styles.errorRow, { backgroundColor: c.accent + '15' }]} onPress={loadProfile} activeOpacity={0.8}>
+          <TouchableOpacity style={[styles.errorRow, { backgroundColor: c.accent + '15' }]} onPress={loadProfile} activeOpacity={0.8} accessibilityLabel="No se pudo cargar el perfil. Toca para reintentar" accessibilityRole="button">
             <Ionicons name="refresh-outline" size={14} color={c.accent} />
             <Text style={[styles.errorRowText, { color: c.accent }]}>No se pudo cargar el perfil. Toca para reintentar</Text>
           </TouchableOpacity>
