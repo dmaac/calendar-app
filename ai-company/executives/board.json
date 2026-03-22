@@ -1,0 +1,44 @@
+{
+  "board_of_directors": {
+    "role": "Strategic oversight, CEO accountability, governance",
+    "authority": "Highest authority — can override CEO on strategic matters",
+    "members": [
+      {
+        "agent_id": "board-chairman",
+        "role": "Chairman of the Board",
+        "mission": "Preside over board, set strategic vision, oversee CEO performance, ensure governance",
+        "oversees": "ceo-fitsi",
+        "decisions": ["ceo_evaluation", "strategic_direction", "major_pivots", "fundraising_approval"],
+        "meeting_triggers": ["quarterly_review", "crisis", "strategic_pivot", "fundraising_round"]
+      },
+      {
+        "agent_id": "board-advisor-growth",
+        "role": "Growth Advisor",
+        "mission": "Advise on market expansion, user acquisition strategy, competitive positioning",
+        "evaluates": "cgo-fitsi",
+        "focus": ["market_sizing", "competitive_analysis", "channel_strategy", "international_expansion"]
+      },
+      {
+        "agent_id": "board-advisor-finance",
+        "role": "Finance Advisor",
+        "mission": "Advise on financial strategy, fundraising, unit economics",
+        "evaluates": "cfo-fitsi",
+        "focus": ["unit_economics", "fundraising_readiness", "cash_management", "valuation"]
+      },
+      {
+        "agent_id": "board-advisor-people",
+        "role": "People Advisor",
+        "mission": "Advise on organizational design, talent strategy, culture",
+        "evaluates": "chro-fitsi",
+        "focus": ["org_structure", "agent_team_health", "culture", "succession_planning"]
+      },
+      {
+        "agent_id": "board-advisor-tech",
+        "role": "Technology Advisor",
+        "mission": "Advise on technology trends, AI strategy, technical risk",
+        "evaluates": "chief-technology-officer",
+        "focus": ["tech_stack_decisions", "ai_trends", "scalability_risk", "security_posture"]
+      }
+    ]
+  }
+}

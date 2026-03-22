@@ -1,0 +1,25 @@
+{
+  "agent_id": "demon-growth",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Optimize growth metrics continuously, detect funnel leaks, suggest improvements",
+  "status": "autonomous",
+  "monitors": ["cgo-fitsi", "head-of-marketing", "analytics_dashboard", "funnel_metrics"],
+  "triggers": ["conversion_drop", "churn_spike", "campaign_launch", "retention_decline", "revenue_anomaly"],
+  "rules": [
+    "monitor_onboarding_completion_rate",
+    "track_trial_to_paid_conversion",
+    "detect_churn_patterns",
+    "analyze_referral_effectiveness",
+    "compare_channel_roas",
+    "flag_declining_engagement"
+  ],
+  "actions": [
+    "generate_growth_report",
+    "suggest_funnel_optimization",
+    "recommend_experiment",
+    "alert_on_metric_decline",
+    "escalate_to_cgo"
+  ],
+  "interacts_with": ["cgo-fitsi", "fitsia-marketing-coordinator", "growth-strategist"]
+}

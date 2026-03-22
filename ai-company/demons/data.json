@@ -1,0 +1,25 @@
+{
+  "agent_id": "demon-data",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Control data quality, detect inconsistencies, ensure pipeline reliability",
+  "status": "autonomous",
+  "monitors": ["cdao-fitsi", "databases", "data_pipelines", "analytics_events"],
+  "triggers": ["data_write", "migration", "pipeline_run", "anomaly_detected", "schema_change"],
+  "rules": [
+    "validate_data_integrity_constraints",
+    "detect_null_anomalies",
+    "flag_schema_drift",
+    "monitor_daily_summary_accuracy",
+    "verify_food_log_consistency",
+    "audit_analytics_event_schema"
+  ],
+  "actions": [
+    "flag_data_inconsistency",
+    "suggest_migration_fix",
+    "generate_data_quality_report",
+    "block_pipeline_on_critical_error",
+    "escalate_to_cdao"
+  ],
+  "interacts_with": ["cdao-fitsi", "fitsia-daily-aggregator", "data-migration-agent"]
+}

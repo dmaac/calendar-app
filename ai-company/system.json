@@ -1,0 +1,156 @@
+{
+  "system_name": "Fitsi IA — Autonomous AI Company",
+  "version": "2.0.0",
+  "mode": "multi-agent-corporate",
+  "project": "fitsi",
+  "description": "Full corporate hierarchy operating Fitsi IA as an autonomous AI-powered company",
+
+  "layers": {
+    "L0_orchestrator": {
+      "name": "Supreme Orchestrator",
+      "agent": "fitsia-orchestrator",
+      "role": "Meta-Control System",
+      "authority": "ABSOLUTE — controls all layers below",
+      "capabilities": [
+        "task_decomposition",
+        "multi_agent_coordination",
+        "priority_management",
+        "conflict_resolution",
+        "self_optimization",
+        "demon_activation",
+        "executive_delegation",
+        "budget_enforcement"
+      ]
+    },
+
+    "L1_demons": {
+      "name": "Control Daemons",
+      "count": 10,
+      "role": "Autonomous monitoring and optimization",
+      "authority": "Can override any agent except Orchestrator and Board",
+      "agents": [
+        "demon-decision",
+        "demon-performance",
+        "demon-intelligence",
+        "demon-security",
+        "demon-data",
+        "demon-growth",
+        "demon-experimentation",
+        "demon-operations",
+        "demon-evolution",
+        "demon-crisis"
+      ]
+    },
+
+    "L2_board": {
+      "name": "Board of Directors",
+      "count": 5,
+      "role": "Strategic oversight and CEO accountability",
+      "authority": "Can override CEO on strategic matters",
+      "agents": [
+        "board-chairman",
+        "board-advisor-growth",
+        "board-advisor-finance",
+        "board-advisor-people",
+        "board-advisor-tech"
+      ]
+    },
+
+    "L3_csuite": {
+      "name": "C-Suite Executives",
+      "count": 9,
+      "role": "Strategic leadership by domain",
+      "authority": "Full authority over their vertical",
+      "agents": [
+        "ceo-fitsi",
+        "coo-fitsi",
+        "chief-technology-officer",
+        "cpo-fitsi",
+        "cfo-fitsi",
+        "cdao-fitsi",
+        "cgo-fitsi",
+        "ciso-fitsi",
+        "chro-fitsi"
+      ]
+    },
+
+    "L4_vps": {
+      "name": "Vice Presidents",
+      "count": 14,
+      "role": "Tactical execution leaders",
+      "authority": "Full authority over their teams",
+      "agents": [
+        "vp-of-engineering",
+        "vp-of-platform",
+        "vp-of-mobile-engineering",
+        "vp-of-ai-systems",
+        "vp-of-product",
+        "head-of-ux-research",
+        "head-of-marketing",
+        "head-of-operations",
+        "head-of-partnerships",
+        "head-of-revenue",
+        "head-of-talent",
+        "chief-software-architect",
+        "head-of-compliance",
+        "head-of-growth-engineering"
+      ]
+    },
+
+    "L5_coordinators": {
+      "name": "Team Coordinators",
+      "count": 11,
+      "role": "Operational team management",
+      "agents": [
+        "fitsia-orchestrator",
+        "fitsia-feature-coordinator",
+        "fitsia-frontend-coordinator",
+        "fitsia-backend-coordinator",
+        "fitsia-ai-coordinator",
+        "fitsia-science-coordinator",
+        "fitsia-devops-coordinator",
+        "fitsia-qa-coordinator",
+        "fitsia-marketing-coordinator",
+        "fitsia-content-coordinator",
+        "fitsia-equipment-coordinator"
+      ]
+    },
+
+    "L6_specialists": {
+      "name": "Specialist Agents",
+      "count": 115,
+      "role": "Task execution",
+      "source": "TEAMS_REGISTRY.md"
+    }
+  },
+
+  "total_agents": {
+    "orchestrator": 1,
+    "demons": 10,
+    "board": 5,
+    "csuite": 9,
+    "vps": 14,
+    "coordinators": 30,
+    "specialists": 1271,
+    "total": 1340
+  },
+
+  "execution_modes": {
+    "autonomous": {
+      "description": "System operates independently, demons monitor and optimize",
+      "requires_human": false,
+      "demon_active": true,
+      "loop_interval_minutes": 5
+    },
+    "supervised": {
+      "description": "System proposes, human approves",
+      "requires_human": true,
+      "demon_active": true
+    },
+    "directed": {
+      "description": "Human gives task, system executes",
+      "requires_human": true,
+      "demon_active": false
+    }
+  }
+}

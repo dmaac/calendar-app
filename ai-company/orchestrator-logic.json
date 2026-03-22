@@ -1,0 +1,177 @@
+{
+  "agent_id": "supreme_orchestrator",
+  "type": "meta-agent",
+  "version": "2.0",
+  "mission": "Coordinate the entire autonomous AI company operating Fitsi IA",
+
+  "decision_engine": {
+    "input": ["task", "context", "priority", "constraints"],
+    "pipeline": [
+      "1_classify_task",
+      "2_assess_complexity",
+      "3_activate_demons",
+      "4_route_to_executive",
+      "5_delegate_to_coordinator",
+      "6_spawn_specialists",
+      "7_collect_results",
+      "8_demon_validation",
+      "9_optimize_feedback"
+    ]
+  },
+
+  "task_classification": {
+    "categories": {
+      "engineering": {
+        "keywords": ["build", "code", "fix", "bug", "feature", "screen", "component", "endpoint", "api", "database", "migration"],
+        "executive": "chief-technology-officer",
+        "vps": ["vp-of-engineering", "vp-of-platform"],
+        "demons": ["demon-performance", "demon-security"]
+      },
+      "ai_ml": {
+        "keywords": ["ai", "model", "vision", "scan", "recognition", "ml", "prediction", "recommendation", "prompt"],
+        "executive": "cdao-fitsi",
+        "vps": ["vp-of-ai-systems"],
+        "demons": ["demon-intelligence", "demon-data"]
+      },
+      "product": {
+        "keywords": ["product", "feature", "ux", "onboarding", "flow", "design", "user experience", "roadmap"],
+        "executive": "cpo-fitsi",
+        "vps": ["vp-of-product", "head-of-ux-research"],
+        "demons": ["demon-decision", "demon-experimentation"]
+      },
+      "mobile": {
+        "keywords": ["mobile", "app", "expo", "react native", "ios", "android", "navigation", "screen"],
+        "executive": "chief-technology-officer",
+        "vps": ["vp-of-mobile-engineering"],
+        "demons": ["demon-performance"]
+      },
+      "growth": {
+        "keywords": ["growth", "retention", "acquisition", "funnel", "conversion", "churn", "viral", "referral"],
+        "executive": "cgo-fitsi",
+        "vps": ["head-of-growth-engineering"],
+        "demons": ["demon-growth", "demon-experimentation"]
+      },
+      "marketing": {
+        "keywords": ["marketing", "ads", "campaign", "social", "content", "aso", "seo", "influencer"],
+        "executive": "cgo-fitsi",
+        "vps": ["head-of-marketing"],
+        "demons": ["demon-growth"]
+      },
+      "security": {
+        "keywords": ["security", "vulnerability", "audit", "compliance", "privacy", "gdpr", "hipaa"],
+        "executive": "ciso-fitsi",
+        "vps": ["head-of-compliance"],
+        "demons": ["demon-security"]
+      },
+      "finance": {
+        "keywords": ["cost", "revenue", "pricing", "subscription", "payment", "budget", "roi"],
+        "executive": "cfo-fitsi",
+        "vps": ["head-of-revenue"],
+        "demons": ["demon-data"]
+      },
+      "operations": {
+        "keywords": ["deploy", "ci/cd", "infrastructure", "monitoring", "devops", "docker", "scaling"],
+        "executive": "coo-fitsi",
+        "vps": ["head-of-operations", "vp-of-platform"],
+        "demons": ["demon-operations", "demon-performance"]
+      },
+      "people": {
+        "keywords": ["team", "hiring", "culture", "talent", "agent", "training", "performance review"],
+        "executive": "chro-fitsi",
+        "vps": ["head-of-talent"],
+        "demons": ["demon-evolution"]
+      },
+      "strategy": {
+        "keywords": ["strategy", "vision", "pivot", "market", "competitor", "expansion", "roadmap"],
+        "executive": "ceo-fitsi",
+        "vps": [],
+        "demons": ["demon-decision"],
+        "escalate_to": "board-chairman"
+      },
+      "crisis": {
+        "keywords": ["crash", "down", "outage", "critical", "emergency", "data loss", "breach"],
+        "executive": "coo-fitsi",
+        "vps": [],
+        "demons": ["demon-crisis", "demon-security"],
+        "priority_override": "P0"
+      }
+    }
+  },
+
+  "complexity_matrix": {
+    "simple": {
+      "teams": 1,
+      "max_tokens": "15K",
+      "max_agents": 2,
+      "executive_involved": false,
+      "demons_active": 0,
+      "example": "Fix a typo, update a color"
+    },
+    "medium": {
+      "teams": "2-3",
+      "max_tokens": "40K",
+      "max_agents": 4,
+      "executive_involved": false,
+      "demons_active": 1,
+      "example": "New screen with API endpoint"
+    },
+    "high": {
+      "teams": "4-6",
+      "max_tokens": "80K",
+      "max_agents": 6,
+      "executive_involved": true,
+      "demons_active": 3,
+      "example": "Full feature E2E with AI"
+    },
+    "critical": {
+      "teams": "all",
+      "max_tokens": "150K",
+      "max_agents": 8,
+      "executive_involved": true,
+      "demons_active": "all",
+      "example": "Launch, major pivot, security breach"
+    }
+  },
+
+  "routing_rules": {
+    "default_flow": "orchestrator → classify → executive → VP → coordinator → agents",
+    "emergency_flow": "orchestrator → crisis_demon → CEO + COO → all hands",
+    "audit_flow": "orchestrator → board → CSO → security_demon → report",
+    "autonomous_flow": "demons detect → orchestrator → auto-assign → execute → feedback"
+  },
+
+  "demon_activation_rules": {
+    "always_active": ["demon-security"],
+    "on_code_change": ["demon-performance", "demon-intelligence"],
+    "on_deploy": ["demon-security", "demon-operations", "demon-crisis"],
+    "on_new_feature": ["demon-decision", "demon-experimentation"],
+    "on_growth_task": ["demon-growth", "demon-data"],
+    "on_error": ["demon-crisis", "demon-operations"],
+    "periodic": ["demon-evolution", "demon-data", "demon-performance"]
+  },
+
+  "feedback_loop": {
+    "after_execution": [
+      "collect_metrics",
+      "demon_evaluation",
+      "save_to_memory",
+      "update_agent_scores",
+      "suggest_improvements"
+    ],
+    "metrics_tracked": [
+      "task_completion_time",
+      "tokens_used",
+      "error_rate",
+      "code_quality_score",
+      "user_satisfaction"
+    ]
+  },
+
+  "escalation_protocol": {
+    "agent_stuck": "→ coordinator → VP → executive",
+    "budget_exceeded": "→ token-monitor → orchestrator → CFO",
+    "quality_issue": "→ QA coordinator → CTO → demon-intelligence",
+    "security_incident": "→ demon-security → CSO → CEO → board",
+    "strategic_conflict": "→ demon-decision → CEO → board-chairman"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "agent_id": "demon-crisis",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Act immediately on critical failures — reassign resources, prioritize fixes, coordinate war rooms",
+  "status": "autonomous",
+  "monitors": ["ALL_SYSTEMS", "error_logs", "crash_reports", "uptime_monitors", "security_alerts"],
+  "triggers": ["crash", "outage", "data_loss", "security_breach", "p0_bug", "revenue_impact", "app_store_rejection"],
+  "rules": [
+    "detect_system_outages_instantly",
+    "classify_severity_p0_p1_p2",
+    "activate_war_room_for_p0",
+    "reassign_all_agents_to_crisis",
+    "ensure_rollback_capability",
+    "document_incident_timeline",
+    "trigger_postmortem_after_resolution"
+  ],
+  "actions": [
+    "ACTIVATE_WAR_ROOM",
+    "reassign_all_resources",
+    "force_rollback",
+    "notify_ceo_and_coo",
+    "generate_incident_report",
+    "trigger_postmortem"
+  ],
+  "priority_override": "P0 — overrides ALL other work",
+  "interacts_with": ["ceo-fitsi", "coo-fitsi", "chief-technology-officer", "supreme_orchestrator"]
+}
