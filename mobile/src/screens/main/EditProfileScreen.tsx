@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, useLayout } from '../../theme';
+import { colors, typography, spacing, radius, useLayout, useThemeColors } from '../../theme';
 import { saveOnboardingStep } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
 
@@ -55,10 +55,23 @@ function recalcPlan(
   return { calories, protein, carbs, fats };
 }
 
+// Default profile for safety if route params are missing
+const DEFAULT_PROFILE: OnboardingProfileRead = {
+  id: 0, user_id: 0, gender: 'male', workouts_per_week: 3, heard_from: null,
+  used_other_apps: false, height_cm: 170, weight_kg: 70, unit_system: 'metric',
+  birth_date: '1995-01-01', goal: 'maintain', target_weight_kg: null,
+  weekly_speed_kg: 0.8, pain_points: null, diet_type: null, accomplishments: null,
+  health_connected: false, notifications_enabled: false, referral_code: null,
+  daily_calories: 2000, daily_carbs_g: 200, daily_protein_g: 120, daily_fats_g: 67,
+  health_score: null, completed_at: null,
+  created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+};
+
 export default function EditProfileScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
-  const profile: OnboardingProfileRead = route.params.profile;
+  const c = useThemeColors();
+  const profile: OnboardingProfileRead = route.params?.profile ?? DEFAULT_PROFILE;
 
   const [weightKg, setWeightKg]         = useState(String(profile.weight_kg ?? ''));
   const [heightCm, setHeightCm]         = useState(String(profile.height_cm ?? ''));
@@ -111,18 +124,18 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: c.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm, paddingHorizontal: sidePadding }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="close" size={20} color={colors.black} />
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm, paddingHorizontal: sidePadding, backgroundColor: c.bg, borderBottomColor: c.grayLight }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: c.surface }]}>
+          <Ionicons name="close" size={20} color={c.black} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Editar perfil</Text>
+        <Text style={[styles.headerTitle, { color: c.black }]}>Editar perfil</Text>
         <TouchableOpacity
           onPress={handleSave}
           disabled={loading}
-          style={[styles.saveBtn, loading && { opacity: 0.5 }]}
+          style={[styles.saveBtn, { backgroundColor: c.black }, loading && { opacity: 0.5 }]}
         >
           <Text style={styles.saveBtnText}>{loading ? 'Guardando...' : 'Guardar'}</Text>
         </TouchableOpacity>
@@ -134,65 +147,65 @@ export default function EditProfileScreen({ navigation, route }: any) {
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
       >
         {/* Medidas */}
-        <Text style={styles.sectionLabel}>Medidas</Text>
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Medidas</Text>
         <View style={styles.row2}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Peso actual (kg)</Text>
-            <View style={styles.inputWrapper}>
+            <Text style={[styles.inputLabel, { color: c.gray }]}>Peso actual (kg)</Text>
+            <View style={[styles.inputWrapper, { backgroundColor: c.surface }]}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: c.black }]}
                 value={weightKg}
                 onChangeText={setWeightKg}
                 keyboardType="decimal-pad"
                 placeholder="70"
-                placeholderTextColor={colors.disabled}
+                placeholderTextColor={c.disabled}
               />
             </View>
           </View>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Altura (cm)</Text>
-            <View style={styles.inputWrapper}>
+            <Text style={[styles.inputLabel, { color: c.gray }]}>Altura (cm)</Text>
+            <View style={[styles.inputWrapper, { backgroundColor: c.surface }]}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: c.black }]}
                 value={heightCm}
                 onChangeText={setHeightCm}
                 keyboardType="decimal-pad"
                 placeholder="170"
-                placeholderTextColor={colors.disabled}
+                placeholderTextColor={c.disabled}
               />
             </View>
           </View>
         </View>
 
         {/* Peso objetivo */}
-        <Text style={styles.sectionLabel}>Peso objetivo (kg)</Text>
-        <View style={styles.inputWrapper}>
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Peso objetivo (kg)</Text>
+        <View style={[styles.inputWrapper, { backgroundColor: c.surface }]}>
           <TextInput
-            style={[styles.input, { flex: 1 }]}
+            style={[styles.input, { flex: 1, color: c.black }]}
             value={targetWeightKg}
             onChangeText={setTargetWeightKg}
             keyboardType="decimal-pad"
             placeholder="Opcional"
-            placeholderTextColor={colors.disabled}
+            placeholderTextColor={c.disabled}
           />
         </View>
 
         {/* Objetivo */}
-        <Text style={styles.sectionLabel}>Tu objetivo</Text>
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Tu objetivo</Text>
         <View style={styles.goalList}>
           {GOAL_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.value}
-              style={[styles.goalCard, goal === opt.value && styles.goalCardActive]}
+              style={[styles.goalCard, { backgroundColor: c.surface }, goal === opt.value && { backgroundColor: c.black, borderColor: c.black }]}
               onPress={() => setGoal(opt.value)}
               activeOpacity={0.8}
             >
               <Ionicons
                 name={opt.icon as any}
                 size={20}
-                color={goal === opt.value ? colors.white : colors.black}
+                color={goal === opt.value ? colors.white : c.black}
               />
-              <Text style={[styles.goalLabel, goal === opt.value && { color: colors.white }]}>
+              <Text style={[styles.goalLabel, { color: c.black }, goal === opt.value && { color: colors.white }]}>
                 {opt.label}
               </Text>
               {goal === opt.value && (
@@ -203,27 +216,27 @@ export default function EditProfileScreen({ navigation, route }: any) {
         </View>
 
         {/* Vista previa del plan recalculado */}
-        <Text style={styles.sectionLabel}>Plan nutricional estimado</Text>
-        <View style={styles.previewCard}>
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Plan nutricional estimado</Text>
+        <View style={[styles.previewCard, { backgroundColor: c.surface }]}>
           <View style={styles.previewRow}>
-            <Text style={styles.previewLabel}>Calorías diarias</Text>
-            <Text style={styles.previewValue}>{preview.calories} kcal</Text>
+            <Text style={[styles.previewLabel, { color: c.black }]}>Calorías diarias</Text>
+            <Text style={[styles.previewValue, { color: c.black }]}>{preview.calories} kcal</Text>
           </View>
           <View style={styles.previewRow}>
-            <Text style={styles.previewLabel}>Proteína</Text>
-            <Text style={[styles.previewValue, { color: colors.protein }]}>{preview.protein}g</Text>
+            <Text style={[styles.previewLabel, { color: c.black }]}>Proteína</Text>
+            <Text style={[styles.previewValue, { color: c.protein }]}>{preview.protein}g</Text>
           </View>
           <View style={styles.previewRow}>
-            <Text style={styles.previewLabel}>Carbohidratos</Text>
-            <Text style={[styles.previewValue, { color: colors.carbs }]}>{preview.carbs}g</Text>
+            <Text style={[styles.previewLabel, { color: c.black }]}>Carbohidratos</Text>
+            <Text style={[styles.previewValue, { color: c.carbs }]}>{preview.carbs}g</Text>
           </View>
           <View style={styles.previewRow}>
-            <Text style={styles.previewLabel}>Grasas</Text>
-            <Text style={[styles.previewValue, { color: colors.fats }]}>{preview.fats}g</Text>
+            <Text style={[styles.previewLabel, { color: c.black }]}>Grasas</Text>
+            <Text style={[styles.previewValue, { color: c.fats }]}>{preview.fats}g</Text>
           </View>
         </View>
 
-        <Text style={styles.note}>
+        <Text style={[styles.note, { color: c.disabled }]}>
           El plan se recalcula usando la fórmula Mifflin-St Jeor con los nuevos valores.
         </Text>
 

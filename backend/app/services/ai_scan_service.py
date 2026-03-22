@@ -351,10 +351,10 @@ async def get_food_logs(
         # SEC: Validate date format before using in query
         from datetime import date as date_type
         try:
-            date_type.fromisoformat(date)
+            parsed_date = date_type.fromisoformat(date)
         except ValueError:
             return []
-        stmt = stmt.where(func.date(AIFoodLog.logged_at) == date)
+        stmt = stmt.where(func.date(AIFoodLog.logged_at) == parsed_date)
 
     stmt = stmt.limit(limit).offset(offset)
     result = await session.execute(stmt)
@@ -410,7 +410,7 @@ async def get_daily_summary(
         )
         .where(
             AIFoodLog.user_id == user_id,
-            func.date(AIFoodLog.logged_at) == date,
+            func.date(AIFoodLog.logged_at) == date_obj,
         )
     )
 
@@ -448,7 +448,7 @@ async def get_daily_summary(
     target_fats_g = (profile_row.daily_fats_g if profile_row and profile_row.daily_fats_g else 65)
     water_ml = float(water_row.water_ml or 0) if water_row else 0.0
 
-    streak = await _calculate_streak(user_id=user_id, today=date, session=session)
+    streak = await _calculate_streak(user_id=user_id, today=date_obj, session=session)
 
     return {
         "date": date,
@@ -466,7 +466,7 @@ async def get_daily_summary(
     }
 
 
-async def _calculate_streak(user_id: int, today: str, session: AsyncSession) -> int:
+async def _calculate_streak(user_id: int, today, session: AsyncSession) -> int:
     """
     Count consecutive days with >=1 food log ending on `today`.
     Uses a pure-SQL window approach: assigns a group number to each consecutive

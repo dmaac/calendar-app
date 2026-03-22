@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { ProgressBar, FAB } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,9 @@ import { DailySummary, MealLog } from '../types';
 import ApiService from '../services/api';
 import CircularProgress from '../components/CircularProgress';
 import { theme } from '../theme';
+import OfflineBanner from '../components/OfflineBanner';
+import { fetchWithCache, getOfflineQueue } from '../services/offlineStore';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 interface NutritionDashboardScreenProps {
   navigation: any;
@@ -25,29 +29,40 @@ const NutritionDashboardScreen: React.FC<NutritionDashboardScreenProps> = ({ nav
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [meals, setMeals] = useState<MealLog[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const { isConnected } = useNetworkStatus();
 
   const today = new Date().toISOString().split('T')[0];
 
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
+      checkPendingSync();
     }, [])
   );
+
+  const checkPendingSync = async () => {
+    const queue = await getOfflineQueue();
+    setPendingSyncCount(queue.filter((a) => a.type === 'log_food' || a.type === 'log_meal').length);
+  };
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [summaryData, mealsData] = await Promise.all([
-        ApiService.getDailySummary(today),
-        ApiService.getMeals(today),
+      const [summaryResult, mealsResult] = await Promise.allSettled([
+        fetchWithCache<DailySummary>('dashboard/today', () => ApiService.getDailySummary(today)),
+        fetchWithCache<MealLog[]>('food/logs', () => ApiService.getMeals(today)),
       ]);
-      setSummary(summaryData);
-      setMeals(mealsData);
-    } catch (error: any) {
-      if (error?.response?.status !== 404) {
-        console.error('Error fetching dashboard data:', error);
+
+      if (summaryResult.status === 'fulfilled') {
+        setSummary(summaryResult.value.data);
       }
-      if (!summary) {
+      if (mealsResult.status === 'fulfilled') {
+        setMeals(mealsResult.value.data);
+      }
+
+      // If both failed and no summary yet, set defaults
+      if (summaryResult.status === 'rejected' && !summary) {
         setSummary({
           date: today,
           total_calories: 0,
@@ -63,8 +78,13 @@ const NutritionDashboardScreen: React.FC<NutritionDashboardScreenProps> = ({ nav
           streak_days: 0,
         });
       }
+    } catch (error: any) {
+      if (error?.response?.status !== 404) {
+        console.error('Error fetching dashboard data:', error);
+      }
     } finally {
       setIsLoading(false);
+      checkPendingSync();
     }
   };
 
@@ -130,17 +150,19 @@ const NutritionDashboardScreen: React.FC<NutritionDashboardScreenProps> = ({ nav
   const caloriesTarget = summary?.target_calories ?? 2000;
   const caloriesRemaining = Math.max(0, caloriesTarget - caloriesConsumed);
 
-  const proteinCurrent = summary?.total_protein ?? 0;
-  const proteinTarget = summary?.target_protein ?? 150;
-  const carbsCurrent = summary?.total_carbs ?? 0;
-  const carbsTarget = summary?.target_carbs ?? 250;
-  const fatCurrent = summary?.total_fat ?? 0;
-  const fatTarget = summary?.target_fat ?? 65;
+  const proteinCurrent = summary?.total_protein_g ?? 0;
+  const proteinTarget = summary?.target_protein_g ?? 150;
+  const carbsCurrent = summary?.total_carbs_g ?? 0;
+  const carbsTarget = summary?.target_carbs_g ?? 250;
+  const fatCurrent = summary?.total_fats_g ?? 0;
+  const fatTarget = summary?.target_fats_g ?? 65;
 
   const userName = user?.first_name || 'there';
 
   return (
     <View style={styles.container}>
+      <OfflineBanner />
+
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -165,6 +187,13 @@ const NutritionDashboardScreen: React.FC<NutritionDashboardScreenProps> = ({ nav
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={fetchDashboardData}
+            tintColor={theme.colors.primary}
+          />
+        }
       >
         {/* Calorie Ring Hero */}
         <View style={styles.calorieCard}>
@@ -285,7 +314,17 @@ const NutritionDashboardScreen: React.FC<NutritionDashboardScreenProps> = ({ nav
 
         {/* Today's Meals */}
         <View style={styles.mealsSection}>
-          <Text style={styles.cardTitle}>Today's Meals</Text>
+          <View style={styles.mealsSectionHeader}>
+            <Text style={styles.cardTitle}>Today's Meals</Text>
+            {pendingSyncCount > 0 && (
+              <View style={styles.syncBadge}>
+                <Ionicons name="cloud-upload-outline" size={12} color="#92400E" />
+                <Text style={styles.syncBadgeText}>
+                  {pendingSyncCount} pending sync
+                </Text>
+              </View>
+            )}
+          </View>
           {meals.length === 0 ? (
             <View style={styles.emptyMealCard}>
               <Ionicons name="restaurant-outline" size={36} color={theme.colors.textLight} />
@@ -516,6 +555,26 @@ const styles = StyleSheet.create({
   // Meals Section
   mealsSection: {
     marginTop: 4,
+  },
+  mealsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  syncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  syncBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#92400E',
   },
   emptyMealCard: {
     ...theme.card,

@@ -21,8 +21,11 @@ interface SuccessCheckmarkProps {
   onAnimationEnd?: () => void;
 }
 
-const PARTICLE_COUNT = 8;
-const PARTICLE_COLORS = ['#F59E0B', '#EF4444', '#3B82F6', '#10B981', '#EC4899', '#8B5CF6', '#F97316', '#06B6D4'];
+const PARTICLE_COUNT = 10;
+const PARTICLE_COLORS = ['#F59E0B', '#EF4444', '#3B82F6', '#10B981', '#EC4899', '#8B5CF6', '#F97316', '#06B6D4', '#14B8A6', '#A855F7'];
+
+// Vary particle sizes for a more organic burst
+const PARTICLE_SIZES = [6, 8, 10, 7, 9, 6, 8, 10, 7, 9];
 
 export default function SuccessCheckmark({
   size = 88,
@@ -33,6 +36,9 @@ export default function SuccessCheckmark({
   const checkScale = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(0)).current;
   const ringOpacity = useRef(new Animated.Value(1)).current;
+  // Second ring for depth
+  const ring2Scale = useRef(new Animated.Value(0)).current;
+  const ring2Opacity = useRef(new Animated.Value(0.6)).current;
   const particles = useRef(
     Array.from({ length: PARTICLE_COUNT }, () => ({
       translateX: new Animated.Value(0),
@@ -45,63 +51,81 @@ export default function SuccessCheckmark({
   useEffect(() => {
     haptics.success();
 
-    // Main checkmark bounce
+    // Main checkmark bounce — tighter spring for snappy feel
     Animated.spring(checkScale, {
       toValue: 1,
-      friction: 4,
-      tension: 100,
+      friction: 5,
+      tension: 120,
       useNativeDriver: true,
     }).start();
 
-    // Expanding ring
+    // Primary expanding ring
     Animated.parallel([
       Animated.timing(ringScale, {
-        toValue: 2.2,
-        duration: 600,
+        toValue: 2.4,
+        duration: 550,
         useNativeDriver: true,
       }),
       Animated.timing(ringOpacity, {
         toValue: 0,
-        duration: 600,
+        duration: 550,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Particle burst
+    // Secondary ring — delayed, slightly larger, for depth
+    Animated.parallel([
+      Animated.timing(ring2Scale, {
+        toValue: 1.8,
+        duration: 500,
+        delay: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(ring2Opacity, {
+        toValue: 0,
+        duration: 500,
+        delay: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Particle burst — staggered delays for cascade effect
     if (showParticles) {
       const particleAnims = particles.map((p, i) => {
-        const angle = (i / PARTICLE_COUNT) * 2 * Math.PI;
-        const distance = size * 0.9 + Math.random() * 20;
+        const angle = (i / PARTICLE_COUNT) * 2 * Math.PI + (Math.random() * 0.3 - 0.15);
+        const distance = size * 0.85 + Math.random() * 30;
+        // Stagger: each particle launches slightly after the previous
+        const staggerDelay = 80 + i * 25;
         return Animated.parallel([
           Animated.sequence([
             Animated.timing(p.scale, {
               toValue: 1,
-              duration: 150,
-              delay: 100,
+              duration: 120,
+              delay: staggerDelay,
               useNativeDriver: true,
             }),
             Animated.timing(p.scale, {
               toValue: 0,
-              duration: 400,
+              duration: 350,
               useNativeDriver: true,
             }),
           ]),
           Animated.timing(p.translateX, {
             toValue: Math.cos(angle) * distance,
-            duration: 550,
-            delay: 100,
+            duration: 500,
+            delay: staggerDelay,
             useNativeDriver: true,
           }),
           Animated.timing(p.translateY, {
             toValue: Math.sin(angle) * distance,
-            duration: 550,
-            delay: 100,
+            duration: 500,
+            delay: staggerDelay,
             useNativeDriver: true,
           }),
           Animated.timing(p.opacity, {
             toValue: 0,
-            duration: 400,
-            delay: 250,
+            duration: 350,
+            delay: staggerDelay + 150,
             useNativeDriver: true,
           }),
         ]);
@@ -122,7 +146,7 @@ export default function SuccessCheckmark({
       accessibilityLabel="Completado exitosamente"
       accessibilityRole="image"
     >
-      {/* Expanding ring */}
+      {/* Primary expanding ring */}
       <Animated.View
         style={[
           styles.ring,
@@ -137,28 +161,47 @@ export default function SuccessCheckmark({
         ]}
       />
 
-      {/* Particles */}
+      {/* Secondary ring — delayed for depth */}
+      <Animated.View
+        style={[
+          styles.ring,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderColor: color,
+            borderWidth: 2,
+            transform: [{ scale: ring2Scale }],
+            opacity: ring2Opacity,
+          },
+        ]}
+      />
+
+      {/* Particles — staggered with variable sizes */}
       {showParticles &&
-        particles.map((p, i) => (
-          <Animated.View
-            key={i}
-            style={[
-              styles.particle,
-              {
-                backgroundColor: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                transform: [
-                  { translateX: p.translateX },
-                  { translateY: p.translateY },
-                  { scale: p.scale },
-                ],
-                opacity: p.opacity,
-              },
-            ]}
-          />
-        ))}
+        particles.map((p, i) => {
+          const pSize = PARTICLE_SIZES[i % PARTICLE_SIZES.length];
+          return (
+            <Animated.View
+              key={i}
+              style={[
+                styles.particle,
+                {
+                  backgroundColor: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+                  width: pSize,
+                  height: pSize,
+                  borderRadius: pSize / 2,
+                  transform: [
+                    { translateX: p.translateX },
+                    { translateY: p.translateY },
+                    { scale: p.scale },
+                  ],
+                  opacity: p.opacity,
+                },
+              ]}
+            />
+          );
+        })}
 
       {/* Checkmark circle */}
       <Animated.View

@@ -62,19 +62,21 @@ export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorP
       setDirection(isForward ? 'forward' : 'back');
       prevStep.current = currentStep;
 
-      // Reset for entrance
+      // Reset for entrance — start off-screen and transparent
       fadeAnim.setValue(0);
-      slideAnim.setValue(isForward ? 30 : -30);
+      slideAnim.setValue(isForward ? 40 : -40);
 
+      // Spring-based entrance for natural, bouncy feel
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 250,
+          duration: 220,
           useNativeDriver: true,
         }),
-        Animated.timing(slideAnim, {
+        Animated.spring(slideAnim, {
           toValue: 0,
-          duration: 250,
+          friction: 8,
+          tension: 65,
           useNativeDriver: true,
         }),
       ]).start();
@@ -86,10 +88,10 @@ export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorP
     if (currentStep >= TOTAL_STEPS) {
       handleComplete();
     } else {
-      // Animate out, then switch step
+      // Snappy exit — quick fade + slide out to the left
       Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: -30, duration: 150, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: -40, duration: 120, useNativeDriver: true }),
       ]).start(() => {
         setCurrentStep(currentStep + 1);
       });
@@ -99,9 +101,10 @@ export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorP
   const goBack = useCallback(() => {
     haptics.light();
     if (currentStep > 1) {
+      // Snappy exit — quick fade + slide out to the right
       Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 30, duration: 150, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 40, duration: 120, useNativeDriver: true }),
       ]).start(() => {
         setCurrentStep(currentStep - 1);
       });

@@ -7,10 +7,10 @@ import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
 
 const FEATURES = [
-  { icon: 'lock-closed-outline', text: 'Tus datos están cifrados y nunca se venden' },
-  { icon: 'eye-off-outline',     text: 'Nunca compartimos tu información personal' },
-  { icon: 'shield-checkmark-outline', text: 'Almacenamiento de datos con cumplimiento HIPAA' },
-  { icon: 'trash-outline',       text: 'Elimina tus datos en cualquier momento' },
+  { icon: 'lock-closed-outline',       text: 'Tus datos estan cifrados y nunca se venden' },
+  { icon: 'eye-off-outline',           text: 'Nunca compartimos tu informacion personal' },
+  { icon: 'shield-checkmark-outline',  text: 'Almacenamiento seguro con estandares de la industria' },
+  { icon: 'trash-outline',             text: 'Elimina tus datos en cualquier momento' },
 ];
 
 export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -19,8 +19,17 @@ export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepPr
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 10, bounciness: 4 }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 10,
+        bounciness: 4,
+      }),
     ]).start();
   }, []);
 
@@ -31,21 +40,42 @@ export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepPr
       onBack={onBack}
       footer={<PrimaryButton label="Entendido" onPress={onNext} />}
     >
-      <Text style={styles.title}>Tu privacidad{'\n'}es nuestra prioridad</Text>
+      <Text
+        style={styles.title}
+        accessibilityRole="header"
+      >
+        Tu privacidad{'\n'}es nuestra prioridad
+      </Text>
 
-      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-        {/* Big lock icon */}
-        <View style={styles.iconCircle}>
+      <Animated.View
+        style={[
+          styles.content,
+          { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+        ]}
+      >
+        {/* Shield icon */}
+        <View
+          style={styles.iconCircle}
+          accessibilityLabel="Icono de proteccion y seguridad"
+        >
           <Ionicons name="shield-checkmark" size={56} color={colors.black} />
         </View>
 
         <Text style={styles.subtitle}>
-          Nos tomamos tu privacidad en serio. Aquí está nuestro compromiso contigo:
+          Nos tomamos tu privacidad en serio.{'\n'}Este es nuestro compromiso contigo:
         </Text>
 
-        <View style={styles.features}>
+        <View
+          style={styles.features}
+          accessibilityRole="list"
+        >
           {FEATURES.map((f, i) => (
-            <View key={i} style={styles.featureRow}>
+            <View
+              key={i}
+              style={styles.featureRow}
+              accessibilityLabel={f.text}
+              accessibilityRole="text"
+            >
               <View style={styles.featureIcon}>
                 <Ionicons name={f.icon as any} size={20} color={colors.black} />
               </View>
@@ -64,10 +94,19 @@ export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepPr
 }
 
 const styles = StyleSheet.create({
-  title: { ...typography.title, color: colors.black, marginTop: spacing.md },
-  content: { flex: 1, justifyContent: 'center', gap: spacing.xl },
+  title: {
+    ...typography.title,
+    color: colors.black,
+    marginTop: spacing.md,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing.xl,
+  },
   iconCircle: {
-    width: 100, height: 100,
+    width: 100,
+    height: 100,
     borderRadius: 50,
     backgroundColor: colors.surface,
     justifyContent: 'center',
@@ -76,12 +115,14 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.subtitle,
-    color: colors.black,
+    color: colors.gray,
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: spacing.md,
   },
-  features: { gap: spacing.md },
+  features: {
+    gap: spacing.md,
+  },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -91,18 +132,27 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   featureIcon: {
-    width: 36, height: 36,
+    width: 36,
+    height: 36,
     borderRadius: 18,
     backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  featureText: { ...typography.option, color: colors.black, flex: 1, lineHeight: 22 },
+  featureText: {
+    ...typography.option,
+    color: colors.black,
+    flex: 1,
+    lineHeight: 22,
+  },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
   },
-  badgeText: { ...typography.caption, color: colors.gray },
+  badgeText: {
+    ...typography.caption,
+    color: colors.gray,
+  },
 });

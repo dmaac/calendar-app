@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, MAX_WIDTH, useLayout } from '../../theme';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
+import FitsiMascot from '../../components/FitsiMascot';
 
 interface Step02Props extends StepProps {
   onSkipToLogin: () => void;
@@ -35,22 +36,39 @@ export default function Step02Welcome({ onNext, onSkipToLogin }: Step02Props) {
       <View style={[styles.root, { width: contentWidth, alignSelf: 'center' }]}>
 
         {/* Phone mockup */}
-        <Animated.View style={[styles.mockupWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View
+          style={[styles.mockupWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+          accessibilityLabel="Vista previa de la camara de escaneo de alimentos"
+        >
           <PhoneMockup />
+        </Animated.View>
+
+        {/* Fitsi saludando */}
+        <Animated.View style={[{ opacity: fadeAnim, alignItems: 'center', marginBottom: spacing.sm }]}>
+          <FitsiMascot expression="wink" size="medium" animation="wave" />
         </Animated.View>
 
         {/* Texto */}
         <Animated.View style={[styles.textBlock, { opacity: fadeAnim }]}>
-          <Text style={styles.title}>Registra calorías y{'\n'}horarios fácilmente</Text>
+          <Text style={styles.title}>Registra calorias con{'\n'}una simple foto</Text>
+          <Text style={styles.subtitleText}>
+            Nuestra IA identifica tu comida al instante
+          </Text>
         </Animated.View>
 
         {/* CTAs */}
         <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
           <PrimaryButton label="Comenzar" onPress={onNext} />
-          <TouchableOpacity onPress={onSkipToLogin} style={styles.signInBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={onSkipToLogin}
+            style={styles.signInBtn}
+            activeOpacity={0.7}
+            accessibilityLabel="Iniciar sesion con cuenta existente"
+            accessibilityRole="button"
+          >
             <Text style={styles.signInText}>
-              ¿Ya tienes una cuenta?{' '}
-              <Text style={styles.signInBold}>Iniciar sesión</Text>
+              Ya tienes una cuenta?{' '}
+              <Text style={styles.signInBold}>Iniciar sesion</Text>
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -135,6 +153,12 @@ const styles = StyleSheet.create({
     ...typography.title,
     color: colors.black,
     textAlign: 'center',
+  },
+  subtitleText: {
+    ...typography.subtitle,
+    color: colors.gray,
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   actions: {
     gap: spacing.sm,

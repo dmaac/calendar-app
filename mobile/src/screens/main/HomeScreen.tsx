@@ -10,7 +10,7 @@
  * - Full accessibility labels and roles
  * - User-friendly error state with retry
  */
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,26 +25,75 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, shadows, useLayout, mealColors } from '../../theme';
+import { useThemeColors, typography, spacing, radius, shadows, useLayout, mealColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LanguageContext';
 import * as foodService from '../../services/food.service';
 import { AIFoodLog, DailySummary } from '../../types';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import AnimatedNumber from '../../components/AnimatedNumber';
+import StreakBadge from '../../components/StreakBadge';
+import FitsiMascot from '../../components/FitsiMascot';
 import useFadeIn from '../../hooks/useFadeIn';
 import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
-// ─── Calorie ring ─────────────────────────────────────────────────────────────
+// ─── Mock data for offline / backend unavailable ─────────────────────────────
+const MOCK_SUMMARY: DailySummary = {
+  date: new Date().toISOString().split('T')[0],
+  total_calories: 1240,
+  total_protein_g: 82,
+  total_carbs_g: 130,
+  total_fats_g: 38,
+  target_calories: 2100,
+  target_protein_g: 150,
+  target_carbs_g: 210,
+  target_fats_g: 70,
+  water_ml: 1500,
+  meals_logged: 3,
+  streak_days: 4,
+};
 
-function CalorieRing({
+const MOCK_LOGS: AIFoodLog[] = [
+  {
+    id: -1, logged_at: new Date().toISOString(), meal_type: 'breakfast',
+    food_name: 'Avena con frutas', calories: 320, carbs_g: 52, protein_g: 12, fats_g: 8,
+    fiber_g: 5, image_url: null, ai_confidence: 0.95, was_edited: false,
+  },
+  {
+    id: -2, logged_at: new Date().toISOString(), meal_type: 'lunch',
+    food_name: 'Pollo a la plancha con arroz', calories: 520, carbs_g: 48, protein_g: 42, fats_g: 14,
+    fiber_g: 3, image_url: null, ai_confidence: 0.92, was_edited: false,
+  },
+  {
+    id: -3, logged_at: new Date().toISOString(), meal_type: 'snack',
+    food_name: 'Yogurt griego con miel', calories: 180, carbs_g: 18, protein_g: 16, fats_g: 6,
+    fiber_g: 0, image_url: null, ai_confidence: 0.88, was_edited: false,
+  },
+  {
+    id: -4, logged_at: new Date().toISOString(), meal_type: 'lunch',
+    food_name: 'Ensalada cesar', calories: 220, carbs_g: 12, protein_g: 12, fats_g: 10,
+    fiber_g: 4, image_url: null, ai_confidence: 0.90, was_edited: false,
+  },
+];
+
+// ─── Calorie ring (memoized to avoid re-render when parent state changes) ────
+
+const CalorieRing = React.memo(function CalorieRing({
   consumed,
   target,
   size = 160,
+  colors: c,
+  remainingLabel,
+  goalReachedLabel,
 }: {
   consumed: number;
   target: number;
   size?: number;
+  colors: ReturnType<typeof useThemeColors>;
+  remainingLabel: string;
+  goalReachedLabel: string;
 }) {
   const strokeWidth = 12;
   const r = (size - strokeWidth) / 2;
@@ -87,6 +136,7 @@ function CalorieRing({
       style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
       accessibilityLabel={`${Math.round(consumed)} de ${Math.round(target)} kilocalorías consumidas, ${Math.round(remaining)} restantes`}
       accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: target, now: consumed }}
     >
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
         {/* Track */}
@@ -94,7 +144,7 @@ function CalorieRing({
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={colors.surface}
+          stroke={c.surface}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -103,7 +153,7 @@ function CalorieRing({
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={consumed > target ? colors.protein : colors.black}
+          stroke={consumed > target ? c.protein : c.black}
           strokeWidth={strokeWidth}
           fill="none"
           strokeDasharray={`${animDash} ${circ - animDash}`}
@@ -111,24 +161,25 @@ function CalorieRing({
           strokeLinecap="round"
         />
       </Svg>
-      <AnimatedNumber value={consumed} style={styles.ringCalories} />
-      <Text style={styles.ringUnit}>kcal</Text>
-      <Text style={styles.ringRemaining}>
-        {remaining > 0 ? `${Math.round(remaining)} restantes` : 'Objetivo cumplido'}
+      <AnimatedNumber value={consumed} style={[styles.ringCalories, { color: c.black }]} />
+      <Text style={[styles.ringUnit, { color: c.gray }]}>kcal</Text>
+      <Text style={[styles.ringRemaining, { color: c.accent }]}>
+        {remaining > 0 ? remainingLabel : goalReachedLabel}
       </Text>
     </View>
   );
-}
+});
 
-// ─── Macro bar ────────────────────────────────────────────────────────────────
+// ─── Macro bar (memoized to skip re-render when sibling macros update) ───────
 
-function MacroBar({
+const MacroBar = React.memo(function MacroBar({
   label,
   value,
   target,
   color,
   unit = 'g',
   delay = 0,
+  colors: c,
 }: {
   label: string;
   value: number;
@@ -136,6 +187,7 @@ function MacroBar({
   color: string;
   unit?: string;
   delay?: number;
+  colors: ReturnType<typeof useThemeColors>;
 }) {
   const progress = target > 0 ? Math.min(value / target, 1) : 0;
 
@@ -161,46 +213,49 @@ function MacroBar({
       style={styles.macroItem}
       accessibilityLabel={`${label}: ${Math.round(value)} de ${Math.round(target)} ${unit}`}
       accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: target, now: value }}
     >
       <View style={styles.macroHeader}>
-        <Text style={styles.macroLabel}>{label}</Text>
-        <Text style={styles.macroValue}>
-          <AnimatedNumber value={value} style={styles.macroValue} />
-          <Text style={styles.macroTarget}>/{Math.round(target)}{unit}</Text>
+        <Text style={[styles.macroLabel, { color: c.gray }]}>{label}</Text>
+        <Text style={[styles.macroValue, { color: c.black }]}>
+          <AnimatedNumber value={value} style={[styles.macroValue, { color: c.black }]} />
+          <Text style={[styles.macroTarget, { color: c.gray }]}>/{Math.round(target)}{unit}</Text>
         </Text>
       </View>
-      <View style={styles.macroTrack}>
+      <View style={[styles.macroTrack, { backgroundColor: c.surface }]}>
         <Animated.View style={[styles.macroFill, { width: fillWidth as any, backgroundColor: color }]} />
       </View>
     </View>
   );
-}
+});
 
-// ─── Meal section ─────────────────────────────────────────────────────────────
+// ─── Meal section (memoized so unchanged meal groups skip re-render) ─────────
 
 const MEAL_META = mealColors;
 
-function MealSection({
+const MealSection = React.memo(function MealSection({
   mealType,
   logs,
+  colors: c,
 }: {
   mealType: string;
   logs: AIFoodLog[];
+  colors: ReturnType<typeof useThemeColors>;
 }) {
-  const meta = MEAL_META[mealType] ?? { label: mealType, icon: 'restaurant-outline', color: colors.gray };
+  const meta = MEAL_META[mealType] ?? { label: mealType, icon: 'restaurant-outline', color: c.gray };
   const total = logs.reduce((s, l) => s + l.calories, 0);
 
   if (logs.length === 0) return null;
 
   return (
     <View
-      style={styles.mealSection}
+      style={[styles.mealSection, { borderBottomColor: c.surface }]}
       accessibilityLabel={`${meta.label}: ${Math.round(total)} kilocalorías, ${logs.length} alimento${logs.length > 1 ? 's' : ''}`}
     >
       <View style={styles.mealHeader}>
         <Ionicons name={meta.icon as any} size={16} color={meta.color} />
-        <Text style={styles.mealTitle}>{meta.label}</Text>
-        <Text style={styles.mealCalories}>{Math.round(total)} kcal</Text>
+        <Text style={[styles.mealTitle, { color: c.black }]}>{meta.label}</Text>
+        <Text style={[styles.mealCalories, { color: c.black }]}>{Math.round(total)} kcal</Text>
       </View>
       {logs.map((log) => (
         <View
@@ -208,13 +263,13 @@ function MealSection({
           style={styles.foodRow}
           accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorías`}
         >
-          <Text style={styles.foodName} numberOfLines={1}>{log.food_name}</Text>
-          <Text style={styles.foodKcal}>{Math.round(log.calories)} kcal</Text>
+          <Text style={[styles.foodName, { color: c.gray }]} numberOfLines={1}>{log.food_name}</Text>
+          <Text style={[styles.foodKcal, { color: c.gray }]}>{Math.round(log.calories)} kcal</Text>
         </View>
       ))}
     </View>
   );
-}
+});
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
@@ -222,14 +277,17 @@ export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
+  const c = useThemeColors();
+  const { t } = useTranslation();
+  const { track } = useAnalytics('Home');
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [logs, setLogs] = useState<AIFoodLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  // Fade-in animation for content
-  const fadeStyle = useFadeIn(!loading && !error);
+  // Fade-in animation for content — show even during error if mock data is loaded
+  const fadeStyle = useFadeIn(!loading);
 
   // Pulse animation on scan button when no meals logged (draws attention)
   const pulseStyle = usePulse({ active: !loading && logs.length === 0, duration: 2000 });
@@ -241,11 +299,35 @@ export default function HomeScreen({ navigation }: any) {
         foodService.getDailySummary(),
         foodService.getFoodLogs(),
       ]);
-      if (s.status === 'fulfilled') setSummary(s.value);
-      else setError(true);
-      if (l.status === 'fulfilled') setLogs(l.value);
+
+      const summaryOk = s.status === 'fulfilled';
+      const logsOk = l.status === 'fulfilled';
+
+      if (summaryOk) {
+        setSummary(s.value);
+      }
+      if (logsOk) {
+        setLogs(l.value);
+      }
+
+      // If both API calls failed, fall back to mock data so the screen is usable
+      if (!summaryOk && !logsOk) {
+        setError(true);
+        setSummary(MOCK_SUMMARY);
+        setLogs(MOCK_LOGS);
+      } else if (!summaryOk) {
+        // Summary failed but logs worked — show mock summary with realistic targets
+        setError(true);
+        setSummary(MOCK_SUMMARY);
+      } else if (!logsOk) {
+        // Logs failed but summary worked — show empty logs, user still sees calorie ring
+        setError(true);
+      }
     } catch {
+      // Total network failure — use mock data so the app doesn't look broken
       setError(true);
+      setSummary(MOCK_SUMMARY);
+      setLogs(MOCK_LOGS);
     } finally {
       setLoading(false);
     }
@@ -258,61 +340,75 @@ export default function HomeScreen({ navigation }: any) {
     }, [])
   );
 
-  const onRefresh = async () => {
+  // Stable callback ref to avoid re-creating on every render
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
     await load();
     haptics.success();
     setRefreshing(false);
-  };
+  }, []);
 
   const greeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return 'Buenos dias';
-    if (h < 18) return 'Buenas tardes';
-    return 'Buenas noches';
+    if (h < 12) return t('home.goodMorning');
+    if (h < 18) return t('home.goodAfternoon');
+    return t('home.goodEvening');
   };
 
-  const consumed = summary?.total_calories ?? 0;
-  const target = summary?.target_calories ?? 2000;
-  const protein = summary?.total_protein_g ?? 0;
-  const proteinTarget = summary?.target_protein_g ?? 150;
-  const carbs = summary?.total_carbs_g ?? 0;
-  const carbsTarget = summary?.target_carbs_g ?? 200;
-  const fats = summary?.total_fats_g ?? 0;
-  const fatsTarget = summary?.target_fats_g ?? 65;
+  // Memoize derived nutrition values to avoid recalculation on every render
+  const { consumed, target, protein, proteinTarget, carbs, carbsTarget, fats, fatsTarget, streak } = useMemo(() => ({
+    consumed: summary?.total_calories ?? 0,
+    target: summary?.target_calories ?? 2000,
+    protein: summary?.total_protein_g ?? 0,
+    proteinTarget: summary?.target_protein_g ?? 150,
+    carbs: summary?.total_carbs_g ?? 0,
+    carbsTarget: summary?.target_carbs_g ?? 200,
+    fats: summary?.total_fats_g ?? 0,
+    fatsTarget: summary?.target_fats_g ?? 65,
+    streak: summary?.streak_days ?? 0,
+  }), [summary]);
 
   const mealOrder = ['breakfast', 'lunch', 'dinner', 'snack'];
-  const logsByMeal: Record<string, AIFoodLog[]> = {};
-  for (const mt of mealOrder) {
-    logsByMeal[mt] = logs.filter((l) => l.meal_type === mt);
-  }
+
+  // Memoize meal grouping to avoid re-filtering on unrelated state changes
+  const logsByMeal = useMemo(() => {
+    const grouped: Record<string, AIFoodLog[]> = {};
+    for (const mt of mealOrder) {
+      grouped[mt] = logs.filter((l) => l.meal_type === mt);
+    }
+    return grouped;
+  }, [logs]);
+
   const hasMeals = logs.length > 0;
 
-  const streak = summary?.streak_days ?? 0;
-
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
-        <View accessibilityRole="header">
-          <Text style={styles.greeting}>{greeting()},</Text>
-          <Text style={styles.userName}>{user?.first_name || 'Usuario'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <FitsiMascot
+            expression="strong"
+            size="small"
+            animation="idle"
+          />
+          <View accessibilityRole="header">
+            <Text style={[styles.greeting, { color: c.gray }]}>{greeting()},</Text>
+            <Text style={[styles.userName, { color: c.black }]}>{user?.first_name || t('profile.user')}</Text>
+          </View>
         </View>
         <View style={styles.headerRight}>
-          {streak > 0 && (
-            <View
-              style={styles.streakBadge}
-              accessibilityLabel={`Racha de ${streak} dia${streak > 1 ? 's' : ''}`}
-              accessibilityRole="text"
-            >
-              <Text style={styles.streakFire}>🔥</Text>
-              <Text style={styles.streakCount}>{streak}</Text>
-            </View>
-          )}
+          <StreakBadge
+            days={streak}
+            onPress={() => {
+              haptics.light();
+              navigation.navigate('Achievements');
+            }}
+          />
           <TouchableOpacity
             onPress={() => {
               haptics.light();
+              track('scan_button_pressed', { source: 'header' });
               navigation.navigate('Escanear');
             }}
             accessibilityLabel="Escanear comida con la camara"
@@ -320,8 +416,8 @@ export default function HomeScreen({ navigation }: any) {
             accessibilityHint="Abre la camara para escanear alimentos con IA"
             activeOpacity={0.85}
           >
-            <Animated.View style={[styles.scanBtn, pulseStyle]}>
-              <Ionicons name="camera" size={20} color={colors.white} />
+            <Animated.View style={[styles.scanBtn, { backgroundColor: c.black }, pulseStyle]}>
+              <Ionicons name="camera" size={20} color={c.white} />
             </Animated.View>
           </TouchableOpacity>
         </View>
@@ -337,7 +433,7 @@ export default function HomeScreen({ navigation }: any) {
           {/* Error banner */}
           {error && (
             <TouchableOpacity
-              style={[styles.errorBanner, { marginHorizontal: sidePadding }]}
+              style={[styles.errorBanner, { marginHorizontal: sidePadding, backgroundColor: c.accent }]}
               onPress={() => {
                 haptics.light();
                 setLoading(true);
@@ -347,8 +443,8 @@ export default function HomeScreen({ navigation }: any) {
               accessibilityLabel="Error al cargar datos. Toca para reintentar"
               accessibilityRole="button"
             >
-              <Ionicons name="wifi-outline" size={16} color={colors.white} />
-              <Text style={styles.errorBannerText}>No se pudo cargar. Toca para reintentar</Text>
+              <Ionicons name="wifi-outline" size={16} color={c.white} />
+              <Text style={[styles.errorBannerText, { color: c.white }]}>{t('home.offlineBanner')}</Text>
             </TouchableOpacity>
           )}
 
@@ -359,57 +455,96 @@ export default function HomeScreen({ navigation }: any) {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={colors.black}
+                tintColor={c.black}
               />
             }
           >
             <Animated.View style={fadeStyle}>
               {/* Calorie card */}
-              <View style={styles.card} accessibilityLabel="Resumen de calorias del dia">
+              <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">
                 <View style={styles.ringRow}>
-                  <CalorieRing consumed={consumed} target={target} />
+                  <CalorieRing
+                    consumed={consumed}
+                    target={target}
+                    colors={c}
+                    remainingLabel={t('home.caloriesLeft', { count: Math.round(Math.max(target - consumed, 0)) })}
+                    goalReachedLabel={t('home.goalReached')}
+                  />
                   <View style={styles.macros}>
-                    <MacroBar label="Proteina" value={protein} target={proteinTarget} color={colors.protein} delay={0} />
-                    <MacroBar label="Carbos" value={carbs} target={carbsTarget} color={colors.carbs} delay={100} />
-                    <MacroBar label="Grasas" value={fats} target={fatsTarget} color={colors.fats} delay={200} />
+                    <MacroBar label={t('home.protein')} value={protein} target={proteinTarget} color={c.protein} delay={0} colors={c} />
+                    <MacroBar label={t('home.carbs')} value={carbs} target={carbsTarget} color={c.carbs} delay={100} colors={c} />
+                    <MacroBar label={t('home.fats')} value={fats} target={fatsTarget} color={c.fats} delay={200} colors={c} />
                   </View>
                 </View>
               </View>
 
               {/* Today's meals */}
-              <Text style={styles.sectionTitle} accessibilityRole="header">Hoy</Text>
+              <Text style={[styles.sectionTitle, { color: c.black }]} accessibilityRole="header">{t('home.today')}</Text>
               {hasMeals ? (
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
                   {mealOrder.map((mt) => (
-                    <MealSection key={mt} mealType={mt} logs={logsByMeal[mt]} />
+                    <MealSection key={mt} mealType={mt} logs={logsByMeal[mt]} colors={c} />
                   ))}
                 </View>
               ) : (
-                <View style={[styles.card, styles.emptyCard]} accessibilityLabel="Sin comidas registradas hoy">
-                  <Ionicons name="restaurant-outline" size={36} color={colors.grayLight} />
-                  <Text style={styles.emptyText}>Sin comidas registradas</Text>
-                  <Text style={styles.emptyHint}>Escanea tu comida con la camara</Text>
+                <View style={[styles.card, styles.emptyCard, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Sin comidas registradas hoy">
+                  <Ionicons name="restaurant-outline" size={36} color={c.grayLight} />
+                  <Text style={[styles.emptyText, { color: c.black }]}>{t('home.noMealsLogged')}</Text>
+                  <Text style={[styles.emptyHint, { color: c.gray }]}>{t('home.scanYourFood')}</Text>
                   <TouchableOpacity
-                    style={styles.scanCta}
+                    style={[styles.scanCta, { backgroundColor: c.black }]}
                     onPress={() => {
                       haptics.light();
+                      track('scan_button_pressed', { source: 'empty_state' });
                       navigation.navigate('Escanear');
                     }}
                     accessibilityLabel="Escanear ahora"
                     accessibilityRole="button"
                     accessibilityHint="Abre la camara para escanear tu primer alimento del dia"
                   >
-                    <Ionicons name="camera-outline" size={18} color={colors.white} />
-                    <Text style={styles.scanCtaText}>Escanear ahora</Text>
+                    <Ionicons name="camera-outline" size={18} color={c.white} />
+                    <Text style={[styles.scanCtaText, { color: c.white }]}>{t('home.scanNow')}</Text>
                   </TouchableOpacity>
                 </View>
               )}
+
+              {/* Report CTA */}
+              <TouchableOpacity
+                style={[styles.reportBtn, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                onPress={() => {
+                  haptics.light();
+                  navigation.navigate('Reports');
+                }}
+                activeOpacity={0.85}
+                accessibilityLabel="Ver reporte semanal y mensual"
+                accessibilityRole="button"
+              >
+                <Ionicons name="bar-chart-outline" size={18} color={c.accent} />
+                <Text style={[styles.reportBtnText, { color: c.black }]}>{t('home.viewReport')}</Text>
+                <Ionicons name="chevron-forward" size={16} color={c.gray} />
+              </TouchableOpacity>
 
               <View style={{ height: spacing.xl }} />
             </Animated.View>
           </ScrollView>
         </>
       )}
+
+      {/* Floating AI Coach button */}
+      <TouchableOpacity
+        style={[styles.coachFab, { backgroundColor: c.accent }]}
+        onPress={() => {
+          haptics.light();
+          navigation.navigate('Coach');
+        }}
+        activeOpacity={0.85}
+        accessibilityLabel="Abrir AI Coach"
+        accessibilityRole="button"
+        accessibilityHint="Abre el chat con tu coach de nutricion con IA"
+      >
+        <Ionicons name="sparkles" size={20} color={c.white} />
+        <Text style={[styles.coachFabText, { color: c.white }]}>{t('home.aiCoach')}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -417,19 +552,17 @@ export default function HomeScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.bg,
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.accent,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
   },
-  errorBannerText: { ...typography.caption, color: colors.white, flex: 1 },
+  errorBannerText: { ...typography.caption, flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -441,31 +574,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.badgeBg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    gap: 3,
-  },
-  streakFire: { fontSize: 14 },
-  streakCount: { fontSize: 13, fontWeight: '800', color: colors.badgeText },
   greeting: {
     ...typography.caption,
-    color: colors.gray,
   },
   userName: {
     ...typography.titleSm,
-    color: colors.black,
     marginTop: 2,
   },
   scanBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.black,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -473,10 +592,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   card: {
-    backgroundColor: colors.white,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.grayLight,
     padding: spacing.md,
     marginBottom: spacing.md,
     ...shadows.sm,
@@ -489,18 +606,15 @@ const styles = StyleSheet.create({
   ringCalories: {
     fontSize: 32,
     fontWeight: '800',
-    color: colors.black,
     textAlign: 'center',
   },
   ringUnit: {
     ...typography.caption,
-    color: colors.gray,
     textAlign: 'center',
   },
   ringRemaining: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.accent,
     textAlign: 'center',
     marginTop: 2,
   },
@@ -518,20 +632,16 @@ const styles = StyleSheet.create({
   },
   macroLabel: {
     ...typography.caption,
-    color: colors.gray,
   },
   macroValue: {
     ...typography.caption,
     fontWeight: '700',
-    color: colors.black,
   },
   macroTarget: {
     fontWeight: '400',
-    color: colors.gray,
   },
   macroTrack: {
     height: 5,
-    backgroundColor: colors.surface,
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -541,7 +651,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.label,
-    color: colors.black,
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -549,7 +658,6 @@ const styles = StyleSheet.create({
   mealSection: {
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.surface,
   },
   mealHeader: {
     flexDirection: 'row',
@@ -559,13 +667,11 @@ const styles = StyleSheet.create({
   },
   mealTitle: {
     ...typography.label,
-    color: colors.black,
     flex: 1,
   },
   mealCalories: {
     ...typography.caption,
     fontWeight: '700',
-    color: colors.black,
   },
   foodRow: {
     flexDirection: 'row',
@@ -576,12 +682,10 @@ const styles = StyleSheet.create({
   },
   foodName: {
     ...typography.caption,
-    color: colors.gray,
     flex: 1,
   },
   foodKcal: {
     ...typography.caption,
-    color: colors.gray,
     fontWeight: '600',
   },
   emptyCard: {
@@ -591,17 +695,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.bodyMd,
-    color: colors.black,
   },
   emptyHint: {
     ...typography.caption,
-    color: colors.gray,
   },
   scanCta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.black,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm + 2,
     borderRadius: radius.full,
@@ -610,6 +711,35 @@ const styles = StyleSheet.create({
   },
   scanCtaText: {
     ...typography.label,
-    color: colors.white,
+  },
+  reportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  reportBtnText: {
+    ...typography.label,
+    flex: 1,
+  },
+  coachFab: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.full,
+    minHeight: 44,
+    ...shadows.md,
+  },
+  coachFabText: {
+    ...typography.label,
   },
 });

@@ -57,6 +57,9 @@ services:
     restart: always
     # In production use a pre-built image from a registry:
     # image: ghcr.io/fitsiai/backend:${IMAGE_TAG:-latest}
+    # NOTE: The base compose exposes port 8000 to the host. In production,
+    # configure your firewall (ufw/iptables) to block external access to 8000.
+    # Only ports 80 and 443 (nginx) should be publicly accessible.
     environment:
       ENV: production
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
@@ -114,6 +117,7 @@ services:
     tmpfs:
       - /tmp
       - /var/cache/nginx
+      - /var/log/nginx
       - /var/run
     security_opt:
       - no-new-privileges:true

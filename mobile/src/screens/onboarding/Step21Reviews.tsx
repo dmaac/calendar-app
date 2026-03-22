@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   reviewsList: { gap: spacing.md },
   reviewCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.md,
     gap: spacing.sm,
   },

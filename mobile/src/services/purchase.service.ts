@@ -12,14 +12,24 @@
  * Product IDs: fitsiai_monthly, fitsiai_annual
  */
 import { Platform } from 'react-native';
-import Purchases, {
-  LOG_LEVEL,
-  PurchasesOfferings,
-  PurchasesPackage,
-  CustomerInfo,
-  PURCHASES_ERROR_CODE,
-  PurchasesError,
-} from 'react-native-purchases';
+
+// ─── Safe RevenueCat import (crashes in Expo Go where native module is missing)
+let Purchases: any = null;
+let LOG_LEVEL: any = null;
+let PURCHASES_ERROR_CODE: any = null;
+type PurchasesOfferings = any;
+type PurchasesPackage = any;
+type CustomerInfo = any;
+type PurchasesError = any;
+
+try {
+  const rc = require('react-native-purchases');
+  Purchases = rc.default;
+  LOG_LEVEL = rc.LOG_LEVEL;
+  PURCHASES_ERROR_CODE = rc.PURCHASES_ERROR_CODE;
+} catch {
+  console.warn('[purchase.service] react-native-purchases not available (Expo Go)');
+}
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -55,6 +65,7 @@ let _initialized = false;
  */
 export async function initializePurchases(userId?: string): Promise<void> {
   if (_initialized) return;
+  if (!Purchases) { console.warn('[purchase.service] Skipping init — native module not available'); return; }
 
   // RevenueCat is native-only — skip on web
   if (Platform.OS === 'web') {
@@ -95,7 +106,7 @@ export async function initializePurchases(userId?: string): Promise<void> {
  * Must be called after initializePurchases().
  */
 export async function identifyUser(userId: string): Promise<void> {
-  if (Platform.OS === 'web' || !_initialized) return;
+  if (Platform.OS === 'web' || !Purchases || !_initialized) return;
 
   try {
     await Purchases.logIn(userId);
@@ -109,7 +120,7 @@ export async function identifyUser(userId: string): Promise<void> {
  * Log out the current RevenueCat user. Call on app logout.
  */
 export async function logOutPurchases(): Promise<void> {
-  if (Platform.OS === 'web' || !_initialized) return;
+  if (Platform.OS === 'web' || !Purchases || !_initialized) return;
 
   try {
     await Purchases.logOut();

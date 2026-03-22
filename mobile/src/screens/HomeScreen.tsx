@@ -7,6 +7,7 @@ import {
   FlatList,
   Alert,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +16,9 @@ import { Activity, DailySummary } from '../types';
 import ApiService from '../services/api';
 import CircularProgress from '../components/CircularProgress';
 import { theme } from '../theme';
+import OfflineBanner from '../components/OfflineBanner';
+import { fetchWithCache } from '../services/offlineStore';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 interface HomeScreenProps {
   navigation: any;
@@ -25,6 +29,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [nutritionSummary, setNutritionSummary] = useState<DailySummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
+  const { isConnected } = useNetworkStatus();
 
   useFocusEffect(
     useCallback(() => {
@@ -40,17 +46,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
       const todayStr = today.toISOString().split('T')[0];
 
-      const [todayActivities, summary] = await Promise.allSettled([
-        ApiService.getActivities(startOfDay.toISOString(), endOfDay.toISOString()),
-        ApiService.getDailySummary(todayStr),
+      const [activitiesResult, summaryResult] = await Promise.allSettled([
+        fetchWithCache<Activity[]>('activities/today', () =>
+          ApiService.getActivities(startOfDay.toISOString(), endOfDay.toISOString()),
+        ),
+        fetchWithCache<DailySummary>('nutrition/summary', () =>
+          ApiService.getDailySummary(todayStr),
+        ),
       ]);
 
-      if (todayActivities.status === 'fulfilled') {
-        setActivities(todayActivities.value);
+      let anyFromCache = false;
+
+      if (activitiesResult.status === 'fulfilled') {
+        setActivities(activitiesResult.value.data);
+        if (activitiesResult.value.fromCache) anyFromCache = true;
       }
-      if (summary.status === 'fulfilled') {
-        setNutritionSummary(summary.value);
+      if (summaryResult.status === 'fulfilled') {
+        setNutritionSummary(summaryResult.value.data);
+        if (summaryResult.value.fromCache) anyFromCache = true;
       }
+
+      setIsFromCache(anyFromCache);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -112,6 +128,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <OfflineBanner />
+
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -127,6 +145,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={fetchTodayData}
+            tintColor={theme.colors.primary}
+          />
+        }
       >
         {/* Quick Nutrition Overview */}
         <View style={styles.nutritionOverview}>
@@ -148,15 +173,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <View style={styles.macroRow}>
               <View style={styles.macroPill}>
                 <View style={[styles.macroDot, { backgroundColor: theme.colors.protein }]} />
-                <Text style={styles.macroText}>P {Math.round(nutritionSummary?.total_protein ?? 0)}g</Text>
+                <Text style={styles.macroText}>P {Math.round(nutritionSummary?.total_protein_g ?? 0)}g</Text>
               </View>
               <View style={styles.macroPill}>
                 <View style={[styles.macroDot, { backgroundColor: theme.colors.carbs }]} />
-                <Text style={styles.macroText}>C {Math.round(nutritionSummary?.total_carbs ?? 0)}g</Text>
+                <Text style={styles.macroText}>C {Math.round(nutritionSummary?.total_carbs_g ?? 0)}g</Text>
               </View>
               <View style={styles.macroPill}>
                 <View style={[styles.macroDot, { backgroundColor: theme.colors.fat }]} />
-                <Text style={styles.macroText}>F {Math.round(nutritionSummary?.total_fat ?? 0)}g</Text>
+                <Text style={styles.macroText}>F {Math.round(nutritionSummary?.total_fats_g ?? 0)}g</Text>
               </View>
             </View>
           </View>

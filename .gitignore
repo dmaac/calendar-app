@@ -59,7 +59,9 @@ coverage.xml
 # Do not ignore docker-compose files — they are config, not secrets.
 
 # ── Nginx certs (never commit TLS keys) ──────────────────────────────────────
-nginx/certs/
+nginx/certs/*.pem
+nginx/certs/*.key
+nginx/certs/*.crt
 
 # ── EAS / Expo ────────────────────────────────────────────────────────────────
 # Google services JSON (contains private key)

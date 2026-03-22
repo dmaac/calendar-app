@@ -85,7 +85,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           >
             {/* Icon */}
             <View style={styles.iconCircle}>
-              <Ionicons name="warning-outline" size={44} color="#FF7A5C" />
+              <Ionicons name="warning-outline" size={44} color="#4285F4" />
             </View>
 
             {/* Copy */}
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   debugTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FF7A5C',
+    color: '#4285F4',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,

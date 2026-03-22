@@ -19,3 +19,4 @@ aiofiles
 httpx
 google-auth
 gunicorn
+packaging

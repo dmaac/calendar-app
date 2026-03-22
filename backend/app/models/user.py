@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from .onboarding_profile import OnboardingProfile
     from .ai_food_log import AIFoodLog
     from .subscription import Subscription
+    from .push_token import PushToken
 
 
 class UserBase(SQLModel):
@@ -41,6 +42,7 @@ class User(UserBase, table=True):
     onboarding_profile: Optional["OnboardingProfile"] = Relationship(back_populates="user")
     ai_food_logs: List["AIFoodLog"] = Relationship(back_populates="user")
     subscriptions: List["Subscription"] = Relationship(back_populates="user")
+    push_tokens: List["PushToken"] = Relationship(back_populates="user")
 
 
 class UserCreate(UserBase):

@@ -5,6 +5,9 @@ import os
 
 
 class Settings(BaseSettings):
+    # TODO:SECURITY [Medium] Default DB URL contains dummy credentials. In production,
+    # this is always overridden by .env, but consider removing the default entirely
+    # and requiring DATABASE_URL to be set explicitly (like secret_key).
     database_url: str = "postgresql://user:password@localhost/calendar_db"
     secret_key: str = ""
     algorithm: str = "HS256"
@@ -25,7 +28,7 @@ class Settings(BaseSettings):
     db_pool_size: int = 20
     db_max_overflow: int = 40
     db_pool_timeout: int = 30
-    db_pool_recycle: int = 1800
+    db_pool_recycle: int = 3600
 
     # Refresh token settings
     refresh_secret_key: str = ""
@@ -51,6 +54,7 @@ class Settings(BaseSettings):
     cors_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     cors_headers: List[str] = [
         "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With",
+        "X-App-Version", "X-Platform",
     ]
 
     # Deployment environment — set ENV=production in prod to enforce stricter checks.

@@ -168,11 +168,15 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
 
   const tdee = Math.round(bmr * activityMultiplier);
 
-  // Ajuste según objetivo — matches backend: daily_deficit = (weeklySpeedKg * 7700) / 7
+  // Ajuste según objetivo — capped per clinical guidelines (ACSM/NIH)
   const dailyAdjustment = Math.round((weeklySpeedKg * 7700) / 7);
-  const deficit = goal === 'lose' ? -dailyAdjustment : goal === 'gain' ? dailyAdjustment : 0;
+  // Gain surplus capped at 500 kcal/day (beyond this, mostly fat gain)
+  const gainCap = Math.min(dailyAdjustment, 500);
+  const deficit = goal === 'lose' ? -dailyAdjustment : goal === 'gain' ? gainCap : 0;
 
-  const dailyCalories = Math.max(1200, Math.min(4000, tdee + deficit));
+  // Gender-differentiated calorie floor (NIH: 1500 males, 1200 females)
+  const calorieFloor = gender === 'Male' ? 1500 : 1200;
+  const dailyCalories = Math.max(calorieFloor, Math.min(4000, tdee + deficit));
 
   // Macros (40% carbs / 30% protein / 30% fats — matches backend calculation)
   const dailyCarbsG    = Math.round((dailyCalories * 0.40) / 4);

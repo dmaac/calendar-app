@@ -8,9 +8,9 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const OPTIONS = [
-  { value: '0-2' as const, subtitle: 'Entreno de vez en cuando', icon: 'ellipse' },
-  { value: '3-5' as const, subtitle: 'Algunos entrenos por semana', icon: 'ellipse' },
-  { value: '6+' as const, subtitle: 'Atleta dedicado', icon: 'ellipse' },
+  { value: '0-2' as const, label: '0-2 por semana', subtitle: 'Entreno de vez en cuando', emoji: '\u{1F6B6}' },
+  { value: '3-5' as const, label: '3-5 por semana', subtitle: 'Activo con rutina regular', emoji: '\u{1F3C3}' },
+  { value: '6+' as const, label: '6+ por semana', subtitle: 'Atleta dedicado', emoji: '\u{1F4AA}' },
 ];
 
 export default function Step04Workouts({ onNext, onBack, step, totalSteps }: StepProps) {
@@ -25,16 +25,18 @@ export default function Step04Workouts({ onNext, onBack, step, totalSteps }: Ste
       footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />}
     >
 
-      <Text style={styles.title}>¿Cuántos entrenos{'\n'}haces por semana?</Text>
-      <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
+      <Text style={styles.title}>Cuantos entrenos{'\n'}haces por semana?</Text>
+      <Text style={styles.subtitle}>
+        Tu nivel de actividad fisica ajusta tus calorias diarias.
+      </Text>
 
       <View style={styles.options}>
-        {OPTIONS.map((opt, i) => (
+        {OPTIONS.map(opt => (
           <OptionCard
             key={opt.value}
-            label={opt.value}
+            label={opt.label}
             subtitle={opt.subtitle}
-            emoji={i === 0 ? '•' : i === 1 ? '••' : '•••'}
+            emoji={opt.emoji}
             selected={selected === opt.value}
             onPress={() => update('workoutsPerWeek', opt.value)}
           />

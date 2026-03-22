@@ -1,389 +1,253 @@
-# Deployment Guide
+# Deployment Guide — Fitsi IA
 
-This guide covers deploying Fitsi IA to production environments.
+## Architecture Overview
+
+```
+Internet
+   │
+   ├─ :80  ─→ nginx (redirect to HTTPS)
+   └─ :443 ─→ nginx (TLS termination, rate limiting, security headers)
+                │
+                └─→ backend:8000 (gunicorn + uvicorn workers)
+                       │
+                       ├─→ db:5432      (PostgreSQL 15)
+                       └─→ redis:6379   (Redis 7 — cache + queues)
+```
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- PostgreSQL database
-- SSL certificate for HTTPS
-- Domain name (for mobile app API endpoint)
-
-## Backend Deployment
-
-### Option 1: Docker Deployment
-
-1. **Prepare Production Environment**:
-   ```bash
-   # Clone repository
-   git clone <repository-url>
-   cd calendar-app/backend
-
-   # Create production environment file
-   cp .env.example .env.prod
-   ```
-
-2. **Configure Environment Variables**:
-   ```bash
-   # .env.prod
-   DATABASE_URL=postgresql://user:password@db:5432/calendar_db
-   SECRET_KEY=your-production-secret-key-32-chars-minimum
-   ALGORITHM=HS256
-   ACCESS_TOKEN_EXPIRE_MINUTES=30
-   ```
-
-3. **Production Docker Compose**:
-   ```yaml
-   # docker-compose.prod.yml
-   version: '3.8'
-
-   services:
-     db:
-       image: postgres:15
-       restart: always
-       environment:
-         POSTGRES_USER: ${DB_USER}
-         POSTGRES_PASSWORD: ${DB_PASSWORD}
-         POSTGRES_DB: ${DB_NAME}
-       volumes:
-         - postgres_data:/var/lib/postgresql/data
-       networks:
-         - app-network
-
-     api:
-       build: .
-       restart: always
-       environment:
-         DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db/${DB_NAME}
-         SECRET_KEY: ${SECRET_KEY}
-       depends_on:
-         - db
-       networks:
-         - app-network
-
-     nginx:
-       image: nginx:alpine
-       restart: always
-       ports:
-         - "80:80"
-         - "443:443"
-       volumes:
-         - ./nginx.conf:/etc/nginx/nginx.conf
-         - /path/to/ssl/certs:/etc/ssl/certs
-       depends_on:
-         - api
-       networks:
-         - app-network
-
-   networks:
-     app-network:
-
-   volumes:
-     postgres_data:
-   ```
-
-4. **Nginx Configuration**:
-   ```nginx
-   # nginx.conf
-   events {
-       worker_connections 1024;
-   }
-
-   http {
-       upstream api {
-           server api:8000;
-       }
-
-       server {
-           listen 80;
-           server_name yourdomain.com;
-           return 301 https://$server_name$request_uri;
-       }
-
-       server {
-           listen 443 ssl;
-           server_name yourdomain.com;
-
-           ssl_certificate /etc/ssl/certs/fullchain.pem;
-           ssl_certificate_key /etc/ssl/certs/privkey.pem;
-
-           location / {
-               proxy_pass http://api;
-               proxy_set_header Host $host;
-               proxy_set_header X-Real-IP $remote_addr;
-               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-               proxy_set_header X-Forwarded-Proto $scheme;
-           }
-       }
-   }
-   ```
-
-5. **Deploy**:
-   ```bash
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
-
-### Option 2: Cloud Deployment (AWS/GCP/Azure)
-
-#### AWS Deployment with ECS
-
-1. **Create ECR Repository**:
-   ```bash
-   aws ecr create-repository --repository-name calendar-api
-   ```
-
-2. **Build and Push Image**:
-   ```bash
-   # Get login token
-   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
-
-   # Build image
-   docker build -t calendar-api .
-   docker tag calendar-api:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/calendar-api:latest
-
-   # Push image
-   docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/calendar-api:latest
-   ```
-
-3. **Create RDS PostgreSQL Instance**:
-   - Use AWS Console or CLI to create PostgreSQL RDS instance
-   - Configure security groups for ECS access
-   - Note the connection string
-
-4. **Create ECS Task Definition**:
-   ```json
-   {
-     "family": "calendar-api",
-     "taskRoleArn": "arn:aws:iam::<account-id>:role/ecsTaskRole",
-     "executionRoleArn": "arn:aws:iam::<account-id>:role/ecsExecutionRole",
-     "networkMode": "awsvpc",
-     "requiresCompatibilities": ["FARGATE"],
-     "cpu": "256",
-     "memory": "512",
-     "containerDefinitions": [
-       {
-         "name": "calendar-api",
-         "image": "<account-id>.dkr.ecr.us-east-1.amazonaws.com/calendar-api:latest",
-         "portMappings": [
-           {
-             "containerPort": 8000,
-             "protocol": "tcp"
-           }
-         ],
-         "environment": [
-           {
-             "name": "DATABASE_URL",
-             "value": "postgresql://user:password@rds-endpoint:5432/calendar_db"
-           },
-           {
-             "name": "SECRET_KEY",
-             "value": "your-secret-key"
-           }
-         ],
-         "logConfiguration": {
-           "logDriver": "awslogs",
-           "options": {
-             "awslogs-group": "/ecs/calendar-api",
-             "awslogs-region": "us-east-1",
-             "awslogs-stream-prefix": "ecs"
-           }
-         }
-       }
-     ]
-   }
-   ```
-
-## Mobile App Deployment
-
-### iOS App Store
-
-1. **Prepare for Build**:
-   ```bash
-   cd mobile
-
-   # Update API URL for production
-   # Edit src/services/api.ts
-   const BASE_URL = 'https://api.yourdomain.com';
-   ```
-
-2. **Build for iOS**:
-   ```bash
-   expo build:ios
-   ```
-
-3. **App Store Submission**:
-   - Download IPA file from Expo
-   - Upload to App Store Connect using Xcode or Transporter
-   - Fill in app metadata, screenshots, and descriptions
-   - Submit for review
-
-### Google Play Store
-
-1. **Build for Android**:
-   ```bash
-   expo build:android
-   ```
-
-2. **Play Store Submission**:
-   - Download APK/AAB file from Expo
-   - Upload to Google Play Console
-   - Fill in app details and screenshots
-   - Submit for review
-
-### Standalone App Build
-
-For more control over the build process:
-
-1. **Eject from Expo** (Optional):
-   ```bash
-   expo eject
-   ```
-
-2. **iOS Build** (requires macOS):
-   ```bash
-   cd ios
-   pod install
-   xcodebuild -workspace CalendarApp.xcworkspace -scheme CalendarApp archive
-   ```
-
-3. **Android Build**:
-   ```bash
-   cd android
-   ./gradlew assembleRelease
-   ```
-
-## Environment Configuration
-
-### Production Checklist
-
-- [ ] Strong SECRET_KEY (32+ random characters)
-- [ ] PostgreSQL connection with SSL
-- [ ] HTTPS/SSL certificate configured
-- [ ] CORS origins restricted to production domains
-- [ ] Error logging and monitoring set up
-- [ ] Database backups configured
-- [ ] Rate limiting implemented
-- [ ] API versioning strategy
-- [ ] Health check endpoints
-- [ ] Container resource limits set
-
-### Security Considerations
-
-1. **API Security**:
-   - Use environment variables for secrets
-   - Implement rate limiting
-   - Add request logging
-   - Use HTTPS only
-   - Validate all inputs
-   - Implement proper CORS
-
-2. **Database Security**:
-   - Use SSL connections
-   - Regular security updates
-   - Backup encryption
-   - Access logging
-   - Principle of least privilege
-
-3. **Mobile App Security**:
-   - Certificate pinning for API calls
-   - Secure storage for tokens
-   - Code obfuscation
-   - Binary protection
-
-## Monitoring and Logging
-
-### Backend Monitoring
-
-1. **Application Logs**:
-   ```python
-   # Add to main.py
-   import logging
-
-   logging.basicConfig(
-       level=logging.INFO,
-       format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-   )
-   ```
-
-2. **Health Check Endpoint**:
-   ```python
-   @app.get("/health")
-   async def health_check():
-       return {"status": "healthy", "timestamp": datetime.utcnow()}
-   ```
-
-3. **Database Monitoring**:
-   - Connection pool metrics
-   - Query performance
-   - Slow query logs
-
-### Recommended Tools
-
-- **Monitoring**: Prometheus + Grafana, DataDog, New Relic
-- **Logging**: ELK Stack (Elasticsearch, Logstash, Kibana)
-- **Error Tracking**: Sentry, Rollbar
-- **APM**: New Relic, DataDog, Elastic APM
-
-## Backup and Recovery
-
-### Database Backups
-
-1. **Automated Backups**:
-   ```bash
-   # Daily backup script
-   #!/bin/bash
-   TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-   pg_dump $DATABASE_URL > backup_$TIMESTAMP.sql
-
-   # Upload to S3
-   aws s3 cp backup_$TIMESTAMP.sql s3://your-backup-bucket/
-   ```
-
-2. **Recovery Process**:
-   ```bash
-   # Restore from backup
-   psql $DATABASE_URL < backup_file.sql
-   ```
-
-### Application Recovery
-
-- Container orchestration (Kubernetes/Docker Swarm)
-- Load balancer health checks
-- Auto-scaling policies
-- Blue-green deployments
-
-## Performance Optimization
-
-### Backend Optimizations
-
-1. **Database Indexing**:
-   ```sql
-   CREATE INDEX idx_activity_user_date ON activity(user_id, start_time);
-   CREATE INDEX idx_user_email ON user(email);
-   ```
-
-2. **Caching**:
-   ```python
-   # Redis caching for frequently accessed data
-   import redis
-
-   redis_client = redis.Redis(host='redis', port=6379, db=0)
-   ```
-
-3. **Connection Pooling**:
-   ```python
-   from sqlmodel import create_engine
-
-   engine = create_engine(
-       DATABASE_URL,
-       pool_size=20,
-       max_overflow=0
-   )
-   ```
-
-### Mobile App Optimizations
-
-- Image optimization and caching
-- Lazy loading for large lists
-- Background sync for offline support
-- Code splitting and bundling optimization
+- Docker Engine 24+ and Docker Compose v2
+- Domain name pointing to your server (e.g., `api.fitsiai.app`)
+- SSL certificate (Let's Encrypt recommended)
+
+## Quick Start — Single Server / VPS
+
+### 1. Clone and configure
+
+```bash
+git clone <repository-url>
+cd calendar-app
+
+# Create compose-level env from template
+cp .env.production.example .env
+
+# Create backend app-level env from template
+cp backend/.env.example backend/.env
+```
+
+### 2. Generate secrets
+
+```bash
+# PostgreSQL password
+echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)" >> .env
+
+# Redis password
+echo "REDIS_PASSWORD=$(openssl rand -base64 32)" >> .env
+
+# Backend auth secrets
+cd backend
+echo "SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')" >> .env
+echo "REFRESH_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')" >> .env
+cd ..
+```
+
+### 3. SSL certificates
+
+```bash
+# Option A: Let's Encrypt (recommended for production)
+sudo certbot certonly --standalone -d api.fitsiai.app
+sudo cp /etc/letsencrypt/live/api.fitsiai.app/fullchain.pem nginx/certs/
+sudo cp /etc/letsencrypt/live/api.fitsiai.app/privkey.pem nginx/certs/
+
+# Option B: Self-signed (testing only)
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout nginx/certs/privkey.pem -out nginx/certs/fullchain.pem \
+  -subj "/CN=api.fitsiai.app"
+```
+
+### 4. Deploy
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+### 5. Run database migrations
+
+```bash
+docker compose exec backend alembic upgrade head
+```
+
+### 6. Verify
+
+```bash
+# Health check
+curl -f https://api.fitsiai.app/health
+
+# Check all containers are healthy
+docker compose ps
+```
+
+## Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | Base services (dev/staging) |
+| `docker-compose.prod.yml` | Production overlay (security hardening, nginx, resource limits) |
+| `backend/Dockerfile` | Multi-stage build (builder + production) |
+| `backend/gunicorn.conf.py` | Gunicorn production config (workers, timeouts, JSON logging) |
+| `nginx/nginx.conf` | Reverse proxy, TLS, rate limiting, security headers |
+| `nginx/proxy_params_fitsiai` | Shared proxy headers |
+| `.env.production.example` | Template for compose-level env vars |
+| `backend/.env.example` | Template for backend app-level env vars |
+
+## Security Features
+
+### Docker Containers
+- Non-root user in backend container
+- `read_only: true` filesystem (tmpfs for writable paths)
+- `no-new-privileges` security option
+- `cap_drop: ALL` (nginx gets `NET_BIND_SERVICE` only)
+- Resource limits (CPU + memory) on all services
+- tini as PID 1 for proper signal handling
+
+### Nginx
+- HTTP to HTTPS redirect
+- TLS 1.2/1.3 only with strong cipher suites
+- HSTS with preload
+- X-Content-Type-Options, X-Frame-Options, X-XSS-Protection headers
+- Rate limiting per endpoint: API (30r/s), auth (5r/s), AI scan (2r/s)
+- Server version hidden (`server_tokens off`)
+- 10MB max request body
+
+### Backend
+- Gunicorn worker recycling (`max_requests`) to prevent memory leaks
+- Graceful shutdown with 30s grace period
+- JSON structured logging for log aggregation
+- Health check endpoint at `/health`
+
+## CI/CD Pipeline
+
+### CI (`.github/workflows/ci.yml`)
+
+Runs on every PR and push to `main`/`develop`:
+
+```
+backend-lint ──┐
+backend-typecheck ──┤
+backend-test ──────┼──→ backend-docker ──→ ci-gate
+mobile-lint ──────┤
+mobile-typecheck ──┤
+mobile-test ──────┘
+```
+
+### Deploy (`.github/workflows/deploy.yml`)
+
+Triggers on push to `main` (backend paths only):
+
+1. Runs full CI
+2. Builds multi-arch Docker image (amd64 + arm64)
+3. Pushes to GitHub Container Registry (GHCR)
+4. Auto-deploys to staging
+5. Production deploy via manual `workflow_dispatch`
+
+### Required GitHub Secrets
+
+| Secret | Used In | Purpose |
+|--------|---------|---------|
+| `GITHUB_TOKEN` | deploy.yml | GHCR authentication (automatic) |
+
+For VPS deployment, add:
+| Secret | Used In | Purpose |
+|--------|---------|---------|
+| `DEPLOY_SSH_KEY` | deploy.yml | SSH key for deployment target |
+| `DEPLOY_HOST` | deploy.yml | Server hostname/IP |
+
+## Scaling
+
+### Vertical (single server)
+
+Adjust in `.env`:
+```bash
+GUNICORN_WORKERS=8    # More workers for more CPU cores
+```
+
+Adjust resource limits in `docker-compose.prod.yml`:
+```yaml
+deploy:
+  resources:
+    limits:
+      memory: 2G
+      cpus: "4.0"
+```
+
+### Horizontal (multi-server)
+
+Replace containerized PostgreSQL and Redis with managed services:
+- **Database**: RDS PostgreSQL or Cloud SQL
+- **Cache**: ElastiCache Redis or Memorystore
+- **Container orchestration**: ECS Fargate, EKS, or Cloud Run
+- **Load balancer**: ALB or Cloud Load Balancing (replaces nginx)
+
+## Monitoring
+
+### Health Check
+
+```bash
+curl https://api.fitsiai.app/health
+# Returns: {"status": "healthy", "timestamp": "..."}
+```
+
+### Logs
+
+```bash
+# All services
+docker compose logs -f
+
+# Backend only (JSON structured)
+docker compose logs -f backend
+
+# Nginx access logs (JSON)
+docker compose logs -f nginx
+```
+
+### Recommended Additions
+
+- **Error tracking**: Sentry (set `SENTRY_DSN` in backend/.env)
+- **Metrics**: Prometheus + Grafana
+- **Uptime**: UptimeRobot or Checkly on `/health`
+
+## Rollback
+
+```bash
+# List available image tags
+docker image ls ghcr.io/<org>/backend
+
+# Roll back to a specific version
+IMAGE_TAG=<previous-sha> docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d backend
+
+# Or via GitHub Actions: trigger workflow_dispatch with the previous commit SHA
+```
+
+## Backup
+
+### Database
+
+```bash
+# Manual backup
+docker compose exec db pg_dump -U fitsiai fitsiai_db > backup_$(date +%Y%m%d).sql
+
+# Restore
+docker compose exec -T db psql -U fitsiai fitsiai_db < backup_20260321.sql
+```
+
+For automated backups, use a cron job or managed database service with point-in-time recovery.
+
+## Certificate Renewal (Let's Encrypt)
+
+```bash
+# Test renewal
+sudo certbot renew --dry-run
+
+# Set up auto-renewal cron
+echo "0 3 * * * certbot renew --post-hook 'docker compose restart nginx'" | sudo crontab -
+```

@@ -1,11 +1,12 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
+import HealthScore from '../../components/HealthScore';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
+import FitsiMascot from '../../components/FitsiMascot';
 
 function MacroBar({ label, grams, color, maxGrams }: { label: string; grams: number; color: string; maxGrams: number }) {
   const widthAnim = useRef(new Animated.Value(0)).current;
@@ -43,7 +44,7 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
   const carbs = plan?.dailyCarbsG ?? 200;
   const protein = plan?.dailyProteinG ?? 130;
   const fats = plan?.dailyFatsG ?? 60;
-  const healthScore = Math.round((plan?.healthScore ?? 7.0) * 10);
+  const healthScore = plan?.healthScore ?? 7.0;
 
   const maxMacro = Math.max(carbs, protein, fats);
 
@@ -62,7 +63,10 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
       scrollable={false}
       footer={<PrimaryButton label="Ver mi plan" onPress={onNext} />}
     >
-      <Text style={styles.title}>¡Tu plan{'\n'}está listo! 🎉</Text>
+      <View style={{ alignItems: 'center' }}>
+        <FitsiMascot expression="party" size="large" animation="celebrate" message="Tu plan esta listo!" />
+      </View>
+      <Text style={styles.title}>¡Tu plan{'\n'}está listo!</Text>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }], gap: spacing.md, paddingTop: spacing.lg }}>
@@ -99,16 +103,7 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
           </View>
 
           {/* Health score */}
-          <View style={[styles.card, styles.scoreCard]}>
-            <View>
-              <Text style={styles.cardTitle}>Puntuación de salud</Text>
-              <Text style={styles.scoreDesc}>Basado en tu perfil y objetivos</Text>
-            </View>
-            <View style={styles.scoreBadge}>
-              <Text style={styles.scoreNum}>{healthScore}</Text>
-              <Text style={styles.scoreMax}>/100</Text>
-            </View>
-          </View>
+          <HealthScore score={healthScore} size="large" />
 
           <View style={{ height: 80 }} />
         </Animated.View>
@@ -147,9 +142,4 @@ const styles = StyleSheet.create({
   },
   macroNum: { fontSize: 18, fontWeight: '800', color: colors.carbs },
   macroLbl: { ...typography.caption, color: colors.gray },
-  scoreCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  scoreDesc: { ...typography.caption, color: colors.gray },
-  scoreBadge: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  scoreNum: { fontSize: 40, fontWeight: '900', color: colors.black, letterSpacing: -1 },
-  scoreMax: { ...typography.subtitle, color: colors.gray },
 });

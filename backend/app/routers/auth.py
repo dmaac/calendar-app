@@ -42,6 +42,20 @@ async def get_current_user(
     if username is None:
         raise credentials_exception
 
+    # SEC: Async blacklist check — verify access token JTI is not revoked
+    try:
+        from jose import jwt
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        jti = payload.get("jti")
+        if jti:
+            from ..core.token_store import is_access_token_blacklisted
+            if await is_access_token_blacklisted(jti):
+                raise credentials_exception
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # SEC: Redis unavailable — degrade gracefully
+
     user_service = UserService(session)
     # sub is always the numeric user.id (since unified login)
     user = None
@@ -90,6 +104,14 @@ async def register_user(
     return user
 
 
+def _get_client_ip(request: Request) -> str:
+    """Extract real client IP, respecting X-Forwarded-For from trusted proxies."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("/login", response_model=Token)
 @_rl("10/minute")  # SEC: Rate limit login to mitigate brute force
 async def login_user(
@@ -98,12 +120,43 @@ async def login_user(
     session: AsyncSession = Depends(get_session),
 ):
     from ..core.security import create_refresh_token, verify_refresh_token
-    from ..core.token_store import save_refresh_token
+    from ..core.token_store import save_refresh_token, is_login_locked, record_failed_login, clear_failed_logins
+
+    client_ip = _get_client_ip(request)
+    email = form_data.username
+
+    # SEC: Check login lockout BEFORE attempting authentication
+    try:
+        if await is_login_locked(email):
+            logger.warning(
+                "Login attempt on locked account email=%s ip=%s",
+                email, client_ip,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed login attempts. Please try again in 15 minutes.",
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # SEC: Redis unavailable — allow login attempt, degrade gracefully
 
     user_service = UserService(session)
-    user = await user_service.authenticate_user(form_data.username, form_data.password)
+    user = await user_service.authenticate_user(email, form_data.password)
 
     if not user:
+        # SEC: Log failed attempt with IP for security monitoring
+        logger.warning("Failed login attempt email=%s ip=%s", email, client_ip)
+        try:
+            fail_count = await record_failed_login(email)
+            if fail_count >= 5:
+                logger.warning(
+                    "Account locked after %d failed attempts email=%s ip=%s",
+                    fail_count, email, client_ip,
+                )
+        except Exception:
+            pass  # Redis unavailable
+
         # SEC: Generic error message prevents user enumeration
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -113,11 +166,18 @@ async def login_user(
 
     if not user_service.is_active(user):
         # SEC: Same generic message -- do not reveal that the account exists but is disabled
+        logger.warning("Login attempt on deactivated account user_id=%s ip=%s", user.id, client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # SEC: Clear failed login counter on successful authentication
+    try:
+        await clear_failed_logins(email)
+    except Exception:
+        pass  # Redis unavailable
 
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     # Use user.id as sub (consistent with OAuth flow + refresh token)
@@ -268,3 +328,25 @@ async def google_login(
 @router.get("/me", response_model=UserRead)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.delete("/me", status_code=status.HTTP_200_OK)
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    GDPR Article 17 — Right to erasure.
+    Deactivates account and scrubs PII. Actual data purge can be done
+    via a background job within 30 days (legal retention period).
+    """
+    current_user.is_active = False
+    current_user.email = f"deleted_{current_user.id}@removed.fitsiai.com"
+    current_user.first_name = None
+    current_user.last_name = None
+    current_user.hashed_password = None
+    current_user.provider_id = None
+    session.add(current_user)
+    await session.commit()
+    logger.info("Account %s deleted (soft) per user request", current_user.id)
+    return {"detail": "Account deleted successfully"}

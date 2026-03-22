@@ -19,20 +19,23 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: St
       footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={selected === null} />}
     >
 
-      <Text style={styles.title}>¿Has probado otras{'\n'}apps de calorías?</Text>
+      <Text style={styles.title}>Has probado otras{'\n'}apps de calorias?</Text>
+      <Text style={styles.subtitle}>
+        No importa tu respuesta, Fitsi IA se adapta a ti.
+      </Text>
 
       <View style={styles.options}>
         <OptionCard
-          label="No"
-          emoji="👎"
-          selected={selected === false}
-          onPress={() => update('usedOtherApps', false)}
-        />
-        <OptionCard
-          label="Sí"
-          emoji="👍"
+          label="Si, he usado otras apps"
+          emoji={'\u{1F44D}'}
           selected={selected === true}
           onPress={() => update('usedOtherApps', true)}
+        />
+        <OptionCard
+          label="No, es mi primera vez"
+          emoji={'\u{1F44E}'}
+          selected={selected === false}
+          onPress={() => update('usedOtherApps', false)}
         />
       </View>
 
@@ -42,5 +45,6 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: St
 
 const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
-  options: { marginTop: spacing.xxl + spacing.lg, gap: spacing.sm + 4 },
+  subtitle: { ...typography.subtitle, color: colors.gray, marginTop: spacing.sm },
+  options: { marginTop: spacing.xxl, gap: spacing.sm + 4 },
 });

@@ -26,10 +26,15 @@ export default function Step09Birthday({ onNext, onBack, step, totalSteps }: Ste
       onBack={onBack}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
-      <Text style={styles.title}>¿Cuándo naciste?</Text>
-      <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
+      <Text style={styles.title}>Cuando naciste?</Text>
+      <Text style={styles.subtitle}>
+        Tu edad es clave para calcular tu metabolismo y calorias diarias.
+      </Text>
 
-      <View style={styles.pickersRow}>
+      <View
+        style={styles.pickersRow}
+        accessibilityLabel={`Fecha de nacimiento seleccionada: ${MONTHS[monthIndex]} ${day}, ${year}`}
+      >
         <ScrollPicker
           items={MONTHS}
           selectedIndex={monthIndex}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import OnboardingNavigator from '../screens/onboarding/OnboardingNavigator';
 import { OnboardingProvider } from '../context/OnboardingContext';
 import MainNavigator from './MainNavigator';
+import { startOfflineSyncWatcher, stopOfflineSyncWatcher } from '../services/offlineSync';
 
 const Stack = createStackNavigator();
 
@@ -17,9 +18,15 @@ const AuthNavigator = () => (
   </Stack.Navigator>
 );
 
-// ─── Root navigator ───────────────────────────────────────────────────────────
-const AppNavigator = () => {
+// ─── Inner navigator — decides which flow to show ────────────────────────────
+const AppContent = () => {
   const { isLoading, isAuthenticated, isOnboardingComplete, markOnboardingComplete } = useAuth();
+
+  // Start offline sync watcher when app mounts
+  useEffect(() => {
+    startOfflineSyncWatcher();
+    return () => stopOfflineSyncWatcher();
+  }, []);
 
   // Espera a que AuthContext cargue los tokens de SecureStore
   if (isLoading) return <LoadingScreen />;
@@ -32,13 +39,14 @@ const AppNavigator = () => {
     );
   }
 
-  return (
-    <NavigationContainer>
-      {isAuthenticated
-        ? <MainNavigator />
-        : <AuthNavigator />}
-    </NavigationContainer>
-  );
+  return isAuthenticated ? <MainNavigator /> : <AuthNavigator />;
 };
+
+// ─── Root navigator — NavigationContainer wraps EVERYTHING ──────────────────
+const AppNavigator = () => (
+  <NavigationContainer>
+    <AppContent />
+  </NavigationContainer>
+);
 
 export default AppNavigator;

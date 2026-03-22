@@ -2,11 +2,14 @@
  * SkeletonLoader — Shimmer/pulse loading placeholder for Fitsi IA
  *
  * Uses React Native's built-in Animated API (no heavy deps).
- * Renders a pulsing rectangle that communicates "content loading"
- * instead of a generic spinner.
+ * Combines an opacity pulse with a subtle horizontal shimmer sweep
+ * for a premium "content loading" feel.
+ *
+ * The shimmer is achieved via a translateX animation on an overlay,
+ * clipped by the borderRadius of the container.
  */
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, ViewStyle } from 'react-native';
+import { Animated, Easing, StyleSheet, View, ViewStyle } from 'react-native';
 import { colors, radius } from '../theme';
 
 interface SkeletonProps {
@@ -27,25 +30,44 @@ export default function SkeletonLoader({
   style,
 }: SkeletonProps) {
   const opacity = useRef(new Animated.Value(0.35)).current;
+  const shimmerTranslate = useRef(new Animated.Value(-1)).current;
 
   useEffect(() => {
+    // Smooth opacity pulse
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
-          toValue: 0.8,
-          duration: 800,
+          toValue: 0.75,
+          duration: 750,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 0.35,
-          duration: 800,
+          duration: 750,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ]),
     );
     pulse.start();
-    return () => pulse.stop();
-  }, [opacity]);
+
+    // Horizontal shimmer sweep — a bright band that slides across
+    const shimmer = Animated.loop(
+      Animated.timing(shimmerTranslate, {
+        toValue: 1,
+        duration: 1400,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+    );
+    shimmer.start();
+
+    return () => {
+      pulse.stop();
+      shimmer.stop();
+    };
+  }, []);
 
   return (
     <Animated.View
@@ -56,13 +78,36 @@ export default function SkeletonLoader({
       ]}
       accessibilityLabel="Cargando contenido"
       accessibilityRole="progressbar"
-    />
+    >
+      {/* Shimmer highlight band */}
+      <Animated.View
+        style={[
+          baseStyle.shimmer,
+          {
+            height,
+            borderRadius: br,
+            transform: [{
+              translateX: shimmerTranslate.interpolate({
+                inputRange: [-1, 1],
+                outputRange: [-60, 260],
+              }),
+            }],
+          },
+        ]}
+      />
+    </Animated.View>
   );
 }
 
 const baseStyle = StyleSheet.create({
   bar: {
     backgroundColor: colors.grayLight,
+    overflow: 'hidden',
+  },
+  shimmer: {
+    position: 'absolute',
+    width: 60,
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
 });
 

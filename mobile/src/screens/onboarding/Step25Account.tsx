@@ -125,7 +125,15 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
         step={step}
         totalSteps={totalSteps}
         onBack={() => setMode('options')}
-        footer={<PrimaryButton label="Continuar" onPress={handleEmail} loading={loading} disabled={!email.includes('@') || password.length < 6} />}
+        keyboardAware
+        footer={
+          <PrimaryButton
+            label="Continuar"
+            onPress={handleEmail}
+            loading={loading}
+            disabled={!email.includes('@') || password.length < 6}
+          />
+        }
       >
         <Text style={styles.title}>Crea tu{'\n'}cuenta</Text>
 

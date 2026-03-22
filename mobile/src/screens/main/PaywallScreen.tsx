@@ -22,7 +22,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PurchasesPackage } from 'react-native-purchases';
-import { colors, typography, spacing, radius, shadows, useLayout } from '../../theme';
+import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import * as purchaseService from '../../services/purchase.service';
 
@@ -62,6 +62,7 @@ const FALLBACK_PLANS = {
 export default function PaywallScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
+  const c = useThemeColors();
   const { setPremiumStatus } = useAuth();
 
   const [selectedPlan, setSelectedPlan] = useState<Plan>('annual');
@@ -205,13 +206,13 @@ export default function PaywallScreen({ navigation }: any) {
   }, [setPremiumStatus, navigation]);
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Close / back */}
       <TouchableOpacity
-        style={[styles.closeBtn, { right: sidePadding }]}
+        style={[styles.closeBtn, { right: sidePadding, backgroundColor: c.surface }]}
         onPress={() => navigation.goBack?.() ?? navigation.navigate('Perfil')}
       >
-        <Ionicons name="close" size={20} color={colors.black} />
+        <Ionicons name="close" size={20} color={c.black} />
       </TouchableOpacity>
 
       <ScrollView
@@ -220,35 +221,35 @@ export default function PaywallScreen({ navigation }: any) {
       >
         {/* Hero */}
         <View style={styles.hero}>
-          <View style={styles.crownBadge}>
+          <View style={[styles.crownBadge, { backgroundColor: c.badgeBg }]}>
             <Text style={styles.crownEmoji}>{'\u{1F451}'}</Text>
           </View>
-          <Text style={styles.heroTitle}>Fitsi IA Premium</Text>
-          <Text style={styles.heroSubtitle}>
+          <Text style={[styles.heroTitle, { color: c.black }]}>Fitsi IA Premium</Text>
+          <Text style={[styles.heroSubtitle, { color: c.gray }]}>
             Desbloquea el poder total de la IA{'\n'}para tu nutricion
           </Text>
         </View>
 
         {/* Features */}
-        <View style={styles.featuresCard}>
+        <View style={[styles.featuresCard, { backgroundColor: c.surface }]}>
           {FEATURES.map((f, i) => (
             <View key={i} style={styles.featureRow}>
-              <View style={styles.featureIconBg}>
-                <Ionicons name={f.icon as any} size={16} color={colors.black} />
+              <View style={[styles.featureIconBg, { backgroundColor: c.bg }]}>
+                <Ionicons name={f.icon as any} size={16} color={c.black} />
               </View>
-              <Text style={styles.featureLabel}>{f.label}</Text>
-              <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+              <Text style={[styles.featureLabel, { color: c.black }]}>{f.label}</Text>
+              <Ionicons name="checkmark-circle" size={18} color={c.success} />
             </View>
           ))}
         </View>
 
         {/* Plans */}
-        <Text style={styles.sectionTitle}>Elige tu plan</Text>
+        <Text style={[styles.sectionTitle, { color: c.black }]}>Elige tu plan</Text>
 
         {loadingOfferings ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.black} />
-            <Text style={styles.loadingText}>Cargando planes...</Text>
+            <ActivityIndicator size="small" color={c.black} />
+            <Text style={[styles.loadingText, { color: c.gray }]}>Cargando planes...</Text>
           </View>
         ) : (
           <View style={styles.plansRow}>
@@ -257,32 +258,32 @@ export default function PaywallScreen({ navigation }: any) {
               return (
                 <TouchableOpacity
                   key={key}
-                  style={[styles.planCard, isSelected && styles.planCardActive]}
+                  style={[styles.planCard, { backgroundColor: c.surface }, isSelected && { backgroundColor: c.black, borderColor: c.black }]}
                   onPress={() => setSelectedPlan(key)}
                   activeOpacity={0.8}
                 >
                   {plan.badge && (
-                    <View style={styles.planBadge}>
-                      <Text style={styles.planBadgeText}>{plan.badge}</Text>
+                    <View style={[styles.planBadge, { backgroundColor: c.accent }]}>
+                      <Text style={[styles.planBadgeText, { color: c.white }]}>{plan.badge}</Text>
                     </View>
                   )}
-                  <Text style={[styles.planLabel, isSelected && styles.planLabelActive]}>
+                  <Text style={[styles.planLabel, { color: c.gray }, isSelected && { color: 'rgba(255,255,255,0.7)' }]}>
                     {plan.label}
                   </Text>
-                  <Text style={[styles.planPrice, isSelected && styles.planPriceActive]}>
+                  <Text style={[styles.planPrice, { color: c.black }, isSelected && { color: c.white }]}>
                     {plan.price}
                   </Text>
-                  <Text style={[styles.planPeriod, isSelected && { color: colors.white + 'CC' }]}>
+                  <Text style={[styles.planPeriod, { color: c.gray }, isSelected && { color: c.white + 'CC' }]}>
                     {plan.period}
                   </Text>
                   {plan.perMonth && (
-                    <Text style={[styles.planPerMonth, isSelected && { color: colors.white + 'BB' }]}>
+                    <Text style={[styles.planPerMonth, { color: c.gray }, isSelected && { color: c.white + 'BB' }]}>
                       {plan.perMonth}
                     </Text>
                   )}
                   {isSelected && (
                     <View style={styles.planCheck}>
-                      <Ionicons name="checkmark-circle" size={18} color={colors.white} />
+                      <Ionicons name="checkmark-circle" size={18} color={c.white} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -293,20 +294,20 @@ export default function PaywallScreen({ navigation }: any) {
 
         {/* CTA */}
         <TouchableOpacity
-          style={[styles.ctaBtn, (loading || loadingOfferings) && { opacity: 0.7 }]}
+          style={[styles.ctaBtn, { backgroundColor: c.black }, (loading || loadingOfferings) && { opacity: 0.7 }]}
           onPress={handleSubscribe}
           disabled={loading || loadingOfferings}
           activeOpacity={0.85}
         >
           {loading ? (
-            <ActivityIndicator size="small" color={colors.white} />
+            <ActivityIndicator size="small" color={c.white} />
           ) : (
-            <Text style={styles.ctaBtnText}>
+            <Text style={[styles.ctaBtnText, { color: c.white }]}>
               Iniciar prueba gratuita 7 dias
             </Text>
           )}
         </TouchableOpacity>
-        <Text style={styles.ctaNote}>
+        <Text style={[styles.ctaNote, { color: c.gray }]}>
           Cancela cuando quieras {'\u00B7'} Sin compromiso
         </Text>
 
@@ -317,14 +318,14 @@ export default function PaywallScreen({ navigation }: any) {
           disabled={restoring}
         >
           {restoring ? (
-            <ActivityIndicator size="small" color={colors.gray} />
+            <ActivityIndicator size="small" color={c.gray} />
           ) : (
-            <Text style={styles.restoreText}>Restaurar compra anterior</Text>
+            <Text style={[styles.restoreText, { color: c.gray }]}>Restaurar compra anterior</Text>
           )}
         </TouchableOpacity>
 
         {/* Legal */}
-        <Text style={styles.legal}>
+        <Text style={[styles.legal, { color: c.disabled }]}>
           Al suscribirte aceptas los Terminos de servicio y la Politica de privacidad.
           La suscripcion se renueva automaticamente. Cancela en cualquier momento
           desde los ajustes de tu {Platform.OS === 'ios' ? 'Apple ID' : 'Google Play'}.

@@ -20,29 +20,52 @@ import {
   Platform,
   Image,
   Animated,
+  Easing,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, shadows, useLayout } from '../../theme';
+import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import * as foodService from '../../services/food.service';
 import { FoodScanResult } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LanguageContext';
 import { haptics } from '../../hooks/useHaptics';
 import usePulse from '../../hooks/usePulse';
+import { useAnalytics } from '../../hooks/useAnalytics';
 import SuccessCheckmark from '../../components/SuccessCheckmark';
+import HealthScore from '../../components/HealthScore';
+import FitsiMascot from '../../components/FitsiMascot';
 
 const FREE_SCAN_LIMIT = 3;
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type ScanState = 'idle' | 'scanning' | 'result' | 'logged';
 
-const MEAL_TYPES: { value: MealType; label: string; icon: string; color: string }[] = [
-  { value: 'breakfast', label: 'Desayuno', icon: 'sunny-outline',      color: '#F59E0B' },
-  { value: 'lunch',     label: 'Almuerzo', icon: 'restaurant-outline',  color: '#10B981' },
-  { value: 'dinner',    label: 'Cena',     icon: 'moon-outline',        color: '#6366F1' },
-  { value: 'snack',     label: 'Snack',    icon: 'cafe-outline',        color: '#EC4899' },
+const MEAL_TYPES: { value: MealType; labelKey: string; icon: string; color: string }[] = [
+  { value: 'breakfast', labelKey: 'scan.breakfast', icon: 'sunny-outline',      color: '#F59E0B' },
+  { value: 'lunch',     labelKey: 'scan.lunch',     icon: 'restaurant-outline',  color: '#10B981' },
+  { value: 'dinner',    labelKey: 'scan.dinner',    icon: 'moon-outline',        color: '#6366F1' },
+  { value: 'snack',     labelKey: 'scan.snack',     icon: 'cafe-outline',        color: '#EC4899' },
 ];
+
+/** Compute a basic health score (1-10) from macro balance.
+ *  Ideal ratio: ~30% protein, ~40% carbs, ~30% fat by calories. */
+function computeHealthScore(calories: number, proteinG: number, carbsG: number, fatG: number): number {
+  if (calories <= 0) return 5;
+  const pCal = proteinG * 4;
+  const cCal = carbsG * 4;
+  const fCal = fatG * 9;
+  const total = pCal + cCal + fCal || 1;
+  const pRatio = pCal / total;
+  const cRatio = cCal / total;
+  const fRatio = fCal / total;
+  // Distance from ideal ratios (lower is better)
+  const dist = Math.abs(pRatio - 0.3) + Math.abs(cRatio - 0.4) + Math.abs(fRatio - 0.3);
+  // Map 0..1 distance to 10..1 score
+  const raw = 10 - dist * 10;
+  return Math.max(1, Math.min(10, Math.round(raw)));
+}
 
 // ─── Macro pill ───────────────────────────────────────────────────────────────
 function MacroPill({
@@ -50,11 +73,13 @@ function MacroPill({
   value,
   unit,
   color,
+  grayColor,
 }: {
   label: string;
   value: number;
   unit: string;
   color: string;
+  grayColor: string;
 }) {
   return (
     <View
@@ -62,16 +87,129 @@ function MacroPill({
       accessibilityLabel={`${label}: ${Math.round(value)} ${unit}`}
     >
       <Text style={[styles.macroPillValue, { color }]}>{Math.round(value)}{unit}</Text>
-      <Text style={styles.macroPillLabel}>{label}</Text>
+      <Text style={[styles.macroPillLabel, { color: grayColor }]}>{label}</Text>
     </View>
   );
 }
+
+// ─── Scanning animation — rotates through analysis steps ──────────────────
+const SCAN_ANALYSIS_STEPS = [
+  { icon: 'eye-outline', text: 'Identificando alimentos...' },
+  { icon: 'nutrition-outline', text: 'Calculando nutrientes...' },
+  { icon: 'analytics-outline', text: 'Estimando porciones...' },
+  { icon: 'checkmark-circle-outline', text: 'Verificando resultados...' },
+];
+
+function ScanningAnimation({ shimmerOpacity }: { shimmerOpacity: Animated.Value }) {
+  const [stepIdx, setStepIdx] = useState(0);
+  const textOpacity = useRef(new Animated.Value(1)).current;
+  const ringScale = useRef(new Animated.Value(1)).current;
+  const spinAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Pulsing ring around the spinner
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(ringScale, { toValue: 1.15, duration: 700, useNativeDriver: true }),
+        Animated.timing(ringScale, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    pulse.start();
+
+    // Continuous spinner rotation
+    const spin = Animated.loop(
+      Animated.timing(spinAnim, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    spin.start();
+
+    // Rotate through analysis steps with crossfade
+    const interval = setInterval(() => {
+      Animated.timing(textOpacity, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+        setStepIdx((prev) => (prev + 1) % SCAN_ANALYSIS_STEPS.length);
+        Animated.timing(textOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      });
+    }, 2200);
+
+    return () => {
+      pulse.stop();
+      spin.stop();
+      clearInterval(interval);
+    };
+  }, []);
+
+  const currentStep = SCAN_ANALYSIS_STEPS[stepIdx];
+
+  return (
+    <View style={scanAnimStyles.container}>
+      {/* Pulsing ring */}
+      <Animated.View style={[scanAnimStyles.ring, { transform: [{ scale: ringScale }] }]} />
+      {/* Spinner */}
+      <Animated.View
+        style={[
+          scanAnimStyles.spinner,
+          {
+            transform: [{
+              rotate: spinAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0deg', '360deg'],
+              }),
+            }],
+          },
+        ]}
+      />
+      {/* Rotating step text */}
+      <Animated.View style={[scanAnimStyles.textRow, { opacity: textOpacity }]}>
+        <Ionicons name={currentStep.icon as any} size={16} color="#FFFFFF" />
+        <Text style={scanAnimStyles.stepText}>{currentStep.text}</Text>
+      </Animated.View>
+      <Animated.Text style={[scanAnimStyles.hint, { opacity: shimmerOpacity }]}>
+        Esto puede tardar hasta 10 segundos
+      </Animated.Text>
+    </View>
+  );
+}
+
+const scanAnimStyles = StyleSheet.create({
+  container: { alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  ring: {
+    position: 'absolute',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  spinner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    borderTopColor: 'transparent',
+    marginBottom: spacing.sm,
+  },
+  textRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  stepText: { ...typography.titleSm, color: '#FFFFFF' },
+  hint: { ...typography.caption, color: 'rgba(255,255,255,0.7)' },
+});
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function ScanScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
   const { isPremium } = useAuth();
+  const c = useThemeColors();
+  const { t } = useTranslation();
+  const { track } = useAnalytics('Scan');
   const [selectedMeal, setSelectedMeal] = useState<MealType>('lunch');
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -132,20 +270,6 @@ export default function ScanScreen({ navigation }: any) {
     }
   }, [scanState]);
 
-  // Animate success checkmark
-  useEffect(() => {
-    if (scanState === 'logged') {
-      haptics.success();
-      successScale.setValue(0);
-      Animated.spring(successScale, {
-        toValue: 1,
-        friction: 5,
-        tension: 100,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [scanState]);
-
   // Cargar conteo de escaneos al entrar y cuando volvemos a idle despues de un scan
   React.useEffect(() => {
     if (!isPremium && scanState === 'idle') {
@@ -157,6 +281,8 @@ export default function ScanScreen({ navigation }: any) {
         setTodayScans(aiScans.length);
       }).catch(() => {
         setScansError(true);
+        // Default to 0 so free users can still scan when offline
+        setTodayScans(0);
       }).finally(() => {
         setScansLoading(false);
       });
@@ -212,6 +338,11 @@ export default function ScanScreen({ navigation }: any) {
       const data = await foodService.scanFood(uri, selectedMeal);
       setResult(data);
       setScanState('result');
+      track('food_scanned', {
+        meal_type: selectedMeal,
+        confidence: data.ai_confidence,
+        food_name: data.food_name,
+      });
     } catch (err: any) {
       setScanState('idle');
       haptics.error();
@@ -236,6 +367,11 @@ export default function ScanScreen({ navigation }: any) {
 
   const handleConfirm = () => {
     haptics.medium();
+    track('food_logged_from_scan', {
+      meal_type: selectedMeal,
+      food_name: result?.food_name,
+      calories: result?.calories,
+    });
     setScanState('logged');
     // Navigate to log after a moment
     confirmTimerRef.current = setTimeout(() => {
@@ -257,7 +393,7 @@ export default function ScanScreen({ navigation }: any) {
   if (scanState === 'result' && result) {
     const confidence = Math.round((result.ai_confidence ?? 0) * 100);
     return (
-      <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
@@ -277,49 +413,56 @@ export default function ScanScreen({ navigation }: any) {
           <Animated.View
             style={[
               styles.resultCard,
-              { transform: [{ scale: resultScale }], opacity: resultOpacity },
+              { backgroundColor: c.surface, borderColor: c.grayLight, transform: [{ scale: resultScale }], opacity: resultOpacity },
             ]}
-            accessibilityLabel={`Resultado del escaneo: ${result.food_name}, ${Math.round(result.calories)} kilocalorías, confianza ${confidence} por ciento`}
+            accessibilityLabel={`Resultado del escaneo: ${result.food_name}, ${Math.round(result.calories)} kilocalorías, proteina ${Math.round(result.protein_g)} gramos, carbohidratos ${Math.round(result.carbs_g)} gramos, grasas ${Math.round(result.fats_g)} gramos, confianza ${confidence} por ciento`}
+            accessibilityLiveRegion="polite"
           >
             <View style={styles.resultHeader}>
-              <Text style={styles.resultFood}>{result.food_name}</Text>
+              <Text style={[styles.resultFood, { color: c.black }]}>{result.food_name}</Text>
               {result.cache_hit && (
                 <View
-                  style={styles.cacheBadge}
+                  style={[styles.cacheBadge, { backgroundColor: c.badgeBg }]}
                   accessibilityLabel="Resultado obtenido de cache"
                 >
                   <Ionicons name="flash" size={12} color="#F59E0B" />
-                  <Text style={styles.cacheBadgeText}>Cache</Text>
+                  <Text style={[styles.cacheBadgeText, { color: c.badgeText }]}>Cache</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.resultConfidence}>
-              Confianza IA: {confidence}%
+            <Text style={[styles.resultConfidence, { color: c.gray }]}>
+              {t('scan.confidence', { value: confidence })}
             </Text>
 
             {/* Main calories */}
             <View style={styles.calorieBox}>
-              <Text style={styles.calorieValue}>{Math.round(result.calories)}</Text>
-              <Text style={styles.calorieUnit}>kcal</Text>
+              <Text style={[styles.calorieValue, { color: c.black }]}>{Math.round(result.calories)}</Text>
+              <Text style={[styles.calorieUnit, { color: c.gray }]}>kcal</Text>
               {result.serving_size && (
-                <Text style={styles.servingSize}>por {result.serving_size}</Text>
+                <Text style={[styles.servingSize, { color: c.gray }]}>por {result.serving_size}</Text>
               )}
             </View>
 
             {/* Macros */}
             <View style={styles.macroRow}>
-              <MacroPill label="Proteina" value={result.protein_g}  unit="g" color={colors.protein} />
-              <MacroPill label="Carbos"   value={result.carbs_g}    unit="g" color={colors.carbs}   />
-              <MacroPill label="Grasas"   value={result.fats_g}     unit="g" color={colors.fats}    />
+              <MacroPill label="Proteina" value={result.protein_g}  unit="g" color={c.protein} grayColor={c.gray} />
+              <MacroPill label="Carbos"   value={result.carbs_g}    unit="g" color={c.carbs}   grayColor={c.gray} />
+              <MacroPill label="Grasas"   value={result.fats_g}     unit="g" color={c.fats}    grayColor={c.gray} />
             </View>
+
+            {/* Health Score */}
+            <HealthScore
+              score={computeHealthScore(result.calories, result.protein_g, result.carbs_g, result.fats_g)}
+              size="small"
+            />
 
             {(result.fiber_g != null || result.sodium_mg != null) && (
               <View style={styles.extraRow}>
                 {result.fiber_g != null && (
-                  <Text style={styles.extraItem}>Fibra: {result.fiber_g}g</Text>
+                  <Text style={[styles.extraItem, { color: c.gray }]}>Fibra: {result.fiber_g}g</Text>
                 )}
                 {result.sodium_mg != null && (
-                  <Text style={styles.extraItem}>Sodio: {result.sodium_mg}mg</Text>
+                  <Text style={[styles.extraItem, { color: c.gray }]}>Sodio: {result.sodium_mg}mg</Text>
                 )}
               </View>
             )}
@@ -330,10 +473,10 @@ export default function ScanScreen({ navigation }: any) {
               return (
                 <View
                   style={[styles.mealBadge, { backgroundColor: mt.color + '15' }]}
-                  accessibilityLabel={`Tipo de comida: ${mt.label}`}
+                  accessibilityLabel={`Tipo de comida: ${t(mt.labelKey)}`}
                 >
                   <Ionicons name={mt.icon as any} size={14} color={mt.color} />
-                  <Text style={[styles.mealBadgeText, { color: mt.color }]}>{mt.label}</Text>
+                  <Text style={[styles.mealBadgeText, { color: mt.color }]}>{t(mt.labelKey)}</Text>
                 </View>
               );
             })()}
@@ -341,26 +484,26 @@ export default function ScanScreen({ navigation }: any) {
 
           {/* Actions */}
           <TouchableOpacity
-            style={styles.confirmBtn}
+            style={[styles.confirmBtn, { backgroundColor: c.black }]}
             onPress={handleConfirm}
             activeOpacity={0.85}
             accessibilityLabel="Guardar en mi registro"
             accessibilityRole="button"
             accessibilityHint="Confirma y guarda este alimento en tu diario"
           >
-            <Ionicons name="checkmark-circle" size={20} color={colors.white} />
-            <Text style={styles.confirmBtnText}>Guardar en mi registro</Text>
+            <Ionicons name="checkmark-circle" size={20} color={c.white} />
+            <Text style={[styles.confirmBtnText, { color: c.white }]}>{t('scan.saveToLog')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.retryBtn}
+            style={[styles.retryBtn, { backgroundColor: c.surface }]}
             onPress={handleRetry}
             activeOpacity={0.7}
             accessibilityLabel="Escanear otra foto"
             accessibilityRole="button"
           >
-            <Ionicons name="refresh-outline" size={18} color={colors.black} />
-            <Text style={styles.retryBtnText}>Escanear otra foto</Text>
+            <Ionicons name="refresh-outline" size={18} color={c.black} />
+            <Text style={[styles.retryBtnText, { color: c.black }]}>{t('scan.scanAnother')}</Text>
           </TouchableOpacity>
 
           <View style={{ height: spacing.xl }} />
@@ -373,21 +516,21 @@ export default function ScanScreen({ navigation }: any) {
   if (scanState === 'logged') {
     return (
       <View
-        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+        style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg }]}
         accessibilityLabel="Alimento registrado exitosamente. Redirigiendo a tu registro."
       >
         <SuccessCheckmark size={88} showParticles={true} />
-        <Text style={styles.successText}>Registrado!</Text>
-        <Text style={styles.successHint}>Redirigiendo a tu registro...</Text>
+        <Text style={[styles.successText, { color: c.black }]}>{t('scan.logged')}</Text>
+        <Text style={[styles.successHint, { color: c.gray }]}>{t('scan.redirecting')}</Text>
       </View>
     );
   }
 
-  // ─── Scanning loader ─────────────────────────────────────────────────────
+  // ─── Scanning loader — multi-step analysis animation ─────────────────────
   if (scanState === 'scanning') {
     return (
       <View
-        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+        style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg }]}
         accessibilityLabel="Analizando imagen con inteligencia artificial. Esto puede tardar hasta 10 segundos."
       >
         {imageUri && (
@@ -398,11 +541,7 @@ export default function ScanScreen({ navigation }: any) {
           />
         )}
         <View style={styles.scanningOverlay}>
-          <ActivityIndicator size="large" color={colors.white} />
-          <Animated.Text style={[styles.scanningText, { opacity: scanShimmer }]}>
-            Analizando con IA...
-          </Animated.Text>
-          <Text style={styles.scanningHint}>Esto puede tardar hasta 10 segundos</Text>
+          <ScanningAnimation shimmerOpacity={scanShimmer} />
         </View>
       </View>
     );
@@ -412,20 +551,19 @@ export default function ScanScreen({ navigation }: any) {
   // Only block after the scan count has finished loading to avoid a false gate.
   if (!isPremium && !scansLoading && todayScans >= FREE_SCAN_LIMIT) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding }]}>
+      <View style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg }]}>
         <View
-          style={styles.limitIcon}
+          style={[styles.limitIcon, { backgroundColor: c.black }]}
           accessibilityLabel="Limite diario alcanzado"
         >
-          <Ionicons name="lock-closed" size={36} color={colors.white} />
+          <Ionicons name="lock-closed" size={36} color={c.white} />
         </View>
-        <Text style={styles.limitTitle}>Limite diario alcanzado</Text>
-        <Text style={styles.limitSubtitle}>
-          Has usado tus {FREE_SCAN_LIMIT} escaneos gratuitos de hoy.{'\n'}
-          Hazte Premium para escaneos ilimitados.
+        <Text style={[styles.limitTitle, { color: c.black }]}>{t('scan.limitReached')}</Text>
+        <Text style={[styles.limitSubtitle, { color: c.gray }]}>
+          {t('scan.limitMessage', { limit: FREE_SCAN_LIMIT })}
         </Text>
         <TouchableOpacity
-          style={styles.upgradeBtn}
+          style={[styles.upgradeBtn, { backgroundColor: c.black }]}
           onPress={() => {
             haptics.light();
             navigation.navigate('Perfil', { screen: 'Paywall' });
@@ -435,10 +573,10 @@ export default function ScanScreen({ navigation }: any) {
           accessibilityRole="button"
           accessibilityHint="Navega a la pantalla de suscripciones Premium"
         >
-          <Text style={styles.upgradeBtnText}>Ver planes Premium</Text>
+          <Text style={[styles.upgradeBtnText, { color: c.white }]}>{t('scan.viewPremiumPlans')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.manualFallbackBtn}
+          style={[styles.manualFallbackBtn, { backgroundColor: c.surface }]}
           onPress={() => {
             haptics.light();
             navigation.navigate('Registro', { screen: 'AddFood', params: { mealType: selectedMeal } });
@@ -447,8 +585,8 @@ export default function ScanScreen({ navigation }: any) {
           accessibilityLabel="Anadir alimento manualmente"
           accessibilityRole="button"
         >
-          <Ionicons name="create-outline" size={16} color={colors.black} />
-          <Text style={styles.manualFallbackText}>Anadir manualmente</Text>
+          <Ionicons name="create-outline" size={16} color={c.black} />
+          <Text style={[styles.manualFallbackText, { color: c.black }]}>{t('scan.addManually')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -456,11 +594,16 @@ export default function ScanScreen({ navigation }: any) {
 
   // ─── Idle — main scan UI ─────────────────────────────────────────────────
   return (
-    <View style={[styles.screen, { paddingTop: insets.top, paddingHorizontal: sidePadding }]}>
-      {/* Header */}
+    <View style={[styles.screen, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg }]}>
+      {/* Header with Fitsi */}
       <View style={styles.header}>
-        <Text style={styles.title} accessibilityRole="header">Escanear comida</Text>
-        <Text style={styles.subtitle}>La IA detecta nutrientes automaticamente</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <FitsiMascot expression="star" size="small" animation="wave" />
+          <View>
+            <Text style={[styles.title, { color: c.black }]} accessibilityRole="header">{t('scan.title')}</Text>
+            <Text style={[styles.subtitle, { color: c.gray }]}>{t('scan.subtitle')}</Text>
+          </View>
+        </View>
       </View>
 
       {/* Camera viewfinder area */}
@@ -477,45 +620,62 @@ export default function ScanScreen({ navigation }: any) {
         <View style={styles.cornerBL} />
         <View style={styles.cornerBR} />
         <Animated.View style={[styles.cameraCircle, cameraCirclePulse]}>
-          <Ionicons name="camera" size={40} color={colors.white} />
+          <Ionicons name="camera" size={40} color="#FFFFFF" />
         </Animated.View>
-        <Text style={styles.viewfinderText}>Toca para abrir camara</Text>
+        <Text style={styles.viewfinderText}>{t('scan.tapToOpenCamera')}</Text>
       </TouchableOpacity>
 
-      {/* Gallery button */}
-      <TouchableOpacity
-        style={styles.galleryBtn}
-        onPress={() => pickImage('library')}
-        activeOpacity={0.7}
-        accessibilityLabel="Elegir foto de la galeria"
-        accessibilityRole="button"
-        accessibilityHint="Selecciona una foto existente de tu galeria"
-      >
-        <Ionicons name="images-outline" size={18} color={colors.black} />
-        <Text style={styles.galleryBtnText}>Elegir de galeria</Text>
-      </TouchableOpacity>
+      {/* Action buttons row */}
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: c.surface }]}
+          onPress={() => pickImage('library')}
+          activeOpacity={0.7}
+          accessibilityLabel="Elegir foto de la galeria"
+          accessibilityRole="button"
+          accessibilityHint="Selecciona una foto existente de tu galeria"
+        >
+          <Ionicons name="images-outline" size={18} color={c.black} />
+          <Text style={[styles.actionBtnText, { color: c.black }]}>{t('scan.gallery')}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.barcodeBtn, { backgroundColor: c.accent + '15', borderColor: c.accent + '30' }]}
+          onPress={() => {
+            haptics.light();
+            navigation.navigate('Barcode', { mealType: selectedMeal });
+          }}
+          activeOpacity={0.7}
+          accessibilityLabel="Escanear codigo de barras"
+          accessibilityRole="button"
+          accessibilityHint="Abre el escaner de codigos de barras para buscar productos"
+        >
+          <Ionicons name="barcode-outline" size={18} color={c.accent} />
+          <Text style={[styles.actionBtnText, { color: c.accent }]}>{t('scan.barcode')}</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Meal type selector */}
-      <Text style={styles.sectionLabel}>Tipo de comida</Text>
+      <Text style={[styles.sectionLabel, { color: c.black }]}>{t('scan.mealType')}</Text>
       <View style={styles.mealTypes} accessibilityRole="radiogroup">
         {MEAL_TYPES.map((mt) => {
           const isSelected = selectedMeal === mt.value;
           return (
             <TouchableOpacity
               key={mt.value}
-              style={[styles.mealChip, isSelected && styles.mealChipActive]}
+              style={[styles.mealChip, { backgroundColor: c.surface }, isSelected && { backgroundColor: c.black }]}
               onPress={() => {
                 haptics.selection();
                 setSelectedMeal(mt.value);
               }}
               activeOpacity={0.7}
-              accessibilityLabel={mt.label}
+              accessibilityLabel={t(mt.labelKey)}
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected }}
             >
-              <Ionicons name={mt.icon as any} size={15} color={isSelected ? colors.white : mt.color} />
-              <Text style={[styles.mealChipText, isSelected && styles.mealChipTextActive]}>
-                {mt.label}
+              <Ionicons name={mt.icon as any} size={15} color={isSelected ? c.white : mt.color} />
+              <Text style={[styles.mealChipText, { color: c.black }, isSelected && { color: c.white }]}>
+                {t(mt.labelKey)}
               </Text>
             </TouchableOpacity>
           );
@@ -527,7 +687,7 @@ export default function ScanScreen({ navigation }: any) {
         scansError ? (
           // Error state — tapping retries the count fetch
           <TouchableOpacity
-            style={[styles.freeBanner, { backgroundColor: colors.accent + '22' }]}
+            style={[styles.freeBanner, { backgroundColor: c.accent + '22' }]}
             onPress={() => {
               haptics.light();
               setScansError(false);
@@ -541,14 +701,14 @@ export default function ScanScreen({ navigation }: any) {
             accessibilityLabel="Error al verificar limite de escaneos. Toca para reintentar."
             accessibilityRole="button"
           >
-            <Ionicons name="wifi-outline" size={14} color={colors.accent} />
-            <Text style={[styles.freeBannerText, { color: colors.accent }]}>
-              No se pudo verificar el limite. Toca para reintentar.
+            <Ionicons name="wifi-outline" size={14} color={c.accent} />
+            <Text style={[styles.freeBannerText, { color: c.accent }]}>
+              {t('scan.scanLimitError')}
             </Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={styles.freeBanner}
+            style={[styles.freeBanner, { backgroundColor: c.badgeBg }]}
             onPress={() => {
               haptics.light();
               navigation.navigate('Perfil', { screen: 'Paywall' });
@@ -557,21 +717,21 @@ export default function ScanScreen({ navigation }: any) {
             accessibilityLabel={scansLoading ? 'Cargando conteo de escaneos' : `Plan gratuito: ${todayScans} de ${FREE_SCAN_LIMIT} escaneos usados hoy. Toca para ver planes Premium.`}
             accessibilityRole="button"
           >
-            <Ionicons name="flash-outline" size={14} color={colors.badgeText} />
-            <Text style={styles.freeBannerText}>
+            <Ionicons name="flash-outline" size={14} color={c.badgeText} />
+            <Text style={[styles.freeBannerText, { color: c.badgeText }]}>
               {scansLoading
-                ? 'Cargando escaneos...'
-                : `Plan gratuito: ${todayScans}/${FREE_SCAN_LIMIT} escaneos usados hoy`}
+                ? t('scan.loadingScans')
+                : t('scan.freePlan', { used: todayScans, limit: FREE_SCAN_LIMIT })}
             </Text>
-            {!scansLoading && <Text style={styles.freeBannerCta}>Mejorar</Text>}
+            {!scansLoading && <Text style={[styles.freeBannerCta, { color: c.badgeText }]}>{t('scan.upgrade')}</Text>}
           </TouchableOpacity>
         )
       )}
 
       {/* Info */}
       <View style={styles.infoRow} accessibilityLabel="IA de ultima generacion. Resultados en segundos.">
-        <Ionicons name="shield-checkmark-outline" size={14} color={colors.gray} />
-        <Text style={styles.infoText}>IA de ultima generacion -- Resultados en segundos</Text>
+        <Ionicons name="shield-checkmark-outline" size={14} color={c.gray} />
+        <Text style={[styles.infoText, { color: c.gray }]}>{t('scan.aiPowered')}</Text>
       </View>
     </View>
   );
@@ -579,7 +739,7 @@ export default function ScanScreen({ navigation }: any) {
 
 const CORNER = 22;
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 },
   centered: { alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingTop: spacing.md },
   header: {
@@ -588,8 +748,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     gap: spacing.xs,
   },
-  title:    { ...typography.titleMd, color: colors.black },
-  subtitle: { ...typography.subtitle, color: colors.gray, textAlign: 'center' },
+  title:    { ...typography.titleMd },
+  subtitle: { ...typography.subtitle, textAlign: 'center' },
 
   // Viewfinder
   viewfinder: {
@@ -604,10 +764,10 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     minHeight: 44,
   },
-  cornerTL: { position: 'absolute', top: 14, left: 14, width: CORNER, height: CORNER, borderTopWidth: 3, borderLeftWidth: 3, borderColor: colors.white, borderRadius: 4 },
-  cornerTR: { position: 'absolute', top: 14, right: 14, width: CORNER, height: CORNER, borderTopWidth: 3, borderRightWidth: 3, borderColor: colors.white, borderRadius: 4 },
-  cornerBL: { position: 'absolute', bottom: 14, left: 14, width: CORNER, height: CORNER, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: colors.white, borderRadius: 4 },
-  cornerBR: { position: 'absolute', bottom: 14, right: 14, width: CORNER, height: CORNER, borderBottomWidth: 3, borderRightWidth: 3, borderColor: colors.white, borderRadius: 4 },
+  cornerTL: { position: 'absolute', top: 14, left: 14, width: CORNER, height: CORNER, borderTopWidth: 3, borderLeftWidth: 3, borderColor: '#FFFFFF', borderRadius: 4 },
+  cornerTR: { position: 'absolute', top: 14, right: 14, width: CORNER, height: CORNER, borderTopWidth: 3, borderRightWidth: 3, borderColor: '#FFFFFF', borderRadius: 4 },
+  cornerBL: { position: 'absolute', bottom: 14, left: 14, width: CORNER, height: CORNER, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: '#FFFFFF', borderRadius: 4 },
+  cornerBR: { position: 'absolute', bottom: 14, right: 14, width: CORNER, height: CORNER, borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#FFFFFF', borderRadius: 4 },
   cameraCircle: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -616,34 +776,37 @@ const styles = StyleSheet.create({
   },
   viewfinderText: { color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: '500' },
 
-  // Gallery
-  galleryBtn: {
+  // Action buttons row (gallery + barcode)
+  actionRow: {
+    flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm,
+  },
+  actionBtn: {
+    flex: 1,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.sm + 2,
-    marginTop: spacing.sm,
     borderRadius: radius.full,
-    backgroundColor: colors.surface,
     minHeight: 44,
   },
-  galleryBtnText: { ...typography.label, color: colors.black },
+  barcodeBtn: {
+    borderWidth: 1,
+  },
+  actionBtnText: { ...typography.label },
 
   // Meal chips
-  sectionLabel: { ...typography.label, color: colors.black, marginTop: spacing.lg, marginBottom: spacing.sm },
+  sectionLabel: { ...typography.label, marginTop: spacing.lg, marginBottom: spacing.sm },
   mealTypes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center' },
   mealChip: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderRadius: radius.full, backgroundColor: colors.surface,
+    borderRadius: radius.full,
     minHeight: 44,
   },
-  mealChipActive: { backgroundColor: colors.black },
-  mealChipText: { ...typography.label, color: colors.black },
-  mealChipTextActive: { color: colors.white },
+  mealChipText: { ...typography.label },
 
   // Info
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.lg, justifyContent: 'center' },
-  infoText: { ...typography.caption, color: colors.gray },
+  infoText: { ...typography.caption },
 
   // Scanning state
   scanningPreview: { width: '100%', height: '100%', position: 'absolute' },
@@ -652,7 +815,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.65)',
     alignItems: 'center', justifyContent: 'center', gap: spacing.md,
   },
-  scanningText: { ...typography.titleSm, color: colors.white },
+  scanningText: { ...typography.titleSm, color: '#FFFFFF' },
   scanningHint: { ...typography.caption, color: 'rgba(255,255,255,0.7)' },
 
   // Result
@@ -660,33 +823,33 @@ const styles = StyleSheet.create({
     height: 200, borderRadius: radius.xl, marginBottom: spacing.md,
   },
   resultCard: {
-    backgroundColor: colors.white, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.grayLight,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     padding: spacing.md, marginBottom: spacing.md,
     gap: spacing.sm, ...shadows.sm,
   },
   resultHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  resultFood: { ...typography.titleSm, color: colors.black, flex: 1 },
-  resultConfidence: { ...typography.caption, color: colors.gray },
+  resultFood: { ...typography.titleSm, flex: 1 },
+  resultConfidence: { ...typography.caption },
   cacheBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: colors.badgeBg, paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3, borderRadius: radius.full,
   },
-  cacheBadgeText: { fontSize: 11, fontWeight: '700', color: colors.badgeText },
+  cacheBadgeText: { fontSize: 11, fontWeight: '700' },
   calorieBox: { alignItems: 'center', paddingVertical: spacing.sm, gap: 2 },
-  calorieValue: { fontSize: 52, fontWeight: '800', color: colors.black, letterSpacing: -2 },
-  calorieUnit: { ...typography.label, color: colors.gray },
-  servingSize: { ...typography.caption, color: colors.gray, marginTop: 2 },
+  calorieValue: { fontSize: 52, fontWeight: '800', letterSpacing: -2 },
+  calorieUnit: { ...typography.label },
+  servingSize: { ...typography.caption, marginTop: 2 },
   macroRow: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
   macroPill: {
     flex: 1, alignItems: 'center', padding: spacing.sm,
     borderRadius: radius.md, borderWidth: 1,
   },
   macroPillValue: { fontSize: 16, fontWeight: '800' },
-  macroPillLabel: { ...typography.caption, color: colors.gray, marginTop: 2 },
+  macroPillLabel: { ...typography.caption, marginTop: 2 },
   extraRow: { flexDirection: 'row', gap: spacing.md, justifyContent: 'center' },
-  extraItem: { ...typography.caption, color: colors.gray },
+  extraItem: { ...typography.caption },
   mealBadge: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
     alignSelf: 'flex-start', paddingHorizontal: spacing.md,
@@ -696,59 +859,58 @@ const styles = StyleSheet.create({
 
   confirmBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: spacing.sm, backgroundColor: colors.black,
+    gap: spacing.sm,
     paddingVertical: spacing.md, borderRadius: radius.full,
     marginBottom: spacing.sm, minHeight: 52,
   },
-  confirmBtnText: { ...typography.button, color: colors.white },
+  confirmBtnText: { ...typography.button },
   retryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: spacing.sm, backgroundColor: colors.surface,
+    gap: spacing.sm,
     paddingVertical: spacing.md, borderRadius: radius.full,
     minHeight: 48,
   },
-  retryBtnText: { ...typography.button, color: colors.black },
+  retryBtnText: { ...typography.button },
 
   // Free plan banner
   freeBanner: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    backgroundColor: colors.badgeBg, borderRadius: radius.md,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     marginTop: spacing.md, minHeight: 44,
   },
-  freeBannerText: { ...typography.caption, color: colors.badgeText, flex: 1 },
-  freeBannerCta: { ...typography.caption, fontWeight: '700', color: colors.badgeText },
+  freeBannerText: { ...typography.caption, flex: 1 },
+  freeBannerCta: { ...typography.caption, fontWeight: '700' },
 
   // Paywall gate
   limitIcon: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: colors.black, alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     marginBottom: spacing.md,
   },
-  limitTitle: { ...typography.titleSm, color: colors.black, marginBottom: spacing.sm },
-  limitSubtitle: { ...typography.subtitle, color: colors.gray, textAlign: 'center', lineHeight: 22, marginBottom: spacing.xl },
+  limitTitle: { ...typography.titleSm, marginBottom: spacing.sm },
+  limitSubtitle: { ...typography.subtitle, textAlign: 'center', lineHeight: 22, marginBottom: spacing.xl },
   upgradeBtn: {
-    backgroundColor: colors.black, borderRadius: radius.full,
+    borderRadius: radius.full,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
     marginBottom: spacing.sm, width: '100%', alignItems: 'center',
     minHeight: 52,
   },
-  upgradeBtnText: { ...typography.button, color: colors.white },
+  upgradeBtnText: { ...typography.button },
   manualFallbackBtn: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    backgroundColor: colors.surface, borderRadius: radius.full,
+    borderRadius: radius.full,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
     width: '100%', justifyContent: 'center', minHeight: 48,
   },
-  manualFallbackText: { ...typography.label, color: colors.black },
+  manualFallbackText: { ...typography.label },
 
   // Success
   successIcon: {
     width: 88, height: 88, borderRadius: 44,
-    backgroundColor: colors.success,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: spacing.md,
   },
-  successText: { ...typography.titleMd, color: colors.black },
-  successHint: { ...typography.caption, color: colors.gray, marginTop: spacing.xs },
+  successText: { ...typography.titleMd },
+  successHint: { ...typography.caption, marginTop: spacing.xs },
 });

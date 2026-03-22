@@ -63,30 +63,38 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
       onBack={onBack}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
-      <Text style={styles.title}>Altura y peso</Text>
-      <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
+      <Text style={styles.title}>Tu altura y peso</Text>
+      <Text style={styles.subtitle}>
+        Con estos datos calculamos tu metabolismo basal y calorias diarias.
+      </Text>
 
       {/* Unit toggle */}
-      <View style={styles.toggleRow}>
-        {(['imperial', 'metric'] as const).map(u => (
-          <TouchableOpacity
-            key={u}
-            onPress={() => switchUnit(u)}
-            style={[styles.toggleBtn, unit === u && styles.toggleBtnActive]}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleText, unit === u && styles.toggleTextActive]}>
-              {u.charAt(0).toUpperCase() + u.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.toggleRow} accessibilityRole="radiogroup">
+        {(['imperial', 'metric'] as const).map(u => {
+          const label = u === 'imperial' ? 'Imperial (ft, lb)' : 'Metrico (cm, kg)';
+          return (
+            <TouchableOpacity
+              key={u}
+              onPress={() => switchUnit(u)}
+              style={[styles.toggleBtn, unit === u && styles.toggleBtnActive]}
+              activeOpacity={0.8}
+              accessibilityLabel={label}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: unit === u }}
+            >
+              <Text style={[styles.toggleText, unit === u && styles.toggleTextActive]}>
+                {u === 'imperial' ? 'Imperial' : 'Metrico'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Pickers */}
       <View style={styles.pickersRow}>
         {unit === 'imperial' ? (
           <>
-            <View style={styles.pickerCol}>
+            <View style={styles.pickerCol} accessibilityLabel="Selector de altura">
               <Text style={styles.pickerLabel}>Altura</Text>
               <View style={styles.pickerPair}>
                 <ScrollPicker
@@ -104,7 +112,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
               </View>
             </View>
             <View style={styles.divider} />
-            <View style={styles.pickerCol}>
+            <View style={styles.pickerCol} accessibilityLabel="Selector de peso">
               <Text style={styles.pickerLabel}>Peso</Text>
               <ScrollPicker
                 items={LB_OPTIONS}
@@ -116,7 +124,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
           </>
         ) : (
           <>
-            <View style={styles.pickerCol}>
+            <View style={styles.pickerCol} accessibilityLabel="Selector de altura">
               <Text style={styles.pickerLabel}>Altura</Text>
               <ScrollPicker
                 items={CM_OPTIONS}
@@ -126,7 +134,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
               />
             </View>
             <View style={styles.divider} />
-            <View style={styles.pickerCol}>
+            <View style={styles.pickerCol} accessibilityLabel="Selector de peso">
               <Text style={styles.pickerLabel}>Peso</Text>
               <ScrollPicker
                 items={KG_OPTIONS}

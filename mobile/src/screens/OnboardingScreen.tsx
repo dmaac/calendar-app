@@ -37,7 +37,7 @@ const C = {
   black: '#111111',
   gray: '#8E8E93',
   grayLight: '#E5E5EA',
-  accent: '#FF7A5C',
+  accent: '#4285F4',
   disabled: '#C7C7CC',
   white: '#FFFFFF',
 };
@@ -481,8 +481,8 @@ function ProgressChart() {
       <Svg width={cw} height={ch}>
         <Defs>
           <LinearGradient id="prog" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#FF7A5C" stopOpacity="0.3" />
-            <Stop offset="1" stopColor="#FF7A5C" stopOpacity="0.02" />
+            <Stop offset="0" stopColor="#4285F4" stopOpacity="0.3" />
+            <Stop offset="1" stopColor="#4285F4" stopOpacity="0.02" />
           </LinearGradient>
         </Defs>
         <Path d={areaPath} fill="url(#prog)" />

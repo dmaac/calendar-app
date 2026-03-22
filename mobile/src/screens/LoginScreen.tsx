@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography, spacing, radius, useLayout } from '../theme';
+import FitsiMascot from '../components/FitsiMascot';
 
 interface LoginScreenProps {
   navigation: any;
@@ -23,7 +24,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
-  const { login, resetOnboarding } = useAuth();
+  const { login, resetOnboarding, devBypass } = useAuth();
   const { sidePadding, contentWidth } = useLayout();
 
   const handleLogin = async () => {
@@ -53,9 +54,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       >
         {/* Logo + título */}
         <View style={styles.header}>
-          <View style={styles.logoCircle}>
-            <Text style={styles.logoEmoji}>🥗</Text>
-          </View>
+          <FitsiMascot expression="strong" size="hero" animation="bounce" />
           <Text style={styles.appName}>Fitsi IA</Text>
           <Text style={styles.appTagline}>Tu asistente de nutrición con IA</Text>
         </View>
@@ -109,6 +108,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               <Text style={styles.linkBold}>Crea tu cuenta gratis</Text>
             </Text>
           </TouchableOpacity>
+
+          {__DEV__ && (
+            <TouchableOpacity style={styles.devBtn} onPress={devBypass}>
+              <Text style={styles.devBtnText}>DEV: Entrar sin login</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -145,6 +150,11 @@ const styles = StyleSheet.create({
   link: { alignItems: 'center', paddingVertical: spacing.sm },
   linkText: { ...typography.caption, color: colors.gray },
   linkBold: { color: colors.black, fontWeight: '700' },
+  devBtn: {
+    height: 44, borderRadius: radius.full, backgroundColor: '#4285F4',
+    alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm,
+  },
+  devBtnText: { ...typography.button, color: colors.white, fontSize: 14 },
 });
 
 export default LoginScreen;

@@ -22,14 +22,18 @@ class FoodService:
         return {food.id: food for food in result.all()}
 
     async def search_foods(self, query: str, limit: int = 20, offset: int = 0) -> Tuple[List[Food], int]:
+        # SEC: Escape SQL LIKE wildcards in user input to prevent wildcard injection
+        escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+
         count_stmt = select(func.count()).select_from(Food).where(
-            Food.name.ilike(f"%{query}%")  # type: ignore
+            Food.name.ilike(pattern)  # type: ignore
         )
         total_result = await self.session.exec(count_stmt)
         total = total_result.one()
 
         statement = select(Food).where(
-            Food.name.ilike(f"%{query}%")  # type: ignore
+            Food.name.ilike(pattern)  # type: ignore
         ).offset(offset).limit(limit)
         result = await self.session.exec(statement)
         items = list(result.all())

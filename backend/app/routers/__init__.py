@@ -6,6 +6,7 @@ from .nutrition_profile import router as nutrition_profile_router
 from .onboarding import router as onboarding_router
 from .ai_food import router as ai_food_router
 from .subscriptions import router as subscriptions_router
+from .notifications import router as notifications_router
 
 __all__ = [
     "auth_router",
@@ -16,4 +17,5 @@ __all__ = [
     "onboarding_router",
     "ai_food_router",
     "subscriptions_router",
+    "notifications_router",
 ]

@@ -18,10 +18,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, useLayout, mealColors, shadows } from '../../theme';
+import { useThemeColors, typography, spacing, radius, useLayout, mealColors, shadows } from '../../theme';
 import * as foodService from '../../services/food.service';
 import { MealType, FoodSuggestion, searchFoodHistory } from '../../services/food.service';
 import { haptics } from '../../hooks/useHaptics';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { enqueueAction } from '../../services/offlineStore';
 
 const MEAL_OPTIONS = (Object.entries(mealColors) as [MealType, typeof mealColors[string]][]).map(
   ([key, v]) => ({ key, ...v })
@@ -33,26 +35,28 @@ function MacroInput({
   onChange,
   unit = 'g',
   color,
+  colors,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   unit?: string;
   color: string;
+  colors: ReturnType<typeof useThemeColors>;
 }) {
   return (
     <View style={macroStyles.wrapper}>
       <Text style={[macroStyles.label, { color }]}>{label}</Text>
-      <View style={[macroStyles.inputRow, { borderColor: color + '40' }]}>
+      <View style={[macroStyles.inputRow, { borderColor: color + '40', backgroundColor: colors.surface }]}>
         <TextInput
-          style={macroStyles.input}
+          style={[macroStyles.input, { color: colors.black }]}
           value={value}
           onChangeText={onChange}
           keyboardType="decimal-pad"
           placeholder="0"
           placeholderTextColor={colors.disabled}
         />
-        <Text style={macroStyles.unit}>{unit}</Text>
+        <Text style={[macroStyles.unit, { color: colors.gray }]}>{unit}</Text>
       </View>
     </View>
   );
@@ -64,7 +68,6 @@ const macroStyles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
     borderRadius: radius.sm,
     borderWidth: 1.5,
     paddingHorizontal: spacing.sm,
@@ -72,13 +75,15 @@ const macroStyles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
   },
-  input: { ...typography.label, color: colors.black, minWidth: 30, textAlign: 'center' },
-  unit: { ...typography.caption, color: colors.gray, marginLeft: 2 },
+  input: { ...typography.label, minWidth: 30, textAlign: 'center' },
+  unit: { ...typography.caption, marginLeft: 2 },
 });
 
 export default function AddFoodScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
+  const c = useThemeColors();
+  const { isConnected } = useNetworkStatus();
 
   const defaultMeal: MealType = route?.params?.mealType ?? 'snack';
   const [mealType, setMealType] = useState<MealType>(defaultMeal);
@@ -144,22 +149,37 @@ export default function AddFoodScreen({ navigation, route }: any) {
 
     haptics.light();
     setLoading(true);
+
+    const payload = {
+      food_name: foodName.trim(),
+      calories: parse(calories),
+      protein_g: parse(protein),
+      carbs_g: parse(carbs),
+      fats_g: parse(fats),
+      fiber_g: fiber ? parse(fiber) : undefined,
+      serving_size: serving.trim() || undefined,
+      meal_type: mealType,
+    };
+
     try {
-      await foodService.manualLogFood({
-        food_name: foodName.trim(),
-        calories: parse(calories),
-        protein_g: parse(protein),
-        carbs_g: parse(carbs),
-        fats_g: parse(fats),
-        fiber_g: fiber ? parse(fiber) : undefined,
-        serving_size: serving.trim() || undefined,
-        meal_type: mealType,
-      });
+      if (isConnected) {
+        await foodService.manualLogFood(payload);
+      } else {
+        // Offline — queue for later sync
+        await enqueueAction('log_food', payload);
+      }
       haptics.success();
       navigation.goBack();
     } catch {
-      haptics.error();
-      Alert.alert('Error', 'No se pudo guardar el registro. Inténtalo de nuevo.');
+      // Network failed despite thinking we were online — queue it
+      try {
+        await enqueueAction('log_food', payload);
+        haptics.success();
+        navigation.goBack();
+      } catch {
+        haptics.error();
+        Alert.alert('Error', 'No se pudo guardar el registro. Inténtalo de nuevo.');
+      }
     } finally {
       setLoading(false);
     }
@@ -167,22 +187,22 @@ export default function AddFoodScreen({ navigation, route }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: c.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm, paddingHorizontal: sidePadding }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="close" size={20} color={colors.black} />
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm, paddingHorizontal: sidePadding, backgroundColor: c.bg, borderBottomColor: c.grayLight }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: c.surface }]}>
+          <Ionicons name="close" size={20} color={c.black} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Añadir alimento</Text>
+        <Text style={[styles.headerTitle, { color: c.black }]}>Añadir alimento</Text>
         <TouchableOpacity
           onPress={handleSave}
           disabled={loading}
-          style={[styles.saveBtn, loading && { opacity: 0.5 }]}
+          style={[styles.saveBtn, { backgroundColor: c.black }, loading && { opacity: 0.5 }]}
         >
-          <Text style={styles.saveBtnText}>{loading ? 'Guardando...' : 'Guardar'}</Text>
+          <Text style={[styles.saveBtnText, { color: c.white }]}>{loading ? 'Guardando...' : 'Guardar'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -192,13 +212,14 @@ export default function AddFoodScreen({ navigation, route }: any) {
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
       >
         {/* Meal type selector */}
-        <Text style={styles.sectionLabel}>Comida</Text>
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Comida</Text>
         <View style={styles.mealRow}>
           {MEAL_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.key}
               style={[
                 styles.mealChip,
+                { backgroundColor: c.surface, borderColor: c.grayLight },
                 mealType === opt.key && { backgroundColor: opt.color, borderColor: opt.color },
               ]}
               onPress={() => { haptics.selection(); setMealType(opt.key); }}
@@ -210,11 +231,12 @@ export default function AddFoodScreen({ navigation, route }: any) {
               <Ionicons
                 name={opt.icon as any}
                 size={14}
-                color={mealType === opt.key ? colors.white : colors.gray}
+                color={mealType === opt.key ? c.white : c.gray}
               />
               <Text style={[
                 styles.mealChipText,
-                mealType === opt.key && { color: colors.white },
+                { color: c.gray },
+                mealType === opt.key && { color: c.white },
               ]}>
                 {opt.label}
               </Text>
@@ -223,23 +245,23 @@ export default function AddFoodScreen({ navigation, route }: any) {
         </View>
 
         {/* Food name */}
-        <Text style={styles.sectionLabel}>Nombre del alimento</Text>
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Nombre del alimento</Text>
         <View>
-          <View style={styles.inputWrapper}>
-            <Ionicons name="restaurant-outline" size={18} color={colors.gray} />
+          <View style={[styles.inputWrapper, { backgroundColor: c.surface }]}>
+            <Ionicons name="restaurant-outline" size={18} color={c.gray} />
             <TextInput
-              style={styles.nameInput}
+              style={[styles.nameInput, { color: c.black }]}
               value={foodName}
               onChangeText={handleFoodNameChange}
               onBlur={handleFoodNameBlur}
               placeholder="Ej: Pollo a la plancha, Manzana..."
-              placeholderTextColor={colors.disabled}
+              placeholderTextColor={c.disabled}
               autoCapitalize="sentences"
               returnKeyType="next"
             />
           </View>
           {showSuggestions && (
-            <View style={styles.suggestionsContainer}>
+            <View style={[styles.suggestionsContainer, { backgroundColor: c.bg, borderColor: c.grayLight }]}>
               <FlatList
                 data={suggestions.slice(0, 4)}
                 keyExtractor={(item, index) => `${item.food_name}-${index}`}
@@ -249,18 +271,18 @@ export default function AddFoodScreen({ navigation, route }: any) {
                   <TouchableOpacity
                     style={[
                       styles.suggestionRow,
-                      index < Math.min(suggestions.length, 4) - 1 && styles.suggestionRowBorder,
+                      index < Math.min(suggestions.length, 4) - 1 && [styles.suggestionRowBorder, { borderBottomColor: c.grayLight }],
                     ]}
                     onPress={() => handleSelectSuggestion(item)}
                     activeOpacity={0.7}
                   >
                     <View style={styles.suggestionLeft}>
-                      <Text style={styles.suggestionName} numberOfLines={1}>{item.food_name}</Text>
-                      <Text style={styles.suggestionMacros}>
+                      <Text style={[styles.suggestionName, { color: c.black }]} numberOfLines={1}>{item.food_name}</Text>
+                      <Text style={[styles.suggestionMacros, { color: c.gray }]}>
                         P {item.protein_g}g · C {item.carbs_g}g · G {item.fats_g}g
                       </Text>
                     </View>
-                    <Text style={styles.suggestionCalories}>{Math.round(item.calories)} kcal</Text>
+                    <Text style={[styles.suggestionCalories, { color: c.black }]}>{Math.round(item.calories)} kcal</Text>
                   </TouchableOpacity>
                 )}
               />
@@ -269,38 +291,38 @@ export default function AddFoodScreen({ navigation, route }: any) {
         </View>
 
         {/* Calories — big & prominent */}
-        <Text style={styles.sectionLabel}>Calorías</Text>
-        <View style={styles.caloriesWrapper}>
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Calorías</Text>
+        <View style={[styles.caloriesWrapper, { backgroundColor: c.primary }]}>
           <TextInput
             style={styles.caloriesInput}
             value={calories}
             onChangeText={setCalories}
             keyboardType="decimal-pad"
             placeholder="0"
-            placeholderTextColor={colors.disabled}
+            placeholderTextColor={c.disabled}
           />
           <Text style={styles.caloriesUnit}>kcal</Text>
         </View>
 
         {/* Macros grid */}
-        <Text style={styles.sectionLabel}>Macronutrientes</Text>
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Macronutrientes</Text>
         <View style={styles.macroGrid}>
-          <MacroInput label="Proteína" value={protein} onChange={setProtein} color={colors.protein} />
-          <MacroInput label="Carbos"   value={carbs}   onChange={setCarbs}   color={colors.carbs} />
-          <MacroInput label="Grasas"   value={fats}    onChange={setFats}    color={colors.fats} />
-          <MacroInput label="Fibra"    value={fiber}   onChange={setFiber}   color={colors.success} />
+          <MacroInput label="Proteína" value={protein} onChange={setProtein} color={c.protein} colors={c} />
+          <MacroInput label="Carbos"   value={carbs}   onChange={setCarbs}   color={c.carbs} colors={c} />
+          <MacroInput label="Grasas"   value={fats}    onChange={setFats}    color={c.fats} colors={c} />
+          <MacroInput label="Fibra"    value={fiber}   onChange={setFiber}   color={c.success} colors={c} />
         </View>
 
         {/* Optional serving size */}
-        <Text style={styles.sectionLabel}>Porción (opcional)</Text>
-        <View style={styles.inputWrapper}>
-          <Ionicons name="scale-outline" size={18} color={colors.gray} />
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Porción (opcional)</Text>
+        <View style={[styles.inputWrapper, { backgroundColor: c.surface }]}>
+          <Ionicons name="scale-outline" size={18} color={c.gray} />
           <TextInput
-            style={styles.nameInput}
+            style={[styles.nameInput, { color: c.black }]}
             value={serving}
             onChangeText={setServing}
             placeholder="Ej: 100g, 1 taza, 1 pieza"
-            placeholderTextColor={colors.disabled}
+            placeholderTextColor={c.disabled}
           />
         </View>
 
@@ -311,36 +333,31 @@ export default function AddFoodScreen({ navigation, route }: any) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingBottom: spacing.sm,
-    backgroundColor: colors.bg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.grayLight,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { ...typography.titleSm, color: colors.black },
+  headerTitle: { ...typography.titleSm },
   saveBtn: {
-    backgroundColor: colors.black,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: radius.full,
   },
-  saveBtnText: { ...typography.label, color: colors.white },
+  saveBtnText: { ...typography.label },
   scroll: { paddingTop: spacing.md },
   sectionLabel: {
     ...typography.label,
-    color: colors.gray,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
@@ -354,34 +371,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 7,
     borderRadius: radius.full,
-    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: colors.grayLight,
   },
-  mealChipText: { ...typography.caption, color: colors.gray, fontWeight: '600' },
+  mealChipText: { ...typography.caption, fontWeight: '600' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     height: 52,
   },
-  nameInput: { flex: 1, ...typography.option, color: colors.black },
+  nameInput: { flex: 1, ...typography.option },
   caloriesWrapper: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.black,
     borderRadius: radius.lg,
     paddingVertical: spacing.lg,
   },
   caloriesInput: {
     fontSize: 48,
     fontWeight: '900',
-    color: colors.white,
+    color: '#FFFFFF',
     letterSpacing: -2,
     minWidth: 80,
     textAlign: 'center',
@@ -389,9 +402,7 @@ const styles = StyleSheet.create({
   caloriesUnit: { fontSize: 20, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
   macroGrid: { flexDirection: 'row', gap: spacing.sm },
   suggestionsContainer: {
-    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.grayLight,
     borderRadius: radius.md,
     marginTop: spacing.xs,
     overflow: 'hidden',
@@ -406,7 +417,6 @@ const styles = StyleSheet.create({
   },
   suggestionRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.grayLight,
   },
   suggestionLeft: {
     flex: 1,
@@ -414,17 +424,14 @@ const styles = StyleSheet.create({
   },
   suggestionName: {
     ...typography.bodyMd,
-    color: colors.black,
     fontWeight: '600',
   },
   suggestionMacros: {
     ...typography.caption,
-    color: colors.gray,
     marginTop: 2,
   },
   suggestionCalories: {
     ...typography.label,
-    color: colors.black,
     flexShrink: 0,
   },
 });

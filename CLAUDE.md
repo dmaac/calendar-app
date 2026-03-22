@@ -66,18 +66,25 @@ calendar-app/
 
 ---
 
-## Design System (Fitsi IA style)
+## Design System (Fitsia IA — Norte Digital palette)
 
 ```typescript
-// Colores
+// Colores Light
 bg:        '#FFFFFF'
-surface:   '#F5F5F7'   // cards, opciones
-black:     '#111111'   // texto principal, botones
-gray:      '#8E8E93'   // subtítulos
-grayLight: '#E5E5EA'   // bordes, disabled track
-accent:    '#FF7A5C'   // naranja/salmon (highlights)
-disabled:  '#C7C7CC'   // botón deshabilitado
+surface:   '#F5F5F5'   // cards, opciones
+black:     '#1A1A2E'   // texto principal
+gray:      '#666666'   // subtítulos
+grayLight: '#E0E0E0'   // bordes
+accent:    '#4285F4'   // azul principal (highlights, CTAs)
+primary:   '#4285F4'   // botones primarios
+disabled:  '#BDBDBD'   // botón deshabilitado
 white:     '#FFFFFF'
+success:   '#34A853'   // Google green
+
+// Colores Dark
+bg:        '#0D0D1A'
+surface:   '#1A1A2E'
+accent:    '#5B9CF6'   // azul claro (dark mode)
 
 // Tipografía
 title:   28px bold 800

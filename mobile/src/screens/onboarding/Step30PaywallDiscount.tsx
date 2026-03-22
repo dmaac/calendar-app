@@ -17,7 +17,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PurchasesPackage } from 'react-native-purchases';
 import { colors, typography, spacing, radius } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
@@ -46,7 +45,7 @@ export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps
 
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const [annualPackage, setAnnualPackage] = useState<PurchasesPackage | null>(null);
+  const [annualPackage, setAnnualPackage] = useState<any>(null);
   const [displayPrice, setDisplayPrice] = useState('$29.99');
   const [displayPerMonth, setDisplayPerMonth] = useState('$2.49');
 
@@ -112,7 +111,7 @@ export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps
       }
     } catch (err) {
       console.error('[Step30PaywallDiscount] Purchase error:', err);
-      Alert.alert('Error', 'No se pudo completar la compra. Intentalo de nuevo.', [{ text: 'OK' }]);
+      Alert.alert('Error', 'No se pudo completar la compra. Intenta de nuevo.', [{ text: 'OK' }]);
     } finally {
       setLoading(false);
     }
@@ -186,7 +185,7 @@ export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps
             <Text style={styles.priceNew}>{displayPerMonth}</Text>
             <Text style={styles.pricePerMonth}>/mes</Text>
           </View>
-          <Text style={styles.priceNote}>Cobrado como {displayPrice}/ano {'\u00B7'} Primeros 7 dias GRATIS</Text>
+          <Text style={styles.priceNote}>Cobrado como {displayPrice}/a{'\u00F1'}o {'\u00B7'} Primeros 7 dias GRATIS</Text>
         </View>
 
         {/* Timer */}

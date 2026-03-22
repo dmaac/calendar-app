@@ -4,9 +4,15 @@
  * Uses React Native's built-in Animated API to interpolate from the
  * previous value to the new value, creating a "counting up/down" effect
  * on the calorie ring and other numeric displays.
+ *
+ * Features:
+ * - Spring-based interpolation for natural overshoot + settle
+ * - Listener-driven state update for reliable text rendering
+ * - Accessibility label always shows final value
+ * - Subtle scale pop on value change for visual feedback
  */
-import React, { useEffect, useRef } from 'react';
-import { Animated, TextStyle } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, TextStyle } from 'react-native';
 
 interface AnimatedNumberProps {
   /** The numeric value to display. */
@@ -29,38 +35,60 @@ export default function AnimatedNumber({
   round = true,
 }: AnimatedNumberProps) {
   const animatedValue = useRef(new Animated.Value(value)).current;
-  const displayRef = useRef(value);
-  const textRef = useRef<any>(null);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValue = useRef(value);
 
   useEffect(() => {
     const listenerId = animatedValue.addListener(({ value: v }) => {
-      displayRef.current = v;
-      if (textRef.current) {
-        const display = round ? Math.round(v) : v.toFixed(1);
-        textRef.current.setNativeProps({ text: `${display}${suffix}` });
-      }
+      setDisplayValue(v);
     });
 
+    // Animate the number count
     Animated.timing(animatedValue, {
       toValue: value,
       duration,
-      useNativeDriver: false, // text content cannot use native driver
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
     }).start();
+
+    // Subtle scale pop when value changes significantly (> 5% or > 10 units)
+    const diff = Math.abs(value - prevValue.current);
+    const threshold = Math.max(prevValue.current * 0.05, 10);
+    if (diff > threshold && prevValue.current !== 0) {
+      scaleAnim.setValue(1);
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.08,
+          duration: 120,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 5,
+          tension: 160,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    prevValue.current = value;
 
     return () => {
       animatedValue.removeListener(listenerId);
     };
-  }, [value, duration, suffix, round]);
+  }, [value, duration]);
 
-  const display = round ? Math.round(value) : value.toFixed(1);
+  const formatted = round ? Math.round(displayValue) : displayValue.toFixed(1);
+  const finalFormatted = round ? Math.round(value) : value.toFixed(1);
 
   return (
     <Animated.Text
-      ref={textRef}
-      style={style}
-      accessibilityLabel={`${display}${suffix}`}
+      style={[style, { transform: [{ scale: scaleAnim }] }]}
+      accessibilityLabel={`${finalFormatted}${suffix}`}
+      accessibilityRole="text"
     >
-      {`${round ? Math.round(displayRef.current) : displayRef.current.toFixed(1)}${suffix}`}
+      {`${formatted}${suffix}`}
     </Animated.Text>
   );
 }

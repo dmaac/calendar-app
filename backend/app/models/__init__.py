@@ -9,6 +9,7 @@ from .onboarding_profile import OnboardingProfile
 from .ai_food_log import AIFoodLog
 from .ai_scan_cache import AIScanCache
 from .subscription import Subscription
+from .push_token import PushToken
 
 __all__ = [
     "User",
@@ -22,4 +23,5 @@ __all__ = [
     "AIFoodLog",
     "AIScanCache",
     "Subscription",
+    "PushToken",
 ]

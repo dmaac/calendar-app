@@ -1,10 +1,30 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import Svg, { Path, Circle, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { colors, typography, spacing, useLayout } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
+
+/** Animated counter that counts from 0 to target */
+function AnimatedCounter({ target, suffix = '', style }: { target: number; suffix?: string; style: any }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    anim.setValue(0);
+    Animated.timing(anim, {
+      toValue: target,
+      duration: 1200,
+      delay: 600,
+      useNativeDriver: false,
+    }).start();
+    const id = anim.addListener(({ value }) => setDisplay(Math.round(value)));
+    return () => anim.removeListener(id);
+  }, [target]);
+
+  return <Text style={style}>{display}{suffix}</Text>;
+}
 
 export default function Step07SocialProof({ onNext, onBack, step, totalSteps }: StepProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -20,7 +40,10 @@ export default function Step07SocialProof({ onNext, onBack, step, totalSteps }: 
       onBack={onBack}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
-      <Text style={styles.title}>Nuestra app genera{'\n'}resultados duraderos</Text>
+      <Text style={styles.title}>Resultados que{'\n'}duran en el tiempo</Text>
+      <Text style={styles.subtitle}>
+        Nuestro enfoque basado en IA supera a las dietas tradicionales.
+      </Text>
 
       <Animated.View style={{ opacity: fadeAnim, marginTop: spacing.xl }}>
         <ChartCard />
@@ -48,24 +71,101 @@ function ChartCard() {
   const appPath = appPts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${toX(x).toFixed(1)},${toY(y).toFixed(1)}`).join(' ');
   const tradPath = tradPts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${toX(x).toFixed(1)},${toY(y).toFixed(1)}`).join(' ');
 
+  // Estimate path lengths for stroke animation
+  const pathLength = (pts: [number, number][]) => {
+    let len = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const dx = toX(pts[i][0]) - toX(pts[i - 1][0]);
+      const dy = toY(pts[i][1]) - toY(pts[i - 1][1]);
+      len += Math.sqrt(dx * dx + dy * dy);
+    }
+    return Math.ceil(len);
+  };
+
+  const appLen = pathLength(appPts);
+  const tradLen = pathLength(tradPts);
+
+  // Animated progressive drawing
+  const appDraw = useRef(new Animated.Value(0)).current;
+  const tradDraw = useRef(new Animated.Value(0)).current;
+  const dotOpacity = useRef(new Animated.Value(0)).current;
+
+  const [appOffset, setAppOffset] = useState(appLen);
+  const [tradOffset, setTradOffset] = useState(tradLen);
+
+  useEffect(() => {
+    // Draw traditional line first, then app line
+    Animated.sequence([
+      Animated.timing(tradDraw, {
+        toValue: 1,
+        duration: 800,
+        delay: 400,
+        useNativeDriver: false,
+      }),
+      Animated.timing(appDraw, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: false,
+      }),
+      Animated.timing(dotOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+    ]).start();
+
+    const tradId = tradDraw.addListener(({ value }) => setTradOffset(tradLen * (1 - value)));
+    const appId = appDraw.addListener(({ value }) => setAppOffset(appLen * (1 - value)));
+    return () => {
+      tradDraw.removeListener(tradId);
+      appDraw.removeListener(appId);
+    };
+  }, []);
+
   return (
-    <View style={styles.card}>
+    <View
+      style={styles.card}
+      accessibilityLabel="Grafico comparativo: nuestra app versus dieta tradicional. El 80% de los usuarios mantiene su perdida de peso 6 meses despues."
+      accessibilityRole="image"
+    >
       <Text style={styles.cardTitle}>Tu peso</Text>
 
       <Svg width={cw} height={ch}>
         {/* Baseline */}
         <Line x1={pad.l} y1={ch - pad.b} x2={cw - pad.r} y2={ch - pad.b} stroke={colors.grayLight} strokeWidth={1} />
 
-        {/* Traditional diet line (accent/red) */}
-        <Path d={tradPath} stroke={colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4,3" />
+        {/* Traditional diet line (accent/dashed) — drawn progressively */}
+        <Path
+          d={tradPath}
+          stroke={colors.accent}
+          strokeWidth={2}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={`${tradLen}`}
+          strokeDashoffset={tradOffset}
+        />
 
-        {/* App line (black) */}
-        <Path d={appPath} stroke={colors.black} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {/* App line (black) — drawn progressively */}
+        <Path
+          d={appPath}
+          stroke={colors.black}
+          strokeWidth={2.5}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={`${appLen}`}
+          strokeDashoffset={appOffset}
+        />
 
         {/* Start dot */}
         <Circle cx={toX(0)} cy={toY(0.82)} r={5} fill={colors.white} stroke={colors.black} strokeWidth={2} />
-        {/* End dot app */}
-        <Circle cx={toX(1)} cy={toY(0.10)} r={5} fill={colors.white} stroke={colors.black} strokeWidth={2} />
+        {/* End dot app — appears after lines draw */}
+        <Circle
+          cx={toX(1)} cy={toY(0.10)} r={5}
+          fill={colors.white} stroke={colors.black} strokeWidth={2}
+          opacity={appOffset < 5 ? 1 : 0}
+        />
       </Svg>
 
       {/* X axis labels */}
@@ -86,11 +186,12 @@ function ChartCard() {
         </View>
       </View>
 
-      {/* Stat box */}
+      {/* Stat box with animated counter */}
       <View style={styles.statBox}>
-        <Text style={styles.statText}>
-          El 80% de nuestros usuarios mantiene su pérdida de peso 6 meses después
-        </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'baseline' }}>
+          <AnimatedCounter target={80} suffix="%" style={styles.statNumber} />
+          <Text style={styles.statText}> de nuestros usuarios mantiene su perdida de peso 6 meses despues</Text>
+        </View>
       </View>
     </View>
   );
@@ -98,6 +199,7 @@ function ChartCard() {
 
 const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.black, marginTop: spacing.md },
+  subtitle: { ...typography.subtitle, color: colors.gray, marginTop: spacing.sm },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -117,5 +219,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginTop: 4,
   },
-  statText: { ...typography.caption, color: colors.black, textAlign: 'center', lineHeight: 18 },
+  statNumber: { fontSize: 20, fontWeight: '800', color: colors.black },
+  statText: { ...typography.caption, color: colors.black, lineHeight: 18, flex: 1 },
 });

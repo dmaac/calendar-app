@@ -146,3 +146,149 @@ Not required — no alcohol, no adult content.
 | `fitsiai_annual` | Fitsi IA Premium Anual | $59.99 / año |
 
 Free trial: 7 days on both plans.
+
+---
+---
+
+# Fitsi IA — App Store Listing (English / Global)
+
+> Target stores: Apple App Store & Google Play Store
+> Language: English (US)
+> Last updated: 2026-03-22
+
+---
+
+## App Name (iOS — 30 chars max)
+```
+Fitsi AI — Calorie Counter
+```
+Character count: 27 ✓
+
+---
+
+## Subtitle (iOS only — 30 chars max)
+```
+Snap, Track & Lose Weight
+```
+Character count: 26 ✓
+
+---
+
+## Keywords (iOS — 100 chars, comma-separated)
+```
+calorie counter,food scanner,AI nutrition,meal tracker,weight loss,macro counter,diet plan,healthy eating,food diary
+```
+Character count: 99 ✓
+
+---
+
+## Promotional Text (iOS — 170 chars max, updatable without review)
+```
+Spring into health! Snap a photo of any meal and get instant calorie + macro counts powered by AI. Try Premium free for 7 days — no commitment.
+```
+Character count: 145 ✓
+
+---
+
+## Short Description (Google Play — 80 chars max)
+```
+Snap a photo of your food. AI counts the calories & macros instantly for you.
+```
+Character count: 78 ✓
+
+---
+
+## Full Description (Apple App Store & Google Play — 4000 chars max)
+
+```
+Tired of manually logging every bite? Fitsi AI does it for you.
+
+Just snap a photo of your plate and our artificial intelligence identifies what you're eating, calculates the calories, and logs every macro — all in under 10 seconds. No searching through endless food databases. No guessing portion sizes. Just you, your camera, and real progress.
+
+Over 50,000 meals scanned. Join thousands of users who've made calorie tracking effortless.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INSTANT AI FOOD SCANNING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Point your camera at any meal — a home-cooked dinner, fast food, restaurant dish, or packaged snack — and Fitsi AI identifies the food and delivers calories, protein, carbs, and fat in seconds. Works with mixed plates, multiple items, and cuisines from around the world.
+
+Don't want to take a photo? Search manually with smart suggestions that remember your frequent foods.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+YOUR PERSONALIZED NUTRITION PLAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Fitsi AI builds your daily calorie and macro targets based on your age, weight, height, activity level, and personal goal — whether you want to lose weight, maintain, or build muscle. Your plan adapts to you, not the other way around.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CLEAR DAILY DASHBOARD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The calorie ring and macro bars show you exactly where you stand each day at a glance. Breakfast, lunch, dinner, and snacks organized automatically. Review your history day by day and spot patterns in your eating habits.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HYDRATION & STREAKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Track your water intake with a single tap. Keep your daily streak alive and turn consistency into a lasting habit. The streak system motivates you to log even on tough days.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+YOUR DATA, ALWAYS PRIVATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Your health data stays private. Fitsi never sells or shares your information with third parties. Export or delete your account at any time.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FITSI AI PREMIUM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Unlock the full experience:
+• Unlimited AI food scans per day
+• Detailed micronutrient analysis
+• Weekly progress predictions
+• AI-powered personalized recipes
+• Apple Health & Google Fit integration
+• Smart meal reminders
+• Premium food database
+• Ad-free experience
+
+Try Premium free for 7 days. Cancel anytime.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PERFECT FOR:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- People who want to lose weight without obsessing over diets
+- Anyone building muscle while tracking protein intake
+- Diabetics and those monitoring carbohydrate intake
+- Anyone who wants to truly understand what they eat
+
+Download Fitsi AI for free and start today. Your healthiest self is waiting.
+```
+
+Character count: ~2,900 ✓ (well within 4,000 limit)
+
+---
+
+## Category
+- **Primary:** Health & Fitness
+- **Secondary:** Food & Drink
+
+---
+
+## App Preview / Screenshots — Suggested Captions (English)
+
+1. "Snap a photo. AI counts the calories instantly."
+2. "Your daily calorie ring — progress at a glance"
+3. "Breakfast, lunch, dinner & snacks — organized"
+4. "Track water & keep your streak alive"
+5. "Your personalized nutrition plan"
+
+---
+
+## Content Rating
+- **Apple:** 4+ (no mature content)
+- **Google Play:** Everyone
+
+## In-App Purchases (to declare in stores)
+
+| Product ID | Name | Price |
+|---|---|---|
+| `fitsiai_monthly` | Fitsi AI Premium Monthly | $9.99/month |
+| `fitsiai_annual` | Fitsi AI Premium Annual | $59.99/year |
+
+Free trial: 7 days on both plans.

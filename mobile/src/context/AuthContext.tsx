@@ -41,6 +41,8 @@ interface AuthContextType {
   resetOnboarding: () => Promise<void>;
   refreshUser: () => Promise<void>;
   setPremiumStatus: (isPremium: boolean) => void;
+  /** DEV ONLY: bypass auth and enter app with a mock user */
+  devBypass: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -205,10 +207,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
-    await authService.logout();
-    await purchaseService.logOutPurchases();
+    try {
+      await authService.logout();
+    } catch (err) {
+      console.error('authService.logout failed:', err);
+    }
+    try {
+      await purchaseService.logOutPurchases();
+    } catch (err) {
+      console.error('purchaseService.logOutPurchases failed:', err);
+    }
     // Keep onboarding_completed so returning users see Login, not onboarding again
-    await AsyncStorage.multiRemove(['onboarding_data_v2', 'onboarding_current_step']);
+    await AsyncStorage.multiRemove(['onboarding_data_v2', 'onboarding_current_step']).catch(() => {});
     setUser(null);
     // isOnboardingComplete stays true → AuthNavigator shows Login
   }, []);
@@ -236,6 +246,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(prev => prev ? { ...prev, is_premium: isPremium } : prev);
   }, []);
 
+  // ── DEV BYPASS: skip auth entirely with a mock user ──────────────────────
+  const devBypass = useCallback(async () => {
+    if (!__DEV__) {
+      console.warn('devBypass is only available in development mode');
+      return;
+    }
+    const mockUser: User = {
+      id: 999,
+      email: 'dev@fitsiai.com',
+      first_name: 'Dev',
+      last_name: 'User',
+      is_active: true,
+      is_premium: true,
+      provider: 'email',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await AsyncStorage.setItem('onboarding_completed', 'true');
+    setIsOnboardingComplete(true);
+    setUser(mockUser);
+  }, []);
+
   // ─────────────────────────────────────────────────────────────────────────
   const value: AuthContextType = {
     user,
@@ -252,6 +284,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     resetOnboarding,
     refreshUser,
     setPremiumStatus,
+    devBypass,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

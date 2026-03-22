@@ -65,7 +65,12 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
-      footer={<><PrimaryButton label="Activar recordatorios" onPress={handleEnable} /><PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" /></>}
+      footer={
+        <>
+          <PrimaryButton label="Activar recordatorios" onPress={handleEnable} />
+          <PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" />
+        </>
+      }
     >
       <Text style={styles.title}>Mantén el rumbo{'\n'}con recordatorios</Text>
       <Text style={styles.subtitle}>

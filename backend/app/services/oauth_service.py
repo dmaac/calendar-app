@@ -44,7 +44,13 @@ async def verify_apple_token(identity_token: str) -> Optional[dict]:
 
 
 async def verify_google_token(id_token: str, client_id: str) -> Optional[dict]:
-    """Verify Google ID token."""
+    """Verify Google ID token.
+
+    TODO:SECURITY [Medium] Replace tokeninfo endpoint with google-auth library's
+    id_token.verify_oauth2_token() for production-grade verification. The tokeninfo
+    endpoint is intended for debugging, not production use. It also sends the token
+    over query string which may be logged by intermediaries.
+    """
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
