@@ -50,13 +50,14 @@ import { syncWidgetData } from '../../services/widgetData.service';
 import TrialBanner from '../../components/TrialBanner';
 
 // ─── Below-the-fold components: lazy loaded to speed up initial render ────────
-const NutriScore = lazy(() => import('../../components/NutriScore'));
-const ExerciseBalanceCard = lazy(() => import('../../components/ExerciseBalanceCard'));
-const AdaptiveCalorieBanner = lazy(() => import('../../components/AdaptiveCalorieBanner'));
-const SleepTracker = lazy(() => import('../../components/SleepTracker'));
-const MoodTracker = lazy(() => import('../../components/MoodTracker'));
-const DailyChallenges = lazy(() => import('../../components/DailyChallenges'));
-const OnboardingProgress = lazy(() => import('../../components/OnboardingProgress'));
+// MINIMALIST REDESIGN Phase 1: removed from HomeScreen
+// const NutriScore = lazy(() => import('../../components/NutriScore'));
+// const ExerciseBalanceCard = lazy(() => import('../../components/ExerciseBalanceCard'));
+// const AdaptiveCalorieBanner = lazy(() => import('../../components/AdaptiveCalorieBanner'));
+// const SleepTracker = lazy(() => import('../../components/SleepTracker'));
+// const MoodTracker = lazy(() => import('../../components/MoodTracker'));
+// const DailyChallenges = lazy(() => import('../../components/DailyChallenges'));
+// const OnboardingProgress = lazy(() => import('../../components/OnboardingProgress'));
 
 // ─── Custom hook: defer rendering of below-fold content after initial paint ───
 function useDeferredRender(delayMs: number = 500): boolean {

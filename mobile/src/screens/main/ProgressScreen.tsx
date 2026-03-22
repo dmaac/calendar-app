@@ -22,7 +22,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -456,8 +455,7 @@ export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const { track } = useAnalytics('Progress');
   const C = useProgressColors();
-  const screenWidth = Dimensions.get('window').width;
-  const { sidePadding } = useLayout();
+  const { width: screenWidth, sidePadding } = useLayout();
   const innerWidth = screenWidth - sidePadding * 2;
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('90D');
@@ -518,7 +516,9 @@ export default function ProgressScreen() {
         />
 
         {/* ── Calendar Heatmap (90 days NutriScore) ── */}
-        <CalendarHeatmap />
+        <View accessibilityLabel="Mapa de calor nutricional de los ultimos 90 dias" accessibilityRole="summary">
+          <CalendarHeatmap />
+        </View>
 
         {/* ── Streak + Badges ── */}
         <View style={s.topCardsRow}>
