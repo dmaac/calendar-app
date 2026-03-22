@@ -37,6 +37,7 @@ import SuccessCheckmark from '../../components/SuccessCheckmark';
 import HealthScore from '../../components/HealthScore';
 import FitsiMascot from '../../components/FitsiMascot';
 import ErrorFallback from '../../components/ErrorFallback';
+import { cacheScanResult, markScanSynced, cleanOldScans } from '../../services/scanCache.service';
 
 const FREE_SCAN_LIMIT = 3;
 
@@ -251,8 +252,9 @@ export default function ScanScreen({ navigation }: any) {
     }
   }, [scanState]);
 
-  // Cleanup timer on unmount
+  // Cleanup timer on unmount + prune old cached scans
   useEffect(() => {
+    cleanOldScans().catch(() => {});
     return () => {
       if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
     };
@@ -362,6 +364,22 @@ export default function ScanScreen({ navigation }: any) {
         confidence: data.ai_confidence,
         food_name: data.food_name,
       });
+      // Cache scan result locally for offline access
+      cacheScanResult({
+        id: String(data.id),
+        imageUri: uri,
+        result: {
+          food_name: data.food_name,
+          calories: data.calories,
+          protein_g: data.protein_g,
+          carbs_g: data.carbs_g,
+          fats_g: data.fats_g,
+          confidence: data.ai_confidence,
+          ai_provider: data.ai_provider ?? 'unknown',
+        },
+        timestamp: new Date().toISOString(),
+        synced: true, // Already saved on backend via scanFood
+      }).catch(() => {}); // Best-effort cache
     } catch (err: any) {
       haptics.error();
       const msg = err?.response?.data?.detail || 'No pudimos analizar la imagen. Intenta con otra foto.';

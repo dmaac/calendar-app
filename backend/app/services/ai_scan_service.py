@@ -545,7 +545,7 @@ async def scan_and_log_food(
         ai_provider=ai_provider_name,
         ai_confidence=ai_confidence,
         ai_raw_response=raw_response if not cache_hit else None,
-        logged_at=datetime.now(timezone.utc),
+        logged_at=datetime.utcnow(),
     )
     session.add(log)
     await session.commit()
