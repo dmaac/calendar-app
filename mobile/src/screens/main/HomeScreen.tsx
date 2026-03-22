@@ -35,6 +35,9 @@ import StreakBadge from '../../components/StreakBadge';
 import FitsiMascot from '../../components/FitsiMascot';
 import OnboardingProgress from '../../components/OnboardingProgress';
 import NutriScore from '../../components/NutriScore';
+import HealthAlerts, { generateHealthAlerts } from '../../components/HealthAlerts';
+import ExerciseBalanceCard from '../../components/ExerciseBalanceCard';
+import AdaptiveCalorieBanner from '../../components/AdaptiveCalorieBanner';
 import useFadeIn from '../../hooks/useFadeIn';
 import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
@@ -437,6 +440,34 @@ export default function HomeScreen({ navigation }: any) {
     return { totalFiber, foodVariety: uniqueFoods };
   }, [logs]);
 
+  // ---- Health Alerts data ----
+  // TODO: Replace mock recent data with real weekly history from API
+  const mockRecentDailyCalories = useMemo(() => {
+    // In production, fetch from foodService.getWeeklyCalories() or similar
+    // For now, use today's consumed as the "most recent" day
+    return [consumed, consumed, consumed, consumed, consumed, consumed, consumed];
+  }, [consumed]);
+
+  const healthAlerts = useMemo(
+    () =>
+      generateHealthAlerts({
+        avgProtein: protein,
+        targetProtein: proteinTarget,
+        avgFiber: nutriScoreData.totalFiber,
+        recentDailyCalories: mockRecentDailyCalories,
+        onNavigate: (screen: string) => navigation.navigate(screen),
+      }),
+    [protein, proteinTarget, nutriScoreData.totalFiber, mockRecentDailyCalories, navigation],
+  );
+
+  // ---- Exercise balance data ----
+  // TODO: Integrate with HealthKit / Google Fit for real exercise burn data
+  const exerciseBurned = 0; // Will be populated via wearable integration
+
+  // ---- Adaptive calorie banner data ----
+  // TODO: Replace with real 7-day history from API
+  const adaptiveRecentCalories = mockRecentDailyCalories;
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header with parallax */}
@@ -522,6 +553,9 @@ export default function HomeScreen({ navigation }: any) {
             }
           >
             <Animated.View style={fadeStyle}>
+              {/* Health Alerts — top of scroll, above everything */}
+              <HealthAlerts alerts={healthAlerts} />
+
               {/* Calorie card */}
               <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">
                 <View style={styles.ringRow}>
@@ -558,6 +592,29 @@ export default function HomeScreen({ navigation }: any) {
                   }}
                 />
               )}
+
+              {/* Exercise Balance Card — below NutriScore */}
+              {hasMeals && (
+                <ExerciseBalanceCard
+                  consumed={consumed}
+                  exerciseBurned={exerciseBurned}
+                  target={target}
+                />
+              )}
+
+              {/* Adaptive Calorie Banner — suggests goal adjustments */}
+              <AdaptiveCalorieBanner
+                recentDailyCalories={adaptiveRecentCalories}
+                currentTarget={target}
+                onAdjust={(newTarget) => {
+                  // TODO: Persist new calorie target to backend
+                  haptics.success();
+                  track('adaptive_calories_adjusted', { from: target, to: newTarget });
+                }}
+                onDismiss={() => {
+                  track('adaptive_calories_dismissed');
+                }}
+              />
 
               {/* Today's Tip */}
               <View style={[styles.tipCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>

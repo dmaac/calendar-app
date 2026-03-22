@@ -12,6 +12,9 @@ from .admin import router as admin_router
 from .export import router as export_router
 from .workouts import router as workouts_router
 from .insights import router as insights_router
+from .calories import router as calories_router
+from .health_alerts import router as health_alerts_router
+from .smart_notifications import router as smart_notifications_router
 
 __all__ = [
     "auth_router",
@@ -28,4 +31,7 @@ __all__ = [
     "export_router",
     "workouts_router",
     "insights_router",
+    "calories_router",
+    "health_alerts_router",
+    "smart_notifications_router",
 ]
