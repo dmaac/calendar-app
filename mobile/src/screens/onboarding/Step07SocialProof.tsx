@@ -26,7 +26,7 @@ function AnimatedCounter({ target, suffix = '', style }: { target: number; suffi
   return <Text style={style}>{display}{suffix}</Text>;
 }
 
-export default function Step07SocialProof({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step07SocialProof({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -38,6 +38,7 @@ export default function Step07SocialProof({ onNext, onBack, step, totalSteps }: 
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <Text style={styles.title}>Resultados que{'\n'}duran en el tiempo</Text>

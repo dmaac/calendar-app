@@ -26,7 +26,7 @@ const ftInToCm = (ft: number, inch: number) => Math.round((ft * 12 + inch) * 2.5
 const kgToLb = (kg: number) => Math.round(kg * 2.20462);
 const lbToKg = (lb: number) => Math.round(lb / 2.20462);
 
-export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step08HeightWeight({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, updateMany } = useOnboarding();
   const [unit, setUnit] = useState<'metric' | 'imperial'>(data.unitSystem);
 
@@ -61,6 +61,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <Text style={styles.title}>Tu altura y peso</Text>

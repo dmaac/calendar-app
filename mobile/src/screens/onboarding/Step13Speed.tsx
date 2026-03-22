@@ -27,7 +27,7 @@ function clamp(v: number) {
   return Math.max(MIN, Math.min(MAX, Math.round(v / STEP) * STEP));
 }
 
-export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step13Speed({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const { innerWidth } = useLayout();
   const speed = data.weeklySpeedKg;
@@ -76,6 +76,7 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <Text

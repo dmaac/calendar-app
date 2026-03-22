@@ -13,7 +13,7 @@ const OPTIONS = [
   { value: '6+' as const, label: '6+ por semana', subtitle: 'Atleta dedicado', emoji: '\u{1F4AA}' },
 ];
 
-export default function Step04Workouts({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step04Workouts({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const selected = data.workoutsPerWeek;
 
@@ -22,6 +22,7 @@ export default function Step04Workouts({ onNext, onBack, step, totalSteps }: Ste
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />}
     >
 

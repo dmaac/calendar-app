@@ -17,7 +17,7 @@ const GOAL_SUFFIX: Record<string, string> = {
   maintain: 'tu peso actual\nes una gran meta.',
 };
 
-export default function Step12Affirmation({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step12Affirmation({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data } = useOnboarding();
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -56,6 +56,7 @@ export default function Step12Affirmation({ onNext, onBack, step, totalSteps }: 
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       showHeader
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >

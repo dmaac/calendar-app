@@ -20,7 +20,7 @@ const SOURCES = [
   { label: 'Otro',             icon: 'ellipsis-horizontal-circle-outline' },
 ];
 
-export default function Step05Source({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step05Source({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const selected = data.heardFrom;
 
@@ -29,6 +29,7 @@ export default function Step05Source({ onNext, onBack, step, totalSteps }: StepP
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       scrollable
       footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />}
     >

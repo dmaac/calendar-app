@@ -255,7 +255,7 @@ class TestAppleOAuth:
             "email": "appleuser@icloud.com",
         }
         with patch(
-            "app.routers.auth.verify_apple_token",
+            "app.services.oauth_service.verify_apple_token",
             new_callable=AsyncMock,
             return_value=mock_claims,
         ):
@@ -276,7 +276,7 @@ class TestAppleOAuth:
 
     async def test_apple_login_invalid_token(self, client: AsyncClient):
         with patch(
-            "app.routers.auth.verify_apple_token",
+            "app.services.oauth_service.verify_apple_token",
             new_callable=AsyncMock,
             return_value=None,
         ):
@@ -294,7 +294,7 @@ class TestAppleOAuth:
         """First Apple login creates user; second login returns same user_id."""
         mock_claims = {"sub": "apple-reuse-001", "email": "reuse@icloud.com"}
         with patch(
-            "app.routers.auth.verify_apple_token",
+            "app.services.oauth_service.verify_apple_token",
             new_callable=AsyncMock,
             return_value=mock_claims,
         ):
@@ -322,7 +322,7 @@ class TestGoogleOAuth:
             "family_name": "User",
         }
         with patch(
-            "app.routers.auth.verify_google_token",
+            "app.services.oauth_service.verify_google_token",
             new_callable=AsyncMock,
             return_value=mock_claims,
         ):
@@ -337,7 +337,7 @@ class TestGoogleOAuth:
 
     async def test_google_login_invalid_token(self, client: AsyncClient):
         with patch(
-            "app.routers.auth.verify_google_token",
+            "app.services.oauth_service.verify_google_token",
             new_callable=AsyncMock,
             return_value=None,
         ):

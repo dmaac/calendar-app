@@ -52,7 +52,7 @@ function GenderCard({ label, icon, color, selected, onPress }: {
   );
 }
 
-export default function Step03Gender({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step03Gender({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const selected = data.gender;
 
@@ -65,6 +65,7 @@ export default function Step03Gender({ onNext, onBack, step, totalSteps }: StepP
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!selected} />}
     >
 

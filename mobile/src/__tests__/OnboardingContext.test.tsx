@@ -286,7 +286,8 @@ describe('OnboardingContext', () => {
         plan = result.current.computePlan();
       });
 
-      expect(plan!.dailyCalories).toBe(1961);
+      // BMR=1587.5, TDEE=2461, deficit=880 → max(1500,1581) = 1581
+      expect(plan!.dailyCalories).toBe(1581);
     });
 
     it('returns correct macros for male/lose profile', async () => {
@@ -297,9 +298,10 @@ describe('OnboardingContext', () => {
         plan = result.current.computePlan();
       });
 
-      expect(plan!.dailyCarbsG).toBe(196);
-      expect(plan!.dailyProteinG).toBe(147);
-      expect(plan!.dailyFatsG).toBe(65);
+      // 1581 * 0.40 / 4 = 158, 1581 * 0.30 / 4 = 119, 1581 * 0.30 / 9 = 53
+      expect(plan!.dailyCarbsG).toBe(158);
+      expect(plan!.dailyProteinG).toBe(119);
+      expect(plan!.dailyFatsG).toBe(53);
     });
 
     it('returns correct healthScore for normal-BMI profile (8.5)', async () => {
@@ -358,8 +360,8 @@ describe('OnboardingContext', () => {
         plan = result.current.computePlan();
       });
 
-      // TDEE=2461, surplus=+400 → 2861
-      expect(plan!.dailyCalories).toBe(2861);
+      // TDEE=2461, dailyAdjustment=round((0.5*7700)/7)=550, gainCap=min(550,500)=500 → 2961
+      expect(plan!.dailyCalories).toBe(2961);
     });
 
     it('applies no adjustment for goal=maintain', async () => {
@@ -396,8 +398,8 @@ describe('OnboardingContext', () => {
      *   Female → −161 at the end
      *
      * Using same base data (170 cm, 70 kg, born 1990-01-01, 3-5 workouts, goal=lose):
-     *   BMR male   = 1587.5  → TDEE = 2461 → cals = 1961
-     *   BMR female = 1421.5  → TDEE = 2203 → cals = 1703
+     *   BMR male   = 1587.5  → TDEE = 2461  → deficit 880 → max(1500, 1581) = 1581
+     *   BMR female = 1421.5  → TDEE = 2203  → deficit 880 → max(1200, 1323) = 1323
      */
     it('produces higher daily calories for Male than for Female (same inputs)', async () => {
       const baseProfile: Partial<OnboardingData> = {
@@ -433,7 +435,7 @@ describe('OnboardingContext', () => {
       expect(malePlan!.dailyCalories).toBeGreaterThan(femalePlan!.dailyCalories);
     });
 
-    it('male calories equal 1961 for the reference profile', async () => {
+    it('male calories equal 1581 for the reference profile', async () => {
       const { result } = await renderAndWait();
 
       act(() => {
@@ -454,10 +456,11 @@ describe('OnboardingContext', () => {
         plan = result.current.computePlan();
       });
 
-      expect(plan!.dailyCalories).toBe(1961);
+      // BMR=1587.5, TDEE=2461, deficit=880 → max(1500,1581) = 1581
+      expect(plan!.dailyCalories).toBe(1581);
     });
 
-    it('female calories equal 1703 for the reference profile', async () => {
+    it('female calories equal 1323 for the reference profile', async () => {
       const { result } = await renderAndWait();
 
       act(() => {
@@ -478,7 +481,8 @@ describe('OnboardingContext', () => {
         plan = result.current.computePlan();
       });
 
-      expect(plan!.dailyCalories).toBe(1703);
+      // BMR=1421.5, TDEE=2203, deficit=880 → max(1200,1323) = 1323
+      expect(plan!.dailyCalories).toBe(1323);
     });
 
     it('the calorie difference between Male and Female is exactly 258', async () => {

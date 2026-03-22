@@ -7,7 +7,7 @@ import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
-export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step06OtherApps({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const selected = data.usedOtherApps;
 
@@ -16,6 +16,7 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps }: St
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={selected === null} />}
     >
 

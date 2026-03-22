@@ -13,7 +13,7 @@ const GOAL_LABELS: Record<string, string> = {
   gain: 'Ganar peso',
 };
 
-export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step11TargetWeight({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const isImperial = data.unitSystem === 'imperial';
 
@@ -33,6 +33,7 @@ export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }:
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <Text

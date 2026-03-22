@@ -12,7 +12,7 @@ const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 100 }, (_, i) => String(CURRENT_YEAR - 10 - i));
 
-export default function Step09Birthday({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step09Birthday({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const { monthIndex, day, year } = data.birthDate;
 
@@ -24,6 +24,7 @@ export default function Step09Birthday({ onNext, onBack, step, totalSteps }: Ste
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <Text style={styles.title}>Cuando naciste?</Text>

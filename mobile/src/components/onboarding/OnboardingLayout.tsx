@@ -39,6 +39,7 @@ export default function OnboardingLayout({
   showHeader = true,
   showBack = true,
   onBack,
+  onSkip,
   scrollable = false,
   keyboardAware = false,
 }: OnboardingLayoutProps) {
@@ -71,7 +72,20 @@ export default function OnboardingLayout({
             <View style={styles.progressWrapper}>
               <ProgressBar step={step} totalSteps={totalSteps} />
             </View>
-            <View style={styles.backPlaceholder} />
+            {onSkip ? (
+              <TouchableOpacity
+                onPress={onSkip}
+                style={styles.skipBtn}
+                activeOpacity={0.6}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Saltar este paso"
+                accessibilityRole="button"
+              >
+                <Text style={styles.skipText}>Saltar</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.backPlaceholder} />
+            )}
           </View>
         )}
 
@@ -140,6 +154,17 @@ const styles = StyleSheet.create({
   },
   backPlaceholder: {
     width: 36,
+  },
+  skipBtn: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  skipText: {
+    ...typography.caption,
+    color: colors.gray,
+    fontWeight: '500',
   },
   content: {
     flex: 1,

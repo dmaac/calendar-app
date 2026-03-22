@@ -13,7 +13,7 @@ const OPTIONS = [
   { value: 'gain' as const,     label: 'Ganar peso',        subtitle: 'Superavit para ganar masa',   icon: 'trending-up-outline' },
 ];
 
-export default function Step10Goal({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step10Goal({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
 
   return (
@@ -21,6 +21,7 @@ export default function Step10Goal({ onNext, onBack, step, totalSteps }: StepPro
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!data.goal} />}
     >
       <Text style={styles.title}>Cual es tu objetivo?</Text>
