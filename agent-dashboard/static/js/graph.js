@@ -562,13 +562,14 @@
                     simulation.alpha(0.5).restart();
                 } else if (viewId === "btn-view-pyramid") {
                     // ═══════════════════════════════════════════════════════════
-                    // CORPORATE PYRAMID — FIXED POSITION LAYOUT
-                    // Hierarchy nodes get LOCKED positions (fx/fy).
-                    // Forces CANNOT move them. Only specialists float.
-                    // Result: clean top-to-bottom pyramid, guaranteed.
+                    // CORPORATE PYRAMID v4 — ALL 1,299 NODES GET fx/fy
+                    // NO forces. Every single node gets a computed fixed position.
+                    // Hierarchy at top (pyramid shape), specialists at bottom (grid).
                     // ═══════════════════════════════════════════════════════════
 
-                    // ── Step 1: Map teams to tiers ──
+                    // ── Step 1: Map ALL teams to tiers ──
+                    // Tiers 0-8 = leadership pyramid (top)
+                    // Tier 9 = specialist base (bottom)
                     const teamToTier = {
                         "Supreme Orchestrator": 0,
                         "Control Demons": 1,
@@ -584,10 +585,12 @@
                         "AI Leadership": 8,
                         "Growth Leadership": 8,
                     };
+                    const SPEC_TIER = 9;
 
-                    // ── Step 2: Bucket agents into tiers ──
+                    // ── Step 2: Bucket ALL agents ──
                     const tierBuckets = {};
                     _pyramidLevels = {};
+                    const specByTeam = {}; // team → [names]
                     agents.forEach(a => {
                         if (a.isTeam) return;
                         const tier = teamToTier[a.team];
@@ -595,64 +598,81 @@
                             if (!tierBuckets[tier]) tierBuckets[tier] = [];
                             tierBuckets[tier].push(a.name);
                             _pyramidLevels[a.name] = tier;
+                        } else {
+                            // Specialist — group by team
+                            if (!specByTeam[a.team]) specByTeam[a.team] = [];
+                            specByTeam[a.team].push(a.name);
+                            _pyramidLevels[a.name] = SPEC_TIER;
                         }
                     });
 
-                    // ── Step 3: Compute EXACT positions for each hierarchy node ──
-                    const hierNodes = new Set();
-                    const fixedPos = {}; // name → {x, y}
+                    // ── Step 3: Compute positions for HIERARCHY tiers ──
+                    const fixedPos = {};
                     const tiers = Object.keys(tierBuckets).map(Number).sort((a, b) => a - b);
                     const tierCount = tiers.length;
 
-                    // Hierarchy uses top 50% of canvas, specialists use bottom 45%
-                    const hierTop = 30;
-                    const hierBottom = h * 0.48;
+                    // Hierarchy = top 35% of canvas
+                    const hierTop = 25;
+                    const hierBottom = h * 0.32;
                     const tierSpacing = (hierBottom - hierTop) / Math.max(tierCount - 1, 1);
-
-                    // For tiers with >20 agents, wrap into multiple rows
-                    const MAX_PER_ROW = 20;
+                    const MAX_PER_ROW = 25;
 
                     tiers.forEach((tier, ti) => {
                         const names = tierBuckets[tier];
                         const baseY = hierTop + ti * tierSpacing;
-
-                        // Pyramid width: tier 0 = 4% → last tier = 85%
-                        const widthPct = 0.04 + (ti / Math.max(tierCount - 1, 1)) * 0.81;
+                        // Pyramid width: narrow at top, wide at bottom
+                        const widthPct = 0.06 + (ti / Math.max(tierCount - 1, 1)) * 0.88;
                         const totalW = w * widthPct;
                         const startX = (w - totalW) / 2;
 
                         if (names.length <= MAX_PER_ROW) {
-                            // Single row
                             const gap = totalW / Math.max(names.length, 1);
                             names.forEach((name, ni) => {
-                                fixedPos[name] = {
-                                    x: startX + (ni + 0.5) * gap,
-                                    y: baseY
-                                };
-                                hierNodes.add(name);
+                                fixedPos[name] = { x: startX + (ni + 0.5) * gap, y: baseY };
                             });
                         } else {
-                            // Multi-row: split into rows of MAX_PER_ROW
                             const rows = Math.ceil(names.length / MAX_PER_ROW);
-                            const rowH = tierSpacing * 0.6 / rows;
+                            const rowH = Math.min(tierSpacing * 0.5 / rows, 14);
                             names.forEach((name, ni) => {
                                 const row = Math.floor(ni / MAX_PER_ROW);
                                 const col = ni % MAX_PER_ROW;
                                 const inRow = Math.min(MAX_PER_ROW, names.length - row * MAX_PER_ROW);
-                                const rowW = totalW * (0.9 + row * 0.1); // each sub-row slightly wider
-                                const rowStartX = (w - rowW) / 2;
+                                const rowW = totalW;
+                                const rStartX = (w - rowW) / 2;
                                 const gap = rowW / Math.max(inRow, 1);
-                                fixedPos[name] = {
-                                    x: rowStartX + (col + 0.5) * gap,
-                                    y: baseY + row * rowH
-                                };
-                                hierNodes.add(name);
+                                fixedPos[name] = { x: rStartX + (col + 0.5) * gap, y: baseY + row * rowH };
                             });
                         }
                     });
 
-                    // ── Step 4: LOCK hierarchy nodes with fx/fy ──
-                    // This is the key: fx/fy CANNOT be overridden by forces.
+                    // ── Step 4: Compute positions for ALL SPECIALISTS ──
+                    // Grid layout: each team gets a column, agents stack vertically
+                    const specTeamNames = Object.keys(specByTeam).sort();
+                    const specStartY = h * 0.38;
+                    const availH = h * 0.60;
+                    const cols = Math.min(specTeamNames.length, 12);
+                    const colW = w / cols;
+                    const nodeSpacing = 13; // px between nodes vertically
+
+                    specTeamNames.forEach((team, ti) => {
+                        const names = specByTeam[team];
+                        const colIdx = ti % cols;
+                        const colRow = Math.floor(ti / cols);
+                        const cx = (colIdx + 0.5) * colW;
+                        const baseRow = colRow * (availH / Math.ceil(specTeamNames.length / cols));
+                        // Stack agents vertically within their column
+                        const agentsPerCol = Math.ceil(Math.sqrt(names.length));
+                        names.forEach((name, ni) => {
+                            const subCol = ni % agentsPerCol;
+                            const subRow = Math.floor(ni / agentsPerCol);
+                            fixedPos[name] = {
+                                x: cx + (subCol - agentsPerCol / 2) * nodeSpacing,
+                                y: specStartY + baseRow + subRow * nodeSpacing
+                            };
+                        });
+                    });
+
+                    // ── Step 5: LOCK ALL nodes with fx/fy ──
                     allNodesData.forEach(d => {
                         const pos = fixedPos[d.name || d.id];
                         if (pos) {
@@ -661,38 +681,14 @@
                         } else if (d.isTeam) {
                             d.fx = -500;
                             d.fy = -500;
-                        } else {
-                            d.fx = null;
-                            d.fy = null;
                         }
                     });
 
-                    // ── Step 5: Forces for SPECIALISTS only ──
-                    // Hierarchy nodes have fx/fy so forces don't affect them.
-                    const specTeams = [...new Set(
-                        agents.filter(a => !a.isTeam && !hierNodes.has(a.name)).map(a => a.team)
-                    )].sort();
-
-                    const specTop = h * 0.56;
-                    const specCols = Math.min(specTeams.length, 12);
-
-                    simulation.force("charge").strength(d => {
-                        if (hierNodes.has(d.name || d.id) || d.isTeam) return 0;
-                        return -5;
-                    });
-                    simulation.force("x", d3.forceX(d => {
-                        if (hierNodes.has(d.name || d.id) || d.isTeam) return 0;
-                        const ti = specTeams.indexOf(d.team);
-                        return ((ti % specCols) + 0.5) * (w / specCols);
-                    }).strength(d => (hierNodes.has(d.name || d.id) || d.isTeam) ? 0 : 0.2));
-                    simulation.force("y", d3.forceY(d => {
-                        if (hierNodes.has(d.name || d.id) || d.isTeam) return 0;
-                        const ti = specTeams.indexOf(d.team);
-                        const row = Math.floor(ti / specCols);
-                        return specTop + row * (h * 0.055);
-                    }).strength(d => (hierNodes.has(d.name || d.id) || d.isTeam) ? 0 : 0.2));
-
-                    simulation.alpha(0.8).alphaDecay(0.02).restart();
+                    // ── Step 6: Disable ALL forces (everything is fixed) ──
+                    simulation.force("charge").strength(0);
+                    simulation.force("x", d3.forceX(0).strength(0));
+                    simulation.force("y", d3.forceY(0).strength(0));
+                    simulation.alpha(0.3).restart();
                 } else if (viewId === "btn-view-team") {
                     simulation.force("charge").strength(-40);
                     simulation.force("x", d3.forceX(d => {
