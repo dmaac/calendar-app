@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     cors_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     cors_headers: List[str] = [
         "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With",
-        "X-App-Version", "X-Platform",
+        "X-App-Version", "X-Platform", "X-Idempotency-Key", "If-None-Match",
     ]
 
     # Deployment environment — set ENV=production in prod to enforce stricter checks.

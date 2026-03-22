@@ -18,7 +18,7 @@ import { useThemeColors, typography, spacing, radius, shadows, useLayout } from 
 import { haptics } from '../../hooks/useHaptics';
 import FitsiMascot from '../../components/FitsiMascot';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { foodDatabase, FoodItem as DbFoodItem } from '../../data/foodDatabase';
+import { foodDatabase } from '../../data/foodDatabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

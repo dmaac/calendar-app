@@ -407,6 +407,12 @@ app.add_middleware(RequestLoggingMiddleware)
 # API versioning (detects version from header or URL prefix)
 app.add_middleware(APIVersionMiddleware)
 
+# ETag / conditional requests — returns 304 Not Modified when content unchanged
+app.add_middleware(ETagMiddleware)
+
+# Idempotency — deduplicates POST requests with X-Idempotency-Key header
+app.add_middleware(IdempotencyMiddleware)
+
 # GZip compression for API responses (min 500 bytes)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
