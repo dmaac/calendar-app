@@ -17,10 +17,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
+import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import FitsiMascot from '../../components/FitsiMascot';
+import { nutritionTips } from '../../data/nutritionTips';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -30,19 +31,6 @@ interface Message {
   isUser: boolean;
   timestamp: number;
 }
-
-// ─── Mock response engine ────────────────────────────────────────────────────
-
-const TIPS = [
-  'Intenta comer al menos 25g de fibra al dia. Frutas, verduras y legumbres son tus aliados.',
-  'Hidratate bien: a veces el cuerpo confunde sed con hambre.',
-  'Masticar lento te ayuda a sentirte lleno antes. Intenta al menos 20 masticadas por bocado.',
-  'Las proteinas te mantienen satisfecho por mas tiempo. Incluye una fuente en cada comida.',
-  'Dormir bien es clave para regular la grelina (hormona del hambre). Apunta a 7-8 horas.',
-  'Los snacks saludables entre comidas evitan que llegues con hambre excesiva al almuerzo o cena.',
-  'Intenta llenar la mitad de tu plato con vegetales en cada comida principal.',
-  'Evita comer frente a pantallas: la atencion plena mejora la digestion y la saciedad.',
-];
 
 const RECIPES = [
   'Prueba un bowl de quinoa con pollo a la plancha, espinaca, tomate cherry y aderezo de limon. Aprox 450 kcal, alto en proteina.',
@@ -79,7 +67,8 @@ function getCoachResponse(input: string): string {
     return WEEKLY_SUMMARY;
   }
   if (lower.includes('tip') || lower.includes('consejo') || lower.includes('sugerencia')) {
-    return TIPS[Math.floor(Math.random() * TIPS.length)];
+    const tip = nutritionTips[Math.floor(Math.random() * nutritionTips.length)];
+    return `${tip.text}\n\nFuente: ${tip.source}`;
   }
   if (lower.includes('dieta') || lower.includes('plan') || lower.includes('bajar') || lower.includes('peso')) {
     return 'Para bajar de peso de forma saludable, lo ideal es un deficit de 300-500 kcal por dia. Combinalo con actividad fisica y priorizando proteinas para mantener tu masa muscular.';

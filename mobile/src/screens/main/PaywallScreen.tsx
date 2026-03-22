@@ -23,7 +23,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PurchasesPackage } from 'react-native-purchases';
-import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
+import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import * as purchaseService from '../../services/purchase.service';
 

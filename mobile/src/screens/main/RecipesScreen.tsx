@@ -39,6 +39,8 @@ const DIET_FILTERS: { key: DietType | 'all'; label: string }[] = [
   { key: 'vegetarian', label: 'Vegetariana' },
   { key: 'vegan', label: 'Vegana' },
   { key: 'pescatarian', label: 'Pescatariana' },
+  { key: 'keto', label: 'Keto' },
+  { key: 'latin', label: 'Latina' },
 ];
 
 // Memoized to prevent re-render when sibling cards or filter state changes

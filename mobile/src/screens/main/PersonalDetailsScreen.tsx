@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   },
   changeGoalText: {
     ...typography.button,
-    color: colors.white,
+    color: '#FFFFFF',
   },
 
   // Fields list

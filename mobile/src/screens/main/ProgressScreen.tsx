@@ -1,5 +1,5 @@
 /**
- * ProgressScreen — Cal AI-style dark progress dashboard
+ * ProgressScreen — Cal AI-style progress dashboard
  *
  * Sections:
  * 1. Day Streak + Badges Earned (side-by-side cards)
@@ -9,7 +9,7 @@
  * 5. Progress Photos section with upload button
  * 6. Daily Average Calories bar chart
  *
- * Uses hardcoded/mock data. Dark background (#111111).
+ * Uses ThemeContext for dark/light mode support.
  */
 import React, { useState, useMemo } from 'react';
 import {
@@ -32,29 +32,36 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg';
-import { typography, spacing, radius } from '../../theme';
+import { typography, spacing, radius, useThemeColors } from '../../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import FitsiMascot from '../../components/FitsiMascot';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 
-// ─── Dark theme palette (Cal AI style) ──────────────────────────────────────
+// ─── Theme-aware color palette ──────────────────────────────────────────────
 
-const C = {
-  bg: '#111111',
-  card: '#1C1C1E',
-  cardBorder: '#2C2C2E',
-  white: '#FFFFFF',
-  textPrimary: '#F5F5F7',
-  textSecondary: '#8E8E93',
-  textTertiary: '#636366',
-  accent: '#3B82F6', // blue for bars & chart
-  accentLight: '#60A5FA',
-  orange: '#F59E0B',
-  green: '#34D399',
-  fire: '#FF6B35',
-  medal: '#FBBF24',
-  separator: '#2C2C2E',
-};
+/** Returns a progress-screen color set derived from the active theme. */
+function useProgressColors() {
+  const { isDark } = useAppTheme();
+  const tc = useThemeColors();
+
+  return useMemo(() => ({
+    bg: tc.bg,
+    card: tc.surface,
+    cardBorder: tc.grayLight,
+    white: tc.white,
+    textPrimary: tc.black,
+    textSecondary: tc.gray,
+    textTertiary: tc.disabled,
+    accent: tc.accent,
+    accentLight: isDark ? '#60A5FA' : '#93B8F4',
+    orange: '#F59E0B',
+    green: '#34D399',
+    fire: '#FF6B35',
+    medal: '#FBBF24',
+    separator: tc.grayLight,
+  }), [isDark, tc]);
+}
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
 
@@ -375,6 +382,7 @@ const WeightChangeRow = React.memo(function WeightChangeRow({
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const { track } = useAnalytics('Progress');
+  const C = useProgressColors();
   const screenWidth = Dimensions.get('window').width;
   const sidePadding = spacing.lg;
   const innerWidth = screenWidth - sidePadding * 2;

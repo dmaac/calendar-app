@@ -26,7 +26,7 @@ class Subscription(SQLModel, table=True):
 
     # Store: apple / google / stripe
     store: Optional[str] = Field(default=None)
-    store_tx_id: Optional[str] = Field(default=None)
+    store_tx_id: Optional[str] = Field(default=None, index=True)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

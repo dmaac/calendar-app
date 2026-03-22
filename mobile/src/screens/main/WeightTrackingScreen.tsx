@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Text as SvgText } from 'react-native-svg';
-import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
+import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';

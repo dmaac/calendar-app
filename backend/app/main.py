@@ -14,6 +14,8 @@ from starlette.responses import RedirectResponse
 from .core.database import create_db_and_tables
 from .core.config import settings
 from .core.versioning import APIVersionMiddleware
+from .core.etag import ETagMiddleware
+from .core.idempotency import IdempotencyMiddleware
 from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router
 
 logger = logging.getLogger(__name__)

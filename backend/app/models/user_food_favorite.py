@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 class UserFoodFavorite(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
-    food_id: int = Field(foreign_key="food.id")
+    food_id: int = Field(foreign_key="food.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     user: "User" = Relationship(back_populates="food_favorites")

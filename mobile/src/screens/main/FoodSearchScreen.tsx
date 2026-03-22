@@ -18,11 +18,12 @@ import { useThemeColors, typography, spacing, radius, shadows, useLayout } from 
 import { haptics } from '../../hooks/useHaptics';
 import FitsiMascot from '../../components/FitsiMascot';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { foodDatabase, FoodItem as DbFoodItem } from '../../data/foodDatabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FoodItem {
-  id: number;
+  id: string;
   name: string;
   brand: string;
   calories: number;
@@ -33,22 +34,19 @@ interface FoodItem {
   emoji: string;
 }
 
-// ─── Hardcoded frequent foods (fallback when API is unavailable) ────────────
+// ─── Map food database to display format ────────────────────────────────────
 
-const FREQUENT_FOODS: FoodItem[] = [
-  { id: 1, name: 'Arroz blanco cocido', brand: 'Generico', calories: 130, protein_g: 2.7, carbs_g: 28, fat_g: 0.3, serving: '100g', emoji: '\u{1F35A}' },
-  { id: 2, name: 'Pechuga de pollo', brand: 'Generico', calories: 165, protein_g: 31, carbs_g: 0, fat_g: 3.6, serving: '100g', emoji: '\u{1F357}' },
-  { id: 3, name: 'Huevo entero', brand: 'Generico', calories: 155, protein_g: 13, carbs_g: 1.1, fat_g: 11, serving: '100g', emoji: '\u{1F95A}' },
-  { id: 4, name: 'Pan integral', brand: 'Generico', calories: 247, protein_g: 13, carbs_g: 41, fat_g: 3.4, serving: '100g', emoji: '\u{1F35E}' },
-  { id: 5, name: 'Platano', brand: 'Generico', calories: 89, protein_g: 1.1, carbs_g: 23, fat_g: 0.3, serving: '1 unidad', emoji: '\u{1F34C}' },
-  { id: 6, name: 'Leche descremada', brand: 'Generico', calories: 34, protein_g: 3.4, carbs_g: 5, fat_g: 0.1, serving: '100ml', emoji: '\u{1F95B}' },
-  { id: 7, name: 'Avena', brand: 'Generico', calories: 389, protein_g: 16.9, carbs_g: 66, fat_g: 6.9, serving: '100g', emoji: '\u{1F35C}' },
-  { id: 8, name: 'Palta / Aguacate', brand: 'Generico', calories: 160, protein_g: 2, carbs_g: 8.5, fat_g: 14.7, serving: '100g', emoji: '\u{1F951}' },
-  { id: 9, name: 'Yogurt griego', brand: 'Generico', calories: 59, protein_g: 10, carbs_g: 3.6, fat_g: 0.7, serving: '100g', emoji: '\u{1F95B}' },
-  { id: 10, name: 'Salmon', brand: 'Generico', calories: 208, protein_g: 20, carbs_g: 0, fat_g: 13, serving: '100g', emoji: '\u{1F41F}' },
-  { id: 11, name: 'Pasta cocida', brand: 'Generico', calories: 131, protein_g: 5, carbs_g: 25, fat_g: 1.1, serving: '100g', emoji: '\u{1F35D}' },
-  { id: 12, name: 'Manzana', brand: 'Generico', calories: 52, protein_g: 0.3, carbs_g: 14, fat_g: 0.2, serving: '1 unidad', emoji: '\u{1F34E}' },
-];
+const ALL_FOODS: FoodItem[] = foodDatabase.map((f) => ({
+  id: f.id,
+  name: f.name,
+  brand: `${f.servingSize}${f.servingUnit.startsWith('1') ? '' : ''}${f.servingUnit.includes('g') || f.servingUnit.includes('ml') ? '' : ' '}(${f.calories_per_100g} kcal/100g)`,
+  calories: Math.round((f.calories_per_100g * f.servingSize) / 100),
+  protein_g: Math.round((f.protein * f.servingSize) / 100 * 10) / 10,
+  carbs_g: Math.round((f.carbs * f.servingSize) / 100 * 10) / 10,
+  fat_g: Math.round((f.fat * f.servingSize) / 100 * 10) / 10,
+  serving: `${f.servingSize}g - ${f.servingUnit}`,
+  emoji: f.emoji,
+}));
 
 // ─── Food Card ──────────────────────────────────────────────────────────────
 
@@ -98,9 +96,9 @@ export default function FoodSearchScreen({ navigation, route }: any) {
   const mealType = route?.params?.mealType ?? 'snack';
 
   const results = useMemo(() => {
-    if (!debouncedSearch.trim()) return FREQUENT_FOODS;
+    if (!debouncedSearch.trim()) return ALL_FOODS;
     const q = debouncedSearch.toLowerCase().trim();
-    return FREQUENT_FOODS.filter(
+    return ALL_FOODS.filter(
       (f) => f.name.toLowerCase().includes(q) || f.brand.toLowerCase().includes(q),
     );
   }, [debouncedSearch]);
@@ -165,7 +163,7 @@ export default function FoodSearchScreen({ navigation, route }: any) {
 
       {/* Section label */}
       <Text style={[styles.sectionLabel, { color: c.gray, paddingHorizontal: sidePadding }]}>
-        {search.trim() ? `Resultados (${results.length})` : 'Alimentos frecuentes'}
+        {search.trim() ? `Resultados (${results.length})` : `Todos los alimentos (${ALL_FOODS.length})`}
       </Text>
 
       {/* Results */}
