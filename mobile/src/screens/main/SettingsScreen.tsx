@@ -1,7 +1,7 @@
 /**
  * SettingsScreen — Cal AI style preferences with Appearance selector + feature toggles
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
   Alert,
   Linking,
   Platform,
+  PanResponder,
+  LayoutChangeEvent,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -240,6 +241,73 @@ function SliderRow({
   );
 }
 
+// ─── True Tone custom slider (no external dependency) ───────────────────────
+
+function TrueToneSlider({
+  value,
+  onValueChange,
+  c,
+}: {
+  value: number;
+  onValueChange: (v: number) => void;
+  c: ReturnType<typeof useThemeColors>;
+}) {
+  const trackWidth = useRef(0);
+  const currentValue = useRef(value);
+  currentValue.current = value;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        const x = evt.nativeEvent.locationX;
+        const pct = Math.round(Math.max(0, Math.min(100, (x / trackWidth.current) * 100)));
+        onValueChange(pct);
+      },
+      onPanResponderMove: (evt) => {
+        const x = evt.nativeEvent.locationX;
+        const pct = Math.round(Math.max(0, Math.min(100, (x / trackWidth.current) * 100)));
+        onValueChange(pct);
+      },
+    }),
+  ).current;
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    trackWidth.current = e.nativeEvent.layout.width;
+  };
+
+  const pct = `${value}%`;
+
+  return (
+    <View
+      style={styles.trueToneTrack}
+      onLayout={handleLayout}
+      {...panResponder.panHandlers}
+    >
+      <View
+        style={[
+          styles.trueToneTrackFill,
+          {
+            width: pct,
+            backgroundColor: '#F59E0B',
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.trueToneThumb,
+          {
+            left: pct,
+            backgroundColor: '#FFFFFF',
+            borderColor: '#F59E0B',
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
 // ─── Card wrapper ───────────────────────────────────────────────────────────
 
 function Card({ children, c }: { children: React.ReactNode; c: ReturnType<typeof useThemeColors> }) {
@@ -251,7 +319,7 @@ function Card({ children, c }: { children: React.ReactNode; c: ReturnType<typeof
 export default function SettingsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
-  const { isDark, mode: themeMode, setMode } = useAppTheme();
+  const { isDark, mode: themeMode, setMode, warmth, setWarmth } = useAppTheme();
   const c = useThemeColors();
   const { t } = useTranslation();
   const { track } = useAnalytics('Settings');
@@ -419,6 +487,32 @@ export default function SettingsScreen({ navigation }: any) {
             />
           </View>
         </Card>
+
+        {/* TRUE TONE — warmth slider, only visible in dark mode */}
+        {isDark && (
+          <Card c={c}>
+            <View style={styles.trueToneContainer}>
+              <View style={styles.trueToneHeader}>
+                <View style={[styles.iconCircle, { backgroundColor: c.surface }]}>
+                  <Ionicons name="moon-outline" size={18} color="#F59E0B" />
+                </View>
+                <Text style={[styles.rowLabel, { color: c.black }]}>True Tone</Text>
+                <Text style={[styles.trueToneValue, { color: c.gray }]}>{warmth}%</Text>
+              </View>
+              <View style={styles.trueToneSliderRow}>
+                <Text style={[styles.trueToneEndLabel, { color: c.gray }]}>Frio</Text>
+                <View style={styles.trueToneTrackWrapper}>
+                  <TrueToneSlider value={warmth} onValueChange={setWarmth} c={c} />
+                </View>
+                <Text style={[styles.trueToneEndLabel, { color: c.gray }]}>Calido</Text>
+              </View>
+              <View style={[styles.trueTonePreview, { backgroundColor: c.bg, borderColor: c.grayLight }]}>
+                <View style={[styles.trueTonePreviewBar, { backgroundColor: c.surface }]} />
+                <View style={[styles.trueTonePreviewBar, { backgroundColor: c.surfaceAlt, width: '60%' }]} />
+              </View>
+            </View>
+          </Card>
+        )}
 
         {/* FEATURES — Cal AI toggles */}
         <SectionHeader title={t('settings.features')} c={c} />
@@ -842,5 +936,76 @@ const styles = StyleSheet.create({
     color: colors.black,
     minWidth: 60,
     textAlign: 'center',
+  },
+  // True Tone
+  trueToneContainer: {
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  trueToneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  trueToneValue: {
+    ...typography.caption,
+    fontWeight: '600',
+  },
+  trueToneSliderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  trueToneEndLabel: {
+    ...typography.caption,
+    fontWeight: '500',
+    width: 38,
+    textAlign: 'center',
+  },
+  trueToneTrackWrapper: {
+    flex: 1,
+  },
+  trueToneTrack: {
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  trueToneTrackFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 14,
+    opacity: 0.3,
+  },
+  trueToneThumb: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginLeft: -12,
+    top: 2,
+    borderWidth: 2,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  trueTonePreview: {
+    height: 36,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    padding: spacing.xs,
+    gap: 4,
+    justifyContent: 'center',
+  },
+  trueTonePreviewBar: {
+    height: 6,
+    borderRadius: 3,
+    width: '80%',
   },
 });

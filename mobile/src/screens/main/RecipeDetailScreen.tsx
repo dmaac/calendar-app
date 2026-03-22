@@ -27,6 +27,8 @@ import * as foodService from '../../services/food.service';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import MealPrepTimer from '../../components/MealPrepTimer';
+import * as favoritesService from '../../services/favorites.service';
+import { showNotification } from '../../components/InAppNotification';
 
 // ─── Portion multipliers ──────────────────────────────────────────────────────
 
@@ -282,6 +284,29 @@ export default function RecipeDetailScreen({ route, navigation }: any) {
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
   const [logging, setLogging] = useState(false);
   const [portion, setPortion] = useState(1);
+  const [isFavorited, setIsFavorited] = useState(false);
+
+  // Check if recipe is already a favorite
+  useEffect(() => {
+    favoritesService.isFavorite(recipe.name).then(setIsFavorited).catch(() => {});
+  }, [recipe.name]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    haptics.light();
+    const added = await favoritesService.toggleFavorite({
+      name: recipe.name,
+      calories: recipe.calories,
+      protein_g: recipe.protein,
+      carbs_g: recipe.carbs,
+      fats_g: recipe.fat,
+    });
+    setIsFavorited(added);
+    showNotification({
+      message: added ? `${recipe.name} guardado como favorito!` : `${recipe.name} eliminado de favoritos`,
+      type: added ? 'success' : 'info',
+      icon: added ? 'heart' : 'heart-dislike',
+    });
+  }, [recipe]);
 
   // Compute adjusted macros based on selected portion multiplier
   const adjusted = {
@@ -479,16 +504,17 @@ export default function RecipeDetailScreen({ route, navigation }: any) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Log button - fixed at bottom */}
+      {/* Log button + favorite - fixed at bottom */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + spacing.sm, paddingHorizontal: sidePadding, backgroundColor: c.bg, borderTopColor: c.border }]}>
-        <TouchableOpacity
-          style={[styles.logBtn, { backgroundColor: c.primary }, logging && styles.logBtnDisabled]}
-          onPress={handleLogMeal}
-          disabled={logging}
-          activeOpacity={0.85}
-          accessibilityLabel={`Registrar ${portion}x porcion de ${recipe.name}`}
-          accessibilityRole="button"
-        >
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <TouchableOpacity
+            style={[styles.logBtn, { backgroundColor: c.primary, flex: 1 }, logging && styles.logBtnDisabled]}
+            onPress={handleLogMeal}
+            disabled={logging}
+            activeOpacity={0.85}
+            accessibilityLabel={`Registrar ${portion}x porcion de ${recipe.name}`}
+            accessibilityRole="button"
+          >
           {logging ? (
             <ActivityIndicator size="small" color={colors.white} />
           ) : (
@@ -499,7 +525,21 @@ export default function RecipeDetailScreen({ route, navigation }: any) {
               </Text>
             </>
           )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.logBtn, { backgroundColor: isFavorited ? '#EF4444' : c.surface, width: 52, borderWidth: isFavorited ? 0 : 1, borderColor: c.grayLight }]}
+            onPress={handleToggleFavorite}
+            activeOpacity={0.7}
+            accessibilityLabel={isFavorited ? 'Eliminar de favoritos' : 'Guardar receta como favorito'}
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name={isFavorited ? 'heart' : 'heart-outline'}
+              size={22}
+              color={isFavorited ? colors.white : '#EF4444'}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );

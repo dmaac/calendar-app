@@ -36,6 +36,7 @@ import FoodComparison from '../../components/FoodComparison';
 import FoodDiary from '../../components/FoodDiary';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
+import * as favoritesService from '../../services/favorites.service';
 
 const MEAL_META = mealColors;
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -699,6 +700,28 @@ export default function LogScreen({ navigation }: any) {
                           <Text style={[styles.macroPill, { color: c.gray }]}>G {Math.round(log.fats_g)}g</Text>
                         </View>
                       </View>
+                      <TouchableOpacity
+                        style={styles.favHeart}
+                        onPress={async () => {
+                          haptics.light();
+                          const added = await favoritesService.toggleFavorite({
+                            name: log.food_name,
+                            calories: log.calories,
+                            protein_g: log.protein_g,
+                            carbs_g: log.carbs_g,
+                            fats_g: log.fats_g,
+                          });
+                          showNotification({
+                            message: added ? `${log.food_name} agregado a favoritos!` : `${log.food_name} eliminado de favoritos`,
+                            type: added ? 'success' : 'info',
+                            icon: added ? 'heart' : 'heart-dislike',
+                          });
+                        }}
+                        accessibilityLabel="Agregar a favoritos"
+                        accessibilityRole="button"
+                      >
+                        <Ionicons name="heart-outline" size={18} color="#EF4444" />
+                      </TouchableOpacity>
                       <View style={styles.foodRight}>
                         <Text style={[styles.foodKcal, { color: c.black }]}>{Math.round(log.calories)}</Text>
                         <Text style={[styles.foodKcalUnit, { color: c.gray }]}>kcal</Text>
@@ -862,6 +885,7 @@ const styles = StyleSheet.create({
   foodName: { ...typography.bodyMd, marginBottom: 2 },
   macroPills: { flexDirection: 'row', gap: spacing.xs },
   macroPill: { ...typography.caption },
+  favHeart: { padding: 4, marginRight: 4 },
   foodRight: { alignItems: 'flex-end', gap: 2 },
   foodKcal: { ...typography.label },
   foodKcalUnit: { ...typography.caption },

@@ -230,7 +230,33 @@ export default function ScanScreen({ navigation }: any) {
     carbs_g: '',
     fats_g: '',
   });
+  const [isFavorited, setIsFavorited] = useState(false);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Check if scanned food is already a favorite
+  useEffect(() => {
+    if (result?.food_name) {
+      favoritesService.isFavorite(result.food_name).then(setIsFavorited).catch(() => {});
+    }
+  }, [result?.food_name]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!result) return;
+    haptics.light();
+    const added = await favoritesService.toggleFavorite({
+      name: result.food_name,
+      calories: result.calories,
+      protein_g: result.protein_g,
+      carbs_g: result.carbs_g,
+      fats_g: result.fats_g,
+    });
+    setIsFavorited(added);
+    showNotification({
+      message: added ? `${result.food_name} agregado a favoritos!` : `${result.food_name} eliminado de favoritos`,
+      type: added ? 'success' : 'info',
+      icon: added ? 'heart' : 'heart-dislike',
+    });
+  }, [result]);
 
   // Scale animation for result card
   const resultScale = useRef(new Animated.Value(0.92)).current;
@@ -655,19 +681,34 @@ export default function ScanScreen({ navigation }: any) {
           </Animated.View>
 
           {/* Actions */}
-          <TouchableOpacity
-            style={[styles.confirmBtn, { backgroundColor: c.black }]}
-            onPress={handleConfirm}
-            activeOpacity={0.85}
-            accessibilityLabel={isEditing ? 'Guardar cambios' : 'Guardar en mi registro'}
-            accessibilityRole="button"
-            accessibilityHint="Confirma y guarda este alimento en tu diario"
-          >
-            <Ionicons name="checkmark-circle" size={20} color={c.white} />
-            <Text style={[styles.confirmBtnText, { color: c.white }]}>
-              {isEditing ? 'Guardar cambios' : t('scan.saveToLog')}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <TouchableOpacity
+              style={[styles.confirmBtn, { backgroundColor: c.black, flex: 1 }]}
+              onPress={handleConfirm}
+              activeOpacity={0.85}
+              accessibilityLabel={isEditing ? 'Guardar cambios' : 'Guardar en mi registro'}
+              accessibilityRole="button"
+              accessibilityHint="Confirma y guarda este alimento en tu diario"
+            >
+              <Ionicons name="checkmark-circle" size={20} color={c.white} />
+              <Text style={[styles.confirmBtnText, { color: c.white }]}>
+                {isEditing ? 'Guardar cambios' : t('scan.saveToLog')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.confirmBtn, { backgroundColor: isFavorited ? '#EF4444' : c.surface, width: 52 }]}
+              onPress={handleToggleFavorite}
+              activeOpacity={0.7}
+              accessibilityLabel={isFavorited ? 'Eliminar de favoritos' : 'Agregar a favoritos'}
+              accessibilityRole="button"
+            >
+              <Ionicons
+                name={isFavorited ? 'heart' : 'heart-outline'}
+                size={22}
+                color={isFavorited ? c.white : '#EF4444'}
+              />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={[styles.editMacrosBtn, { backgroundColor: isEditing ? c.accent + '15' : c.surface, borderColor: c.accent + '30' }]}
