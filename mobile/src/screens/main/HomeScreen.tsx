@@ -630,6 +630,16 @@ export default function HomeScreen({ navigation }: any) {
   // Adaptive calorie banner uses same data as mock recent
   const adaptiveRecentCalories = mockRecentDailyCalories;
 
+  // Memoize water value to avoid re-deriving on each render
+  const waterMl = useMemo(() => summary?.water_ml ?? 0, [summary]);
+
+  // Memoize calorie ring labels
+  const caloriesLeftLabel = useMemo(
+    () => t('home.caloriesLeft', { count: Math.round(Math.max(target - consumed, 0)) }),
+    [t, target, consumed],
+  );
+  const goalReachedLabel = useMemo(() => t('home.goalReached'), [t]);
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header with parallax */}
@@ -641,31 +651,21 @@ export default function HomeScreen({ navigation }: any) {
             animation="idle"
           />
           <View accessibilityRole="header">
-            <Text style={[styles.greeting, { color: c.gray }]}>{greeting()},</Text>
+            <Text style={[styles.greeting, { color: c.gray }]}>{greetingText},</Text>
             <Text style={[styles.userName, { color: c.black }]}>{user?.first_name || t('profile.user')}</Text>
           </View>
         </Animated.View>
         <View style={styles.headerRight}>
           <StreakBadge
             days={streak}
-            onPress={() => {
-              haptics.light();
-              navigation.navigate('Achievements');
-            }}
+            onPress={onNavigateToAchievements}
           />
           <NotificationBell
             unreadCount={unreadCount}
-            onPress={() => {
-              track('notification_bell_pressed', { unread: unreadCount });
-              setNotifSheetVisible(true);
-            }}
+            onPress={onNotifBellPress}
           />
           <TouchableOpacity
-            onPress={() => {
-              haptics.light();
-              track('scan_button_pressed', { source: 'header' });
-              navigation.navigate('Scan');
-            }}
+            onPress={onScanPress}
             accessibilityLabel="Escanear comida con la camara"
             accessibilityRole="button"
             accessibilityHint="Abre la camara para escanear alimentos con IA"
@@ -689,11 +689,7 @@ export default function HomeScreen({ navigation }: any) {
           {error && (
             <TouchableOpacity
               style={[styles.errorBanner, { marginHorizontal: sidePadding, backgroundColor: c.accent }]}
-              onPress={() => {
-                haptics.light();
-                setLoading(true);
-                load();
-              }}
+              onPress={onRetryPress}
               activeOpacity={0.8}
               accessibilityLabel="Error al cargar datos. Toca para reintentar"
               accessibilityRole="button"
@@ -726,7 +722,7 @@ export default function HomeScreen({ navigation }: any) {
               <WellnessScore
                 nutriScore={nutriScoreValue}
                 exerciseScore={exerciseScoreValue}
-                waterMl={summary?.water_ml ?? 0}
+                waterMl={waterMl}
                 waterGoal={2500}
                 streakDays={streak}
               />
@@ -737,11 +733,7 @@ export default function HomeScreen({ navigation }: any) {
               {/* Trial banner — 7 days free for non-premium users */}
               <TrialBanner
                 visible={!isPremium}
-                onStartTrial={() => {
-                  haptics.medium();
-                  track('trial_banner_pressed', { source: 'home' });
-                  navigation.navigate('Paywall');
-                }}
+                onStartTrial={onStartTrial}
               />
 
               {/* Apple Health card — steps + active calories */}
@@ -756,21 +748,15 @@ export default function HomeScreen({ navigation }: any) {
               {/* Fasting Timer — collapsible card */}
               <FastingTimer initiallyCollapsed />
 
-              {/* Sleep Tracker — hooks bug fixed by QA */}
-              <SleepTracker initiallyCollapsed />
-
-              {/* Mood + Energy Tracker — collapsible card */}
-              <MoodTracker initiallyCollapsed nutriScore={nutriScoreValue} />
-
-              {/* Calorie card */}
+              {/* Calorie card — always above fold */}
               <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">
                 <View style={styles.ringRow}>
                   <CalorieRing
                     consumed={consumed}
                     target={target}
                     colors={c}
-                    remainingLabel={t('home.caloriesLeft', { count: Math.round(Math.max(target - consumed, 0)) })}
-                    goalReachedLabel={t('home.goalReached')}
+                    remainingLabel={caloriesLeftLabel}
+                    goalReachedLabel={goalReachedLabel}
                   />
                   <View style={styles.macros}>
                     <MacroBar label={t('home.protein')} value={protein} target={proteinTarget} color={c.protein} delay={0} colors={c} />
