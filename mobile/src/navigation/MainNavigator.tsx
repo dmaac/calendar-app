@@ -179,6 +179,7 @@ const HomeStack = () => (
     <Stack.Screen name="Coach"        component={CoachScreen} />
     <Stack.Screen name="MealPlan"     component={MealPlanScreen} />
     <Stack.Screen name="Challenges"  component={ChallengesScreen} />
+    <Stack.Screen name="Paywall"     component={PaywallScreen} />
   </Stack.Navigator>
 );
 

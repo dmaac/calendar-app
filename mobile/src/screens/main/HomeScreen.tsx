@@ -51,6 +51,7 @@ import NotificationCenter, {
 } from '../../components/NotificationCenter';
 import { syncWidgetData } from '../../services/widgetData.service';
 import DailyChallenges from '../../components/DailyChallenges';
+import TrialBanner from '../../components/TrialBanner';
 
 // ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
 const DAILY_TIPS = [
@@ -321,7 +322,7 @@ const MealSection = React.memo(function MealSection({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen({ navigation }: any) {
-  const { user } = useAuth();
+  const { user, isPremium } = useAuth();
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
   const c = useThemeColors();
@@ -608,6 +609,16 @@ export default function HomeScreen({ navigation }: any) {
               {/* Health Alerts — top of scroll, above everything */}
               <HealthAlerts alerts={healthAlerts} />
 
+              {/* Trial banner — 7 days free for non-premium users */}
+              <TrialBanner
+                visible={!isPremium}
+                onStartTrial={() => {
+                  haptics.medium();
+                  track('trial_banner_pressed', { source: 'home' });
+                  navigation.navigate('Paywall');
+                }}
+              />
+
               {/* Apple Health card — steps + active calories */}
               {healthKit.connected && healthKit.steps && healthKit.activeCalories && (
                 <HealthKitCard
@@ -690,6 +701,15 @@ export default function HomeScreen({ navigation }: any) {
                   {DAILY_TIPS[new Date().getDate() - 1] ?? DAILY_TIPS[0]}
                 </Text>
               </View>
+
+              {/* Daily Challenges */}
+              {summary && (
+                <DailyChallenges
+                  mealsLogged={summary.meals_logged ?? 0}
+                  waterMl={summary.water_ml ?? 0}
+                  proteinG={summary.total_protein_g ?? 0}
+                />
+              )}
 
               {/* Quick Actions */}
               <View style={styles.quickActionsRow}>
