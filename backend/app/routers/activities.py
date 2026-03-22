@@ -6,6 +6,7 @@ from ..core.database import get_session
 from ..models.user import User
 from ..models.activity import Activity, ActivityCreate, ActivityRead, ActivityUpdate
 from ..services.activity_service import ActivityService
+from ..services.streak_service import StreakService
 from .auth import get_current_user
 
 router = APIRouter(prefix="/activities", tags=["activities"])
@@ -122,3 +123,23 @@ async def delete_activity(
         )
 
     return {"message": "Activity deleted successfully"}
+
+
+@router.get("/streak", tags=["activities"])
+async def get_streak(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return current streak and all-time max streak (consecutive days with food logs)."""
+    streak_service = StreakService(session)
+    return await streak_service.calculate_streak(current_user.id)
+
+
+@router.get("/weekly-summary", tags=["activities"])
+async def get_weekly_summary(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return weekly summary: avg calories, active days, best day."""
+    streak_service = StreakService(session)
+    return await streak_service.get_weekly_summary(current_user.id)

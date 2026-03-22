@@ -136,15 +136,28 @@ export default function AddFoodScreen({ navigation, route }: any) {
 
   const parse = (v: string) => parseFloat(v.replace(',', '.')) || 0;
 
+  // ─── Validation ───────────────────────────────────────────────────────────
+  const foodNameTrimmed = foodName.trim();
+  const foodNameError = foodNameTrimmed.length > 100 ? 'Máximo 100 caracteres' : '';
+  const calParsed = parse(calories);
+  const caloriesError = calories.length > 0 && (calParsed <= 0 || calParsed >= 10000)
+    ? 'Debe ser entre 1 y 9999' : '';
+  const macroError = (v: string) => {
+    if (!v) return '';
+    const n = parse(v);
+    return (n < 0 || n >= 1000) ? 'Debe ser entre 0 y 999' : '';
+  };
+  const proteinError = macroError(protein);
+  const carbsError   = macroError(carbs);
+  const fatsError    = macroError(fats);
+  const fiberError   = macroError(fiber);
+
+  const hasErrors = !foodNameTrimmed || !!foodNameError || !calories || !!caloriesError
+    || !!proteinError || !!carbsError || !!fatsError || !!fiberError;
+
   const handleSave = async () => {
-    if (!foodName.trim()) {
+    if (hasErrors) {
       haptics.error();
-      Alert.alert('Error', 'Ingresa el nombre del alimento');
-      return;
-    }
-    if (!calories || parse(calories) <= 0) {
-      haptics.error();
-      Alert.alert('Error', 'Ingresa las calorías');
       return;
     }
 
@@ -210,8 +223,8 @@ export default function AddFoodScreen({ navigation, route }: any) {
         <Text style={[styles.headerTitle, { color: c.black }]}>Añadir alimento</Text>
         <TouchableOpacity
           onPress={handleSave}
-          disabled={loading}
-          style={[styles.saveBtn, { backgroundColor: c.black }, loading && { opacity: 0.5 }]}
+          disabled={loading || hasErrors}
+          style={[styles.saveBtn, { backgroundColor: c.black }, (loading || hasErrors) && { opacity: 0.5 }]}
         >
           <Text style={[styles.saveBtnText, { color: c.white }]}>{loading ? 'Guardando...' : 'Guardar'}</Text>
         </TouchableOpacity>
@@ -269,8 +282,10 @@ export default function AddFoodScreen({ navigation, route }: any) {
               placeholderTextColor={c.disabled}
               autoCapitalize="sentences"
               returnKeyType="next"
+              maxLength={100}
             />
           </View>
+          {!!foodNameError && <Text style={styles.fieldError}>{foodNameError}</Text>}
           {showSuggestions && (
             <View style={[styles.suggestionsContainer, { backgroundColor: c.bg, borderColor: c.grayLight }]}>
               <FlatList
@@ -314,6 +329,7 @@ export default function AddFoodScreen({ navigation, route }: any) {
           />
           <Text style={styles.caloriesUnit}>kcal</Text>
         </View>
+        {!!caloriesError && <Text style={styles.fieldError}>{caloriesError}</Text>}
 
         {/* Macros grid */}
         <Text style={[styles.sectionLabel, { color: c.gray }]}>Macronutrientes</Text>
@@ -323,6 +339,9 @@ export default function AddFoodScreen({ navigation, route }: any) {
           <MacroInput label="Grasas"   value={fats}    onChange={setFats}    color={c.fats} colors={c} />
           <MacroInput label="Fibra"    value={fiber}   onChange={setFiber}   color={c.success} colors={c} />
         </View>
+        {(!!proteinError || !!carbsError || !!fatsError || !!fiberError) && (
+          <Text style={styles.fieldError}>Los macros deben ser entre 0 y 999</Text>
+        )}
 
         {/* Optional serving size */}
         <Text style={[styles.sectionLabel, { color: c.gray }]}>Porción (opcional)</Text>
@@ -412,6 +431,7 @@ const styles = StyleSheet.create({
   },
   caloriesUnit: { fontSize: 20, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
   macroGrid: { flexDirection: 'row', gap: spacing.sm },
+  fieldError: { color: '#E53935', fontSize: 12, marginTop: spacing.xs, marginLeft: spacing.xs },
   suggestionsContainer: {
     borderWidth: 1,
     borderRadius: radius.md,

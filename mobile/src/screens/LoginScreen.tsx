@@ -19,22 +19,31 @@ interface LoginScreenProps {
   navigation: any;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const { login, resetOnboarding, devBypass } = useAuth();
   const { sidePadding, contentWidth } = useLayout();
 
+  const emailError = emailTouched && email.length > 0 && !EMAIL_REGEX.test(email.trim())
+    ? 'Ingresa un correo válido' : '';
+  const passwordError = passwordTouched && password.length > 0 && password.length < 8
+    ? 'Mínimo 8 caracteres' : '';
+  const canSubmit = email.trim().length > 0 && password.length >= 8 && EMAIL_REGEX.test(email.trim());
+
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Completa todos los campos');
-      return;
-    }
+    setEmailTouched(true);
+    setPasswordTouched(true);
+    if (!canSubmit) return;
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
     } catch (error: any) {
       Alert.alert('Error al iniciar sesión', error?.message || error?.response?.data?.detail || 'Verifica tu email y contraseña');
     } finally {
@@ -71,11 +80,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               placeholderTextColor={colors.gray}
               value={email}
               onChangeText={setEmail}
+              onBlur={() => setEmailTouched(true)}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
           </View>
+          {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
 
           <View style={styles.inputWrapper}>
             <Ionicons name="lock-closed-outline" size={20} color={colors.gray} />
@@ -85,6 +96,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               placeholderTextColor={colors.gray}
               value={password}
               onChangeText={setPassword}
+              onBlur={() => setPasswordTouched(true)}
               secureTextEntry={!showPass}
               autoCapitalize="none"
             />
@@ -92,11 +104,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.gray} />
             </TouchableOpacity>
           </View>
+          {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
 
           <TouchableOpacity
-            style={[styles.btn, loading && styles.btnDisabled]}
+            style={[styles.btn, (loading || !canSubmit) && styles.btnDisabled]}
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || !canSubmit}
             activeOpacity={0.85}
           >
             <Text style={styles.btnText}>{loading ? 'Ingresando...' : 'Iniciar sesión'}</Text>
@@ -147,6 +160,7 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { backgroundColor: colors.disabled },
   btnText: { ...typography.button, color: colors.white },
+  errorText: { color: '#E53935', fontSize: 12, marginTop: -4, marginLeft: spacing.sm },
   link: { alignItems: 'center', paddingVertical: spacing.sm },
   linkText: { ...typography.caption, color: colors.gray },
   linkBold: { color: colors.black, fontWeight: '700' },

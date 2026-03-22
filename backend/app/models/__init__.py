@@ -11,6 +11,7 @@ from .ai_scan_cache import AIScanCache
 from .subscription import Subscription
 from .push_token import PushToken
 from .feedback import Feedback
+from .workout import WorkoutLog
 
 __all__ = [
     "User",
@@ -26,4 +27,5 @@ __all__ = [
     "Subscription",
     "PushToken",
     "Feedback",
+    "WorkoutLog",
 ]

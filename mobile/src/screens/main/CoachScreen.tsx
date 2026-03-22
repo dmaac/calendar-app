@@ -171,9 +171,17 @@ export default function CoachScreen({ navigation }: any) {
   const [isTyping, setIsTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
+  const sanitizeInput = (text: string): string => {
+    return text
+      .trim()
+      .replace(/<[^>]*>/g, '')    // strip HTML tags
+      .replace(/&[a-z]+;/gi, '')  // strip HTML entities
+      .slice(0, 500);
+  };
+
   const sendMessage = useCallback(
     (text: string) => {
-      const trimmed = text.trim();
+      const trimmed = sanitizeInput(text);
       if (!trimmed || isTyping) return;
 
       haptics.light();
@@ -332,7 +340,7 @@ export default function CoachScreen({ navigation }: any) {
           <TextInput
             style={[styles.input, { backgroundColor: c.surface, color: c.black }]}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={(t) => setInputText(t.replace(/<[^>]*>/g, '').slice(0, 500))}
             placeholder="Escribe tu pregunta..."
             placeholderTextColor={c.disabled}
             multiline

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Platform, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
@@ -7,6 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { colors, typography, spacing, radius } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
+import FitsiMascot from '../../components/FitsiMascot';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 import * as authService from '../../services/auth.service';
@@ -118,6 +119,21 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
     }
   };
 
+  // ── Stagger fade-in animations ──────────────────────────────────────────
+  const fadeAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
+  useEffect(() => {
+    const animations = fadeAnims.map((anim, i) =>
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 400,
+        delay: 200 + i * 120,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      })
+    );
+    Animated.stagger(120, animations).start();
+  }, []);
+
   // ─────────────────────────────────────────────────────────────────────────
   if (mode === 'email') {
     return (
@@ -184,50 +200,64 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
       totalSteps={totalSteps}
       onBack={onBack}
       footer={
-        <Text style={styles.terms}>
-          Al continuar aceptas nuestros{' '}
-          <Text style={styles.link}>Términos</Text> y{' '}
-          <Text style={styles.link}>Política de privacidad</Text>.
-        </Text>
+        <View style={styles.footerContainer}>
+          <Text style={styles.terms}>
+            Al continuar aceptas nuestros{' '}
+            <Text style={styles.link}>Términos</Text> y{' '}
+            <Text style={styles.link}>Política de privacidad</Text>.
+          </Text>
+          <TouchableOpacity onPress={onNext} activeOpacity={0.6}>
+            <Text style={styles.skipLink}>Saltar por ahora</Text>
+          </TouchableOpacity>
+        </View>
       }
     >
-      <Text style={styles.title}>Crea tu{'\n'}cuenta gratis</Text>
-      <Text style={styles.subtitle}>Guarda tu plan y comienza tu camino.</Text>
+      {/* Fitsi angel greeting */}
+      <Animated.View style={[styles.mascotRow, { opacity: fadeAnims[0], transform: [{ translateY: fadeAnims[0].interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }]}>
+        <FitsiMascot expression="angel" size="medium" animation="wave" message="Tu plan esta listo!" />
+      </Animated.View>
+
+      <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: fadeAnims[0].interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
+        <Text style={styles.title}>Crea tu{'\n'}cuenta gratis</Text>
+        <Text style={styles.subtitle}>Guarda tu plan personalizado y sincroniza en todos tus dispositivos.</Text>
+      </Animated.View>
 
       <View style={styles.content}>
-        <View style={styles.lockBadge}>
-          <Text style={{ fontSize: 40 }}>🔒</Text>
-        </View>
-
         <View style={styles.authButtons}>
-          {/* Apple Sign In — only show on iOS */}
+          {/* Apple Sign In — large black button at top (iOS only) */}
           {Platform.OS === 'ios' && (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={radius.full}
-              style={styles.appleBtn}
-              onPress={handleApple}
-            />
+            <Animated.View style={{ opacity: fadeAnims[1], transform: [{ translateY: fadeAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={radius.full}
+                style={styles.appleBtn}
+                onPress={handleApple}
+              />
+            </Animated.View>
           )}
 
-          {/* Google */}
-          <TouchableOpacity style={[styles.socialBtn, styles.googleBtn]} onPress={handleGoogle} activeOpacity={0.8}>
-            <Text style={styles.googleG}>G</Text>
-            <Text style={[styles.socialBtnText, { color: colors.black }]}>Continuar con Google</Text>
-          </TouchableOpacity>
+          {/* Google — white with border below */}
+          <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: fadeAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+            <TouchableOpacity style={[styles.socialBtn, styles.googleBtn]} onPress={handleGoogle} activeOpacity={0.8}>
+              <Text style={styles.googleG}>G</Text>
+              <Text style={[styles.socialBtnText, { color: colors.black }]}>Continuar con Google</Text>
+            </TouchableOpacity>
+          </Animated.View>
 
-          <View style={styles.divider}>
+          <Animated.View style={[styles.divider, { opacity: fadeAnims[2] }]}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>o</Text>
             <View style={styles.dividerLine} />
-          </View>
+          </Animated.View>
 
           {/* Email */}
-          <TouchableOpacity style={[styles.socialBtn, styles.emailBtn]} onPress={() => setMode('email')} activeOpacity={0.8}>
-            <Ionicons name="mail-outline" size={22} color={colors.black} />
-            <Text style={[styles.socialBtnText, { color: colors.black }]}>Continuar con Email</Text>
-          </TouchableOpacity>
+          <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: fadeAnims[3].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+            <TouchableOpacity style={[styles.socialBtn, styles.emailBtn]} onPress={() => setMode('email')} activeOpacity={0.8}>
+              <Ionicons name="mail-outline" size={22} color={colors.black} />
+              <Text style={[styles.socialBtnText, { color: colors.black }]}>Continuar con Email</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </View>
     </OnboardingLayout>
@@ -235,18 +265,17 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
 }
 
 const styles = StyleSheet.create({
-  title:    { ...typography.title, color: colors.black, marginTop: spacing.md },
-  subtitle: { ...typography.subtitle, color: colors.gray, marginTop: spacing.sm },
+  mascotRow: {
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  title:    { ...typography.title, color: colors.black, marginTop: spacing.sm, textAlign: 'center' },
+  subtitle: { ...typography.subtitle, color: colors.gray, marginTop: spacing.sm, textAlign: 'center', lineHeight: 20 },
   content: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.xl,
-  },
-  lockBadge: {
-    width: 90, height: 90, borderRadius: 45,
-    backgroundColor: colors.surface,
-    justifyContent: 'center', alignItems: 'center',
+    gap: spacing.md,
   },
   authButtons: { width: '100%', gap: spacing.sm },
   appleBtn: { width: '100%', height: 56 },
@@ -263,7 +292,7 @@ const styles = StyleSheet.create({
   emailBtn: { backgroundColor: colors.surface },
   googleG:  { fontSize: 18, fontWeight: '700', color: '#4285F4' },
   socialBtnText: { ...typography.button, color: colors.white },
-  divider:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  divider:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginVertical: spacing.xs },
   dividerLine:  { flex: 1, height: 1, backgroundColor: colors.grayLight },
   dividerText:  { ...typography.caption, color: colors.gray },
   form: { flex: 1, justifyContent: 'center', gap: spacing.md },
@@ -274,6 +303,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, height: 56, gap: spacing.sm,
   },
   input: { flex: 1, ...typography.option, color: colors.black },
+  footerContainer: { alignItems: 'center', gap: spacing.sm },
   terms: { ...typography.caption, color: colors.gray, textAlign: 'center', lineHeight: 18 },
   link:  { color: colors.black, fontWeight: '600' },
+  skipLink: { ...typography.caption, color: colors.gray, textDecorationLine: 'underline' },
 });

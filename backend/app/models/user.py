@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from .ai_food_log import AIFoodLog
     from .subscription import Subscription
     from .push_token import PushToken
+    from .workout import WorkoutLog
 
 
 class UserBase(SQLModel):
@@ -46,6 +47,7 @@ class User(UserBase, table=True):
     ai_food_logs: List["AIFoodLog"] = Relationship(back_populates="user")
     subscriptions: List["Subscription"] = Relationship(back_populates="user")
     push_tokens: List["PushToken"] = Relationship(back_populates="user")
+    workout_logs: List["WorkoutLog"] = Relationship(back_populates="user")
 
 
 class UserCreate(UserBase):

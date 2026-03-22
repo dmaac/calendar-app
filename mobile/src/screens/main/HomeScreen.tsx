@@ -40,6 +40,40 @@ import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 
+// ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
+const DAILY_TIPS = [
+  'Beber agua antes de comer puede ayudarte a reducir la ingesta calorica.',
+  'La proteina en el desayuno aumenta la saciedad durante toda la manana.',
+  'Las frutas enteras tienen mas fibra que los jugos y te mantienen lleno mas tiempo.',
+  'Dormir bien es clave: menos de 7 horas altera las hormonas del hambre.',
+  'Masticar despacio ayuda a tu cerebro a reconocer la saciedad a tiempo.',
+  'Los frutos secos son caloricos pero muy nutritivos. Un punado diario es ideal.',
+  'Cocinar en casa te da control total sobre ingredientes y porciones.',
+  'La fibra en vegetales verdes mejora la digestion y alimenta tu microbioma.',
+  'Reducir el azucar anadido es mas impactante que reducir grasa.',
+  'El aguacate es rico en grasas saludables y potasio.',
+  'Planificar tus comidas el domingo reduce las malas decisiones entre semana.',
+  'Las legumbres son una fuente economica de proteina y fibra.',
+  'Evita comer distraido: sin pantallas puedes reconocer mejor la saciedad.',
+  'El yogurt griego tiene el doble de proteina que el yogurt normal.',
+  'Especias como canela y curcuma tienen propiedades antiinflamatorias.',
+  'Hidratar bien mejora la energia, piel y funcion cognitiva.',
+  'Los huevos son una de las fuentes mas completas de nutrientes.',
+  'Cambiar arroz blanco por integral aumenta la fibra significativamente.',
+  'Comer verduras primero en cada comida reduce los picos de glucosa.',
+  'El salmon es rico en omega-3, esencial para el cerebro y corazon.',
+  'Los batidos verdes son una forma facil de aumentar tu ingesta de vegetales.',
+  'Las semillas de chia absorben liquido y aumentan la saciedad.',
+  'Reducir alimentos ultraprocesados es el cambio mas impactante.',
+  'El te verde contiene antioxidantes y un boost suave de energia.',
+  'Comer 5 porciones de frutas y verduras al dia reduce riesgos de salud.',
+  'La avena es un desayuno excelente: fibra soluble que sacia por horas.',
+  'Caminar 10 minutos despues de comer mejora la digestion y glucosa.',
+  'El brocoli tiene mas vitamina C por caloria que las naranjas.',
+  'Congelar comida preparada te salva en dias sin tiempo para cocinar.',
+  'La consistencia importa mas que la perfeccion. Un 80% es suficiente.',
+];
+
 // ─── Mock data for offline / backend unavailable ─────────────────────────────
 const MOCK_SUMMARY: DailySummary = {
   date: new Date().toISOString().split('T')[0],
@@ -481,6 +515,61 @@ export default function HomeScreen({ navigation }: any) {
                 </View>
               </View>
 
+              {/* Today's Tip */}
+              <View style={[styles.tipCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
+                <View style={styles.tipHeader}>
+                  <FitsiMascot expression="cool" size="small" animation="idle" />
+                  <Text style={[styles.tipTitle, { color: c.black }]}>{t('home.today')} Tip</Text>
+                </View>
+                <Text style={[styles.tipText, { color: c.gray }]}>
+                  {DAILY_TIPS[new Date().getDate() - 1] ?? DAILY_TIPS[0]}
+                </Text>
+              </View>
+
+              {/* Quick Actions */}
+              <View style={styles.quickActionsRow}>
+                <TouchableOpacity
+                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                  onPress={() => { haptics.light(); navigation.navigate('Escanear'); }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
+                    <Ionicons name="camera" size={18} color={c.white} />
+                  </View>
+                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Scan Food</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                  onPress={() => { haptics.light(); navigation.navigate('Registro'); }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: '#4285F4' }]}>
+                    <Ionicons name="water" size={18} color={c.white} />
+                  </View>
+                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Add Water</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                  onPress={() => { haptics.light(); navigation.navigate('Recetas'); }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: '#34A853' }]}>
+                    <Ionicons name="book" size={18} color={c.white} />
+                  </View>
+                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Recipes</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                  onPress={() => { haptics.light(); navigation.navigate('Coach'); }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: '#EC4899' }]}>
+                    <Ionicons name="sparkles" size={18} color={c.white} />
+                  </View>
+                  <Text style={[styles.quickActionLabel, { color: c.black }]}>AI Coach</Text>
+                </TouchableOpacity>
+              </View>
+
               {/* Profile completion progress */}
               <OnboardingProgress
                 data={{
@@ -726,6 +815,53 @@ const styles = StyleSheet.create({
   },
   scanCtaText: {
     ...typography.label,
+  },
+  tipCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  tipTitle: {
+    ...typography.label,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tipText: {
+    ...typography.subtitle,
+    lineHeight: 20,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  quickAction: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing.xs,
+    ...shadows.sm,
+  },
+  quickActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionLabel: {
+    ...typography.caption,
+    fontWeight: '600',
   },
   reportBtn: {
     flexDirection: 'row',

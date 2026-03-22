@@ -2,7 +2,7 @@
  * LogScreen — Diario de alimentos del día
  * Comidas agrupadas por tipo · Eliminar · Añadir manualmente · Tracking de agua
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,8 @@ import { useAnalytics } from '../../hooks/useAnalytics';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import WaterTracker from '../../components/WaterTracker';
 import FitsiMascot from '../../components/FitsiMascot';
+import ConfettiEffect from '../../components/ConfettiEffect';
+import { showNotification } from '../../components/InAppNotification';
 
 const MEAL_META = mealColors;
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -176,6 +178,8 @@ export default function LogScreen({ navigation }: any) {
   const [waterMl, setWaterMl] = useState(0);
   const [modalMeal, setModalMeal] = useState<MealType | null>(null);
   const [error, setError] = useState(false);
+  const [confettiTrigger, setConfettiTrigger] = useState(false);
+  const prevLogCount = useRef(0);
 
   const load = async () => {
     setError(false);
@@ -219,6 +223,19 @@ export default function LogScreen({ navigation }: any) {
   };
 
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, []));
+
+  // Detect when a new food log is added (logs count increased) and fire confetti
+  useEffect(() => {
+    if (logs.length > prevLogCount.current && prevLogCount.current > 0) {
+      setConfettiTrigger(true);
+      showNotification({ message: 'Comida registrada!', type: 'success', icon: 'checkmark-circle' });
+      haptics.success();
+      // Reset trigger after a tick so it can fire again
+      const timer = setTimeout(() => setConfettiTrigger(false), 100);
+      return () => clearTimeout(timer);
+    }
+    prevLogCount.current = logs.length;
+  }, [logs.length]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -515,6 +532,8 @@ export default function LogScreen({ navigation }: any) {
         onManual={handleManual}
         onSearch={handleSearch}
       />
+
+      <ConfettiEffect trigger={confettiTrigger} />
     </View>
   );
 }

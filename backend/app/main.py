@@ -14,7 +14,7 @@ from starlette.responses import RedirectResponse
 from .core.database import create_db_and_tables
 from .core.config import settings
 from .core.versioning import APIVersionMiddleware
-from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router
+from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger("fitsi.requests")
@@ -79,6 +79,14 @@ openapi_tags = [
     {
         "name": "activities",
         "description": "Activity/exercise tracking: log workouts, view history.",
+    },
+    {
+        "name": "workouts",
+        "description": "Workout tracking: log exercises, view history, weekly summaries, and calorie estimation.",
+    },
+    {
+        "name": "insights",
+        "description": "Personalized daily insights: nutrition tips, hydration reminders, streak celebrations.",
     },
     {
         "name": "health",
@@ -379,6 +387,8 @@ app.include_router(notifications_router)
 app.include_router(feedback_router)
 app.include_router(admin_router)
 app.include_router(export_router)
+app.include_router(workouts_router)
+app.include_router(insights_router)
 
 
 @app.get("/", tags=["root"])

@@ -279,6 +279,12 @@ export default function ProfileScreen({ navigation }: any) {
             <Row icon="trophy-outline"      label={t('profile.goal')}     value={goalLabel} colors={c} />
             <Row icon="speedometer-outline" label={t('profile.targetWeight')} value={targetWeight} colors={c} />
             <Row
+              icon="barbell-outline"
+              label="Workouts"
+              onPress={() => navigation.navigate('Workouts')}
+              colors={c}
+            />
+            <Row
               icon="trending-down-outline"
               label={t('profile.weightHistory')}
               onPress={() => navigation.navigate('WeightTracking')}

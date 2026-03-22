@@ -94,13 +94,21 @@ export default function EditProfileScreen({ navigation, route }: any) {
     profile.workouts_per_week ?? 3,
   );
 
-  const handleSave = async () => {
-    const w = parse(weightKg);
-    const h = parse(heightCm);
-    const tw = parse(targetWeightKg);
+  // ─── Validation ───────────────────────────────────────────────────────────
+  const w = parse(weightKg);
+  const h = parse(heightCm);
+  const tw = parse(targetWeightKg);
 
-    if (w <= 0) { Alert.alert('Error', 'Ingresa un peso válido'); return; }
-    if (h <= 0) { Alert.alert('Error', 'Ingresa una altura válida'); return; }
+  const weightError = weightKg.length > 0 && (w < 20 || w > 300) ? 'Debe ser entre 20 y 300 kg' : '';
+  const heightError = heightCm.length > 0 && (h < 100 || h > 250) ? 'Debe ser entre 100 y 250 cm' : '';
+  const targetWeightError = targetWeightKg.length > 0 && w > 0 && tw > 0
+    ? (tw < w * 0.5 || tw > w * 1.5 ? `Debe estar entre ${Math.round(w * 0.5)} y ${Math.round(w * 1.5)} kg` : '')
+    : '';
+
+  const canSave = w >= 20 && w <= 300 && h >= 100 && h <= 250 && !targetWeightError;
+
+  const handleSave = async () => {
+    if (!canSave) return;
 
     setLoading(true);
     try {
@@ -134,8 +142,8 @@ export default function EditProfileScreen({ navigation, route }: any) {
         <Text style={[styles.headerTitle, { color: c.black }]}>Editar perfil</Text>
         <TouchableOpacity
           onPress={handleSave}
-          disabled={loading}
-          style={[styles.saveBtn, { backgroundColor: c.black }, loading && { opacity: 0.5 }]}
+          disabled={loading || !canSave}
+          style={[styles.saveBtn, { backgroundColor: c.black }, (loading || !canSave) && { opacity: 0.5 }]}
         >
           <Text style={styles.saveBtnText}>{loading ? 'Guardando...' : 'Guardar'}</Text>
         </TouchableOpacity>
@@ -161,6 +169,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
                 placeholderTextColor={c.disabled}
               />
             </View>
+            {!!weightError && <Text style={styles.fieldError}>{weightError}</Text>}
           </View>
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, { color: c.gray }]}>Altura (cm)</Text>
@@ -174,6 +183,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
                 placeholderTextColor={c.disabled}
               />
             </View>
+            {!!heightError && <Text style={styles.fieldError}>{heightError}</Text>}
           </View>
         </View>
 
@@ -189,6 +199,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
             placeholderTextColor={c.disabled}
           />
         </View>
+        {!!targetWeightError && <Text style={styles.fieldError}>{targetWeightError}</Text>}
 
         {/* Objetivo */}
         <Text style={[styles.sectionLabel, { color: c.gray }]}>Tu objetivo</Text>
@@ -277,6 +288,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
   },
   input: { flex: 1, ...typography.option, color: colors.black },
+  fieldError: { color: '#E53935', fontSize: 12, marginTop: 4, marginLeft: spacing.xs },
   goalList: { gap: spacing.sm },
   goalCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
