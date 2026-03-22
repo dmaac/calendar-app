@@ -363,6 +363,16 @@ _risk_summary_cache: dict[int, tuple[float, dict]] = {}
 _RISK_SUMMARY_TTL = 300  # 5 minutes
 
 
+# Item 84: Circuit breaker for DB calls in adherence calculation
+# 5 consecutive failures -> open; 60s cooldown -> half-open -> probe
+_adherence_breaker = get_breaker(
+    "adherence_calc",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=60.0,
+)
+
+
 def invalidate_risk_cache(user_id: int) -> None:
     """Remove a user's cached risk summary (Item 72)."""
     _risk_summary_cache.pop(user_id, None)
@@ -1176,6 +1186,54 @@ async def calculate_daily_adherence(
     """
     _t0 = time_mod.perf_counter()
 
+    # Item 84: Circuit breaker — if DB is consistently failing, return a safe default
+    if not _adherence_breaker.allow_request():
+        logger.warning(
+            "Circuit breaker OPEN for adherence_calc, returning default for user %d",
+            user_id,
+        )
+        # Return a minimal safe default record
+        existing_result = await session.exec(
+            select(DailyNutritionAdherence).where(
+                DailyNutritionAdherence.user_id == user_id,
+                DailyNutritionAdherence.date == target_date,
+            )
+        )
+        existing_cached = existing_result.first()
+        if existing_cached:
+            return existing_cached
+        # No cached record — return a new default
+        return DailyNutritionAdherence(
+            user_id=user_id,
+            date=target_date,
+            calories_target=2000,
+            adherence_status="critical",
+            no_log_flag=True,
+        )
+
+    try:
+        result = await _calculate_daily_adherence_inner(
+            user_id, target_date, session, day_type=day_type
+        )
+        _adherence_breaker.record_success()
+        return result
+    except CircuitBreakerOpen:
+        raise
+    except Exception:
+        _adherence_breaker.record_failure()
+        raise
+
+
+async def _calculate_daily_adherence_inner(
+    user_id: int,
+    target_date: date,
+    session: AsyncSession,
+    *,
+    day_type: Optional[str] = None,
+) -> DailyNutritionAdherence:
+    """Inner implementation of calculate_daily_adherence (wrapped by circuit breaker)."""
+    _t0 = time_mod.perf_counter()
+
     # Item 18: Check onboarding completion status early (reused for grace period below)
     onboarding_result = await session.exec(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
@@ -1302,12 +1360,14 @@ async def calculate_daily_adherence(
     existing = result.first()
 
     if existing:
-        # Item 82: Idempotent recalculation — skip DB write if nothing changed
+        # Item 82 + Item 85: Idempotent recalculation — skip DB write if nothing changed
+        # Also check plan_snapshot: if plan changed, recalculate even if totals match
         if (
             existing.calories_logged == calories_logged
             and existing.meals_logged == totals["meal_count"]
             and existing.calories_target == calories_target
             and existing.nutrition_risk_score == nutrition_risk_score
+            and existing.plan_snapshot == plan_snapshot_str
         ):
             _duration_ms = (time_mod.perf_counter() - _t0) * 1000
             logger.debug("Skipping idempotent recalc for user %d, date %s", user_id, target_date)
