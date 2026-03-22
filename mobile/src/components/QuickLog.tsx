@@ -83,7 +83,7 @@ function getUniqueBarcodeItems(
   return result;
 }
 
-export default function QuickLog({ recentLogs, onLogged }: QuickLogProps) {
+function QuickLog({ recentLogs, onLogged }: QuickLogProps) {
   const c = useThemeColors();
   const [loadingId, setLoadingId] = useState<number | string | null>(null);
   const [barcodeItems, setBarcodeItems] = useState<ScanHistoryItem[]>([]);
@@ -372,3 +372,5 @@ const s = StyleSheet.create({
     fontWeight: '400',
   },
 });
+
+export default React.memo(QuickLog);

@@ -140,7 +140,7 @@ interface FitsiMascotProps {
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
-export default function FitsiMascot({
+function FitsiMascot({
   expression,
   variant = 'cute',
   size = 'medium',
@@ -470,3 +470,5 @@ const styles = StyleSheet.create({
     borderRightColor: 'transparent',
   },
 });
+
+export default React.memo(FitsiMascot);

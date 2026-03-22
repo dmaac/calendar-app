@@ -83,7 +83,7 @@ function UserAvatar({ initials, color }: { initials: string; color: string }) {
 
 // ─── Main component ─────────────────────────────────────────────────────────
 
-export default function AchievementPost({ post, onComment }: AchievementPostProps) {
+function AchievementPost({ post, onComment }: AchievementPostProps) {
   const c = useThemeColors();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);
@@ -352,3 +352,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export default React.memo(AchievementPost);

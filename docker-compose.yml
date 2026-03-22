@@ -22,11 +22,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-fitsiai}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitsiai_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-fitsiai_db}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fitsiai} -d ${POSTGRES_DB:-fitsiai_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -68,7 +68,7 @@ services:
       - ./backend/.env
     environment:
       # Override DB/Redis URLs so they resolve inside the Docker network.
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-fitsiai}:${POSTGRES_PASSWORD:-fitsiai_secret}@db:5432/${POSTGRES_DB:-fitsiai_db}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
       REDIS_URL: "redis://redis:6379/0"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

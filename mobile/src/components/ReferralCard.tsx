@@ -58,7 +58,7 @@ interface ReferralCardProps {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function ReferralCard({ onViewDetails }: ReferralCardProps) {
+function ReferralCard({ onViewDetails }: ReferralCardProps) {
   const c = useThemeColors();
   const { user } = useAuth();
   const { track } = useAnalytics();
@@ -435,3 +435,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export default React.memo(ReferralCard);

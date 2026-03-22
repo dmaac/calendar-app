@@ -57,9 +57,10 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""
     supabase_service_key: str = ""
 
-    # CORS — default to wildcard for local dev only.
+    # CORS — no default origins. Must be set explicitly in .env.
     # In production set CORS_ORIGINS to a comma-separated list of allowed origins.
-    cors_origins: List[str] = ["*"]
+    # SEC: Defaults to localhost:8081 for dev. Never defaults to "*".
+    cors_origins: List[str] = ["http://localhost:8081"]
 
     # Allowed CORS methods and headers (restrict in production).
     cors_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
