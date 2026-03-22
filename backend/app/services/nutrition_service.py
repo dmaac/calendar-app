@@ -124,6 +124,12 @@ class NutritionService:
 
         target_calories = round(target_calories)
 
+        # Gender-differentiated calorie floor (clinical safety minimum)
+        if gender == Gender.MALE or gender == "male":
+            target_calories = max(1500, target_calories)
+        else:
+            target_calories = max(1200, target_calories)
+
         # Macro split: 30% protein, 40% carbs, 30% fat
         target_protein_g = round((target_calories * 0.30) / 4)
         target_carbs_g = round((target_calories * 0.40) / 4)

@@ -427,3 +427,140 @@ These events directly relate to paywall views, plan selection, purchase, and chu
 4. `calorie_goal_reached` and `calorie_goal_exceeded` should be guarded per-day with a flag in the daily summary store.
 5. Backend events (`trial_converted`, `subscription_cancelled`) should fire server-side via the analytics SDK's server library or a webhook endpoint.
 6. Redact PII: never send email, full name, or device identifiers as event properties. `user_id` (UUID) is safe.
+
+---
+
+## Undocumented Events (discovered in audit)
+
+> The following events were found in the codebase but are not formally documented above.
+> Each needs a full schema definition added to the appropriate stage section.
+> Audit date: 2026-03-22
+
+### Progress Photos & Body Metrics
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `progress_photo_added` | ProgressPhotos.tsx | Props: pose, source |
+| `progress_photo_deleted` | ProgressPhotos.tsx | No additional props |
+| `comparator_opened` | ProgressPhotos.tsx | Before/after comparator |
+| `metric_input_opened` | BodyMetrics.tsx | Props: metric key |
+| `metric_saved` | BodyMetrics.tsx | Props: metric key, value |
+| `photo_uploaded` | WeightTrackingScreen.tsx | Props: source |
+| `weight_logged` | WeightTrackingScreen.tsx | Props: weight_kg |
+
+### AI Coach
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `coach_insight_loaded` | CoachScreen.tsx | AI insight displayed |
+| `coach_message_sent` | CoachScreen.tsx | Props: message_length |
+| `coach_suggestion_tapped` | CoachScreen.tsx | Props: suggestion text |
+| `coach_human_support_tapped` | CoachScreen.tsx | Escalation to human support |
+
+### Barcode Scanner
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `barcode_scanned` | BarcodeScreen.tsx | Props: barcode, product_name, source |
+| `barcode_history_selected` | BarcodeScreen.tsx | Props: barcode, product_name |
+| `barcode_food_logged` | BarcodeScreen.tsx | Food logged from barcode scan |
+
+### Settings & Preferences
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `setting_changed` | SettingsScreen.tsx | Props: setting key, value |
+| `theme_changed` | SettingsScreen.tsx | Props: theme (system/light/dark) |
+| `apple_health_connect_started` | SettingsScreen.tsx | HealthKit integration initiated |
+| `apple_health_connect_result` | SettingsScreen.tsx | Props: success boolean |
+| `apple_health_disconnected` | SettingsScreen.tsx | HealthKit disconnected |
+| `language_changed` | SettingsScreen.tsx | Navigates to Language screen |
+| `settings_opened` | ProfileScreen.tsx | Settings gear tapped |
+
+### Groups & Community
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `group_joined` | GroupsScreen.tsx | Props: group_id, group_name |
+| `challenges_opened` | GroupsScreen.tsx | Challenges section opened |
+| `community_tab_switch` | CommunityScreen.tsx | Props: tab name |
+| `community_pull_refresh` | CommunityScreen.tsx | Props: active tab |
+| `community_comment_tap` | CommunityScreen.tsx | Props: post_id |
+
+### Profile Editing
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `edit_profile_step_next` | EditProfileScreen.tsx | Props: from, to step numbers |
+| `edit_profile_save` | EditProfileScreen.tsx | Props: fields_changed |
+| `profile_completion_pressed` | OnboardingProgress.tsx | Profile completion CTA |
+
+### Referral System
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `code_copied` | ReferralScreen.tsx | Props: code |
+| `referral_shared` | ReferralScreen.tsx | Props: code, channel (whatsapp/instagram/twitter/telegram/general) |
+| `referral_card_share_pressed` | ReferralCard.tsx | Props: code |
+| `referral_card_shared` | ReferralCard.tsx | Props: code |
+| `referral_card_code_copied` | ReferralCard.tsx | Props: code |
+| `referral_card_view_details` | ReferralCard.tsx | View details tapped |
+
+### Monetization (Onboarding Paywall)
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `purchase_started` | Step28Paywall.tsx | Props: plan |
+| `purchase_completed` | Step28Paywall.tsx | Props: plan |
+| `plan_selected` | Step28Paywall.tsx | Props: plan id |
+
+### Workouts
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `log_workout_opened` | WorkoutScreen.tsx | Workout log modal opened |
+| `log_workout_relog` | WorkoutScreen.tsx | Props: exerciseId |
+| `workout_logged` | WorkoutScreen.tsx | Workout entry saved |
+
+### Achievements
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `share_achievement_open` | AchievementsScreen.tsx | Props: badge_id |
+| `share_achievement_sent` | AchievementsScreen.tsx | Props: badge_id |
+
+### Food Scanning (additional)
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `food_scanned` | ScanScreen.tsx | AI scan result received |
+| `food_logged_from_scan` | ScanScreen.tsx | Scan result saved to log |
+| `edit_macros_from_scan` | ScanScreen.tsx | Props: food_name |
+| `scan_button_pressed` | HomeScreen.tsx | Props: source (header/empty_state) |
+
+### Daily Logging (additional)
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `day_navigate` | LogScreen.tsx | Props: direction (prev/next/today) |
+| `water_added` | LogScreen.tsx | Props: amount_ml |
+| `meal_logged_manual` | LogScreen.tsx | Props: meal_type |
+| `nutrition_label_logged` | NutritionLabelOCR.tsx | OCR nutrition label logged |
+
+### Progress & Reports
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `weekly_summary_dismissed` | ProgressScreen.tsx | Weekly summary modal closed |
+| `weekly_summary_shared` | ProgressScreen.tsx | Weekly summary shared |
+| `daily_progress_shared` | ProgressScreen.tsx | Daily progress shared |
+
+### Recipes & Meal Plans
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `recipe_viewed` | RecipesScreen.tsx | Props: recipe_name, meal_type |
+| `recipe_logged` | RecipeDetailScreen.tsx | Recipe added to food log |
+| `portion_changed` | RecipeDetailScreen.tsx | Props: portion value |
+| `meal_plan_regenerated` | MealPlanScreen.tsx | Weekly plan regenerated |
+| `meal_swapped` | MealPlanScreen.tsx | Props: slot, recipe_name |
+| `meal_plan_recipe_viewed` | MealPlanScreen.tsx | Props: recipe_name |
+| `grocery_list_opened` | MealPlanScreen.tsx | Grocery list opened |
+
+### Favorites
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `favorite_logged` | FavoritesScreen.tsx | Props: name |
+| `favorite_removed` | FavoritesScreen.tsx | Props: name |
+
+### Misc
+| Event | Source File | Notes |
+|-------|-----------|-------|
+| `notification_bell_pressed` | HomeScreen.tsx | Props: unread count |
+| `daily_challenges_all_completed` | DailyChallenges.tsx | All daily challenges done |

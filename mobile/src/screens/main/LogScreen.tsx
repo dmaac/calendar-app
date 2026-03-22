@@ -37,6 +37,8 @@ import FoodDiary from '../../components/FoodDiary';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
 import * as favoritesService from '../../services/favorites.service';
+import NutritionAlerts from '../../components/NutritionAlert';
+import type { NutritionAlertData } from '../../hooks/useNutritionAlerts';
 
 const MEAL_META = mealColors;
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -218,14 +220,16 @@ export default function LogScreen({ navigation }: any) {
   const [error, setError] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
   const [userWeightKg, setUserWeightKg] = useState<number | undefined>(undefined);
+  const [userFatTargetG, setUserFatTargetG] = useState<number>(70);
   const [comparisonVisible, setComparisonVisible] = useState(false);
   const prevLogCount = useRef(0);
 
-  // Load user weight for personalized water goal (30ml/kg)
+  // Load user weight + fat target for personalized water goal and fat alerts
   useEffect(() => {
     getOnboardingProfile()
       .then((p) => {
         if (p?.weight_kg) setUserWeightKg(p.weight_kg);
+        if (p?.daily_fats_g) setUserFatTargetG(p.daily_fats_g);
       })
       .catch(() => {});
   }, []);
@@ -495,6 +499,40 @@ export default function LogScreen({ navigation }: any) {
     navigation.navigate('FoodSearch', { mealType: mt });
   }, [modalMeal, closeModal, navigation]);
 
+  const handleDeleteAllToday = useCallback(() => {
+    if (logs.length === 0) return;
+    haptics.heavy();
+    Alert.alert(
+      'Borrar todas las comidas',
+      `Eliminar las ${logs.length} comidas registradas hoy? Esta accion no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar todo',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete each log (negative IDs are local-only mock data)
+              const realLogs = logs.filter((l) => l.id >= 0);
+              const localLogs = logs.filter((l) => l.id < 0);
+              await Promise.allSettled(
+                realLogs.map((l) => foodService.deleteFoodLog(l.id))
+              );
+              setLogs([]);
+              haptics.success();
+              track('delete_all_meals', { count: logs.length });
+              showNotification({ message: 'Todas las comidas eliminadas', type: 'success', icon: 'trash' });
+              // Reload to refresh summary
+              load();
+            } catch {
+              showNotification({ message: 'Error al eliminar comidas', type: 'error', icon: 'alert-circle' });
+            }
+          },
+        },
+      ],
+    );
+  }, [logs, track, load]);
+
   const consumed = summary?.total_calories ?? 0;
   const target = summary?.target_calories ?? 2000;
 
@@ -719,54 +757,72 @@ export default function LogScreen({ navigation }: any) {
               </View>
 
               {mealLogs.length > 0 ? (
-                mealLogs.map((log: AIFoodLog) => (
-                  <SwipeableMealItem
-                    key={log.id}
-                    onEdit={() => handleEdit(log)}
-                    onDelete={() => handleDelete(log)}
-                    accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorias`}
-                  >
-                    <View
-                      style={[styles.foodRow, { borderTopColor: c.grayLight }]}
-                      accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorias, proteina ${Math.round(log.protein_g)} gramos, carbohidratos ${Math.round(log.carbs_g)} gramos, grasas ${Math.round(log.fats_g)} gramos`}
-                    >
-                      <View style={styles.foodInfo}>
-                        <Text style={[styles.foodName, { color: c.black }]} numberOfLines={1}>{log.food_name}</Text>
-                        <View style={styles.macroPills}>
-                          <Text style={[styles.macroPill, { color: c.gray }]}>P {Math.round(log.protein_g)}g</Text>
-                          <Text style={[styles.macroPill, { color: c.gray }]}>C {Math.round(log.carbs_g)}g</Text>
-                          <Text style={[styles.macroPill, { color: c.gray }]}>G {Math.round(log.fats_g)}g</Text>
-                        </View>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.favHeart}
-                        onPress={async () => {
-                          haptics.light();
-                          const added = await favoritesService.toggleFavorite({
-                            name: log.food_name,
-                            calories: log.calories,
-                            protein_g: log.protein_g,
-                            carbs_g: log.carbs_g,
-                            fats_g: log.fats_g,
-                          });
-                          showNotification({
-                            message: added ? `${log.food_name} agregado a favoritos!` : `${log.food_name} eliminado de favoritos`,
-                            type: added ? 'success' : 'info',
-                            icon: added ? 'heart' : 'heart-dislike',
-                          });
-                        }}
-                        accessibilityLabel="Agregar a favoritos"
-                        accessibilityRole="button"
+                mealLogs.map((log: AIFoodLog) => {
+                  const fatPercent = userFatTargetG > 0 ? (log.fats_g / userFatTargetG) * 100 : 0;
+                  const isExtremeFat = fatPercent > 200;
+                  return (
+                    <React.Fragment key={log.id}>
+                      <SwipeableMealItem
+                        onEdit={() => handleEdit(log)}
+                        onDelete={() => handleDelete(log)}
+                        accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorias`}
                       >
-                        <Ionicons name="heart-outline" size={18} color="#EF4444" />
-                      </TouchableOpacity>
-                      <View style={styles.foodRight}>
-                        <Text style={[styles.foodKcal, { color: c.black }]}>{Math.round(log.calories)}</Text>
-                        <Text style={[styles.foodKcalUnit, { color: c.gray }]}>kcal</Text>
-                      </View>
-                    </View>
-                  </SwipeableMealItem>
-                ))
+                        <View
+                          style={[styles.foodRow, { borderTopColor: c.grayLight }]}
+                          accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorias, proteina ${Math.round(log.protein_g)} gramos, carbohidratos ${Math.round(log.carbs_g)} gramos, grasas ${Math.round(log.fats_g)} gramos`}
+                        >
+                          <View style={styles.foodInfo}>
+                            <Text style={[styles.foodName, { color: c.black }]} numberOfLines={1}>{log.food_name}</Text>
+                            <View style={styles.macroPills}>
+                              <Text style={[styles.macroPill, { color: c.gray }]}>P {Math.round(log.protein_g)}g</Text>
+                              <Text style={[styles.macroPill, { color: c.gray }]}>C {Math.round(log.carbs_g)}g</Text>
+                              <Text style={[styles.macroPill, { color: c.gray }]}>G {Math.round(log.fats_g)}g</Text>
+                            </View>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.favHeart}
+                            onPress={async () => {
+                              haptics.light();
+                              const added = await favoritesService.toggleFavorite({
+                                name: log.food_name,
+                                calories: log.calories,
+                                protein_g: log.protein_g,
+                                carbs_g: log.carbs_g,
+                                fats_g: log.fats_g,
+                              });
+                              showNotification({
+                                message: added ? `${log.food_name} agregado a favoritos!` : `${log.food_name} eliminado de favoritos`,
+                                type: added ? 'success' : 'info',
+                                icon: added ? 'heart' : 'heart-dislike',
+                              });
+                            }}
+                            accessibilityLabel="Agregar a favoritos"
+                            accessibilityRole="button"
+                          >
+                            <Ionicons name="heart-outline" size={18} color="#EF4444" />
+                          </TouchableOpacity>
+                          <View style={styles.foodRight}>
+                            <Text style={[styles.foodKcal, { color: c.black }]}>{Math.round(log.calories)}</Text>
+                            <Text style={[styles.foodKcalUnit, { color: c.gray }]}>kcal</Text>
+                          </View>
+                        </View>
+                      </SwipeableMealItem>
+                      {isExtremeFat && (
+                        <NutritionAlerts
+                          alerts={[{
+                            level: 'danger',
+                            title: 'Grasa extrema detectada',
+                            message: `"${log.food_name}" tiene ${Math.round(log.fats_g)}g de grasa (${Math.round(fatPercent)}% de tu meta diaria de ${Math.round(userFatTargetG)}g). Considera una porcion mas pequena.`,
+                            icon: 'alert-circle',
+                            color: '#EF4444',
+                            action_label: '',
+                            action_route: '',
+                          }]}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                }))
               ) : (
                 <TouchableOpacity
                   style={styles.emptyMeal}
@@ -804,6 +860,21 @@ export default function LogScreen({ navigation }: any) {
             foodName={logs[0]?.food_name}
             date={dateStr}
           />
+        )}
+
+        {/* Delete all meals today -- discrete button at the bottom */}
+        {isToday(selectedDate) && logs.length > 0 && (
+          <TouchableOpacity
+            style={styles.deleteAllBtn}
+            onPress={handleDeleteAllToday}
+            activeOpacity={0.7}
+            accessibilityLabel={`Borrar todas las ${logs.length} comidas de hoy`}
+            accessibilityRole="button"
+            accessibilityHint="Elimina todas las comidas registradas hoy"
+          >
+            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+            <Text style={styles.deleteAllBtnText}>Borrar todas las comidas de hoy</Text>
+          </TouchableOpacity>
         )}
 
         <View style={{ height: spacing.xl }} />
@@ -977,5 +1048,18 @@ const styles = StyleSheet.create({
   globalEmptyCtaText: {
     ...typography.label,
     fontWeight: '700',
+  },
+  deleteAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.md,
+  },
+  deleteAllBtnText: {
+    ...typography.caption,
+    color: '#EF4444',
+    fontWeight: '600',
   },
 });

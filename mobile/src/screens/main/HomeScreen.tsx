@@ -702,6 +702,24 @@ export default function HomeScreen({ navigation }: any) {
                 </TouchableOpacity>
               </View>
 
+              {/* Motivational banner — no meals logged and it's past 2pm */}
+              {!hasMeals && new Date().getHours() >= 14 && (
+                <View
+                  style={[styles.motivationalBanner, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}
+                  accessibilityLabel="Aun no has registrado comida hoy. Tu cuerpo necesita combustible."
+                >
+                  <FitsiMascot expression="hungry" size="small" animation="sad" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.motivationalTitle, { color: '#92400E' }]}>
+                      Aun no has registrado comida hoy!
+                    </Text>
+                    <Text style={[styles.motivationalMessage, { color: '#92400E' }]}>
+                      Tu cuerpo necesita combustible. Registra lo que has comido para mantener tu seguimiento al dia.
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               {/* Today's meals — always visible (core content) */}
               <Text style={[styles.sectionTitle, { color: c.black }]} accessibilityRole="header">{t('home.today')}</Text>
               {hasMeals ? (
