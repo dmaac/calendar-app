@@ -14,6 +14,8 @@ GET  /api/progress/challenge/week   — current weekly challenge with status
 GET  /api/progress/rewards          — reward catalog + user's coin balance
 POST /api/progress/rewards/redeem   — redeem a reward
 GET  /api/progress/history          — recent progress events
+GET  /api/progress/streak           — streak status
+POST /api/progress/streak/freeze    — use a streak freeze
 """
 
 import json
@@ -55,6 +57,11 @@ from ..services.progress_engine import (
     get_user_progress,
     redeem_reward,
 )
+from ..services.streak_engine import (
+    get_streak_status,
+    update_streak as streak_update,
+    use_streak_freeze,
+)
 from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -82,6 +89,9 @@ async def post_meal_events(
     """
     celebrations = await process_post_meal_events(current_user.id, session)
 
+    # Update streak via streak engine
+    streak_result = await streak_update(current_user.id, session)
+
     # Also update mission progress
     completed_missions = await update_mission_progress(current_user.id, session)
 
@@ -100,6 +110,7 @@ async def post_meal_events(
     return {
         "celebrations": celebrations,
         "missions_completed": completed_missions,
+        "streak": streak_result,
     }
 
 
@@ -510,3 +521,34 @@ async def get_progress_history(
         "limit": limit,
         "offset": offset,
     }
+
+
+# ─── GET /api/progress/streak ─────────────────────────────────────────────
+
+@router.get("/streak")
+async def get_streak(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Comprehensive streak status: current, best, freezes, at-risk, next milestone."""
+    return await get_streak_status(current_user.id, session)
+
+
+# ─── POST /api/progress/streak/freeze ─────────────────────────────────────
+
+@router.post("/streak/freeze")
+async def freeze_streak(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Manually use a streak freeze to protect the current streak."""
+    result = await use_streak_freeze(current_user.id, session)
+    await session.commit()
+
+    if not result["success"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("error", "Streak freeze failed"),
+        )
+
+    return result
