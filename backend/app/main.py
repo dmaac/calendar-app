@@ -591,10 +591,32 @@ async def _health_check_impl():
     except Exception:
         pass
 
+    # --- Risk engine check ---
+    risk_engine_ok = False
+    try:
+        from .services.nutrition_risk_service import calculate_daily_adherence
+        risk_engine_ok = callable(calculate_daily_adherence)
+    except Exception as exc:
+        logger.warning("Health check: Risk engine unavailable — %s", exc)
+
+    # --- Recovery plan service check ---
+    recovery_plan_ok = False
+    try:
+        from .services.recovery_plan_service import generate_24h_recovery_plan
+        recovery_plan_ok = callable(generate_24h_recovery_plan)
+    except Exception as exc:
+        logger.warning("Health check: Recovery plan service unavailable — %s", exc)
+
     health: dict = {
         "status": "healthy",
         "version": APP_VERSION,
         "uptime": uptime_seconds,
+        "components": {
+            "database": "connected" if db_connected else "unavailable",
+            "redis": "connected" if redis_connected else "unavailable",
+            "risk_engine": "operational" if risk_engine_ok else "unavailable",
+            "recovery_plan": "operational" if recovery_plan_ok else "unavailable",
+        },
         "db_connected": db_connected,
         "redis_connected": redis_connected,
         "active_workers": active_workers,

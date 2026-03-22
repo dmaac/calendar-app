@@ -120,14 +120,8 @@ function createApiClient(): AxiosInstance {
     }
   );
 
-  // ── Error logging interceptor ─────────────────────────────────────────────
+  // ── Error interceptor ────────────────────────────────────────────────────
   client.interceptors.response.use(undefined, (error: AxiosError) => {
-    if (__DEV__) {
-      const status = error.response?.status ?? 'NETWORK';
-      const method = (error.config?.method ?? '?').toUpperCase();
-      const url = error.config?.url ?? '?';
-      console.warn(`[apiClient] ${method} ${url} -> ${status}`);
-    }
     return Promise.reject(error);
   });
 

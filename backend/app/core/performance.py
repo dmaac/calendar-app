@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-SLOW_REQUEST_THRESHOLD_S = 1.0       # Log requests slower than 1 second
+SLOW_REQUEST_THRESHOLD_S = 0.5       # Log requests slower than 500ms
 ROLLING_WINDOW_MAX_SIZE = 5000       # Keep last 5000 request durations
 ROLLING_WINDOW_MAX_AGE_S = 600       # Discard entries older than 10 minutes
 

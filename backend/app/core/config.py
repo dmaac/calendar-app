@@ -63,8 +63,11 @@ class Settings(BaseSettings):
 
     # CORS — no default origins. Must be set explicitly in .env.
     # In production set CORS_ORIGINS to a comma-separated list of allowed origins.
-    # SEC: Defaults to localhost:8081 for dev. Never defaults to "*".
-    cors_origins: List[str] = ["http://localhost:8081"]
+    # SEC: Defaults to dev origins. Never defaults to "*".
+    cors_origins: List[str] = [
+        "http://localhost:8081",   # Metro bundler
+        "http://localhost:19006",  # Expo web
+    ]
 
     # Allowed CORS methods and headers (restrict in production).
     cors_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]

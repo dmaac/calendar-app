@@ -148,8 +148,8 @@ export function useSmartPaywall(): SmartPaywallData {
         const parsed = JSON.parse(raw) as UsageStats;
         setStats(parsed);
       }
-    } catch (err) {
-      console.error('[useSmartPaywall] Failed to load stats:', err);
+    } catch {
+      // Failed to load stats
     } finally {
       setLoading(false);
     }
@@ -167,8 +167,8 @@ export function useSmartPaywall(): SmartPaywallData {
           await AsyncStorage.removeItem(OFFER_EXPIRES_KEY);
         }
       }
-    } catch (err) {
-      console.error('[useSmartPaywall] Failed to load offer expiry:', err);
+    } catch {
+      // Failed to load offer expiry
     }
   };
 

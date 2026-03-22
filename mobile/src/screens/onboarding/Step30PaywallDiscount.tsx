@@ -88,8 +88,8 @@ export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps
           `$${(packages.annual.product.price / 12).toFixed(2)}`
         );
       }
-    } catch (err) {
-      console.error('[Step30PaywallDiscount] Failed to load offerings:', err);
+    } catch {
+      // Failed to load offerings
     }
   };
 
@@ -119,8 +119,7 @@ export default function Step30PaywallDiscount({ onNext, onBack, step, totalSteps
       if (result.error) {
         Alert.alert('Error', result.error, [{ text: 'OK' }]);
       }
-    } catch (err) {
-      console.error('[Step30PaywallDiscount] Purchase error:', err);
+    } catch {
       Alert.alert('Error', 'No se pudo completar la compra. Intenta de nuevo.', [{ text: 'OK' }]);
     } finally {
       setLoading(false);

@@ -200,8 +200,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authService.loginWithGoogle({ id_token: idToken });
       await fetchAndSetUser();
-    } catch (err) {
-      console.error('Google login error:', err);
+    } catch {
+      // Google login failed
     }
   };
 
@@ -209,13 +209,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = useCallback(async () => {
     try {
       await authService.logout();
-    } catch (err) {
-      console.error('authService.logout failed:', err);
+    } catch {
+      // authService.logout failed
     }
     try {
       await purchaseService.logOutPurchases();
-    } catch (err) {
-      console.error('purchaseService.logOutPurchases failed:', err);
+    } catch {
+      // purchaseService.logOutPurchases failed
     }
     // Keep onboarding_completed so returning users see Login, not onboarding again
     await AsyncStorage.multiRemove(['onboarding_data_v2', 'onboarding_current_step']).catch(() => {});
@@ -275,7 +275,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
     } catch (err) {
       // Fallback: if backend is unreachable, use offline mock (no API calls will work)
-      console.warn('DevBypass: backend unreachable, using offline mock', err);
+      // DevBypass: backend unreachable, using offline mock
       const mockUser: User = {
         id: 999,
         email: devEmail,

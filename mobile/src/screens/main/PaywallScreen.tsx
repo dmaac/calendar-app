@@ -421,8 +421,8 @@ export default function PaywallScreen({ navigation }: any) {
       if (packages.annual) {
         setAnnualPackage(packages.annual);
       }
-    } catch (err) {
-      console.error('[PaywallScreen] Failed to load offerings:', err);
+    } catch {
+      // Failed to load offerings
     } finally {
       setLoadingOfferings(false);
     }
@@ -475,8 +475,7 @@ export default function PaywallScreen({ navigation }: any) {
       if (result.error) {
         Alert.alert('Error', result.error, [{ text: 'OK' }]);
       }
-    } catch (err) {
-      console.error('[PaywallScreen] Unexpected purchase error:', err);
+    } catch {
       Alert.alert(
         'Error',
         'Ocurrio un error inesperado. Intentalo de nuevo.',
@@ -513,8 +512,7 @@ export default function PaywallScreen({ navigation }: any) {
       } else if (result.error) {
         Alert.alert('Error', result.error, [{ text: 'OK' }]);
       }
-    } catch (err) {
-      console.error('[PaywallScreen] Restore error:', err);
+    } catch {
       Alert.alert('Error', 'No se pudo restaurar la compra. Intentalo de nuevo.', [{ text: 'OK' }]);
     } finally {
       setRestoring(false);

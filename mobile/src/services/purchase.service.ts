@@ -28,7 +28,7 @@ try {
   LOG_LEVEL = rc.LOG_LEVEL;
   PURCHASES_ERROR_CODE = rc.PURCHASES_ERROR_CODE;
 } catch {
-  console.warn('[purchase.service] react-native-purchases not available (Expo Go)');
+  // react-native-purchases not available (Expo Go)
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -65,20 +65,16 @@ let _initialized = false;
  */
 export async function initializePurchases(userId?: string): Promise<void> {
   if (_initialized) return;
-  if (!Purchases) { console.warn('[purchase.service] Skipping init — native module not available'); return; }
+  if (!Purchases) return;
 
   // RevenueCat is native-only — skip on web
   if (Platform.OS === 'web') {
-    console.log('[PurchaseService] Skipping RevenueCat init on web');
     return;
   }
 
   const apiKey = Platform.OS === 'ios' ? RC_API_KEY_IOS : RC_API_KEY_ANDROID;
 
   if (!apiKey) {
-    console.warn(
-      '[PurchaseService] No RevenueCat API key configured. Set EXPO_PUBLIC_REVENUECAT_IOS_KEY or EXPO_PUBLIC_REVENUECAT_ANDROID_KEY in your .env file.'
-    );
     return;
   }
 
@@ -95,9 +91,8 @@ export async function initializePurchases(userId?: string): Promise<void> {
     }
 
     _initialized = true;
-    console.log('[PurchaseService] RevenueCat initialized successfully');
-  } catch (err) {
-    console.error('[PurchaseService] Failed to initialize RevenueCat:', err);
+  } catch {
+    // RevenueCat initialization failed
   }
 }
 
@@ -110,9 +105,8 @@ export async function identifyUser(userId: string): Promise<void> {
 
   try {
     await Purchases.logIn(userId);
-    console.log('[PurchaseService] User identified:', userId);
-  } catch (err) {
-    console.error('[PurchaseService] Failed to identify user:', err);
+  } catch {
+    // Failed to identify user
   }
 }
 
@@ -124,9 +118,8 @@ export async function logOutPurchases(): Promise<void> {
 
   try {
     await Purchases.logOut();
-    console.log('[PurchaseService] User logged out from RevenueCat');
-  } catch (err) {
-    console.error('[PurchaseService] Failed to logout from RevenueCat:', err);
+  } catch {
+    // Failed to logout from RevenueCat
   }
 }
 
@@ -142,8 +135,7 @@ export async function getOfferings(): Promise<PurchasesOfferings | null> {
   try {
     const offerings = await Purchases.getOfferings();
     return offerings;
-  } catch (err) {
-    console.error('[PurchaseService] Failed to fetch offerings:', err);
+  } catch {
     return null;
   }
 }
@@ -242,7 +234,6 @@ export async function purchasePackage(
     }
 
     // Generic error
-    console.error('[PurchaseService] Purchase failed:', purchaseErr);
     return {
       success: false,
       isPremium: false,
@@ -287,8 +278,7 @@ export async function restorePurchases(): Promise<PurchaseResult> {
       isPremium,
       customerInfo,
     };
-  } catch (err) {
-    console.error('[PurchaseService] Restore failed:', err);
+  } catch {
     return {
       success: false,
       isPremium: false,
@@ -310,8 +300,7 @@ export async function checkSubscriptionStatus(): Promise<boolean> {
   try {
     const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
-  } catch (err) {
-    console.error('[PurchaseService] Failed to check subscription status:', err);
+  } catch {
     return false;
   }
 }
@@ -325,8 +314,7 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
 
   try {
     return await Purchases.getCustomerInfo();
-  } catch (err) {
-    console.error('[PurchaseService] Failed to get customer info:', err);
+  } catch {
     return null;
   }
 }

@@ -155,8 +155,8 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
           },
         ]);
       }
-    } catch (err) {
-      console.error('[Step28Paywall] Failed to load offerings:', err);
+    } catch {
+      // Failed to load offerings
     } finally {
       setLoadingOfferings(false);
     }
@@ -288,6 +288,16 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
               <Text style={styles.footerLink}>Restaurar</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Skip option */}
+          <TouchableOpacity
+            onPress={onNext}
+            activeOpacity={0.6}
+            accessibilityLabel="Saltar y continuar sin suscripcion"
+            accessibilityRole="button"
+          >
+            <Text style={styles.footerLink}>Saltar por ahora</Text>
+          </TouchableOpacity>
         </>
       }
     >

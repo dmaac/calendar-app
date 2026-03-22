@@ -397,8 +397,8 @@ export default function SettingsScreen({ navigation }: any) {
           haptics.medium();
           try {
             await logout();
-          } catch (err) {
-            console.error('Logout failed:', err);
+          } catch {
+            // Logout failed
           }
         },
       },
