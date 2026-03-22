@@ -12,6 +12,7 @@ import {
   Share,
   Platform,
   Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,6 +41,16 @@ export default function ReferralScreen({ navigation }: any) {
   const { track } = useAnalytics('Referral');
   const [copied, setCopied] = useState(false);
 
+  const SHARE_MESSAGE = `Hey! Descubri una app increible para cuidar mi alimentacion con inteligencia artificial.
+
+Fitsi IA escanea tu comida con la camara y te dice las calorias y macros al instante. Es como tener un nutricionista en tu bolsillo.
+
+Usa mi codigo ${PROMO_CODE} al registrarte y ambos ganamos $10 de credito premium.
+
+Descarga gratis: https://fitsi.app/invite/${PROMO_CODE}
+
+Tu cuerpo te lo va a agradecer!`;
+
   const handleCopy = async () => {
     try {
       await Share.share({ message: PROMO_CODE });
@@ -52,13 +63,60 @@ export default function ReferralScreen({ navigation }: any) {
 
   const handleShare = async () => {
     haptics.light();
-    track('referral_shared', { code: PROMO_CODE });
+    track('referral_shared', { code: PROMO_CODE, channel: 'general' });
     try {
-      await Share.share({
-        message: `Join me on Fitsi IA! Use my code ${PROMO_CODE} to sign up and we both earn $10. Download now!`,
-      });
-    } catch (_) {
-      // User cancelled share
+      await Share.share({ message: SHARE_MESSAGE });
+    } catch (_) {}
+  };
+
+  const handleShareWhatsApp = async () => {
+    haptics.light();
+    track('referral_shared', { code: PROMO_CODE, channel: 'whatsapp' });
+    const url = `whatsapp://send?text=${encodeURIComponent(SHARE_MESSAGE)}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+    } else {
+      await Share.share({ message: SHARE_MESSAGE });
+    }
+  };
+
+  const handleShareInstagram = async () => {
+    haptics.light();
+    track('referral_shared', { code: PROMO_CODE, channel: 'instagram' });
+    const url = 'instagram://';
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+      Alert.alert('Tip', 'Copia tu codigo y pegalo en tu historia o DM!');
+    } else {
+      await Share.share({ message: SHARE_MESSAGE });
+    }
+  };
+
+  const handleShareTwitter = async () => {
+    haptics.light();
+    track('referral_shared', { code: PROMO_CODE, channel: 'twitter' });
+    const tweet = `Descubri @FitsiApp para trackear mi nutricion con IA. Escaneas tu comida y te da los macros al instante! Usa mi codigo ${PROMO_CODE} y ambos ganamos $10. https://fitsi.app/invite/${PROMO_CODE}`;
+    const url = `twitter://post?message=${encodeURIComponent(tweet)}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+    } else {
+      const webUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}`;
+      await Linking.openURL(webUrl);
+    }
+  };
+
+  const handleShareTelegram = async () => {
+    haptics.light();
+    track('referral_shared', { code: PROMO_CODE, channel: 'telegram' });
+    const url = `tg://msg?text=${encodeURIComponent(SHARE_MESSAGE)}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+    } else {
+      await Share.share({ message: SHARE_MESSAGE });
     }
   };
 
@@ -126,10 +184,31 @@ export default function ReferralScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Share button */}
+        {/* Share via RRSS */}
+        <Text style={[styles.sectionTitle, { color: c.black }]}>Compartir via</Text>
+        <View style={styles.socialGrid}>
+          <TouchableOpacity style={[styles.socialBtn, { backgroundColor: '#25D366' }]} onPress={handleShareWhatsApp} activeOpacity={0.8}>
+            <Ionicons name="logo-whatsapp" size={28} color="#FFF" />
+            <Text style={styles.socialLabel}>WhatsApp</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.socialBtn, { backgroundColor: '#E4405F' }]} onPress={handleShareInstagram} activeOpacity={0.8}>
+            <Ionicons name="logo-instagram" size={28} color="#FFF" />
+            <Text style={styles.socialLabel}>Instagram</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.socialBtn, { backgroundColor: '#1DA1F2' }]} onPress={handleShareTwitter} activeOpacity={0.8}>
+            <Ionicons name="logo-twitter" size={28} color="#FFF" />
+            <Text style={styles.socialLabel}>Twitter/X</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.socialBtn, { backgroundColor: '#0088cc' }]} onPress={handleShareTelegram} activeOpacity={0.8}>
+            <Ionicons name="paper-plane" size={28} color="#FFF" />
+            <Text style={styles.socialLabel}>Telegram</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Share general */}
         <TouchableOpacity style={[styles.shareBtn, { backgroundColor: c.black }]} onPress={handleShare} activeOpacity={0.85}>
           <Ionicons name="share-outline" size={20} color={c.white} />
-          <Text style={[styles.shareBtnText, { color: c.white }]}>Share Invite Link</Text>
+          <Text style={[styles.shareBtnText, { color: c.white }]}>Mas opciones de compartir</Text>
         </TouchableOpacity>
 
         {/* Stats */}
@@ -273,6 +352,28 @@ const styles = StyleSheet.create({
   },
 
   // Share
+  socialGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  socialBtn: {
+    flex: 1,
+    minWidth: '45%' as any,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    height: 56,
+    paddingHorizontal: spacing.md,
+  },
+  socialLabel: {
+    ...typography.label,
+    color: '#FFFFFF',
+    fontSize: 13,
+  },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
