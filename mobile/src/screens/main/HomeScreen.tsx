@@ -34,6 +34,7 @@ import AnimatedNumber from '../../components/AnimatedNumber';
 import StreakBadge from '../../components/StreakBadge';
 import FitsiMascot from '../../components/FitsiMascot';
 import OnboardingProgress from '../../components/OnboardingProgress';
+import NutriScore from '../../components/NutriScore';
 import useFadeIn from '../../hooks/useFadeIn';
 import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
@@ -429,6 +430,13 @@ export default function HomeScreen({ navigation }: any) {
 
   const hasMeals = logs.length > 0;
 
+  // NutriScore derived data
+  const nutriScoreData = useMemo(() => {
+    const totalFiber = logs.reduce((sum, l) => sum + (l.fiber_g ?? 0), 0);
+    const uniqueFoods = new Set(logs.map((l) => l.food_name.toLowerCase().trim())).size;
+    return { totalFiber, foodVariety: uniqueFoods };
+  }, [logs]);
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header with parallax */}
@@ -531,6 +539,25 @@ export default function HomeScreen({ navigation }: any) {
                   </View>
                 </View>
               </View>
+
+              {/* NutriScore */}
+              {hasMeals && (
+                <NutriScore
+                  calories={consumed}
+                  protein={protein}
+                  carbs={carbs}
+                  fat={fats}
+                  fiber={nutriScoreData.totalFiber}
+                  water={summary?.water_ml ?? 0}
+                  foodVariety={nutriScoreData.foodVariety}
+                  goals={{
+                    target_calories: target,
+                    target_protein_g: proteinTarget,
+                    target_carbs_g: carbsTarget,
+                    target_fats_g: fatsTarget,
+                  }}
+                />
+              )}
 
               {/* Today's Tip */}
               <View style={[styles.tipCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>

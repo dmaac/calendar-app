@@ -1,6 +1,6 @@
 /**
- * LogScreen — Diario de alimentos del día
- * Comidas agrupadas por tipo · Eliminar · Añadir manualmente · Tracking de agua
+ * LogScreen -- Diario de alimentos del dia
+ * Comidas agrupadas por tipo . Swipe-to-edit/delete . Swipe between days . Tracking de agua
  */
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
@@ -11,6 +11,9 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,10 +29,62 @@ import WaterTracker from '../../components/WaterTracker';
 import FitsiMascot from '../../components/FitsiMascot';
 import ConfettiEffect from '../../components/ConfettiEffect';
 import BottomSheet from '../../components/BottomSheet';
+import QuickLog from '../../components/QuickLog';
 import { showNotification } from '../../components/InAppNotification';
+import SwipeableMealItem from '../../components/SwipeableMealItem';
 
 const MEAL_META = mealColors;
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SWIPE_THRESHOLD = 60;
+
+// ─── Date helpers ────────────────────────────────────────────────────────────
+
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function addDays(d: Date, n: number): Date {
+  const result = new Date(d);
+  result.setDate(result.getDate() + n);
+  return result;
+}
+
+function isToday(d: Date): boolean {
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear()
+    && d.getMonth() === now.getMonth()
+    && d.getDate() === now.getDate();
+}
+
+function isYesterday(d: Date): boolean {
+  return isToday(addDays(d, 1));
+}
+
+function isTomorrow(d: Date): boolean {
+  return isToday(addDays(d, -1));
+}
+
+function formatDateLabel(d: Date): string {
+  if (isToday(d)) return 'Hoy';
+  if (isYesterday(d)) return 'Ayer';
+  if (isTomorrow(d)) return 'Manana';
+  return d.toLocaleDateString('es', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+}
+
+function formatDateSubtitle(d: Date): string {
+  if (isToday(d) || isYesterday(d) || isTomorrow(d)) {
+    return d.toLocaleDateString('es', {
+      weekday: 'long', day: 'numeric', month: 'long',
+    });
+  }
+  return '';
+}
 
 // ─── Mock data for offline / backend unavailable ─────────────────────────────
 const MOCK_SUMMARY: DailySummary = {
@@ -156,12 +211,112 @@ export default function LogScreen({ navigation }: any) {
   const [confettiTrigger, setConfettiTrigger] = useState(false);
   const prevLogCount = useRef(0);
 
-  const load = async () => {
+  // ─── Day navigation state ────────────────────────────────────────────────
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const dateTranslateX = useRef(new Animated.Value(0)).current;
+  const dateOpacity = useRef(new Animated.Value(1)).current;
+
+  // Prevent navigating into the future
+  const canGoForward = !isToday(selectedDate);
+
+  const animateDateTransition = useCallback((direction: 'left' | 'right', newDate: Date) => {
+    const exitX = direction === 'left' ? -SCREEN_WIDTH * 0.3 : SCREEN_WIDTH * 0.3;
+    const enterX = direction === 'left' ? SCREEN_WIDTH * 0.3 : -SCREEN_WIDTH * 0.3;
+
+    Animated.parallel([
+      Animated.timing(dateTranslateX, {
+        toValue: exitX,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(dateOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setSelectedDate(newDate);
+      dateTranslateX.setValue(enterX);
+      Animated.parallel([
+        Animated.spring(dateTranslateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 200,
+        }),
+        Animated.timing(dateOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  }, [dateTranslateX, dateOpacity]);
+
+  const goToPrevDay = useCallback(() => {
+    haptics.light();
+    track('day_navigate', { direction: 'prev' });
+    animateDateTransition('right', addDays(selectedDate, -1));
+  }, [selectedDate, animateDateTransition, track]);
+
+  const goToNextDay = useCallback(() => {
+    if (!canGoForward) return;
+    haptics.light();
+    track('day_navigate', { direction: 'next' });
+    animateDateTransition('left', addDays(selectedDate, 1));
+  }, [selectedDate, canGoForward, animateDateTransition, track]);
+
+  const goToToday = useCallback(() => {
+    if (isToday(selectedDate)) return;
+    haptics.light();
+    track('day_navigate', { direction: 'today' });
+    animateDateTransition('left', new Date());
+  }, [selectedDate, animateDateTransition, track]);
+
+  // ─── PanResponder for horizontal day swipe on content area ──────────────
+  // Use refs so the PanResponder always sees the latest values
+  const selectedDateRef = useRef(selectedDate);
+  const canGoForwardRef = useRef(canGoForward);
+  const goToPrevDayRef = useRef(goToPrevDay);
+  const goToNextDayRef = useRef(goToNextDay);
+
+  useEffect(() => { selectedDateRef.current = selectedDate; }, [selectedDate]);
+  useEffect(() => { canGoForwardRef.current = canGoForward; }, [canGoForward]);
+  useEffect(() => { goToPrevDayRef.current = goToPrevDay; }, [goToPrevDay]);
+  useEffect(() => { goToNextDayRef.current = goToNextDay; }, [goToNextDay]);
+
+  const panHandlers = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gs) => {
+        // Only claim horizontal gestures clearly horizontal, not vertical scroll
+        return Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5 && Math.abs(gs.dx) > 15;
+      },
+      onMoveShouldSetPanResponderCapture: () => false,
+      onPanResponderRelease: (_evt, gs) => {
+        const { dx, vx } = gs;
+        if (dx < -SWIPE_THRESHOLD || (dx < -20 && vx < -0.5)) {
+          // Swiped left -> next day
+          if (canGoForwardRef.current) {
+            goToNextDayRef.current();
+          }
+        } else if (dx > SWIPE_THRESHOLD || (dx > 20 && vx > 0.5)) {
+          // Swiped right -> prev day
+          goToPrevDayRef.current();
+        }
+      },
+    }),
+  ).current.panHandlers;
+
+  // ─── Data loading ────────────────────────────────────────────────────────
+  const dateStr = useMemo(() => toDateStr(selectedDate), [selectedDate]);
+
+  const load = useCallback(async (date?: string) => {
+    const d = date ?? dateStr;
     setError(false);
     try {
       const [l, s] = await Promise.allSettled([
-        foodService.getFoodLogs(),
-        foodService.getDailySummary(),
+        foodService.getFoodLogs(d),
+        foodService.getDailySummary(d),
       ]);
 
       const logsOk = l.status === 'fulfilled';
@@ -195,9 +350,15 @@ export default function LogScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateStr]);
 
-  useFocusEffect(useCallback(() => { setLoading(true); load(); }, []));
+  // Reload when date changes
+  useEffect(() => {
+    setLoading(true);
+    load(toDateStr(selectedDate));
+  }, [selectedDate]);
+
+  useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
   // Detect when a new food log is added (logs count increased) and fire confetti
   useEffect(() => {
@@ -205,7 +366,6 @@ export default function LogScreen({ navigation }: any) {
       setConfettiTrigger(true);
       showNotification({ message: 'Comida registrada!', type: 'success', icon: 'checkmark-circle' });
       haptics.success();
-      // Reset trigger after a tick so it can fire again
       const timer = setTimeout(() => setConfettiTrigger(false), 100);
       return () => clearTimeout(timer);
     }
@@ -225,14 +385,14 @@ export default function LogScreen({ navigation }: any) {
 
   const handleDelete = useCallback((log: AIFoodLog) => {
     haptics.heavy();
-    Alert.alert('Eliminar registro', `¿Eliminar "${log.food_name}"?`, [
+    Alert.alert('Eliminar registro', `Eliminar "${log.food_name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
           try {
-            // Demo/offline data (negative IDs) — just remove locally
+            // Demo/offline data (negative IDs) -- just remove locally
             if (log.id < 0) {
               setLogs((prev) => prev.filter((l) => l.id !== log.id));
               haptics.success();
@@ -302,18 +462,16 @@ export default function LogScreen({ navigation }: any) {
     return grouped;
   }, [logs]);
 
-  // Memoize date string to avoid recalculation on every render
-  const today = useMemo(() => new Date().toLocaleDateString('es', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  }), []);
+  // Date display strings
+  const dateLabel = useMemo(() => formatDateLabel(selectedDate), [selectedDate]);
+  const dateSubtitle = useMemo(() => formatDateSubtitle(selectedDate), [selectedDate]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
-        <View accessibilityRole="header">
+        <View accessibilityRole="header" style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: c.black }]}>Registro</Text>
-          <Text style={[styles.headerDate, { color: c.gray }]}>{today}</Text>
         </View>
         <View style={styles.headerBtns}>
           <TouchableOpacity
@@ -335,6 +493,57 @@ export default function LogScreen({ navigation }: any) {
             <Ionicons name="add" size={22} color={c.white} />
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Day navigator -- swipe or tap arrows to change day */}
+      <View
+        style={[styles.dayNav, { paddingHorizontal: sidePadding }]}
+        accessibilityRole="toolbar"
+        accessibilityLabel={`Navegacion de dias. Dia seleccionado: ${dateLabel}`}
+      >
+        <TouchableOpacity
+          onPress={goToPrevDay}
+          style={styles.dayNavBtn}
+          accessibilityLabel="Dia anterior"
+          accessibilityRole="button"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Ionicons name="chevron-back" size={22} color={c.black} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={goToToday}
+          style={styles.dayNavCenter}
+          activeOpacity={isToday(selectedDate) ? 1 : 0.6}
+          accessibilityLabel={isToday(selectedDate) ? dateLabel : `${dateLabel}. Toca para ir a hoy`}
+          accessibilityRole="button"
+        >
+          <Animated.View style={{
+            alignItems: 'center',
+            transform: [{ translateX: dateTranslateX }],
+            opacity: dateOpacity,
+          }}>
+            <Text style={[styles.dayNavLabel, { color: c.black }]}>{dateLabel}</Text>
+            {dateSubtitle !== '' && (
+              <Text style={[styles.dayNavSub, { color: c.gray }]}>{dateSubtitle}</Text>
+            )}
+          </Animated.View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={goToNextDay}
+          style={[styles.dayNavBtn, !canGoForward && styles.dayNavBtnDisabled]}
+          disabled={!canGoForward}
+          accessibilityLabel="Dia siguiente"
+          accessibilityRole="button"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Ionicons
+            name="chevron-forward"
+            size={22}
+            color={canGoForward ? c.black : c.disabled}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Error banner */}
@@ -379,6 +588,7 @@ export default function LogScreen({ navigation }: any) {
           <HomeSkeleton />
         </View>
       ) : (
+      <View style={{ flex: 1 }} {...panHandlers}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={true}
@@ -409,6 +619,9 @@ export default function LogScreen({ navigation }: any) {
         {/* Water tracking */}
         <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
 
+        {/* Quick Log -- re-log recent meals in one tap */}
+        <QuickLog recentLogs={logs} onLogged={load} />
+
         {/* Meal sections */}
         {MEAL_ORDER.map((mt) => {
           const meta = MEAL_META[mt];
@@ -419,7 +632,7 @@ export default function LogScreen({ navigation }: any) {
             <View
               key={mt}
               style={[styles.mealCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-              accessibilityLabel={`${meta.label}: ${mealLogs.length > 0 ? `${Math.round(mealTotal)} kilocalorías, ${mealLogs.length} alimento${mealLogs.length > 1 ? 's' : ''}` : 'sin registros'}`}
+              accessibilityLabel={`${meta.label}: ${mealLogs.length > 0 ? `${Math.round(mealTotal)} kilocalorias, ${mealLogs.length} alimento${mealLogs.length > 1 ? 's' : ''}` : 'sin registros'}`}
             >
               <View style={styles.mealHeader}>
                 <View style={[styles.mealIconBg, { backgroundColor: meta.color + '20' }]}>
@@ -441,42 +654,30 @@ export default function LogScreen({ navigation }: any) {
 
               {mealLogs.length > 0 ? (
                 mealLogs.map((log: AIFoodLog) => (
-                  <View
+                  <SwipeableMealItem
                     key={log.id}
-                    style={[styles.foodRow, { borderTopColor: c.grayLight }]}
-                    accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorías, proteina ${Math.round(log.protein_g)} gramos, carbohidratos ${Math.round(log.carbs_g)} gramos, grasas ${Math.round(log.fats_g)} gramos`}
+                    onEdit={() => handleEdit(log)}
+                    onDelete={() => handleDelete(log)}
+                    accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorias`}
                   >
-                    <View style={styles.foodInfo}>
-                      <Text style={[styles.foodName, { color: c.black }]} numberOfLines={1}>{log.food_name}</Text>
-                      <View style={styles.macroPills}>
-                        <Text style={[styles.macroPill, { color: c.gray }]}>P {Math.round(log.protein_g)}g</Text>
-                        <Text style={[styles.macroPill, { color: c.gray }]}>C {Math.round(log.carbs_g)}g</Text>
-                        <Text style={[styles.macroPill, { color: c.gray }]}>G {Math.round(log.fats_g)}g</Text>
+                    <View
+                      style={[styles.foodRow, { borderTopColor: c.grayLight }]}
+                      accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorias, proteina ${Math.round(log.protein_g)} gramos, carbohidratos ${Math.round(log.carbs_g)} gramos, grasas ${Math.round(log.fats_g)} gramos`}
+                    >
+                      <View style={styles.foodInfo}>
+                        <Text style={[styles.foodName, { color: c.black }]} numberOfLines={1}>{log.food_name}</Text>
+                        <View style={styles.macroPills}>
+                          <Text style={[styles.macroPill, { color: c.gray }]}>P {Math.round(log.protein_g)}g</Text>
+                          <Text style={[styles.macroPill, { color: c.gray }]}>C {Math.round(log.carbs_g)}g</Text>
+                          <Text style={[styles.macroPill, { color: c.gray }]}>G {Math.round(log.fats_g)}g</Text>
+                        </View>
+                      </View>
+                      <View style={styles.foodRight}>
+                        <Text style={[styles.foodKcal, { color: c.black }]}>{Math.round(log.calories)}</Text>
+                        <Text style={[styles.foodKcalUnit, { color: c.gray }]}>kcal</Text>
                       </View>
                     </View>
-                    <View style={styles.foodRight}>
-                      <Text style={[styles.foodKcal, { color: c.black }]}>{Math.round(log.calories)}</Text>
-                      <Text style={[styles.foodKcalUnit, { color: c.gray }]}>kcal</Text>
-                      <View style={styles.foodActions}>
-                        <TouchableOpacity
-                          onPress={() => handleEdit(log)}
-                          style={styles.actionBtn}
-                          accessibilityLabel={`Editar ${log.food_name}`}
-                          accessibilityRole="button"
-                        >
-                          <Ionicons name="create-outline" size={14} color={c.gray} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDelete(log)}
-                          style={styles.actionBtn}
-                          accessibilityLabel={`Eliminar ${log.food_name}`}
-                          accessibilityRole="button"
-                        >
-                          <Ionicons name="trash-outline" size={14} color={c.gray} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
+                  </SwipeableMealItem>
                 ))
               ) : (
                 <TouchableOpacity
@@ -488,7 +689,7 @@ export default function LogScreen({ navigation }: any) {
                   accessibilityHint={`Abre el menu para anadir un alimento a ${meta.label.toLowerCase()}`}
                 >
                   <Ionicons name="add-circle-outline" size={16} color={c.gray} />
-                  <Text style={[styles.emptyMealText, { color: c.gray }]}>Añadir {meta.label.toLowerCase()}</Text>
+                  <Text style={[styles.emptyMealText, { color: c.gray }]}>Anadir {meta.label.toLowerCase()}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -497,6 +698,7 @@ export default function LogScreen({ navigation }: any) {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+      </View>
       )}
 
       <AddSheet
@@ -520,10 +722,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
   headerTitle: { ...typography.titleSm },
-  headerDate: { ...typography.caption, marginTop: 2, textTransform: 'capitalize' },
   headerBtns: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   historyBtn: {
     width: 36, height: 36, borderRadius: 18,
@@ -536,6 +737,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // ── Day navigator ──
+  dayNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+  },
+  dayNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayNavBtnDisabled: {
+    opacity: 0.3,
+  },
+  dayNavCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  dayNavLabel: {
+    ...typography.label,
+    fontSize: 15,
+    textTransform: 'capitalize',
+  },
+  dayNavSub: {
+    ...typography.caption,
+    marginTop: 1,
+    textTransform: 'capitalize',
+  },
+  // ── Rest ──
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     borderRadius: radius.md,
@@ -591,8 +824,6 @@ const styles = StyleSheet.create({
   foodRight: { alignItems: 'flex-end', gap: 2 },
   foodKcal: { ...typography.label },
   foodKcalUnit: { ...typography.caption },
-  foodActions: { flexDirection: 'row', gap: 2, marginTop: 2 },
-  actionBtn: { padding: 4 },
   emptyMeal: {
     flexDirection: 'row',
     alignItems: 'center',
