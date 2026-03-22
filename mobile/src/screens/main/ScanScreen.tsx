@@ -168,7 +168,7 @@ function ScanningAnimation({ shimmerOpacity }: { shimmerOpacity: Animated.Value 
         <Text style={scanAnimStyles.stepText}>{currentStep.text}</Text>
       </Animated.View>
       <Animated.Text style={[scanAnimStyles.hint, { opacity: shimmerOpacity }]}>
-        Esto puede tardar hasta 10 segundos
+        Analizando tu comida...
       </Animated.Text>
     </View>
   );
