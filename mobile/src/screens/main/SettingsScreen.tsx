@@ -631,6 +631,13 @@ export default function SettingsScreen({ navigation }: any) {
             iconColor="#F59E0B"
             label={t('settings.rateApp')}
             onPress={handleRateApp}
+            c={c}
+          />
+          <SettingsRow
+            icon="information-circle-outline"
+            iconColor="#6366F1"
+            label="Acerca de Fitsi"
+            onPress={() => navigation.navigate('About')}
             isLast
             c={c}
           />

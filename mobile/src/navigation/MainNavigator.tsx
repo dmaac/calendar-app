@@ -50,6 +50,7 @@ import MealPlanScreen       from '../screens/main/MealPlanScreen';
 import FoodSearchScreen     from '../screens/main/FoodSearchScreen';
 import CalendarViewScreen   from '../screens/main/CalendarViewScreen';
 import HelpScreen           from '../screens/main/HelpScreen';
+import AboutScreen          from '../screens/main/AboutScreen';
 import WorkoutScreen        from '../screens/main/WorkoutScreen';
 import ChallengesScreen     from '../screens/main/ChallengesScreen';
 import PrivacyPolicy        from '../screens/legal/PrivacyPolicy';
@@ -166,6 +167,7 @@ const ProfileStack = () => (
     <Stack.Screen name="Workouts"        component={WorkoutScreen} />
     <Stack.Screen name="PrivacyPolicy"   component={PrivacyPolicy} />
     <Stack.Screen name="TermsOfService"  component={TermsOfService} />
+    <Stack.Screen name="About"           component={AboutScreen} />
   </Stack.Navigator>
 );
 

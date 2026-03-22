@@ -38,7 +38,9 @@ import NutriScore from '../../components/NutriScore';
 import HealthAlerts, { generateHealthAlerts } from '../../components/HealthAlerts';
 import ExerciseBalanceCard from '../../components/ExerciseBalanceCard';
 import AdaptiveCalorieBanner from '../../components/AdaptiveCalorieBanner';
+import HealthKitCard from '../../components/HealthKitCard';
 import useFadeIn from '../../hooks/useFadeIn';
+import useHealthKit from '../../hooks/useHealthKit';
 import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
@@ -318,6 +320,7 @@ export default function HomeScreen({ navigation }: any) {
   const c = useThemeColors();
   const { t } = useTranslation();
   const { track } = useAnalytics('Home');
+  const healthKit = useHealthKit();
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [logs, setLogs] = useState<AIFoodLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -461,8 +464,10 @@ export default function HomeScreen({ navigation }: any) {
   );
 
   // ---- Exercise balance data ----
-  // TODO: Integrate with HealthKit / Google Fit for real exercise burn data
-  const exerciseBurned = 0; // Will be populated via wearable integration
+  // HealthKit active calories feed the exercise balance when connected
+  const exerciseBurned = healthKit.connected && healthKit.activeCalories
+    ? healthKit.activeCalories.kcal
+    : 0;
 
   // ---- Adaptive calorie banner data ----
   // TODO: Replace with real 7-day history from API
@@ -555,6 +560,15 @@ export default function HomeScreen({ navigation }: any) {
             <Animated.View style={fadeStyle}>
               {/* Health Alerts — top of scroll, above everything */}
               <HealthAlerts alerts={healthAlerts} />
+
+              {/* Apple Health card — steps + active calories */}
+              {healthKit.connected && healthKit.steps && healthKit.activeCalories && (
+                <HealthKitCard
+                  steps={healthKit.steps.count}
+                  activeCalories={healthKit.activeCalories.kcal}
+                  loading={healthKit.loading}
+                />
+              )}
 
               {/* Calorie card */}
               <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">
