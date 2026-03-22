@@ -25,7 +25,7 @@ function AnimatedCounter({ target, suffix = '', style, delay = 0 }: { target: nu
   return <Text style={style}>{display}{suffix}</Text>;
 }
 
-export default function Step14Comparison({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step14Comparison({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const withAnim = useRef(new Animated.Value(0)).current;
   const withoutAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -66,6 +66,7 @@ export default function Step14Comparison({ onNext, onBack, step, totalSteps }: S
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <Text

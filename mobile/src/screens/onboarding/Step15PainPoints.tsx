@@ -15,7 +15,7 @@ const OPTIONS = [
   { label: 'Sin inspiracion para comer',   emoji: '\u{1F914}', icon: 'nutrition-outline' },
 ];
 
-export default function Step15PainPoints({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step15PainPoints({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const selected = data.painPoints;
 
@@ -33,6 +33,7 @@ export default function Step15PainPoints({ onNext, onBack, step, totalSteps }: S
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       scrollable
       footer={
         <PrimaryButton

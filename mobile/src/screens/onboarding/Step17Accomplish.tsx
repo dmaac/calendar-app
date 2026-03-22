@@ -16,7 +16,7 @@ const OPTIONS = [
   { label: 'Dormir mejor',                 icon: 'moon-outline' },
 ];
 
-export default function Step17Accomplish({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step17Accomplish({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const selected = data.accomplishments;
 
@@ -34,6 +34,7 @@ export default function Step17Accomplish({ onNext, onBack, step, totalSteps }: S
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       scrollable
       footer={
         <PrimaryButton

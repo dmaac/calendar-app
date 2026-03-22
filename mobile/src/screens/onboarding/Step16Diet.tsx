@@ -14,7 +14,7 @@ const OPTIONS = [
   { value: 'Vegan' as const,        label: 'Vegano',         emoji: '\u{1F331}', subtitle: 'Solo alimentos de origen vegetal' },
 ];
 
-export default function Step16Diet({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step16Diet({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
 
   return (
@@ -22,6 +22,7 @@ export default function Step16Diet({ onNext, onBack, step, totalSteps }: StepPro
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={
         <PrimaryButton
           label="Continuar"
