@@ -1,13 +1,15 @@
 /**
- * ProgressScreen — Cal AI-style progress dashboard
+ * ProgressScreen -- Cal AI-style progress dashboard
  *
  * Sections:
- * 1. Day Streak + Badges Earned (side-by-side cards)
- * 2. Current Weight card with start/goal + prediction
- * 3. Weight Progress SVG line chart with time filters (90D, 6M, 1Y, ALL)
- * 4. Weight Changes table (3d, 7d, 14d, 30d, 90d, All Time)
- * 5. Progress Photos section with upload button
- * 6. Daily Average Calories bar chart
+ * 1. Weekly Summary card (shows on Sunday/Monday, dismissible)
+ * 2. Share Progress Card (daily NutriScore, streak, macros)
+ * 3. Day Streak + Badges Earned (side-by-side cards)
+ * 4. Current Weight card with start/goal + prediction
+ * 5. Weight Progress SVG line chart with time filters (90D, 6M, 1Y, ALL)
+ * 6. Weight Changes table (3d, 7d, 14d, 30d, 90d, All Time)
+ * 7. Progress Photos section with upload button
+ * 8. Daily Average Calories bar chart
  *
  * Uses ThemeContext for dark/light mode support.
  */
@@ -35,8 +37,11 @@ import Svg, {
 import { typography, spacing, radius, useThemeColors } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import FitsiMascot from '../../components/FitsiMascot';
+import ShareProgressCard from '../../components/ShareProgressCard';
+import WeeklySummary from '../../components/WeeklySummary';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import useStreak from '../../hooks/useStreak';
 
 // ─── Theme-aware color palette ──────────────────────────────────────────────
 
@@ -73,6 +78,28 @@ const MOCK = {
   goalWeight: 75.0,
   goalDate: 'Jun 2, 2026',
   nextWeighIn: 'Tomorrow',
+};
+
+// Mock data for ShareProgressCard (daily snapshot)
+const MOCK_DAILY_PROGRESS = {
+  nutriScore: 74,
+  caloriesCurrent: 1820,
+  caloriesTarget: 2100,
+  protein: { current: 125, target: 150 },
+  carbs: { current: 190, target: 240 },
+  fats: { current: 60, target: 70 },
+};
+
+// Mock data for WeeklySummary
+const MOCK_WEEKLY_SUMMARY = {
+  avgCalories: 1950,
+  bestNutriScore: 88,
+  bestNutriScoreDay: 'Miercoles',
+  totalMealsLogged: 24,
+  streak: 12,
+  avgProtein: 132,
+  avgCarbs: 210,
+  avgFats: 62,
 };
 
 // Weight history (last ~120 days for ALL filter)
@@ -395,6 +422,16 @@ export default function ProgressScreen() {
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('90D');
 
+  // Streak state (with freeze support)
+  const {
+    streak: streakDays,
+    hasFreezeAvailable,
+    freezeUsedToday,
+  } = useStreak();
+
+  // Use streak hook value if available, fallback to mock
+  const displayStreak = streakDays > 0 ? streakDays : MOCK.streak;
+
   // Memoize filtered weight data to avoid re-slicing on every render
   const weightData = useMemo(() => {
     const filteredDays = filterDays(timeFilter);
@@ -420,12 +457,34 @@ export default function ProgressScreen() {
         overScrollMode="never"
         contentContainerStyle={[s.scroll, { paddingHorizontal: sidePadding }]}
       >
+        {/* ── Weekly Summary (shows on Sunday/Monday) ── */}
+        <WeeklySummary
+          data={{ ...MOCK_WEEKLY_SUMMARY, streak: displayStreak }}
+          onDismiss={() => track('weekly_summary_dismissed')}
+          onShareComplete={() => track('weekly_summary_shared')}
+        />
+
+        {/* ── Share Progress Card (daily snapshot) ── */}
+        <ShareProgressCard
+          nutriScore={MOCK_DAILY_PROGRESS.nutriScore}
+          streak={displayStreak}
+          hasFreezeAvailable={hasFreezeAvailable}
+          caloriesCurrent={MOCK_DAILY_PROGRESS.caloriesCurrent}
+          caloriesTarget={MOCK_DAILY_PROGRESS.caloriesTarget}
+          protein={MOCK_DAILY_PROGRESS.protein}
+          carbs={MOCK_DAILY_PROGRESS.carbs}
+          fats={MOCK_DAILY_PROGRESS.fats}
+          onShareComplete={() => track('daily_progress_shared')}
+        />
+
         {/* ── Streak + Badges ── */}
         <View style={s.topCardsRow}>
           <View style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
             <FitsiMascot expression="muscle" size="small" animation="idle" />
-            <Text style={[s.topCardValue, { color: C.textPrimary }]}>{MOCK.streak}</Text>
-            <Text style={[s.topCardLabel, { color: C.textSecondary }]}>Day Streak</Text>
+            <Text style={[s.topCardValue, { color: C.textPrimary }]}>{displayStreak}</Text>
+            <Text style={[s.topCardLabel, { color: C.textSecondary }]}>
+              Day Streak{hasFreezeAvailable ? ' \u2744' : ''}
+            </Text>
           </View>
           <View style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
             <View style={[s.topCardIcon, { backgroundColor: C.separator + '30' }]}>

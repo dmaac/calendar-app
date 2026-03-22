@@ -106,6 +106,8 @@ const en = {
     exportDataTitle: 'Export data',
     exportDataMessage: 'A file with all your data will be sent to the email associated with your account.',
     export: 'Export',
+    integrations: 'INTEGRATIONS',
+    appleHealth: 'Apple Health',
   },
   scan: {
     title: 'Scan food',

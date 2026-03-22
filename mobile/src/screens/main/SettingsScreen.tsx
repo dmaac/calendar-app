@@ -23,6 +23,7 @@ import { useTranslation } from '../../context/LanguageContext';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import ApiService from '../../services/api';
+import useHealthKit from '../../hooks/useHealthKit';
 
 const APP_VERSION = '1.0.0';
 
@@ -245,6 +246,7 @@ export default function SettingsScreen({ navigation }: any) {
   const c = useThemeColors();
   const { t } = useTranslation();
   const { track } = useAnalytics('Settings');
+  const healthKit = useHealthKit();
 
   // Local state for toggles
   const [unitSystem, setUnitSystem] = useState<'metric' | 'imperial'>('metric');
@@ -449,6 +451,39 @@ export default function SettingsScreen({ navigation }: any) {
             c={c}
           />
         </Card>
+
+        {/* INTEGRATIONS — Apple Health toggle */}
+        {healthKit.isAvailable && (
+          <>
+            <SectionHeader title={t('settings.integrations')} c={c} />
+            <Card c={c}>
+              <ToggleRow
+                icon="heart-outline"
+                iconColor="#FF2D55"
+                label={t('settings.appleHealth')}
+                value={healthKit.connected}
+                onToggle={async (v) => {
+                  if (v) {
+                    track('apple_health_connect_started');
+                    const ok = await healthKit.connect();
+                    track('apple_health_connect_result', { success: ok });
+                    if (!ok && healthKit.error) {
+                      Alert.alert(
+                        'Apple Health',
+                        healthKit.error,
+                      );
+                    }
+                  } else {
+                    track('apple_health_disconnected');
+                    await healthKit.disconnect();
+                  }
+                }}
+                isLast
+                c={c}
+              />
+            </Card>
+          </>
+        )}
 
         {/* GENERAL */}
         <SectionHeader title={t('settings.general')} c={c} />

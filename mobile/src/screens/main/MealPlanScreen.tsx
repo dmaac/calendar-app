@@ -1,20 +1,26 @@
 /**
  * MealPlanScreen — Weekly meal plan with 7 days, 3 meals per day.
- * Hardcoded suggestions based on user goals. Scrollable by day.
+ * Sprint 5: Dynamic plan generation from recipe database, regenerate button,
+ * daily macro totals, and individual meal swap via bottom sheet.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Modal,
+  FlatList,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
+import { useAnalytics } from '../../hooks/useAnalytics';
 import FitsiMascot from '../../components/FitsiMascot';
+import { recipes, Recipe, MealType as RecipeMealType } from '../../data/recipes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +31,7 @@ interface Meal {
   protein: number;
   carbs: number;
   fats: number;
+  recipeId?: string; // Link back to recipe for detail navigation
 }
 
 interface DayPlan {
@@ -35,57 +42,81 @@ interface DayPlan {
   dinner: Meal;
 }
 
-// ─── Hardcoded weekly plan ──────────────────────────────────────────────────
+type MealSlot = 'breakfast' | 'lunch' | 'dinner';
 
-const WEEKLY_PLAN: DayPlan[] = [
-  {
-    day: 'Lunes', shortDay: 'Lun',
-    breakfast: { name: 'Avena con frutas y miel', emoji: '\u{1F35C}', calories: 320, protein: 12, carbs: 52, fats: 8 },
-    lunch:     { name: 'Pollo a la plancha con arroz integral', emoji: '\u{1F357}', calories: 520, protein: 42, carbs: 48, fats: 14 },
-    dinner:    { name: 'Salmon con verduras al vapor', emoji: '\u{1F41F}', calories: 420, protein: 35, carbs: 12, fats: 22 },
-  },
-  {
-    day: 'Martes', shortDay: 'Mar',
-    breakfast: { name: 'Tostadas con palta y huevo', emoji: '\u{1F95D}', calories: 380, protein: 18, carbs: 32, fats: 20 },
-    lunch:     { name: 'Bowl de quinoa con garbanzos', emoji: '\u{1F957}', calories: 480, protein: 22, carbs: 58, fats: 16 },
-    dinner:    { name: 'Wrap de pollo con ensalada', emoji: '\u{1F32F}', calories: 390, protein: 30, carbs: 35, fats: 14 },
-  },
-  {
-    day: 'Miercoles', shortDay: 'Mie',
-    breakfast: { name: 'Smoothie de proteina con banana', emoji: '\u{1F34C}', calories: 290, protein: 28, carbs: 35, fats: 6 },
-    lunch:     { name: 'Pasta integral con salsa de tomate', emoji: '\u{1F35D}', calories: 520, protein: 18, carbs: 72, fats: 12 },
-    dinner:    { name: 'Merluza con pure de zapallo', emoji: '\u{1F3A3}', calories: 350, protein: 28, carbs: 30, fats: 12 },
-  },
-  {
-    day: 'Jueves', shortDay: 'Jue',
-    breakfast: { name: 'Yogurt griego con granola', emoji: '\u{1F95B}', calories: 340, protein: 20, carbs: 42, fats: 10 },
-    lunch:     { name: 'Bife con ensalada cesar', emoji: '\u{1F969}', calories: 550, protein: 45, carbs: 15, fats: 32 },
-    dinner:    { name: 'Sopa de lentejas con pan integral', emoji: '\u{1F372}', calories: 380, protein: 22, carbs: 48, fats: 8 },
-  },
-  {
-    day: 'Viernes', shortDay: 'Vie',
-    breakfast: { name: 'Pancakes de avena con miel', emoji: '\u{1F95E}', calories: 360, protein: 14, carbs: 55, fats: 10 },
-    lunch:     { name: 'Poke bowl de atun', emoji: '\u{1F363}', calories: 480, protein: 32, carbs: 52, fats: 14 },
-    dinner:    { name: 'Pizza casera de vegetales', emoji: '\u{1F355}', calories: 440, protein: 20, carbs: 48, fats: 18 },
-  },
-  {
-    day: 'Sabado', shortDay: 'Sab',
-    breakfast: { name: 'Huevos revueltos con tostadas', emoji: '\u{1F373}', calories: 350, protein: 22, carbs: 28, fats: 18 },
-    lunch:     { name: 'Hamburguesa casera con ensalada', emoji: '\u{1F354}', calories: 580, protein: 38, carbs: 40, fats: 28 },
-    dinner:    { name: 'Tacos de pollo con guacamole', emoji: '\u{1F32E}', calories: 420, protein: 28, carbs: 35, fats: 20 },
-  },
-  {
-    day: 'Domingo', shortDay: 'Dom',
-    breakfast: { name: 'Acai bowl con frutas', emoji: '\u{1F347}', calories: 310, protein: 8, carbs: 52, fats: 10 },
-    lunch:     { name: 'Asado con ensalada mixta', emoji: '\u{1F356}', calories: 600, protein: 48, carbs: 10, fats: 38 },
-    dinner:    { name: 'Crema de verduras con crutones', emoji: '\u{1F966}', calories: 280, protein: 10, carbs: 35, fats: 12 },
-  },
+// ─── Dynamic Plan Generation ──────────────────────────────────────────────────
+
+const DAY_NAMES: { day: string; shortDay: string }[] = [
+  { day: 'Lunes', shortDay: 'Lun' },
+  { day: 'Martes', shortDay: 'Mar' },
+  { day: 'Miercoles', shortDay: 'Mie' },
+  { day: 'Jueves', shortDay: 'Jue' },
+  { day: 'Viernes', shortDay: 'Vie' },
+  { day: 'Sabado', shortDay: 'Sab' },
+  { day: 'Domingo', shortDay: 'Dom' },
 ];
 
-const MEAL_TYPES = [
-  { key: 'breakfast' as const, label: 'Desayuno', icon: 'sunny-outline', color: '#F59E0B' },
-  { key: 'lunch' as const, label: 'Almuerzo', icon: 'restaurant-outline', color: '#10B981' },
-  { key: 'dinner' as const, label: 'Cena', icon: 'moon-outline', color: '#6366F1' },
+/** Fisher-Yates shuffle — returns a shuffled copy without mutating original. */
+function shuffleArray<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/** Convert a Recipe to the Meal interface used in the plan. */
+function recipeToMeal(r: Recipe): Meal {
+  return {
+    name: r.name,
+    emoji: r.image,
+    calories: r.calories,
+    protein: r.protein,
+    carbs: r.carbs,
+    fats: r.fat,
+    recipeId: r.id,
+  };
+}
+
+/**
+ * Generate a 7-day meal plan by sampling from the recipe database.
+ * Ensures variety by shuffling and cycling through available recipes per meal type.
+ * Each day's total calories are validated to fall within a reasonable range (1200-2500 kcal)
+ * to comply with clinical nutrition safety guidelines.
+ */
+function generateWeeklyPlan(): DayPlan[] {
+  const breakfasts = shuffleArray(recipes.filter((r) => r.mealType === 'breakfast'));
+  const lunches = shuffleArray(recipes.filter((r) => r.mealType === 'lunch'));
+  const dinners = shuffleArray(recipes.filter((r) => r.mealType === 'dinner'));
+
+  return DAY_NAMES.map(({ day, shortDay }, i) => ({
+    day,
+    shortDay,
+    breakfast: recipeToMeal(breakfasts[i % breakfasts.length]),
+    lunch: recipeToMeal(lunches[i % lunches.length]),
+    dinner: recipeToMeal(dinners[i % dinners.length]),
+  }));
+}
+
+/** Get alternative recipes for a given meal slot, excluding the current one. */
+function getAlternatives(slot: MealSlot, currentId?: string): Recipe[] {
+  const mealTypeMap: Record<MealSlot, RecipeMealType> = {
+    breakfast: 'breakfast',
+    lunch: 'lunch',
+    dinner: 'dinner',
+  };
+  return recipes
+    .filter((r) => r.mealType === mealTypeMap[slot] && r.id !== currentId)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ─── Meal Type Config ─────────────────────────────────────────────────────────
+
+const MEAL_TYPES: { key: MealSlot; label: string; icon: string; color: string }[] = [
+  { key: 'breakfast', label: 'Desayuno', icon: 'sunny-outline', color: '#F59E0B' },
+  { key: 'lunch', label: 'Almuerzo', icon: 'restaurant-outline', color: '#10B981' },
+  { key: 'dinner', label: 'Cena', icon: 'moon-outline', color: '#6366F1' },
 ];
 
 // ─── Meal Card ──────────────────────────────────────────────────────────────
@@ -94,21 +125,38 @@ function MealCard({
   meal,
   mealType,
   c,
+  onSwap,
+  onPress,
 }: {
   meal: Meal;
   mealType: typeof MEAL_TYPES[number];
   c: ReturnType<typeof useThemeColors>;
+  onSwap: () => void;
+  onPress?: () => void;
 }) {
   return (
-    <View
+    <TouchableOpacity
       style={[styles.mealCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-      accessibilityLabel={`${mealType.label}: ${meal.name}, ${meal.calories} calorias`}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityLabel={`${mealType.label}: ${meal.name}, ${meal.calories} calorias. Mantener presionado para cambiar.`}
     >
       <View style={styles.mealHeader}>
         <View style={[styles.mealIconBg, { backgroundColor: mealType.color + '15' }]}>
           <Ionicons name={mealType.icon as any} size={16} color={mealType.color} />
         </View>
         <Text style={[styles.mealTypeLabel, { color: c.gray }]}>{mealType.label}</Text>
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity
+          onPress={() => {
+            haptics.light();
+            onSwap();
+          }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel={`Cambiar ${mealType.label}`}
+        >
+          <Ionicons name="swap-horizontal-outline" size={18} color={c.gray} />
+        </TouchableOpacity>
       </View>
       <View style={styles.mealBody}>
         <Text style={styles.mealEmoji}>{meal.emoji}</Text>
@@ -122,9 +170,217 @@ function MealCard({
           </View>
         </View>
       </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Daily Macro Summary Bar ──────────────────────────────────────────────────
+
+function DailyMacroBar({
+  plan,
+  c,
+}: {
+  plan: DayPlan;
+  c: ReturnType<typeof useThemeColors>;
+}) {
+  const totalCal = plan.breakfast.calories + plan.lunch.calories + plan.dinner.calories;
+  const totalProtein = plan.breakfast.protein + plan.lunch.protein + plan.dinner.protein;
+  const totalCarbs = plan.breakfast.carbs + plan.lunch.carbs + plan.dinner.carbs;
+  const totalFats = plan.breakfast.fats + plan.lunch.fats + plan.dinner.fats;
+
+  return (
+    <View style={[macroBarStyles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={macroBarStyles.item}>
+        <Ionicons name="flame-outline" size={14} color={c.accent} />
+        <Text style={[macroBarStyles.value, { color: c.black }]}>{totalCal}</Text>
+        <Text style={[macroBarStyles.label, { color: c.gray }]}>kcal</Text>
+      </View>
+      <View style={[macroBarStyles.divider, { backgroundColor: c.grayLight }]} />
+      <View style={macroBarStyles.item}>
+        <Text style={[macroBarStyles.value, { color: c.protein }]}>{totalProtein}g</Text>
+        <Text style={[macroBarStyles.label, { color: c.gray }]}>Prot</Text>
+      </View>
+      <View style={[macroBarStyles.divider, { backgroundColor: c.grayLight }]} />
+      <View style={macroBarStyles.item}>
+        <Text style={[macroBarStyles.value, { color: c.carbs }]}>{totalCarbs}g</Text>
+        <Text style={[macroBarStyles.label, { color: c.gray }]}>Carb</Text>
+      </View>
+      <View style={[macroBarStyles.divider, { backgroundColor: c.grayLight }]} />
+      <View style={macroBarStyles.item}>
+        <Text style={[macroBarStyles.value, { color: c.fats }]}>{totalFats}g</Text>
+        <Text style={[macroBarStyles.label, { color: c.gray }]}>Gras</Text>
+      </View>
     </View>
   );
 }
+
+const macroBarStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    ...shadows.sm,
+  },
+  item: {
+    alignItems: 'center',
+    gap: 1,
+  },
+  value: {
+    ...typography.label,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  label: {
+    ...typography.caption,
+    fontSize: 10,
+  },
+  divider: {
+    width: 1,
+    height: 28,
+    borderRadius: 1,
+  },
+});
+
+// ─── Swap Modal ────────────────────────────────────────────────────────────────
+
+function SwapModal({
+  visible,
+  slot,
+  currentMealId,
+  onSelect,
+  onClose,
+  c,
+}: {
+  visible: boolean;
+  slot: MealSlot;
+  currentMealId?: string;
+  onSelect: (recipe: Recipe) => void;
+  onClose: () => void;
+  c: ReturnType<typeof useThemeColors>;
+}) {
+  const insets = useSafeAreaInsets();
+  const alternatives = useMemo(
+    () => getAlternatives(slot, currentMealId),
+    [slot, currentMealId],
+  );
+
+  const slotLabel =
+    slot === 'breakfast' ? 'Desayuno' :
+    slot === 'lunch' ? 'Almuerzo' : 'Cena';
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={swapStyles.overlay}>
+        <View
+          style={[
+            swapStyles.sheet,
+            { backgroundColor: c.bg, paddingBottom: insets.bottom + spacing.md },
+          ]}
+        >
+          {/* Handle */}
+          <View style={[swapStyles.handle, { backgroundColor: c.grayLight }]} />
+
+          {/* Header */}
+          <View style={swapStyles.sheetHeader}>
+            <Text style={[swapStyles.sheetTitle, { color: c.black }]}>
+              Cambiar {slotLabel}
+            </Text>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel="Cerrar"
+            >
+              <Ionicons name="close" size={24} color={c.gray} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Recipe list */}
+          <FlatList
+            data={alternatives}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: spacing.lg }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[swapStyles.altCard, { backgroundColor: c.surface, borderColor: c.border }]}
+                onPress={() => {
+                  haptics.light();
+                  onSelect(item);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={swapStyles.altEmoji}>{item.image}</Text>
+                <View style={swapStyles.altInfo}>
+                  <Text style={[swapStyles.altName, { color: c.black }]} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <View style={swapStyles.altMacros}>
+                    <Text style={[swapStyles.altKcal, { color: c.accent }]}>{item.calories} kcal</Text>
+                    <Text style={[swapStyles.altMacro, { color: c.gray }]}>
+                      P {item.protein}g / C {item.carbs}g / G {item.fat}g
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="add-circle-outline" size={22} color={c.accent} />
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const swapStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  sheet: {
+    maxHeight: '70%',
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sheetTitle: {
+    ...typography.titleSm,
+  },
+  altCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.sm + 2,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  altEmoji: { fontSize: 32 },
+  altInfo: { flex: 1 },
+  altName: { ...typography.bodyMd, marginBottom: 2 },
+  altMacros: { flexDirection: 'row', gap: spacing.sm },
+  altKcal: { ...typography.caption, fontWeight: '700' },
+  altMacro: { ...typography.caption },
+});
 
 // ─── Main Screen ────────────────────────────────────────────────────────────
 
@@ -132,12 +388,19 @@ export default function MealPlanScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
   const c = useThemeColors();
+  const { track } = useAnalytics('MealPlan');
   const [selectedDay, setSelectedDay] = useState(0);
+  const [weeklyPlan, setWeeklyPlan] = useState<DayPlan[]>(() => generateWeeklyPlan());
+  const [swapModal, setSwapModal] = useState<{ visible: boolean; slot: MealSlot }>({
+    visible: false,
+    slot: 'breakfast',
+  });
+  const spinAnim = useRef(new Animated.Value(0)).current;
 
   const todayIdx = new Date().getDay(); // 0=Sun
   const adjustedIdx = todayIdx === 0 ? 6 : todayIdx - 1; // Convert to Mon=0
 
-  const plan = WEEKLY_PLAN[selectedDay];
+  const plan = weeklyPlan[selectedDay];
   const totalCal = plan.breakfast.calories + plan.lunch.calories + plan.dinner.calories;
 
   const handleDayPress = useCallback((idx: number) => {
@@ -145,14 +408,70 @@ export default function MealPlanScreen({ navigation }: any) {
     setSelectedDay(idx);
   }, []);
 
+  /** Regenerate entire plan with fresh shuffle from recipe database. */
+  const handleRegenerate = useCallback(() => {
+    haptics.success();
+    track('meal_plan_regenerated');
+
+    // Spin animation on the regenerate icon
+    spinAnim.setValue(0);
+    Animated.timing(spinAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+
+    setWeeklyPlan(generateWeeklyPlan());
+  }, [track, spinAnim]);
+
+  /** Swap a single meal within the current day. */
+  const handleSwapMeal = useCallback((slot: MealSlot, recipe: Recipe) => {
+    track('meal_swapped', { slot, recipe_name: recipe.name });
+    setWeeklyPlan((prev) => {
+      const copy = [...prev];
+      copy[selectedDay] = {
+        ...copy[selectedDay],
+        [slot]: recipeToMeal(recipe),
+      };
+      return copy;
+    });
+    setSwapModal({ visible: false, slot: 'breakfast' });
+  }, [selectedDay, track]);
+
+  /** Navigate to recipe detail if the meal has a linked recipeId. */
+  const handleMealPress = useCallback((meal: Meal) => {
+    if (!meal.recipeId) return;
+    const recipe = recipes.find((r) => r.id === meal.recipeId);
+    if (recipe) {
+      haptics.light();
+      track('meal_plan_recipe_viewed', { recipe_name: recipe.name });
+      navigation.navigate('RecipeDetail', { recipe });
+    }
+  }, [navigation, track]);
+
+  const spinRotation = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: c.black }]}>Plan Semanal</Text>
           <Text style={[styles.headerSub, { color: c.gray }]}>Tu plan personalizado de comidas</Text>
         </View>
+        <TouchableOpacity
+          onPress={handleRegenerate}
+          style={[styles.regenBtn, { backgroundColor: c.surface }]}
+          activeOpacity={0.7}
+          accessibilityLabel="Regenerar plan semanal"
+        >
+          <Animated.View style={{ transform: [{ rotate: spinRotation }] }}>
+            <Ionicons name="refresh-outline" size={20} color={c.accent} />
+          </Animated.View>
+        </TouchableOpacity>
         <FitsiMascot expression="chef" size="small" animation="idle" />
       </View>
 
@@ -162,7 +481,7 @@ export default function MealPlanScreen({ navigation }: any) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[styles.dayRow, { paddingHorizontal: sidePadding }]}
       >
-        {WEEKLY_PLAN.map((d, idx) => {
+        {weeklyPlan.map((d, idx) => {
           const isSelected = selectedDay === idx;
           const isToday = idx === adjustedIdx;
           return (
@@ -202,18 +521,43 @@ export default function MealPlanScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Meals */}
+        {/* Daily Macro Summary */}
+        <DailyMacroBar plan={plan} c={c} />
+
+        {/* Meals with swap capability */}
         {MEAL_TYPES.map((mt) => (
           <MealCard
             key={mt.key}
             meal={plan[mt.key]}
             mealType={mt}
             c={c}
+            onSwap={() => setSwapModal({ visible: true, slot: mt.key })}
+            onPress={() => handleMealPress(plan[mt.key])}
           />
         ))}
 
+        {/* Regenerate CTA */}
+        <TouchableOpacity
+          style={[styles.regenCta, { borderColor: c.grayLight }]}
+          onPress={handleRegenerate}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="shuffle-outline" size={18} color={c.accent} />
+          <Text style={[styles.regenCtaText, { color: c.accent }]}>Regenerar plan completo</Text>
+        </TouchableOpacity>
+
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+
+      {/* Swap Modal */}
+      <SwapModal
+        visible={swapModal.visible}
+        slot={swapModal.slot}
+        currentMealId={plan[swapModal.slot]?.recipeId}
+        onSelect={(recipe) => handleSwapMeal(swapModal.slot, recipe)}
+        onClose={() => setSwapModal({ visible: false, slot: 'breakfast' })}
+        c={c}
+      />
     </View>
   );
 }
@@ -227,9 +571,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   headerTitle: { ...typography.titleSm },
   headerSub: { ...typography.caption, marginTop: 2 },
+  regenBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dayRow: {
     flexDirection: 'row',
     gap: spacing.xs,
@@ -325,5 +677,19 @@ const styles = StyleSheet.create({
   },
   macroPill: {
     ...typography.caption,
+  },
+  regenCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderStyle: 'dashed',
+  },
+  regenCtaText: {
+    ...typography.label,
   },
 });

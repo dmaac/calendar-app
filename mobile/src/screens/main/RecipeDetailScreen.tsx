@@ -1,8 +1,13 @@
 /**
  * RecipeDetailScreen — Full recipe view with macros, ingredients, instructions,
  * and a "Log This Meal" button that adds the macros to the day's food log.
+ *
+ * Sprint 5:
+ * - Portion adjustment (0.5x, 1x, 2x) with real-time macro recalculation
+ * - Integrated cooking timer with countdown and notification
+ * - Log button registers the adjusted portion
  */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +16,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Animated,
+  Vibration,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +25,75 @@ import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors
 import { Recipe } from '../../data/recipes';
 import * as foodService from '../../services/food.service';
 import { haptics } from '../../hooks/useHaptics';
+import { useAnalytics } from '../../hooks/useAnalytics';
+
+// ─── Portion multipliers ──────────────────────────────────────────────────────
+
+const PORTION_OPTIONS: { label: string; value: number }[] = [
+  { label: '0.5x', value: 0.5 },
+  { label: '1x', value: 1 },
+  { label: '1.5x', value: 1.5 },
+  { label: '2x', value: 2 },
+];
+
+// ─── Cooking Timer Hook ───────────────────────────────────────────────────────
+
+function useCookingTimer(totalMinutes: number) {
+  const [isRunning, setIsRunning] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(totalMinutes * 60);
+  const [isComplete, setIsComplete] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const start = useCallback(() => {
+    if (isComplete) {
+      // Reset if timer already completed
+      setSecondsLeft(totalMinutes * 60);
+      setIsComplete(false);
+    }
+    setIsRunning(true);
+  }, [isComplete, totalMinutes]);
+
+  const pause = useCallback(() => {
+    setIsRunning(false);
+  }, []);
+
+  const reset = useCallback(() => {
+    setIsRunning(false);
+    setSecondsLeft(totalMinutes * 60);
+    setIsComplete(false);
+  }, [totalMinutes]);
+
+  useEffect(() => {
+    if (isRunning && secondsLeft > 0) {
+      intervalRef.current = setInterval(() => {
+        setSecondsLeft((prev) => {
+          if (prev <= 1) {
+            setIsRunning(false);
+            setIsComplete(true);
+            Vibration.vibrate([0, 500, 200, 500, 200, 500]);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isRunning, secondsLeft]);
+
+  const formatTime = (secs: number): string => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const progress = 1 - secondsLeft / (totalMinutes * 60);
+
+  return { isRunning, secondsLeft, isComplete, start, pause, reset, formatTime, progress };
+}
+
+// ─── Macro Card ───────────────────────────────────────────────────────────────
 
 function MacroCard({
   label,
@@ -55,13 +131,164 @@ const macroStyles = StyleSheet.create({
   label: { ...typography.caption, marginTop: 2 },
 });
 
+// ─── Cooking Timer Widget ─────────────────────────────────────────────────────
+
+function CookingTimer({
+  prepTime,
+  c,
+}: {
+  prepTime: number;
+  c: ReturnType<typeof useThemeColors>;
+}) {
+  const timer = useCookingTimer(prepTime);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Pulse animation when timer is running
+  useEffect(() => {
+    if (timer.isRunning) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.05, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        ]),
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [timer.isRunning, pulseAnim]);
+
+  return (
+    <View style={[timerStyles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={timerStyles.header}>
+        <Ionicons name="timer-outline" size={18} color={c.accent} />
+        <Text style={[timerStyles.title, { color: c.black }]}>Timer de Coccion</Text>
+      </View>
+
+      {/* Progress bar */}
+      <View style={[timerStyles.progressBg, { backgroundColor: c.grayLight }]}>
+        <View
+          style={[
+            timerStyles.progressFill,
+            {
+              backgroundColor: timer.isComplete ? c.success : c.accent,
+              width: `${Math.min(timer.progress * 100, 100)}%`,
+            },
+          ]}
+        />
+      </View>
+
+      <View style={timerStyles.timerRow}>
+        <Animated.Text
+          style={[
+            timerStyles.time,
+            { color: timer.isComplete ? c.success : c.black, transform: [{ scale: pulseAnim }] },
+          ]}
+        >
+          {timer.isComplete ? 'Listo!' : timer.formatTime(timer.secondsLeft)}
+        </Animated.Text>
+
+        <View style={timerStyles.buttons}>
+          {timer.isRunning ? (
+            <TouchableOpacity
+              style={[timerStyles.btn, { backgroundColor: c.grayLight }]}
+              onPress={() => { haptics.light(); timer.pause(); }}
+              accessibilityLabel="Pausar timer"
+            >
+              <Ionicons name="pause" size={16} color={c.black} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[timerStyles.btn, { backgroundColor: c.accent }]}
+              onPress={() => { haptics.light(); timer.start(); }}
+              accessibilityLabel={timer.isComplete ? 'Reiniciar timer' : 'Iniciar timer'}
+            >
+              <Ionicons name="play" size={16} color={colors.white} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[timerStyles.btn, { backgroundColor: c.grayLight }]}
+            onPress={() => { haptics.light(); timer.reset(); }}
+            accessibilityLabel="Reiniciar timer"
+          >
+            <Ionicons name="refresh" size={16} color={c.gray} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const timerStyles = StyleSheet.create({
+  container: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    ...shadows.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  title: {
+    ...typography.label,
+  },
+  progressBg: {
+    height: 4,
+    borderRadius: 2,
+    marginBottom: spacing.sm,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  timerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  time: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  buttons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  btn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
 export default function RecipeDetailScreen({ route, navigation }: any) {
   const recipe: Recipe = route.params.recipe;
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
   const c = useThemeColors();
+  const { track } = useAnalytics('RecipeDetail');
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
   const [logging, setLogging] = useState(false);
+  const [portion, setPortion] = useState(1);
+
+  // Compute adjusted macros based on selected portion multiplier
+  const adjusted = {
+    calories: Math.round(recipe.calories * portion),
+    protein: Math.round(recipe.protein * portion),
+    carbs: Math.round(recipe.carbs * portion),
+    fat: Math.round(recipe.fat * portion),
+  };
 
   const toggleIngredient = (index: number) => {
     haptics.light();
@@ -87,17 +314,24 @@ export default function RecipeDetailScreen({ route, navigation }: any) {
     setLogging(true);
     try {
       await foodService.manualLogFood({
-        food_name: recipe.name,
-        calories: recipe.calories,
-        protein_g: recipe.protein,
-        carbs_g: recipe.carbs,
-        fats_g: recipe.fat,
+        food_name: portion !== 1 ? `${recipe.name} (${portion}x)` : recipe.name,
+        calories: adjusted.calories,
+        protein_g: adjusted.protein,
+        carbs_g: adjusted.carbs,
+        fats_g: adjusted.fat,
         meal_type: getMealType(),
       });
       haptics.success();
-      Alert.alert('Registrado', `"${recipe.name}" se agrego a tu registro del dia.`, [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      track('recipe_logged', {
+        recipe_name: recipe.name,
+        portion,
+        calories: adjusted.calories,
+      });
+      Alert.alert(
+        'Registrado',
+        `"${recipe.name}" (${portion}x) se agrego a tu registro del dia.`,
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
     } catch {
       haptics.error();
       Alert.alert('Error', 'No se pudo registrar la receta. Intenta de nuevo.');
@@ -142,21 +376,65 @@ export default function RecipeDetailScreen({ route, navigation }: any) {
             <Text style={[styles.dietBadgeText, { color: c.accent }]}>
               {recipe.dietType === 'classic' ? 'Clasica' :
                recipe.dietType === 'vegetarian' ? 'Vegetariana' :
-               recipe.dietType === 'vegan' ? 'Vegana' : 'Pescatariana'}
+               recipe.dietType === 'vegan' ? 'Vegana' :
+               recipe.dietType === 'keto' ? 'Keto' :
+               recipe.dietType === 'latin' ? 'Latina' :
+               'Pescatariana'}
             </Text>
           </View>
         </View>
 
-        {/* Macro cards */}
-        <View style={styles.macroRow}>
-          <MacroCard label="Calorias" value={recipe.calories} unit="kcal" color={c.accent} c={c} />
-          <MacroCard label="Proteina" value={recipe.protein} unit="g" color={c.protein} c={c} />
-          <MacroCard label="Carbos" value={recipe.carbs} unit="g" color={c.carbs} c={c} />
-          <MacroCard label="Grasas" value={recipe.fat} unit="g" color={c.fats} c={c} />
+        {/* Portion Selector */}
+        <View style={styles.portionSection}>
+          <Text style={[styles.portionLabel, { color: c.gray }]}>Porciones</Text>
+          <View style={styles.portionRow}>
+            {PORTION_OPTIONS.map((opt) => {
+              const isActive = portion === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.portionChip,
+                    {
+                      backgroundColor: isActive ? c.primary : c.surface,
+                      borderColor: isActive ? c.primary : c.grayLight,
+                    },
+                  ]}
+                  onPress={() => {
+                    haptics.light();
+                    setPortion(opt.value);
+                    track('portion_changed', { portion: opt.value });
+                  }}
+                  accessibilityLabel={`${opt.label} porcion`}
+                  accessibilityState={{ selected: isActive }}
+                >
+                  <Text style={[styles.portionText, { color: isActive ? c.white : c.black }]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
+
+        {/* Macro cards — adjusted by portion */}
+        <View style={styles.macroRow}>
+          <MacroCard label="Calorias" value={adjusted.calories} unit="kcal" color={c.accent} c={c} />
+          <MacroCard label="Proteina" value={adjusted.protein} unit="g" color={c.protein} c={c} />
+          <MacroCard label="Carbos" value={adjusted.carbs} unit="g" color={c.carbs} c={c} />
+          <MacroCard label="Grasas" value={adjusted.fat} unit="g" color={c.fats} c={c} />
+        </View>
+
+        {/* Cooking Timer */}
+        <CookingTimer prepTime={recipe.prepTime} c={c} />
 
         {/* Ingredients */}
         <Text style={[styles.sectionTitle, { color: c.black }]}>Ingredientes</Text>
+        {portion !== 1 && (
+          <Text style={[styles.portionNote, { color: c.accent }]}>
+            Cantidades ajustadas para {portion}x porciones
+          </Text>
+        )}
         <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
           {recipe.ingredients.map((ingredient, i) => {
             const checked = checkedIngredients.has(i);
@@ -204,7 +482,7 @@ export default function RecipeDetailScreen({ route, navigation }: any) {
           onPress={handleLogMeal}
           disabled={logging}
           activeOpacity={0.85}
-          accessibilityLabel="Registrar esta receta en tu diario"
+          accessibilityLabel={`Registrar ${portion}x porcion de ${recipe.name}`}
           accessibilityRole="button"
         >
           {logging ? (
@@ -212,7 +490,9 @@ export default function RecipeDetailScreen({ route, navigation }: any) {
           ) : (
             <>
               <Ionicons name="add-circle-outline" size={20} color={colors.white} />
-              <Text style={styles.logBtnText}>Registrar Comida</Text>
+              <Text style={styles.logBtnText}>
+                Registrar {portion !== 1 ? `(${portion}x) ` : ''}— {adjusted.calories} kcal
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -262,6 +542,36 @@ const styles = StyleSheet.create({
   dietBadgeText: {
     ...typography.caption,
     fontWeight: '700',
+  },
+  // Portion selector
+  portionSection: {
+    marginBottom: spacing.md,
+  },
+  portionLabel: {
+    ...typography.label,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+  },
+  portionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  portionChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  portionText: {
+    ...typography.label,
+    fontWeight: '700',
+  },
+  portionNote: {
+    ...typography.caption,
+    fontStyle: 'italic',
+    marginBottom: spacing.sm,
   },
   macroRow: {
     flexDirection: 'row',
