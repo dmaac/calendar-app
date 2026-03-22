@@ -514,7 +514,6 @@ export default function LogScreen({ navigation }: any) {
             try {
               // Delete each log (negative IDs are local-only mock data)
               const realLogs = logs.filter((l) => l.id >= 0);
-              const localLogs = logs.filter((l) => l.id < 0);
               await Promise.allSettled(
                 realLogs.map((l) => foodService.deleteFoodLog(l.id))
               );

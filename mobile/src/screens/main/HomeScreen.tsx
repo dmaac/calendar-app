@@ -1002,4 +1002,23 @@ const styles = StyleSheet.create({
     ...typography.label,
     flex: 1,
   },
+  motivationalBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  motivationalTitle: {
+    ...typography.label,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  motivationalMessage: {
+    ...typography.caption,
+    lineHeight: 18,
+    opacity: 0.85,
+  },
 });

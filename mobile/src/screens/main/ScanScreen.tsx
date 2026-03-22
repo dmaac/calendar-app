@@ -680,6 +680,19 @@ export default function ScanScreen({ navigation }: any) {
             })()}
           </Animated.View>
 
+          {/* High calorie tip */}
+          {displayCal > 800 && (
+            <View
+              style={[styles.highCalorieTip, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+              accessibilityLabel={`Tip: Esta comida tiene ${Math.round(displayCal)} calorias, lo cual es bastante. Considera una porcion mas pequena.`}
+            >
+              <Ionicons name="information-circle-outline" size={16} color={c.gray} />
+              <Text style={[styles.highCalorieTipText, { color: c.gray }]}>
+                Tip: Esta comida tiene muchas calorias. Considera una porcion mas pequena.
+              </Text>
+            </View>
+          )}
+
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <TouchableOpacity
@@ -1265,4 +1278,21 @@ const styles = StyleSheet.create({
   },
   successText: { ...typography.titleMd },
   successHint: { ...typography.caption, marginTop: spacing.xs },
+
+  // High calorie tip
+  highCalorieTip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  highCalorieTipText: {
+    ...typography.caption,
+    flex: 1,
+    lineHeight: 18,
+  },
 });
