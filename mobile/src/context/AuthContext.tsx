@@ -246,25 +246,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(prev => prev ? { ...prev, is_premium: isPremium } : prev);
   }, []);
 
-  // ── DEV BYPASS: skip auth entirely with a mock user ──────────────────────
+  // ── DEV BYPASS: register+login a dev user so all APIs work with real tokens ─
   const devBypass = useCallback(async () => {
     if (!__DEV__) {
       return;
     }
-    const mockUser: User = {
-      id: 999,
-      email: 'dev@fitsiai.com',
-      first_name: 'Dev',
-      last_name: 'User',
-      is_active: true,
-      is_premium: true,
-      provider: 'email',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    await AsyncStorage.setItem('onboarding_completed', 'true');
-    setIsOnboardingComplete(true);
-    setUser(mockUser);
+
+    const devEmail = 'dev@fitsiai.com';
+    const devPassword = 'DevPass1234';
+
+    try {
+      // Try to register (will 400 if already exists — that's fine)
+      await authService.register({
+        email: devEmail,
+        password: devPassword,
+        first_name: 'Dev',
+        last_name: 'User',
+      }).catch(() => {}); // ignore "already registered"
+
+      // Login to get real JWT tokens stored in SecureStore
+      await authService.login({ username: devEmail, password: devPassword });
+
+      // Fetch real user profile from backend
+      const userData = await ApiService.getCurrentUser();
+
+      await AsyncStorage.setItem('onboarding_completed', 'true');
+      setIsOnboardingComplete(true);
+      setUser(userData);
+    } catch (err) {
+      // Fallback: if backend is unreachable, use offline mock (no API calls will work)
+      console.warn('DevBypass: backend unreachable, using offline mock', err);
+      const mockUser: User = {
+        id: 999,
+        email: devEmail,
+        first_name: 'Dev',
+        last_name: 'User',
+        is_active: true,
+        is_premium: true,
+        provider: 'email',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem('onboarding_completed', 'true');
+      setIsOnboardingComplete(true);
+      setUser(mockUser);
+    }
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
