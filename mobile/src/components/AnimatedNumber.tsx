@@ -28,25 +28,30 @@ interface AnimatedNumberProps {
 }
 
 export default function AnimatedNumber({
-  value,
+  value: rawValue,
   duration = 600,
   style,
   suffix = '',
   round = true,
 }: AnimatedNumberProps) {
-  const animatedValue = useRef(new Animated.Value(value)).current;
+  // CRITICAL: Always use integer values to prevent "Loss of precision" crash
+  // on iOS native bridge. Float values like 29.1 cause HostFunction errors.
+  const value = round ? Math.round(rawValue) : rawValue;
+
+  const animatedValue = useRef(new Animated.Value(Math.round(value))).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const [displayValue, setDisplayValue] = useState(value);
-  const prevValue = useRef(value);
+  const [displayValue, setDisplayValue] = useState(Math.round(value));
+  const prevValue = useRef(Math.round(value));
 
   useEffect(() => {
+    const targetValue = Math.round(value);
     const listenerId = animatedValue.addListener(({ value: v }) => {
-      setDisplayValue(v);
+      setDisplayValue(Math.round(v));
     });
 
     // Animate the number count
     Animated.timing(animatedValue, {
-      toValue: value,
+      toValue: targetValue,
       duration,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
