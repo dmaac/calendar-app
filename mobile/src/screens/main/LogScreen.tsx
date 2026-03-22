@@ -284,6 +284,13 @@ export default function LogScreen({ navigation }: any) {
     navigation.navigate('AddFood', { mealType: mt });
   }, [modalMeal, closeModal, navigation, track]);
 
+  const handleSearch = useCallback(() => {
+    haptics.light();
+    const mt = modalMeal;
+    closeModal();
+    navigation.navigate('FoodSearch', { mealType: mt });
+  }, [modalMeal, closeModal, navigation]);
+
   const consumed = summary?.total_calories ?? 0;
   const target = summary?.target_calories ?? 2000;
 

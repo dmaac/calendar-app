@@ -129,7 +129,14 @@ export default function HistoryScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={20} color={c.black} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: c.black }]}>Historial</Text>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: c.surface }]}
+          onPress={() => { haptics.light(); navigation.navigate('CalendarView'); }}
+          accessibilityLabel="Vista calendario"
+          accessibilityRole="button"
+        >
+          <Ionicons name="calendar" size={18} color={c.accent} />
+        </TouchableOpacity>
       </View>
 
       {/* Navegador de fechas */}
