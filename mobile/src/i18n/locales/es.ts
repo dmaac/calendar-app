@@ -162,6 +162,18 @@ const es = {
     noData: 'Sin datos',
     kcal: 'kcal',
   },
+  risk: {
+    stable: 'Estable',
+    attention: 'Atencion',
+    risk: 'Riesgo',
+    highRisk: 'Alto riesgo',
+    critical: 'Critico',
+    improving: 'Mejorando',
+    caloriesLeft: '%{count} kcal restantes',
+    excess: '%{count} kcal de exceso',
+    noData: 'Registra tu primera comida para ver tu puntaje de salud',
+    gettingStarted: 'Estamos aprendiendo tus habitos. Registra unas comidas mas para ver tu puntaje.',
+  },
   language: {
     selectLanguage: 'Seleccionar idioma',
   },

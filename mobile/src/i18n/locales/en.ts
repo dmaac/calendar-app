@@ -162,6 +162,18 @@ const en = {
     noData: 'No data',
     kcal: 'kcal',
   },
+  risk: {
+    stable: 'Stable',
+    attention: 'Attention',
+    risk: 'Risk',
+    highRisk: 'High risk',
+    critical: 'Critical',
+    improving: 'Improving',
+    caloriesLeft: '%{count} kcal remaining',
+    excess: '%{count} kcal excess',
+    noData: 'Log your first meal to see your health score',
+    gettingStarted: 'We are learning your habits. Log a few more meals to see your score.',
+  },
   language: {
     selectLanguage: 'Select Language',
   },

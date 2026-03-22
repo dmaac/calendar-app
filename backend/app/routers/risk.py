@@ -1,9 +1,12 @@
 """
 Nutrition Risk Engine router.
 
-GET /api/risk/summary — risk summary for the authenticated user (last 7 days).
-GET /api/risk/daily   — today's adherence record for the authenticated user.
-GET /api/risk/history  — last N days of adherence records.
+GET /api/risk/summary    — risk summary for the authenticated user (last 7 days).
+GET /api/risk/daily      — today's adherence record for the authenticated user.
+GET /api/risk/history    — last N days of adherence records.
+GET /api/risk/analytics  — aggregated risk analytics for the authenticated user.
+GET /api/risk/admin/dashboard — admin-only aggregated risk stats.
+POST /api/risk/event     — track a risk analytics event.
 """
 
 from __future__ import annotations
@@ -13,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -23,7 +26,14 @@ from ..models.nutrition_adherence import DailyNutritionAdherence
 from ..models.onboarding_profile import OnboardingProfile
 from ..models.user import User
 from ..services.integrated_health_service import calculate_integrated_health_score
-from ..services.nutrition_risk_service import calculate_daily_adherence, get_user_risk_summary
+from ..services.nutrition_risk_service import calculate_daily_adherence, get_user_risk_summary, recalculate_on_food_log
+from ..services.risk_analytics_service import (
+    get_admin_risk_dashboard,
+    get_intervention_variant,
+    get_user_risk_analytics,
+    track_risk_event,
+)
+from .admin import require_admin
 from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -43,6 +53,11 @@ class InterventionResponse(BaseModel):
     suggestions: Optional[List[str]] = None
 
 
+class RecoveryResponse(BaseModel):
+    recovering: bool
+    improvement_pct: int
+
+
 class RiskSummaryResponse(BaseModel):
     avg_risk_score: int
     avg_quality_score: int
@@ -52,6 +67,8 @@ class RiskSummaryResponse(BaseModel):
     trend: str
     current_status: str
     intervention: InterventionResponse
+    consistency_score_7d: int = 0
+    recovery: RecoveryResponse = RecoveryResponse(recovering=False, improvement_pct=0)
 
 
 class DailyAdherenceResponse(BaseModel):
@@ -82,6 +99,41 @@ class IntegratedHealthScoreResponse(BaseModel):
     top_improvement: str
 
 
+class RiskAnalyticsResponse(BaseModel):
+    total_impressions: int
+    total_cta_clicks: int
+    total_interventions: int
+    total_corrections: int
+    total_risk_improved: int
+    correction_rate: float
+    days: int
+
+
+class TrackRiskEventRequest(BaseModel):
+    event_type: str
+    metadata: dict = {}
+
+
+class TrackRiskEventResponse(BaseModel):
+    id: int
+    event_type: str
+    variant: str
+
+
+class RiskReasonCount(BaseModel):
+    reason: str
+    count: int
+
+
+class AdminRiskDashboardResponse(BaseModel):
+    users_at_risk: int
+    users_critical: int
+    avg_risk_score: int
+    avg_quality_score: int
+    intervention_effectiveness: float
+    top_risk_reasons: List[RiskReasonCount]
+
+
 # --- Endpoints ---
 
 @router.get("/summary", response_model=RiskSummaryResponse)
@@ -100,6 +152,8 @@ async def get_risk_summary(
         trend=data["trend"],
         current_status=data["current_status"],
         intervention=InterventionResponse(**data["intervention"]),
+        consistency_score_7d=data.get("consistency_score_7d", 0),
+        recovery=RecoveryResponse(**data.get("recovery", {"recovering": False, "improvement_pct": 0})),
     )
 
 
@@ -193,3 +247,99 @@ async def get_health_score(
     """Return the integrated health score combining nutrition, activity, consistency, and hydration."""
     data = await calculate_integrated_health_score(current_user.id, session)
     return IntegratedHealthScoreResponse(**data)
+
+
+class BackfillResponse(BaseModel):
+    records_updated: int
+    days_processed: int
+
+
+def _adherence_to_response(record: DailyNutritionAdherence) -> DailyAdherenceResponse:
+    """Convert a DailyNutritionAdherence model to a DailyAdherenceResponse."""
+    return DailyAdherenceResponse(
+        date=record.date,
+        calories_target=record.calories_target,
+        calories_logged=record.calories_logged,
+        calories_ratio=record.calories_ratio,
+        meals_logged=record.meals_logged,
+        protein_target=record.protein_target,
+        protein_logged=record.protein_logged,
+        carbs_target=record.carbs_target,
+        carbs_logged=record.carbs_logged,
+        fats_target=record.fats_target,
+        fats_logged=record.fats_logged,
+        diet_quality_score=record.diet_quality_score,
+        adherence_status=record.adherence_status,
+        nutrition_risk_score=record.nutrition_risk_score,
+        no_log_flag=record.no_log_flag,
+    )
+
+
+@router.post("/recalculate", response_model=DailyAdherenceResponse)
+async def recalculate_today(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Recalculate today's adherence record and return the updated result."""
+    record = await recalculate_on_food_log(current_user.id, session)
+    return _adherence_to_response(record)
+
+
+@router.post("/backfill", response_model=BackfillResponse)
+async def backfill_adherence(
+    days: int = Query(default=30, ge=1, le=90),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Recalculate adherence records for the last N days (max 90). Returns count of records updated."""
+    today = date.today()
+    records_updated = 0
+    for i in range(days):
+        target_date = today - timedelta(days=i)
+        await calculate_daily_adherence(current_user.id, target_date, session)
+        records_updated += 1
+    return BackfillResponse(records_updated=records_updated, days_processed=days)
+
+
+@router.get("/analytics", response_model=RiskAnalyticsResponse)
+async def get_risk_analytics(
+    days: int = Query(default=7, ge=1, le=90),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return aggregated risk analytics for the authenticated user."""
+    data = await get_user_risk_analytics(current_user.id, days, session)
+    return RiskAnalyticsResponse(**data)
+
+
+@router.post("/event", response_model=TrackRiskEventResponse, status_code=status.HTTP_201_CREATED)
+async def post_risk_event(
+    body: TrackRiskEventRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Track a risk analytics event (impression, CTA click, intervention, etc.)."""
+    try:
+        event = await track_risk_event(
+            user_id=current_user.id,
+            event_type=body.event_type,
+            metadata=body.metadata,
+            session=session,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return TrackRiskEventResponse(
+        id=event.id,
+        event_type=event.event_type,
+        variant=get_intervention_variant(current_user.id),
+    )
+
+
+@router.get("/admin/dashboard", response_model=AdminRiskDashboardResponse)
+async def admin_risk_dashboard(
+    admin_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Admin-only: aggregated risk stats across all users."""
+    data = await get_admin_risk_dashboard(session)
+    return AdminRiskDashboardResponse(**data)

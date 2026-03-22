@@ -43,9 +43,9 @@ const ZONE_EXPLANATIONS: Record<string, string> = {
   high_excess: 'Exceso significativo. Considera una comida ligera para equilibrar.',
 };
 
-// Zone bar colors per theme — dark uses semi-transparent for subtlety
+// Zone bar colors per theme
 const ZONE_LIGHT = { red: '#FEE2E2', orange: '#FEF3C7', green: '#D1FAE5' };
-const ZONE_DARK  = { red: 'rgba(239,68,68,0.25)', orange: 'rgba(245,158,11,0.25)', green: 'rgba(34,197,94,0.25)' };
+const ZONE_DARK  = { red: '#DC2626', orange: '#D97706', green: '#16A34A' };
 
 function CalorieComparisonCard({ logged, target, status, weekAvg }: CalorieComparisonCardProps) {
   const c = useThemeColors();

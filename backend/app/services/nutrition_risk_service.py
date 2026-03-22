@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
 from datetime import date, datetime, time as dt_time, timedelta
 from typing import Optional
 
@@ -75,6 +76,13 @@ INTERVENTIONS: dict[str, dict] = {
         "push_body": "Llevas {cal} kcal — muy por encima de tu meta de {target}. Considera una comida ligera.",
         "home_banner": True,
         "color": "#EF4444",
+    },
+    "at_risk_but_improving": {
+        "push_title": "Vas mejorando!",
+        "push_body": "Tu tendencia es positiva. Sigue asi, cada dia cuenta.",
+        "home_banner": False,
+        "coach_message": "Buen trabajo, se nota la mejora. Mantengamos el ritmo.",
+        "color": "#FBBF24",
     },
     "optimal": {
         "color": "#22C55E",
@@ -211,6 +219,60 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Goal-based thresholds (Item 17)
+# ---------------------------------------------------------------------------
+
+GOAL_THRESHOLDS: dict[str, dict[str, float]] = {
+    "lose_weight": {
+        "optimal_low": 0.90,
+        "optimal_high": 1.10,
+        "low_adherence_floor": 0.70,
+        "risk_floor": 0.50,
+        "high_risk_floor": 0.25,
+        "moderate_excess_ceil": 1.20,
+        "high_excess_ceil": 1.40,
+    },
+    "maintain": {
+        "optimal_low": 0.85,
+        "optimal_high": 1.15,
+        "low_adherence_floor": 0.70,
+        "risk_floor": 0.50,
+        "high_risk_floor": 0.25,
+        "moderate_excess_ceil": 1.30,
+        "high_excess_ceil": 1.60,
+    },
+    "gain_muscle": {
+        "optimal_low": 0.95,
+        "optimal_high": 1.30,
+        "low_adherence_floor": 0.75,
+        "risk_floor": 0.55,
+        "high_risk_floor": 0.30,
+        "moderate_excess_ceil": 1.45,
+        "high_excess_ceil": 1.70,
+    },
+}
+
+
+async def _get_user_goal(user_id: int, session: AsyncSession) -> str:
+    """Return the user's goal string (lose_weight / maintain / gain_muscle)."""
+    result = await session.exec(
+        select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
+    )
+    profile = result.first()
+    if profile is not None and profile.goal:
+        return profile.goal.value if hasattr(profile.goal, "value") else str(profile.goal)
+
+    result = await session.exec(
+        select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
+    )
+    onboarding = result.first()
+    if onboarding is not None and onboarding.goal:
+        return str(onboarding.goal)
+
+    return "maintain"
+
+
+# ---------------------------------------------------------------------------
 # Data helpers
 # ---------------------------------------------------------------------------
 
@@ -316,28 +378,47 @@ async def get_consecutive_no_log_days(user_id: int, session: AsyncSession) -> in
 # Adherence status classification
 # ---------------------------------------------------------------------------
 
-def _classify_adherence_status(calories_ratio: float, no_log_flag: bool) -> str:
-    """Classify adherence status based on caloric ratio (logged/target)."""
+def _classify_adherence_status(
+    calories_ratio: float,
+    no_log_flag: bool,
+    goal: str = "maintain",
+    trend: str = "stable",
+) -> str:
+    """Classify adherence status based on caloric ratio (logged/target).
+
+    Item 17: uses goal-specific thresholds.
+    Item 12: returns 'at_risk_but_improving' when trend is improving and
+             the base status is risk or high_risk.
+    """
     if no_log_flag:
         return "critical"
     if calories_ratio == 0:
         return "critical"
-    elif calories_ratio < 0.25:
-        return "critical"
-    elif calories_ratio < 0.50:
-        return "high_risk"
-    elif calories_ratio < 0.70:
-        return "risk"
-    elif calories_ratio < 0.85:
-        return "low_adherence"
-    elif calories_ratio <= 1.15:
-        return "optimal"
-    elif calories_ratio <= 1.30:
-        return "moderate_excess"
-    elif calories_ratio <= 1.60:
-        return "high_excess"
+
+    thresholds = GOAL_THRESHOLDS.get(goal, GOAL_THRESHOLDS["maintain"])
+
+    if calories_ratio < thresholds["high_risk_floor"]:
+        base = "critical"
+    elif calories_ratio < thresholds["risk_floor"]:
+        base = "high_risk"
+    elif calories_ratio < thresholds["low_adherence_floor"]:
+        base = "risk"
+    elif calories_ratio < thresholds["optimal_low"]:
+        base = "low_adherence"
+    elif calories_ratio <= thresholds["optimal_high"]:
+        base = "optimal"
+    elif calories_ratio <= thresholds["moderate_excess_ceil"]:
+        base = "moderate_excess"
+    elif calories_ratio <= thresholds["high_excess_ceil"]:
+        base = "high_excess"
     else:
-        return "critical"
+        base = "critical"
+
+    # Item 12: at_risk_but_improving override
+    if trend == "improving" and base in ("risk", "high_risk"):
+        return "at_risk_but_improving"
+
+    return base
 
 
 # ---------------------------------------------------------------------------
@@ -511,6 +592,86 @@ def _calculate_risk_score(
 
 
 # ---------------------------------------------------------------------------
+# 7-day consistency score (Item 10)
+# ---------------------------------------------------------------------------
+
+def _calculate_consistency_score(records: list[DailyNutritionAdherence]) -> int:
+    """
+    Calculate a 7-day consistency score (0-100):
+    - Base: (days_logged / 7) * 100
+    - Bonus +10 for streak >= 3 consecutive days with data
+    - Bonus +10 for consistent meal timing (std dev of first meal hour < 2)
+    """
+    if not records:
+        return 0
+
+    # Days with actual food data (not no_log)
+    days_with_data = sum(1 for r in records if not r.no_log_flag)
+    base_score = (days_with_data / 7.0) * 100.0
+
+    # Streak bonus: check for >= 3 consecutive logged days
+    sorted_records = sorted(records, key=lambda r: r.date)
+    max_streak = 0
+    current_streak = 0
+    for r in sorted_records:
+        if not r.no_log_flag:
+            current_streak += 1
+            max_streak = max(max_streak, current_streak)
+        else:
+            current_streak = 0
+    streak_bonus = 10.0 if max_streak >= 3 else 0.0
+
+    # Timing consistency bonus: std dev of first meal hour
+    # We use the created_at time of records that have data as a proxy
+    meal_hours = []
+    for r in sorted_records:
+        if not r.no_log_flag and r.created_at:
+            meal_hours.append(r.created_at.hour)
+
+    timing_bonus = 0.0
+    if len(meal_hours) >= 2:
+        mean_h = sum(meal_hours) / len(meal_hours)
+        variance = sum((h - mean_h) ** 2 for h in meal_hours) / len(meal_hours)
+        std_dev = math.sqrt(variance)
+        if std_dev < 2.0:
+            timing_bonus = 10.0
+
+    return max(0, min(100, int(round(base_score + streak_bonus + timing_bonus))))
+
+
+# ---------------------------------------------------------------------------
+# Recovery score (Item 11)
+# ---------------------------------------------------------------------------
+
+def _calculate_recovery_score(records: list[DailyNutritionAdherence]) -> dict:
+    """
+    Compare last 3 days avg risk vs days 4-7 avg risk.
+    If improving by > 10 points: {"recovering": true, "improvement_pct": X}
+    Otherwise: {"recovering": false, "improvement_pct": 0}
+    """
+    if len(records) < 4:
+        return {"recovering": False, "improvement_pct": 0}
+
+    sorted_records = sorted(records, key=lambda r: r.date, reverse=True)
+
+    # Last 3 days (most recent)
+    last_3 = sorted_records[:3]
+    last_3_avg = sum(r.nutrition_risk_score for r in last_3) / len(last_3)
+
+    # Days 4-7 (older)
+    older = sorted_records[3:]
+    older_avg = sum(r.nutrition_risk_score for r in older) / len(older)
+
+    improvement = older_avg - last_3_avg  # positive means improving (risk went down)
+
+    if improvement > 10:
+        pct = int(round((improvement / older_avg) * 100)) if older_avg > 0 else 0
+        return {"recovering": True, "improvement_pct": pct}
+
+    return {"recovering": False, "improvement_pct": 0}
+
+
+# ---------------------------------------------------------------------------
 # Primary risk reason identification (Item 49)
 # ---------------------------------------------------------------------------
 
@@ -665,6 +826,9 @@ async def calculate_daily_adherence(
     water_ml = await _get_water_ml(user_id, target_date, session)
     consecutive_no_log = await get_consecutive_no_log_days(user_id, session)
 
+    # Item 17: get user goal for threshold selection
+    user_goal = await _get_user_goal(user_id, session)
+
     calories_target = goals["calories"]
     calories_logged = int(totals["calories"])
     calories_ratio = calories_logged / calories_target if calories_target > 0 else 0.0
@@ -680,7 +844,10 @@ async def calculate_daily_adherence(
     no_log_flag = totals["meal_count"] == 0
     zero_calories_flag = totals["meal_count"] > 0 and calories_logged == 0
 
-    adherence_status = _classify_adherence_status(calories_ratio, no_log_flag)
+    # Item 17 + Item 12: goal-aware classification (trend defaults to stable for daily calc)
+    adherence_status = _classify_adherence_status(
+        calories_ratio, no_log_flag, goal=user_goal
+    )
 
     # Item 3: Confidence score
     confidence_score = _calculate_confidence_score(
@@ -719,6 +886,18 @@ async def calculate_daily_adherence(
     # If user logged meals but got 0 calories, reduce risk by 15%
     if zero_calories_flag and not no_log_flag:
         nutrition_risk_score = max(0, int(nutrition_risk_score * 0.85))
+
+    # Item 19: Grace period — reduce risk score by 50% in first 3 days after onboarding
+    grace_period = False
+    onboarding_result = await session.exec(
+        select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
+    )
+    onboarding = onboarding_result.first()
+    if onboarding and onboarding.completed_at:
+        days_since = (datetime.combine(target_date, dt_time.min) - onboarding.completed_at).days
+        if 0 <= days_since <= 3:
+            grace_period = True
+            nutrition_risk_score = max(0, int(nutrition_risk_score * 0.50))
 
     # Upsert: check for existing record
     result = await session.exec(
@@ -857,6 +1036,8 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
             "intervention_type": "critical",
             "primary_risk_reason": "no_log",
             "secondary_risk_reason": None,
+            "consistency_score_7d": 0,
+            "recovery": {"recovering": False, "improvement_pct": 0},
         }
 
     # Item 15: weighted averages — last 3 days at 2x weight
@@ -892,7 +1073,20 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
     else:
         trend = "stable"
 
-    current_status = today_adherence.adherence_status
+    # Item 10: consistency score
+    consistency_score_7d = _calculate_consistency_score(records)
+
+    # Item 11: recovery score
+    recovery = _calculate_recovery_score(records)
+
+    # Item 12: re-classify today's status with trend awareness
+    user_goal = await _get_user_goal(user_id, session)
+    current_status = _classify_adherence_status(
+        today_adherence.calories_ratio,
+        today_adherence.no_log_flag,
+        goal=user_goal,
+        trend=trend,
+    )
 
     # Item 39: skip aggressive intervention if user already corrected today
     display_status = current_status
@@ -931,6 +1125,8 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
         "intervention_type": display_status,
         "primary_risk_reason": primary_reason,
         "secondary_risk_reason": secondary_reason,
+        "consistency_score_7d": consistency_score_7d,
+        "recovery": recovery,
     }
 
 
@@ -985,3 +1181,16 @@ def _get_intervention(
         _record_intervention(user_id, status)
 
     return intervention
+
+
+# ---------------------------------------------------------------------------
+# Incremental recalculation on food log (Item 58b)
+# ---------------------------------------------------------------------------
+
+async def recalculate_on_food_log(user_id: int, session: AsyncSession) -> DailyNutritionAdherence:
+    """
+    Lightweight recalculation triggered after a food is logged.
+    Only recalculates today's adherence — no 7-day summary.
+    """
+    today = date.today()
+    return await calculate_daily_adherence(user_id, today, session)

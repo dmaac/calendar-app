@@ -162,6 +162,18 @@ const pt = {
     noData: 'Sem dados',
     kcal: 'kcal',
   },
+  risk: {
+    stable: 'Estavel',
+    attention: 'Atencao',
+    risk: 'Risco',
+    highRisk: 'Alto risco',
+    critical: 'Critico',
+    improving: 'Melhorando',
+    caloriesLeft: '%{count} kcal restantes',
+    excess: '%{count} kcal de excesso',
+    noData: 'Registre sua primeira refeicao para ver sua pontuacao de saude',
+    gettingStarted: 'Estamos aprendendo seus habitos. Registre mais algumas refeicoes para ver sua pontuacao.',
+  },
   language: {
     selectLanguage: 'Selecionar idioma',
   },

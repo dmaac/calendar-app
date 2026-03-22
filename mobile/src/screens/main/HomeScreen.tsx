@@ -53,6 +53,7 @@ import useNutritionAlerts from '../../hooks/useNutritionAlerts';
 import NutritionSemaphore from '../../components/NutritionSemaphore';
 import CalorieComparisonCard from '../../components/CalorieComparisonCard';
 import useNutritionRisk from '../../hooks/useNutritionRisk';
+import RiskSkeleton from '../../components/RiskSkeleton';
 // MINIMALIST REDESIGN Phase 1: TrialBanner removed from HomeScreen
 // import TrialBanner from '../../components/TrialBanner';
 
@@ -345,7 +346,10 @@ export default function HomeScreen({ navigation }: any) {
   const {
     riskScore,
     status: riskStatus,
+    trend: riskTrend,
     daysSinceLastLog,
+    daysWithData,
+    loading: riskLoading,
     refetch: refetchRisk,
   } = useNutritionRisk();
 
@@ -624,12 +628,33 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           )}
 
-          {/* Risk semaphore — prominent when riskScore > 60 */}
-          {riskScore > 60 && (
-            <View style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}>
-              <NutritionSemaphore riskScore={riskScore} status={riskStatus} size={100} />
+          {/* Risk UI — skeleton / empty state / day-1 override / normal */}
+          {riskLoading ? (
+            <View style={{ paddingHorizontal: sidePadding }}>
+              <RiskSkeleton />
             </View>
-          )}
+          ) : daysWithData === 0 ? (
+            <View style={[styles.riskEmptyState, { paddingHorizontal: sidePadding }]}>
+              <FitsiMascot expression="thinking" size="small" animation="idle" />
+              <Text style={[styles.riskEmptyText, { color: c.gray }]}>
+                Registra tu primera comida para ver tu puntaje de salud
+              </Text>
+            </View>
+          ) : daysWithData <= 1 && (riskStatus === 'critical' || riskStatus === 'high_risk') ? (
+            <View style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}>
+              <View style={styles.gettingStartedContainer}>
+                <View style={[styles.gettingStartedDot, { backgroundColor: '#4285F4' }]} />
+                <Text style={[styles.gettingStartedLabel, { color: '#4285F4' }]}>Getting started</Text>
+              </View>
+              <Text style={[styles.gettingStartedMsg, { color: c.gray }]}>
+                Estamos aprendiendo tus habitos. Registra unas comidas mas para ver tu puntaje.
+              </Text>
+            </View>
+          ) : riskScore > 60 ? (
+            <View style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}>
+              <NutritionSemaphore riskScore={riskScore} status={riskStatus} size={100} trend={riskTrend} />
+            </View>
+          ) : null}
 
           {/* Re-engagement banner — user hasn't logged in 3+ days */}
           {daysSinceLastLog >= 3 && (
@@ -752,8 +777,8 @@ export default function HomeScreen({ navigation }: any) {
                       accessibilityLabel="Escanear comida"
                       accessibilityRole="button"
                     >
-                      <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
-                        <Ionicons name="camera" size={18} color={c.white} />
+                      <View style={[styles.quickActionIcon, { backgroundColor: c.white }]}>
+                        <Ionicons name="camera" size={18} color="#1A1A2E" />
                       </View>
                       <Text style={[styles.quickActionLabel, { color: c.black }]}>Scan</Text>
                     </TouchableOpacity>
@@ -859,8 +884,8 @@ export default function HomeScreen({ navigation }: any) {
         onClearAll={clearAllNotifications}
       />
 
-      {/* Critical overlay — semi-transparent red when status is critical */}
-      {riskStatus === 'critical' && (
+      {/* Critical overlay — semi-transparent red when status is critical (suppressed for day-1 users) */}
+      {riskStatus === 'critical' && daysWithData > 1 && (
         <View style={styles.criticalOverlay} pointerEvents="none" accessibilityLabel="Alerta critica: tu riesgo nutricional es critico">
           <View style={styles.criticalBadge}>
             <Ionicons name="warning" size={24} color="#FFFFFF" />
@@ -1120,6 +1145,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  riskEmptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  riskEmptyText: {
+    ...typography.caption,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  gettingStartedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  gettingStartedDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  gettingStartedLabel: {
+    ...typography.label,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  gettingStartedMsg: {
+    ...typography.caption,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   reengageBanner: {
     flexDirection: 'row',

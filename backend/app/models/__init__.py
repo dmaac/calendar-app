@@ -24,6 +24,7 @@ from .corporate import (
     FamilyMembership,
 )
 from .nutrition_adherence import DailyNutritionAdherence
+from .risk_analytics_event import RiskAnalyticsEvent
 
 __all__ = [
     "User",
@@ -53,4 +54,5 @@ __all__ = [
     "FamilyGroup",
     "FamilyMembership",
     "DailyNutritionAdherence",
+    "RiskAnalyticsEvent",
 ]

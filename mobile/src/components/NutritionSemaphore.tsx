@@ -22,6 +22,7 @@ interface NutritionSemaphoreProps {
   status: string;
   size?: number;
   primaryReason?: string;
+  trend?: 'improving' | 'worsening' | 'stable';
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -55,6 +56,7 @@ const NutritionSemaphore = React.memo(function NutritionSemaphore({
   status,
   size = 120,
   primaryReason,
+  trend,
 }: NutritionSemaphoreProps) {
   const c = useThemeColors();
   const clampedScore = Math.max(0, Math.min(100, Math.round(riskScore)));
@@ -137,6 +139,11 @@ const NutritionSemaphore = React.memo(function NutritionSemaphore({
           {REASON_LABELS[primaryReason]}
         </Text>
       )}
+      {trend === 'improving' && (
+        <View style={styles.improvingBadge}>
+          <Text style={styles.improvingText}>Mejorando</Text>
+        </View>
+      )}
     </Animated.View>
   );
 });
@@ -164,5 +171,17 @@ const styles = StyleSheet.create({
   reasonText: {
     ...typography.caption,
     opacity: 0.8,
+  },
+  improvingBadge: {
+    backgroundColor: '#22C55E20',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginTop: spacing.xs,
+  },
+  improvingText: {
+    ...typography.caption,
+    color: '#22C55E',
+    fontWeight: '700',
   },
 });
