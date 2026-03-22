@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, ScrollView } from 'react-native';
 import { colors, typography, spacing, radius } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
@@ -33,6 +33,51 @@ const macroStyles = StyleSheet.create({
   fill: { height: '100%', borderRadius: 4 },
   value: { ...typography.caption, color: colors.black, width: 36, textAlign: 'right' },
 });
+
+/** Animated calorie counter from 0 to target with spring bounce */
+function AnimatedCalorieNum({ target, style }: { target: number; style: any }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    anim.setValue(0);
+    Animated.spring(anim, {
+      toValue: target,
+      useNativeDriver: false,
+      speed: 4,
+      bounciness: 6,
+    }).start();
+    const id = anim.addListener(({ value }) => {
+      setDisplay(Math.round(Math.max(0, value)));
+    });
+    return () => anim.removeListener(id);
+  }, [target]);
+
+  return <Text style={style}>{display}</Text>;
+}
+
+/** Animated number that counts from 0 to target with spring overshoot */
+function AnimatedMacroNum({ target, style }: { target: number; style: any }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    anim.setValue(0);
+    // Spring overshoots slightly past target then settles — gives "bounce" feel
+    Animated.spring(anim, {
+      toValue: target,
+      useNativeDriver: false,
+      speed: 6,
+      bounciness: 8,
+    }).start();
+    const id = anim.addListener(({ value }) => {
+      setDisplay(Math.round(Math.max(0, value)));
+    });
+    return () => anim.removeListener(id);
+  }, [target]);
+
+  return <Text style={style}>{display}g</Text>;
+}
 
 export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: StepProps) {
   const { data } = useOnboarding();
@@ -73,7 +118,7 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
           {/* Calories card */}
           <View style={styles.caloriesCard}>
             <Text style={styles.caloriesLabel}>Meta calórica diaria</Text>
-            <Text style={styles.caloriesValue}>{calories}</Text>
+            <AnimatedCalorieNum target={calories} style={styles.caloriesValue} />
             <Text style={styles.caloriesUnit}>kcal / día</Text>
           </View>
 
@@ -82,15 +127,15 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
             <Text style={styles.cardTitle}>Tus Macros</Text>
             <View style={styles.macroGrid}>
               <View style={styles.macroPill}>
-                <Text style={styles.macroNum}>{carbs}g</Text>
+                <AnimatedMacroNum target={carbs} style={styles.macroNum} />
                 <Text style={styles.macroLbl}>Carbos</Text>
               </View>
               <View style={[styles.macroPill, { backgroundColor: '#FEE2E2' }]}>
-                <Text style={[styles.macroNum, { color: colors.protein }]}>{protein}g</Text>
-                <Text style={styles.macroLbl}>Proteína</Text>
+                <AnimatedMacroNum target={protein} style={[styles.macroNum, { color: colors.protein }]} />
+                <Text style={styles.macroLbl}>Proteina</Text>
               </View>
               <View style={[styles.macroPill, { backgroundColor: '#EFF6FF' }]}>
-                <Text style={[styles.macroNum, { color: colors.fats }]}>{fats}g</Text>
+                <AnimatedMacroNum target={fats} style={[styles.macroNum, { color: colors.fats }]} />
                 <Text style={styles.macroLbl}>Grasas</Text>
               </View>
             </View>

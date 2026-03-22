@@ -43,42 +43,56 @@ const DIET_FILTERS: { key: DietType | 'all'; label: string }[] = [
 
 // Memoized to prevent re-render when sibling cards or filter state changes
 const RecipeCard = React.memo(function RecipeCard({ recipe, onPress, c }: { recipe: Recipe; onPress: () => void; c: ReturnType<typeof useThemeColors> }) {
+  const pressAnim = useRef(new Animated.Value(0)).current;
+
+  const onPressIn = () => {
+    Animated.spring(pressAnim, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  };
+  const onPressOut = () => {
+    Animated.spring(pressAnim, { toValue: 0, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  };
+
+  const cardScale = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] });
+
   return (
-    <TouchableOpacity
-      style={[cardStyles.card, { backgroundColor: c.surface, borderColor: c.border }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-      accessibilityLabel={`${recipe.name}, ${recipe.calories} calorias, ${recipe.prepTime} minutos`}
-      accessibilityRole="button"
-    >
-      <View style={[cardStyles.emojiContainer, { backgroundColor: c.grayLight }]}>
-        <Text style={cardStyles.emoji}>{recipe.image}</Text>
-      </View>
-      <View style={cardStyles.info}>
-        <Text style={[cardStyles.name, { color: c.black }]} numberOfLines={2}>{recipe.name}</Text>
-        <View style={cardStyles.meta}>
-          <View style={cardStyles.metaItem}>
-            <Ionicons name="flame-outline" size={13} color={c.accent} />
-            <Text style={[cardStyles.metaText, { color: c.gray }]}>{recipe.calories} kcal</Text>
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
+      <Animated.View
+        style={[
+          cardStyles.card,
+          { backgroundColor: c.surface, borderColor: c.border, transform: [{ scale: cardScale }] },
+        ]}
+        accessibilityLabel={`${recipe.name}, ${recipe.calories} calorias, ${recipe.prepTime} minutos`}
+        accessibilityRole="button"
+      >
+        <View style={[cardStyles.emojiContainer, { backgroundColor: c.grayLight }]}>
+          <Text style={cardStyles.emoji}>{recipe.image}</Text>
+        </View>
+        <View style={cardStyles.info}>
+          <Text style={[cardStyles.name, { color: c.black }]} numberOfLines={2}>{recipe.name}</Text>
+          <View style={cardStyles.meta}>
+            <View style={cardStyles.metaItem}>
+              <Ionicons name="flame-outline" size={13} color={c.accent} />
+              <Text style={[cardStyles.metaText, { color: c.gray }]}>{recipe.calories} kcal</Text>
+            </View>
+            <View style={cardStyles.metaItem}>
+              <Ionicons name="time-outline" size={13} color={c.gray} />
+              <Text style={[cardStyles.metaText, { color: c.gray }]}>{recipe.prepTime} min</Text>
+            </View>
           </View>
-          <View style={cardStyles.metaItem}>
-            <Ionicons name="time-outline" size={13} color={c.gray} />
-            <Text style={[cardStyles.metaText, { color: c.gray }]}>{recipe.prepTime} min</Text>
+          <View style={cardStyles.macros}>
+            <Text style={[cardStyles.macro, { color: c.protein }]}>
+              P {recipe.protein}g
+            </Text>
+            <Text style={[cardStyles.macro, { color: c.carbs }]}>
+              C {recipe.carbs}g
+            </Text>
+            <Text style={[cardStyles.macro, { color: c.fats }]}>
+              G {recipe.fat}g
+            </Text>
           </View>
         </View>
-        <View style={cardStyles.macros}>
-          <Text style={[cardStyles.macro, { color: c.protein }]}>
-            P {recipe.protein}g
-          </Text>
-          <Text style={[cardStyles.macro, { color: c.carbs }]}>
-            C {recipe.carbs}g
-          </Text>
-          <Text style={[cardStyles.macro, { color: c.fats }]}>
-            G {recipe.fat}g
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      </Animated.View>
+    </Pressable>
   );
 });
 

@@ -518,6 +518,13 @@ async def get_cache_stats():
         return {"error": "Redis unavailable", "detail": str(exc)}
 
 
+@app.get("/metrics", tags=["admin"], include_in_schema=False)
+async def prometheus_metrics():
+    """Prometheus-compatible metrics endpoint."""
+    from .core.metrics import collect_metrics
+    return Response(content=collect_metrics(), media_type="text/plain; charset=utf-8")
+
+
 @app.get("/api/circuit-breakers", tags=["admin"])
 async def get_circuit_breaker_status():
     """Status of all registered circuit breakers."""

@@ -179,6 +179,7 @@ function BadgeCard({
   c: ReturnType<typeof useThemeColors>;
 }) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0.3)).current;
   const hasTriggeredHaptic = useRef(false);
 
@@ -194,6 +195,12 @@ function BadgeCard({
       if (unlocked && !hasTriggeredHaptic.current) {
         hasTriggeredHaptic.current = true;
         haptics.light();
+        // Subtle rotation bounce for unlocked badges: 0 -> 5deg -> -3deg -> 0
+        Animated.sequence([
+          Animated.timing(rotateAnim, { toValue: 5, duration: 120, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: -3, duration: 100, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: 0, duration: 80, useNativeDriver: true }),
+        ]).start();
       }
     });
 
@@ -218,13 +225,18 @@ function BadgeCard({
     }
   }, []);
 
+  const rotateInterp = rotateAnim.interpolate({
+    inputRange: [-5, 0, 5],
+    outputRange: ['-5deg', '0deg', '5deg'],
+  });
+
   return (
     <Animated.View
       style={[
         styles.badgeCard,
         { backgroundColor: c.surface, borderColor: c.border },
         !unlocked && styles.badgeCardLocked,
-        { transform: [{ scale: scaleAnim }] },
+        { transform: [{ scale: scaleAnim }, { rotate: rotateInterp }] },
       ]}
       accessibilityLabel={`${achievement.title}: ${achievement.description}. ${unlocked ? 'Desbloqueado' : 'Bloqueado'}`}
       accessibilityRole="text"
