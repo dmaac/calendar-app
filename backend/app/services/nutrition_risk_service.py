@@ -33,6 +33,7 @@ from ..models.daily_nutrition_summary import DailyNutritionSummary
 from ..models.nutrition_adherence import DailyNutritionAdherence
 from ..models.nutrition_profile import UserNutritionProfile
 from ..models.onboarding_profile import OnboardingProfile
+from ..models.workout import WorkoutLog
 
 logger = logging.getLogger(__name__)
 
@@ -2048,6 +2049,93 @@ async def get_weight_risk_context(user_id: int, session: AsyncSession) -> dict:
         "delta_kg": delta_kg,
         "on_track": on_track,
         "weekly_change_kg": round(weekly_change_kg, 2),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Exercise-nutrition correlation (Item 146)
+# ---------------------------------------------------------------------------
+
+async def detect_exercise_nutrition_correlation(
+    user_id: int, session: AsyncSession
+) -> dict:
+    """Compare avg calories and diet quality on workout days vs non-workout days.
+
+    Looks at the last 4 weeks (28 days). Returns whether a pattern is detected
+    where nutrition quality drops on rest days.
+    """
+    today = date.today()
+    start_date = today - timedelta(days=27)
+
+    # Get all workout dates in the window
+    wk_start = datetime.combine(start_date, dt_time.min)
+    wk_end = datetime.combine(today, dt_time.max)
+
+    workout_result = await session.execute(
+        select(WorkoutLog.created_at).where(
+            WorkoutLog.user_id == user_id,
+            WorkoutLog.created_at >= wk_start,
+            WorkoutLog.created_at <= wk_end,
+        )
+    )
+    workout_dates: set[date] = set()
+    for row in workout_result.all():
+        dt_val = row[0]
+        workout_dates.add(dt_val.date() if hasattr(dt_val, "date") else dt_val)
+
+    # Get adherence records in the window
+    adh_result = await session.exec(
+        select(DailyNutritionAdherence).where(
+            DailyNutritionAdherence.user_id == user_id,
+            DailyNutritionAdherence.date >= start_date,
+            DailyNutritionAdherence.date <= today,
+        )
+    )
+    records = list(adh_result.all())
+
+    if not records:
+        return {
+            "pattern_detected": False,
+            "workout_day_avg_cal": 0,
+            "rest_day_avg_cal": 0,
+            "quality_diff": 0,
+            "data_days": 0,
+        }
+
+    # Split records into workout days and rest days
+    workout_cals: list[int] = []
+    rest_cals: list[int] = []
+    workout_quality: list[int] = []
+    rest_quality: list[int] = []
+
+    for r in records:
+        if r.date in workout_dates:
+            workout_cals.append(r.calories_logged)
+            workout_quality.append(r.diet_quality_score)
+        else:
+            rest_cals.append(r.calories_logged)
+            rest_quality.append(r.diet_quality_score)
+
+    workout_avg_cal = int(round(sum(workout_cals) / len(workout_cals))) if workout_cals else 0
+    rest_avg_cal = int(round(sum(rest_cals) / len(rest_cals))) if rest_cals else 0
+    workout_avg_quality = int(round(sum(workout_quality) / len(workout_quality))) if workout_quality else 0
+    rest_avg_quality = int(round(sum(rest_quality) / len(rest_quality))) if rest_quality else 0
+
+    quality_diff = workout_avg_quality - rest_avg_quality
+
+    # Pattern detected if rest day quality is notably worse (>= 10 points)
+    pattern_detected = quality_diff >= 10 and len(workout_cals) >= 3 and len(rest_cals) >= 3
+
+    return {
+        "pattern_detected": pattern_detected,
+        "workout_day_avg_cal": workout_avg_cal,
+        "rest_day_avg_cal": rest_avg_cal,
+        "workout_day_avg_quality": workout_avg_quality,
+        "rest_day_avg_quality": rest_avg_quality,
+        "quality_diff": quality_diff,
+        "workout_days": len(workout_cals),
+        "rest_days": len(rest_cals),
+        "data_days": len(records),
     }
 
 

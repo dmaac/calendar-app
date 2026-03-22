@@ -46,8 +46,9 @@ from ..models.nutrition_adherence import DailyNutritionAdherence
 from ..models.onboarding_profile import OnboardingProfile
 from ..models.user import User
 from ..services.integrated_health_service import calculate_integrated_health_score
-from ..services.nutrition_risk_service import calculate_daily_adherence, detect_chronic_underreporting, detect_weekend_pattern, get_user_risk_summary, recalculate_on_food_log
-from ..services.recovery_plan_service import generate_24h_recovery_plan, generate_3day_recovery_plan
+from ..services.nutrition_risk_service import calculate_daily_adherence, detect_chronic_underreporting, detect_exercise_nutrition_correlation, detect_weekend_pattern, get_user_risk_summary, recalculate_on_food_log
+from ..services.recovery_plan_service import generate_24h_recovery_plan, generate_3day_recovery_plan, get_smart_meal_suggestion
+from ..services.shopping_list_service import generate_simple_shopping_list
 from ..services.variable_plan_service import get_adjusted_goals
 from ..services.risk_analytics_service import (
     get_admin_risk_dashboard,
@@ -698,3 +699,43 @@ async def admin_risk_dashboard(
     logger.info("Admin dashboard accessed by user_id=%d", admin_user.id)
     data = await get_admin_risk_dashboard(session)
     return AdminRiskDashboardResponse(**data)
+
+
+# --- Product connection endpoints (Items 136, 137, 146) ---
+
+
+@router.get("/suggest-meal")
+@_rl("30/minute")
+async def suggest_meal(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return a single smart meal suggestion based on today's remaining macros (Item 136)."""
+    data = await get_smart_meal_suggestion(current_user.id, session)
+    return data
+
+
+@router.get("/shopping-list")
+@_rl("30/minute")
+async def shopping_list(
+    request: Request,
+    days: int = Query(default=3, ge=1, le=7),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return a simple shopping list based on recovery plan meals for N days (Item 137)."""
+    data = await generate_simple_shopping_list(current_user.id, days, session)
+    return data
+
+
+@router.get("/correlations")
+@_rl("30/minute")
+async def correlations(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Detect exercise-nutrition correlation patterns (Item 146)."""
+    data = await detect_exercise_nutrition_correlation(current_user.id, session)
+    return data
