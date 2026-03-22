@@ -781,6 +781,16 @@ export default function HomeScreen({ navigation }: any) {
                   </View>
                   <Text style={[styles.quickActionLabel, { color: c.black }]}>AI Coach</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                  onPress={() => { haptics.light(); navigation.navigate('Favorites'); }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: '#EF4444' }]}>
+                    <Ionicons name="heart" size={18} color={c.white} />
+                  </View>
+                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Favoritos</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Profile completion progress */}

@@ -38,6 +38,8 @@ import HealthScore from '../../components/HealthScore';
 import FitsiMascot from '../../components/FitsiMascot';
 import ErrorFallback from '../../components/ErrorFallback';
 import { cacheScanResult, markScanSynced, cleanOldScans } from '../../services/scanCache.service';
+import * as favoritesService from '../../services/favorites.service';
+import { showNotification } from '../../components/InAppNotification';
 
 const FREE_SCAN_LIMIT = 3;
 

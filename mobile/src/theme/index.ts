@@ -75,12 +75,62 @@ export const darkColors: typeof lightColors = {
 export const colors = lightColors;
 
 /**
+ * Parses a hex color string (#RRGGBB) into [r, g, b] components.
+ */
+function parseHex(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.substring(0, 2), 16),
+    parseInt(h.substring(2, 4), 16),
+    parseInt(h.substring(4, 6), 16),
+  ];
+}
+
+/**
+ * Converts [r, g, b] components back to a hex string.
+ */
+function toHex(r: number, g: number, b: number): string {
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  return '#' + [clamp(r), clamp(g), clamp(b)]
+    .map((v) => v.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase();
+}
+
+/**
+ * Interpolates between two or three hex colors based on a normalized factor t (0..1).
+ * With two colors: linear interpolation.
+ * With three colors (cold, mid, warm): 0->cold, 0.5->mid, 1.0->warm.
+ */
+export function interpolateColor(t: number, cold: string, mid: string, warm: string): string {
+  const [cr, cg, cb] = parseHex(cold);
+  const [mr, mg, mb] = parseHex(mid);
+  const [wr, wg, wb] = parseHex(warm);
+
+  if (t <= 0.5) {
+    const f = t * 2; // 0..1 within first half
+    return toHex(
+      cr + (mr - cr) * f,
+      cg + (mg - cg) * f,
+      cb + (mb - cb) * f,
+    );
+  } else {
+    const f = (t - 0.5) * 2; // 0..1 within second half
+    return toHex(
+      mr + (wr - mr) * f,
+      mg + (wg - mg) * f,
+      mb + (wb - mb) * f,
+    );
+  }
+}
+
+/**
  * useThemeColors — Returns the correct color palette based on app theme (ThemeContext).
  * Falls back to device color scheme if ThemeContext is not available.
  */
 export function useThemeColors() {
   try {
-    // Use app-level theme context (supports toggle from Settings)
+    // Use app-level theme context (supports toggle from Settings + warmth)
     const { useAppTheme } = require('../context/ThemeContext');
     const { colors: themeColors } = useAppTheme();
     return themeColors;
