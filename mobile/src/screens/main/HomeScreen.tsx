@@ -560,7 +560,7 @@ export default function HomeScreen({ navigation }: any) {
                   onPress={() => { haptics.light(); navigation.navigate('Registro'); }}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.quickActionIcon, { backgroundColor: '#4285F4' }]}>
+                  <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
                     <Ionicons name="water" size={18} color={c.white} />
                   </View>
                   <Text style={[styles.quickActionLabel, { color: c.black }]}>Add Water</Text>
@@ -570,7 +570,7 @@ export default function HomeScreen({ navigation }: any) {
                   onPress={() => { haptics.light(); navigation.navigate('Recetas'); }}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.quickActionIcon, { backgroundColor: '#34A853' }]}>
+                  <View style={[styles.quickActionIcon, { backgroundColor: c.success }]}>
                     <Ionicons name="book" size={18} color={c.white} />
                   </View>
                   <Text style={[styles.quickActionLabel, { color: c.black }]}>Recipes</Text>

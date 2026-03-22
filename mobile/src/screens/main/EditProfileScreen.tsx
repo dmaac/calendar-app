@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, useLayout, useThemeColors } from '../../theme';
+import { typography, spacing, radius, useLayout, useThemeColors } from '../../theme';
 import { saveOnboardingStep } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
 

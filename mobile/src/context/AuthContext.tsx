@@ -249,7 +249,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ── DEV BYPASS: skip auth entirely with a mock user ──────────────────────
   const devBypass = useCallback(async () => {
     if (!__DEV__) {
-      console.warn('devBypass is only available in development mode');
       return;
     }
     const mockUser: User = {

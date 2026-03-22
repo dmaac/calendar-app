@@ -12,7 +12,7 @@ import {
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, useThemeColors } from '../../theme';
+import { typography, spacing, radius, useThemeColors } from '../../theme';
 
 // ─── Ring component ─────────────────────────────────────────────────────────
 

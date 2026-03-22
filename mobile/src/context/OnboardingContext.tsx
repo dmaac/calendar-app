@@ -229,7 +229,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         if (savedData) setData(JSON.parse(savedData));
         if (savedStep) setCurrentStepState(parseInt(savedStep, 10));
       } catch (e) {
-        console.warn('OnboardingContext: error loading from storage', e);
+        // silently ignore storage load errors
       } finally {
         setIsLoaded(true);
       }
@@ -239,12 +239,12 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // Persistir cada vez que cambia
   useEffect(() => {
     if (!isLoaded) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data)).catch(console.warn);
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data)).catch(() => {});
   }, [data, isLoaded]);
 
   const setCurrentStep = useCallback((step: number) => {
     setCurrentStepState(step);
-    AsyncStorage.setItem(STEP_KEY, String(step)).catch(console.warn);
+    AsyncStorage.setItem(STEP_KEY, String(step)).catch(() => {});
   }, []);
 
   const update = useCallback(<K extends keyof OnboardingData>(

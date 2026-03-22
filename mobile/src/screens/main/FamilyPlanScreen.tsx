@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, useThemeColors } from '../../theme';
+import { typography, spacing, radius, useThemeColors } from '../../theme';
 
 const BENEFITS = [
   { emoji: '\u{1F465}', text: 'Up to 6 members, one plan' },

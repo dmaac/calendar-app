@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
+import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { Recipe } from '../../data/recipes';
 import * as foodService from '../../services/food.service';
 import { haptics } from '../../hooks/useHaptics';

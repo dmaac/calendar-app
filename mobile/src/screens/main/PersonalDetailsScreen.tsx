@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, useThemeColors } from '../../theme';
+import { typography, spacing, radius, useThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
@@ -155,8 +155,8 @@ export default function PersonalDetailsScreen({ navigation }: any) {
                   </View>
                   <View style={styles.fieldRight}>
                     {field.hasValue && (
-                      <View style={styles.checkCircle}>
-                        <Ionicons name="checkmark" size={14} color={colors.white} />
+                      <View style={[styles.checkCircle, { backgroundColor: c.success }]}>
+                        <Ionicons name="checkmark" size={14} color={c.white} />
                       </View>
                     )}
                     <Ionicons name="chevron-forward" size={16} color={c.disabled} />
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#34A853',
+    backgroundColor: '#34A853', // overridden inline with c.success
     alignItems: 'center',
     justifyContent: 'center',
   },

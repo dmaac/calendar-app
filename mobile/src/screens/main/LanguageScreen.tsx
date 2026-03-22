@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, useThemeColors } from '../../theme';
+import { typography, spacing, radius, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useTranslation } from '../../context/LanguageContext';
 
@@ -83,8 +83,8 @@ export default function LanguageScreen({ navigation }: any) {
                 <Text style={styles.flag}>{lang.flag}</Text>
                 <Text style={[styles.langLabel, { color: c.black }]}>{lang.label}</Text>
                 {isSelected && (
-                  <View style={styles.checkCircle}>
-                    <Ionicons name="checkmark" size={14} color={colors.white} />
+                  <View style={[styles.checkCircle, { backgroundColor: c.success }]}>
+                    <Ionicons name="checkmark" size={14} color={c.white} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#34A853',
+    backgroundColor: '#34A853', // overridden inline with c.success
     alignItems: 'center',
     justifyContent: 'center',
   },
