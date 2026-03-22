@@ -276,8 +276,8 @@ export default function ScanScreen({ navigation }: any) {
       setScansLoading(true);
       setScansError(false);
       foodService.getFoodLogs().then((logs) => {
-        // Contar solo los que tienen imagen (scan IA), no manuales
-        const aiScans = logs.filter((l) => l.image_url);
+        // Count AI scans only (exclude manual entries) — matches server quota logic
+        const aiScans = logs.filter((l) => l.ai_confidence !== null && l.ai_confidence < 1.0);
         setTodayScans(aiScans.length);
       }).catch(() => {
         setScansError(true);
@@ -380,6 +380,16 @@ export default function ScanScreen({ navigation }: any) {
       setResult(null);
       navigation.navigate('Registro');
     }, 1800);
+  };
+
+  const handleEditMacros = () => {
+    if (!result) return;
+    haptics.light();
+    track('edit_macros_from_scan', { food_name: result.food_name });
+    navigation.navigate('Registro', {
+      screen: 'EditFood',
+      params: { logId: result.id, fromScan: true },
+    });
   };
 
   const handleRetry = () => {
@@ -703,7 +713,7 @@ export default function ScanScreen({ navigation }: any) {
               setScansError(false);
               setScansLoading(true);
               foodService.getFoodLogs().then((logs) => {
-                setTodayScans(logs.filter((l) => l.image_url).length);
+                setTodayScans(logs.filter((l) => l.ai_confidence !== null && l.ai_confidence < 1.0).length);
               }).catch(() => setScansError(true))
                 .finally(() => setScansLoading(false));
             }}

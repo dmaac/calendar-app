@@ -2,9 +2,10 @@
 Unit tests for the /auth/* endpoints.
 
 Fixtures come from conftest.py:
-- client: sync FastAPI TestClient backed by an in-memory SQLite DB
-- session: raw SQLModel Session (unused here, but available)
+- client: async HTTPX client backed by an in-memory SQLite DB
 """
+import pytest
+from httpx import AsyncClient
 
 REGISTER_URL = "/auth/register"
 LOGIN_URL = "/auth/login"
@@ -22,23 +23,24 @@ _VALID_USER = {
 }
 
 
-def _register(client, payload=None):
+async def _register(client: AsyncClient, payload=None):
     """Register a user and return the response."""
-    return client.post(REGISTER_URL, json=payload or _VALID_USER)
+    return await client.post(REGISTER_URL, json=payload or _VALID_USER)
 
 
-def _login(client, username, password):
+async def _login(client: AsyncClient, username, password):
     """Login via form data and return the response."""
-    return client.post(LOGIN_URL, data={"username": username, "password": password})
+    return await client.post(LOGIN_URL, data={"username": username, "password": password})
 
 
 # ---------------------------------------------------------------------------
 # 1. Successful registration
 # ---------------------------------------------------------------------------
 
-def test_register_success(client):
+@pytest.mark.asyncio
+async def test_register_success(client: AsyncClient):
     """POST /auth/register with valid data returns 200 and the new user's data."""
-    response = _register(client)
+    response = await _register(client)
 
     assert response.status_code == 200
 
@@ -58,11 +60,12 @@ def test_register_success(client):
 # 2. Duplicate-email registration
 # ---------------------------------------------------------------------------
 
-def test_register_duplicate_email(client):
+@pytest.mark.asyncio
+async def test_register_duplicate_email(client: AsyncClient):
     """Registering the same email twice returns 400 with a descriptive error."""
-    _register(client)  # first registration must succeed
+    await _register(client)  # first registration must succeed
 
-    response = _register(client)  # second attempt with identical email
+    response = await _register(client)  # second attempt with identical email
 
     assert response.status_code == 400
     assert "already registered" in response.json()["detail"].lower()
@@ -72,11 +75,12 @@ def test_register_duplicate_email(client):
 # 3. Successful login
 # ---------------------------------------------------------------------------
 
-def test_login_success(client):
+@pytest.mark.asyncio
+async def test_login_success(client: AsyncClient):
     """POST /auth/login with correct credentials returns a bearer access_token."""
-    _register(client)
+    await _register(client)
 
-    response = _login(client, _VALID_USER["email"], _VALID_USER["password"])
+    response = await _login(client, _VALID_USER["email"], _VALID_USER["password"])
 
     assert response.status_code == 200
 
@@ -91,11 +95,12 @@ def test_login_success(client):
 # 4. Login with wrong password
 # ---------------------------------------------------------------------------
 
-def test_login_wrong_password(client):
+@pytest.mark.asyncio
+async def test_login_wrong_password(client: AsyncClient):
     """POST /auth/login with an incorrect password returns 401."""
-    _register(client)
+    await _register(client)
 
-    response = _login(client, _VALID_USER["email"], "totally_wrong_password")
+    response = await _login(client, _VALID_USER["email"], "totally_wrong_password")
 
     assert response.status_code == 401
     assert "incorrect" in response.json()["detail"].lower()
@@ -105,8 +110,9 @@ def test_login_wrong_password(client):
 # 5. GET /auth/me without a token
 # ---------------------------------------------------------------------------
 
-def test_me_without_token(client):
+@pytest.mark.asyncio
+async def test_me_without_token(client: AsyncClient):
     """GET /auth/me without an Authorization header returns 401."""
-    response = client.get(ME_URL)
+    response = await client.get(ME_URL)
 
     assert response.status_code == 401

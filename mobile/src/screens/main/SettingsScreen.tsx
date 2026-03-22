@@ -598,12 +598,12 @@ export default function SettingsScreen({ navigation }: any) {
         </Card>
 
         {/* SUPPORT */}
-        <SectionHeader title="Soporte" c={c} />
+        <SectionHeader title={t('settings.support')} c={c} />
         <Card c={c}>
           <SettingsRow
             icon="help-circle-outline"
             iconColor="#4285F4"
-            label="Ayuda y FAQ"
+            label={t('settings.helpAndFaq')}
             onPress={() => navigation.navigate('Help')}
             isLast
             c={c}
@@ -671,7 +671,7 @@ export default function SettingsScreen({ navigation }: any) {
           <SettingsRow
             icon="information-circle-outline"
             iconColor="#6366F1"
-            label="Acerca de Fitsi"
+            label={t('settings.aboutApp')}
             onPress={() => navigation.navigate('About')}
             isLast
             c={c}

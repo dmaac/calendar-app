@@ -108,6 +108,9 @@ const en = {
     export: 'Export',
     integrations: 'INTEGRATIONS',
     appleHealth: 'Apple Health',
+    support: 'Support',
+    helpAndFaq: 'Help & FAQ',
+    aboutApp: 'About Fitsi',
   },
   scan: {
     title: 'Scan food',

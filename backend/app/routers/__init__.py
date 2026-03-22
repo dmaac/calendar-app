@@ -17,6 +17,7 @@ from .health_alerts import router as health_alerts_router
 from .smart_notifications import router as smart_notifications_router
 from .coach import router as coach_router
 from .foods_catalog import router as foods_catalog_router
+from .user_data import router as user_data_router
 
 __all__ = [
     "auth_router",
@@ -38,4 +39,5 @@ __all__ = [
     "smart_notifications_router",
     "coach_router",
     "foods_catalog_router",
+    "user_data_router",
 ]

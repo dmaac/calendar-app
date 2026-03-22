@@ -25,7 +25,7 @@ export const scanFood = async (
 
   const res = await api.post('/api/food/scan', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 30000, // AI calls pueden tardar hasta 30s
+    timeout: 60000, // AI calls pueden tardar hasta 60s (backend retries up to 3x)
   });
   return res.data;
 };

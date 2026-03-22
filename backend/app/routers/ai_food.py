@@ -145,6 +145,7 @@ async def scan_food(
                 AIFoodLog.user_id == current_user.id,
                 AIFoodLog.logged_at >= today_start,
                 AIFoodLog.logged_at <= today_end,
+                AIFoodLog.ai_provider != "manual",
             )
         )
         today_scan_count = scan_count_result.scalar() or 0

@@ -108,6 +108,9 @@ const es = {
     export: 'Exportar',
     integrations: 'INTEGRACIONES',
     appleHealth: 'Apple Health',
+    support: 'Soporte',
+    helpAndFaq: 'Ayuda y FAQ',
+    aboutApp: 'Acerca de Fitsi',
   },
   scan: {
     title: 'Escanear comida',

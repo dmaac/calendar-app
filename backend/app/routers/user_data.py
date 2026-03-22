@@ -1,23 +1,19 @@
 """
-Export endpoints
-────────────────
-GET /api/export/pdf          — Weekly nutrition PDF report
-GET /api/export/csv          — CSV export of food logs (with date filters)
-GET /api/export/my-data      — Full JSON export of all user data (GDPR portability)
-GET /api/export/my-data/csv  — CSV export of user's food logs (legacy, no filters)
+GDPR User Data endpoints
+────────────────────────
+GET    /api/user/data  — Download ALL user data as JSON (GDPR right to portability, Art. 20)
+DELETE /api/user/data  — Erase ALL user data (GDPR right to erasure, Art. 17)
 """
 
-import csv
 import io
 import json
 import logging
-from datetime import date, datetime, time as dt_time, timedelta
-from typing import Optional
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from ..core.database import get_session
 from ..models.user import User
@@ -30,11 +26,13 @@ from ..models.activity import Activity
 from ..models.subscription import Subscription
 from ..models.feedback import Feedback
 from ..models.workout import WorkoutLog
+from ..models.push_token import PushToken
+from ..models.user_food_favorite import UserFoodFavorite
 from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/export", tags=["export"])
+router = APIRouter(prefix="/api/user", tags=["user-data"])
 
 
 def _dt(val) -> str | None:
@@ -46,142 +44,20 @@ def _dt(val) -> str | None:
     return str(val)
 
 
-# ─── PDF export ──────────────────────────────────────────────────────────────
+# ─── GET /api/user/data — Full data export (GDPR Art. 20) ───────────────────
 
-@router.get("/pdf")
-async def export_pdf(
-    days: int = Query(default=7, ge=1, le=90, description="Number of days to include in the report"),
+@router.get("/data")
+async def get_user_data(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Generate a weekly nutrition PDF report.
+    Download ALL user data as a JSON file (GDPR right to data portability, Article 20).
 
-    Includes: user profile summary, daily calorie chart data, macro averages,
-    NutriScore trend, and a table of meals logged during the period.
-
-    The `days` parameter controls how many days back the report covers (default 7, max 90).
-    Uses ReportLab for PDF generation with styled tables, macro distribution,
-    and a detailed food log section.
-    """
-    from ..services.export_service import generate_nutrition_report_pdf
-
-    pdf_bytes = await generate_nutrition_report_pdf(
-        user_id=current_user.id,
-        session=session,
-        days=days,
-    )
-
-    filename = f"fitsi_report_{current_user.id}_{date.today().strftime('%Y%m%d')}.pdf"
-
-    logger.info(
-        "PDF export: user_id=%s days=%d size=%d bytes",
-        current_user.id, days, len(pdf_bytes),
-    )
-
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-# ─── CSV export (with date filters) ─────────────────────────────────────────
-
-_CSV_EXPORT_COLUMNS = [
-    "date", "meal_type", "food_name", "calories", "protein", "carbs", "fat", "fiber",
-]
-
-
-@router.get("/csv")
-async def export_csv(
-    start_date: Optional[date] = Query(
-        default=None,
-        description="Start date for the export (inclusive). Defaults to 30 days ago.",
-    ),
-    end_date: Optional[date] = Query(
-        default=None,
-        description="End date for the export (inclusive). Defaults to today.",
-    ),
-    current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    """
-    Export food logs as a CSV file with optional date range filtering.
-
-    Columns: date, meal_type, food_name, calories, protein, carbs, fat, fiber.
-
-    If no dates are provided, defaults to the last 30 days.
-    """
-    user_id = current_user.id
-
-    if end_date is None:
-        end_date = date.today()
-    if start_date is None:
-        start_date = end_date - timedelta(days=30)
-
-    start_dt = datetime.combine(start_date, dt_time.min)
-    end_dt = datetime.combine(end_date, dt_time.max)
-
-    query = (
-        select(AIFoodLog)
-        .where(
-            AIFoodLog.user_id == user_id,
-            AIFoodLog.logged_at >= start_dt,
-            AIFoodLog.logged_at <= end_dt,
-        )
-        .order_by(AIFoodLog.logged_at.asc())
-    )
-    result = await session.execute(query)
-    logs = result.scalars().all()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(_CSV_EXPORT_COLUMNS)
-
-    for log in logs:
-        writer.writerow([
-            log.logged_at.strftime("%Y-%m-%d") if log.logged_at else "",
-            log.meal_type,
-            log.food_name,
-            round(log.calories, 1),
-            round(log.protein_g, 1),
-            round(log.carbs_g, 1),
-            round(log.fats_g, 1),
-            round(log.fiber_g, 1) if log.fiber_g is not None else "",
-        ])
-
-    csv_bytes = output.getvalue().encode("utf-8")
-    filename = (
-        f"fitsi_food_logs_{user_id}"
-        f"_{start_date.strftime('%Y%m%d')}"
-        f"_{end_date.strftime('%Y%m%d')}.csv"
-    )
-
-    logger.info(
-        "CSV export: user_id=%s range=%s..%s rows=%d",
-        user_id, start_date, end_date, len(logs),
-    )
-
-    return StreamingResponse(
-        io.BytesIO(csv_bytes),
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-# ─── Full JSON export ────────────────────────────────────────────────────────
-
-@router.get("/my-data")
-async def export_my_data(
-    current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    """
-    Export all user data as JSON for GDPR data portability (Article 20).
-
-    Includes: profile, onboarding, nutrition targets, food logs, meal logs,
-    daily summaries, activities, workouts, subscriptions, and feedback.
+    Returns a comprehensive JSON document containing every piece of data the
+    system holds about the authenticated user: profile, onboarding answers,
+    nutrition targets, food logs, meal logs, daily summaries, activities,
+    workouts, subscriptions, push tokens, food favorites, and feedback.
     """
     user_id = current_user.id
 
@@ -194,6 +70,7 @@ async def export_my_data(
         "provider": current_user.provider,
         "is_premium": current_user.is_premium,
         "is_active": current_user.is_active,
+        "is_admin": current_user.is_admin,
         "created_at": _dt(current_user.created_at),
         "updated_at": _dt(current_user.updated_at),
     }
@@ -236,20 +113,22 @@ async def export_my_data(
     np_result = await session.execute(
         select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
     )
-    np = np_result.scalar_one_or_none()
+    np_obj = np_result.scalar_one_or_none()
     nutrition_data = None
-    if np:
+    if np_obj:
         nutrition_data = {
-            "height_cm": np.height_cm,
-            "weight_kg": np.weight_kg,
-            "age": np.age,
-            "gender": np.gender.value if np.gender else None,
-            "activity_level": np.activity_level.value if np.activity_level else None,
-            "goal": np.goal.value if np.goal else None,
-            "target_calories": np.target_calories,
-            "target_protein_g": np.target_protein_g,
-            "target_carbs_g": np.target_carbs_g,
-            "target_fat_g": np.target_fat_g,
+            "height_cm": np_obj.height_cm,
+            "weight_kg": np_obj.weight_kg,
+            "age": np_obj.age,
+            "gender": np_obj.gender.value if np_obj.gender else None,
+            "activity_level": np_obj.activity_level.value if np_obj.activity_level else None,
+            "goal": np_obj.goal.value if np_obj.goal else None,
+            "target_calories": np_obj.target_calories,
+            "target_protein_g": np_obj.target_protein_g,
+            "target_carbs_g": np_obj.target_carbs_g,
+            "target_fat_g": np_obj.target_fat_g,
+            "created_at": _dt(np_obj.created_at),
+            "updated_at": _dt(np_obj.updated_at),
         }
 
     # ── AI food logs ──
@@ -274,6 +153,8 @@ async def export_my_data(
             "ai_confidence": log.ai_confidence,
             "was_edited": log.was_edited,
             "image_url": log.image_url,
+            "notes": log.notes,
+            "created_at": _dt(log.created_at),
         }
         for log in fl_result.scalars().all()
     ]
@@ -372,6 +253,33 @@ async def export_my_data(
         for s in sub_result.scalars().all()
     ]
 
+    # ── Push tokens ──
+    pt_result = await session.execute(
+        select(PushToken).where(PushToken.user_id == user_id)
+    )
+    push_tokens = [
+        {
+            "id": t.id,
+            "platform": t.platform,
+            "is_active": t.is_active,
+            "created_at": _dt(t.created_at),
+        }
+        for t in pt_result.scalars().all()
+    ]
+
+    # ── Food favorites ──
+    fav_result = await session.execute(
+        select(UserFoodFavorite).where(UserFoodFavorite.user_id == user_id)
+    )
+    favorites = [
+        {
+            "id": fav.id,
+            "food_id": fav.food_id,
+            "created_at": _dt(fav.created_at),
+        }
+        for fav in fav_result.scalars().all()
+    ]
+
     # ── Feedback ──
     fb_result = await session.execute(
         select(Feedback).where(Feedback.user_id == user_id).order_by(Feedback.created_at.desc())
@@ -392,6 +300,7 @@ async def export_my_data(
     export = {
         "export_version": "1.1",
         "exported_at": datetime.utcnow().isoformat(),
+        "gdpr_article": "Article 20 - Right to data portability",
         "user": profile_data,
         "onboarding_profile": onboarding_data,
         "nutrition_profile": nutrition_data,
@@ -401,14 +310,18 @@ async def export_my_data(
         "activities": activities,
         "workouts": workouts,
         "subscriptions": subscriptions,
+        "push_tokens": push_tokens,
+        "food_favorites": favorites,
         "feedback": feedback_list,
     }
 
-    logger.info("GDPR data export: user_id=%s sections=%d", user_id, len(export) - 2)
+    logger.info(
+        "GDPR data portability export: user_id=%s email=%s sections=%d",
+        user_id, current_user.email, len(export) - 3,
+    )
 
-    # Return as downloadable JSON file
     json_bytes = json.dumps(export, indent=2, ensure_ascii=False).encode("utf-8")
-    filename = f"fitsi_export_{user_id}_{datetime.utcnow().strftime('%Y%m%d')}.json"
+    filename = f"fitsi_all_data_{user_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
 
     return StreamingResponse(
         io.BytesIO(json_bytes),
@@ -417,62 +330,110 @@ async def export_my_data(
     )
 
 
-# ─── Legacy CSV export (food logs, no date filter) ──────────────────────────
+# ─── DELETE /api/user/data — Full data erasure (GDPR Art. 17) ───────────────
 
-_LEGACY_CSV_COLUMNS = [
-    "id", "food_name", "calories", "carbs_g", "protein_g", "fats_g",
-    "fiber_g", "sugar_g", "sodium_mg", "serving_size", "meal_type",
-    "logged_at", "ai_provider", "ai_confidence", "was_edited",
+# Deletion order matters: child tables first, then parent tables, then the user
+# record itself. This avoids foreign key constraint violations.
+_CHILD_TABLES = [
+    (AIFoodLog, "ai_food_log"),
+    (MealLog, "meal_log"),
+    (DailyNutritionSummary, "daily_nutrition_summary"),
+    (Activity, "activity"),
+    (WorkoutLog, "workoutlog"),
+    (Subscription, "subscription"),
+    (PushToken, "push_token"),
+    (UserFoodFavorite, "userfoodfavorite"),
+    (Feedback, "feedback"),
+    (UserNutritionProfile, "nutrition_profile"),
+    (OnboardingProfile, "onboarding_profile"),
 ]
 
 
-@router.get("/my-data/csv")
-async def export_my_data_csv(
+@router.delete("/data", status_code=status.HTTP_200_OK)
+async def delete_user_data(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Export user's food logs as a CSV file (legacy endpoint, no date filtering).
+    Permanently delete ALL data belonging to the authenticated user (GDPR right
+    to erasure, Article 17).
 
-    For date-filtered exports, use GET /api/export/csv instead.
+    This is an irreversible operation. The following data is deleted:
+    - AI food logs (including image references)
+    - Meal logs
+    - Daily nutrition summaries
+    - Activities
+    - Workout logs
+    - Subscriptions
+    - Push notification tokens
+    - Food favorites
+    - Feedback submissions
+    - Nutrition profile
+    - Onboarding profile
+    - The user account itself
+
+    After this call, the authentication token is invalidated and the user must
+    re-register to use the service again.
+
+    Returns a confirmation summary with counts of deleted records per table.
     """
     user_id = current_user.id
+    user_email = current_user.email
 
-    result = await session.execute(
-        select(AIFoodLog).where(AIFoodLog.user_id == user_id).order_by(AIFoodLog.logged_at.desc())
+    logger.warning(
+        "GDPR data erasure initiated: user_id=%s email=%s",
+        user_id, user_email,
     )
-    logs = result.scalars().all()
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(_LEGACY_CSV_COLUMNS)
+    deleted_counts = {}
 
-    for log in logs:
-        writer.writerow([
-            log.id,
-            log.food_name,
-            log.calories,
-            log.carbs_g,
-            log.protein_g,
-            log.fats_g,
-            log.fiber_g,
-            log.sugar_g,
-            log.sodium_mg,
-            log.serving_size,
-            log.meal_type,
-            _dt(log.logged_at),
-            log.ai_provider,
-            log.ai_confidence,
-            log.was_edited,
-        ])
+    # Delete all child records first (foreign key order)
+    for model, label in _CHILD_TABLES:
+        stmt = delete(model).where(model.user_id == user_id)
+        result = await session.execute(stmt)
+        count = result.rowcount
+        deleted_counts[label] = count
+        if count > 0:
+            logger.info("GDPR erasure: deleted %d rows from %s for user_id=%s", count, label, user_id)
 
-    csv_bytes = output.getvalue().encode("utf-8")
-    filename = f"fitsi_food_logs_{user_id}_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    # Delete the user record itself
+    user_to_delete = await session.get(User, user_id)
+    if user_to_delete:
+        await session.delete(user_to_delete)
+        deleted_counts["user"] = 1
+    else:
+        deleted_counts["user"] = 0
 
-    logger.info("CSV food log export: user_id=%s rows=%d", user_id, len(logs))
+    await session.commit()
 
-    return StreamingResponse(
-        io.BytesIO(csv_bytes),
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    # Best-effort: blacklist the current access token so it cannot be reused
+    try:
+        from jose import jwt
+        from ..core.config import settings
+        from ..core.token_store import blacklist_access_token
+        # We don't have the raw token here, but we can attempt to invalidate
+        # via the token store if there's a mechanism for it. The user record
+        # is already deleted, so any future token validation will fail anyway
+        # because get_current_user queries the DB for the user.
+        logger.info("GDPR erasure: user record deleted, token will fail on next use")
+    except Exception:
+        pass
+
+    total_deleted = sum(deleted_counts.values())
+
+    logger.warning(
+        "GDPR data erasure completed: user_id=%s email=%s total_records=%d",
+        user_id, user_email, total_deleted,
     )
+
+    return {
+        "status": "deleted",
+        "message": (
+            "All your data has been permanently deleted in compliance with "
+            "GDPR Article 17 (Right to Erasure). This action is irreversible."
+        ),
+        "user_id": user_id,
+        "deleted_at": datetime.utcnow().isoformat(),
+        "deleted_counts": deleted_counts,
+        "total_records_deleted": total_deleted,
+    }

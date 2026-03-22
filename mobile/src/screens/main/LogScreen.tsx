@@ -32,6 +32,7 @@ import BottomSheet from '../../components/BottomSheet';
 import QuickLog from '../../components/QuickLog';
 import { showNotification } from '../../components/InAppNotification';
 import SwipeableMealItem from '../../components/SwipeableMealItem';
+import FoodComparison from '../../components/FoodComparison';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
 

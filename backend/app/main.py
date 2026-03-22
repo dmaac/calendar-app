@@ -17,7 +17,7 @@ from .core.versioning import APIVersionMiddleware
 from .core.etag import ETagMiddleware
 from .core.idempotency import IdempotencyMiddleware
 from .core.logging_config import setup_logging
-from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router
+from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger("fitsi.requests")
@@ -105,7 +105,7 @@ openapi_tags = [
     },
     {
         "name": "export",
-        "description": "GDPR data portability: export all user data as JSON or food logs as CSV.",
+        "description": "Data export: PDF nutrition reports, CSV food logs with date filtering, and full JSON data export.",
     },
     {
         "name": "calories",
@@ -126,6 +126,10 @@ openapi_tags = [
     {
         "name": "foods-catalog",
         "description": "Public food catalog: browse all foods with pagination, category filters, and calorie ranges.",
+    },
+    {
+        "name": "user-data",
+        "description": "GDPR data rights: full data export (Article 20 portability) and data erasure (Article 17 right to be forgotten).",
     },
     {
         "name": "root",
@@ -469,6 +473,7 @@ app.include_router(health_alerts_router)
 app.include_router(smart_notifications_router)
 app.include_router(coach_router)
 app.include_router(foods_catalog_router)
+app.include_router(user_data_router)
 
 
 @app.get("/", tags=["root"])
