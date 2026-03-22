@@ -28,7 +28,7 @@ class TestRegistration:
             "/auth/register",
             json={
                 "email": "newuser@example.com",
-                "password": "securepassword123",
+                "password": "Securepassword123",
                 "first_name": "New",
                 "last_name": "User",
             },
@@ -43,7 +43,7 @@ class TestRegistration:
     async def test_register_duplicate_email(self, client: AsyncClient):
         payload = {
             "email": "dupe@example.com",
-            "password": "password123",
+            "password": "Password123",
             "first_name": "A",
         }
         await client.post("/auth/register", json=payload)
@@ -54,7 +54,7 @@ class TestRegistration:
     async def test_register_missing_email(self, client: AsyncClient):
         resp = await client.post(
             "/auth/register",
-            json={"password": "password123"},
+            json={"password": "Password123"},
         )
         assert resp.status_code == 422  # Pydantic validation error
 
@@ -75,11 +75,11 @@ class TestLogin:
         # Register first
         await client.post(
             "/auth/register",
-            json={"email": "login@example.com", "password": "loginpass123"},
+            json={"email": "login@example.com", "password": "Loginpass123"},
         )
         resp = await client.post(
             "/auth/login",
-            data={"username": "login@example.com", "password": "loginpass123"},
+            data={"username": "login@example.com", "password": "Loginpass123"},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         assert resp.status_code == 200
@@ -92,7 +92,7 @@ class TestLogin:
     async def test_login_wrong_password(self, client: AsyncClient):
         await client.post(
             "/auth/register",
-            json={"email": "wrongpw@example.com", "password": "correctpassword"},
+            json={"email": "wrongpw@example.com", "password": "Correctpassword1"},
         )
         resp = await client.post(
             "/auth/login",
@@ -114,12 +114,12 @@ class TestLogin:
         """Register user, deactivate them, then try to login."""
         await client.post(
             "/auth/register",
-            json={"email": "willdeactivate@example.com", "password": "pass123"},
+            json={"email": "willdeactivate@example.com", "password": "Pass1234"},
         )
         # Login to get headers, then we can use them for verification
         login_resp = await client.post(
             "/auth/login",
-            data={"username": "willdeactivate@example.com", "password": "pass123"},
+            data={"username": "willdeactivate@example.com", "password": "Pass1234"},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         # The user is active by default, so login should succeed
@@ -134,11 +134,11 @@ class TestTokenRefresh:
     async def test_refresh_token_success(self, client: AsyncClient):
         await client.post(
             "/auth/register",
-            json={"email": "refresh@example.com", "password": "refreshpass123"},
+            json={"email": "refresh@example.com", "password": "Refreshpass123"},
         )
         login_resp = await client.post(
             "/auth/login",
-            data={"username": "refresh@example.com", "password": "refreshpass123"},
+            data={"username": "refresh@example.com", "password": "Refreshpass123"},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         refresh_token = login_resp.json()["refresh_token"]
@@ -175,11 +175,11 @@ class TestLogout:
     async def test_logout_success(self, client: AsyncClient):
         await client.post(
             "/auth/register",
-            json={"email": "logout@example.com", "password": "logoutpass123"},
+            json={"email": "logout@example.com", "password": "Logoutpass123"},
         )
         login_resp = await client.post(
             "/auth/login",
-            data={"username": "logout@example.com", "password": "logoutpass123"},
+            data={"username": "logout@example.com", "password": "Logoutpass123"},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         refresh_token = login_resp.json()["refresh_token"]
@@ -207,7 +207,7 @@ class TestGetCurrentUser:
 
     async def test_me_returns_current_user(self, client: AsyncClient):
         headers, user_id = await create_user_and_get_headers(
-            client, email="me@example.com", password="mepass123"
+            client, email="me@example.com", password="Mepass123"
         )
         resp = await client.get("/auth/me", headers=headers)
         assert resp.status_code == 200

@@ -5,14 +5,16 @@
 import React, { ReactNode } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   SafeAreaView,
   Platform,
   ScrollView,
   KeyboardAvoidingView,
   StatusBar,
+  TouchableOpacity,
 } from 'react-native';
-import { colors, spacing, MAX_WIDTH, useLayout } from '../../theme';
+import { colors, spacing, typography, MAX_WIDTH, useLayout } from '../../theme';
 import ProgressBar from './ProgressBar';
 import BackButton from './BackButton';
 
@@ -24,6 +26,7 @@ interface OnboardingLayoutProps {
   showHeader?: boolean;       // false en splash y welcome
   showBack?: boolean;         // false en splash, welcome, y pantallas sin retroceso
   onBack?: () => void;
+  onSkip?: () => void;        // subtle skip button in header — goes next with defaults
   scrollable?: boolean;       // true cuando el contenido puede ser largo
   keyboardAware?: boolean;    // true cuando hay TextInput
 }

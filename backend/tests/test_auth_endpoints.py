@@ -18,7 +18,7 @@ _VALID_USER = {
     "email": "newuser@example.com",
     "first_name": "New",
     "last_name": "User",
-    "password": "securepassword123",
+    "password": "Securepassword123",
 }
 
 

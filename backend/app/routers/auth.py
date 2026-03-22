@@ -17,15 +17,17 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # ─── Rate limiting (applied per-endpoint below) ─────────────────────────────
+import os as _os
+_is_testing = _os.getenv("ENV", "").lower() in ("test", "testing", "development")
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address
     _limiter = Limiter(key_func=get_remote_address)
-    _rate_limit_enabled = True
+    _rate_limit_enabled = not _is_testing
 except ImportError:
     _rate_limit_enabled = False
 
-# Helper decorator: no-op when slowapi is not installed
+# Helper decorator: no-op when slowapi is not installed or in test/dev mode
 _rl = lambda limit_str: (_limiter.limit(limit_str) if _rate_limit_enabled else lambda f: f)
 
 

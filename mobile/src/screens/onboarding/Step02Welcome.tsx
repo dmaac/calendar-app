@@ -9,16 +9,17 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing, MAX_WIDTH, useLayout } from '../../theme';
+import { colors, typography, spacing, radius, MAX_WIDTH, useLayout } from '../../theme';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
 import FitsiMascot from '../../components/FitsiMascot';
 
 interface Step02Props extends StepProps {
   onSkipToLogin: () => void;
+  onFastTrack?: () => void;
 }
 
-export default function Step02Welcome({ onNext, onSkipToLogin }: Step02Props) {
+export default function Step02Welcome({ onNext, onSkipToLogin, onFastTrack }: Step02Props) {
   const { contentWidth } = useLayout();
   const slideAnim = useRef(new Animated.Value(30)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -59,6 +60,19 @@ export default function Step02Welcome({ onNext, onSkipToLogin }: Step02Props) {
         {/* CTAs */}
         <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
           <PrimaryButton label="Comenzar" onPress={onNext} />
+          {onFastTrack && (
+            <TouchableOpacity
+              onPress={onFastTrack}
+              style={styles.fastTrackBtn}
+              activeOpacity={0.7}
+              accessibilityLabel="Configuracion rapida en 8 pasos"
+              accessibilityRole="button"
+            >
+              <Ionicons name="flash-outline" size={16} color={colors.accent} />
+              <Text style={styles.fastTrackText}>Configuracion rapida</Text>
+              <Text style={styles.fastTrackBadge}>2 min</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={onSkipToLogin}
             style={styles.signInBtn}
@@ -163,6 +177,32 @@ const styles = StyleSheet.create({
   actions: {
     gap: spacing.sm,
     paddingBottom: spacing.lg,
+  },
+  fastTrackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs + 2,
+    paddingVertical: spacing.sm + 4,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    backgroundColor: colors.badgeBg,
+  },
+  fastTrackText: {
+    ...typography.label,
+    color: colors.accent,
+  },
+  fastTrackBadge: {
+    ...typography.caption,
+    color: colors.accent,
+    backgroundColor: 'rgba(66,133,244,0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    overflow: 'hidden',
+    fontWeight: '700',
+    fontSize: 10,
   },
   signInBtn: {
     alignItems: 'center',

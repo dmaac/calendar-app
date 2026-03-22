@@ -84,6 +84,8 @@ export interface NutritionPlan {
   warning?: string;
 }
 
+export type OnboardingMode = 'full' | 'fast';
+
 interface OnboardingContextType {
   data: OnboardingData;
   update: <K extends keyof OnboardingData>(key: K, value: OnboardingData[K]) => void;
@@ -92,6 +94,8 @@ interface OnboardingContextType {
   currentStep: number;
   setCurrentStep: (step: number) => void;
   isLoaded: boolean;
+  onboardingMode: OnboardingMode;
+  setOnboardingMode: (mode: OnboardingMode) => void;
 }
 
 // ─── Default values ──────────────────────────────────────────────────────────
@@ -118,6 +122,7 @@ const DEFAULT_DATA: OnboardingData = {
 
 const STORAGE_KEY = 'onboarding_data_v2';
 const STEP_KEY = 'onboarding_current_step';
+const MODE_KEY = 'onboarding_mode';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -217,17 +222,20 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<OnboardingData>(DEFAULT_DATA);
   const [currentStep, setCurrentStepState] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [onboardingMode, setOnboardingModeState] = useState<OnboardingMode>('full');
 
   // Cargar desde AsyncStorage al iniciar
   useEffect(() => {
     (async () => {
       try {
-        const [savedData, savedStep] = await Promise.all([
+        const [savedData, savedStep, savedMode] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(STEP_KEY),
+          AsyncStorage.getItem(MODE_KEY),
         ]);
         if (savedData) setData(JSON.parse(savedData));
         if (savedStep) setCurrentStepState(parseInt(savedStep, 10));
+        if (savedMode === 'fast' || savedMode === 'full') setOnboardingModeState(savedMode);
       } catch (e) {
         // silently ignore storage load errors
       } finally {
@@ -245,6 +253,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const setCurrentStep = useCallback((step: number) => {
     setCurrentStepState(step);
     AsyncStorage.setItem(STEP_KEY, String(step)).catch(() => {});
+  }, []);
+
+  const setOnboardingMode = useCallback((mode: OnboardingMode) => {
+    setOnboardingModeState(mode);
+    AsyncStorage.setItem(MODE_KEY, mode).catch(() => {});
   }, []);
 
   const update = useCallback(<K extends keyof OnboardingData>(
@@ -273,6 +286,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       currentStep,
       setCurrentStep,
       isLoaded,
+      onboardingMode,
+      setOnboardingMode,
     }}>
       {children}
     </OnboardingContext.Provider>

@@ -1,7 +1,11 @@
 /**
- * OnboardingNavigator — orquesta los 30 módulos del onboarding
+ * OnboardingNavigator — orquesta los 30 modulos del onboarding
  * Cada paso es un componente independiente.
  * El estado vive en OnboardingContext.
+ *
+ * Soporta dos modos:
+ * - 'full': los 30 pasos originales
+ * - 'fast': 8 pasos esenciales para reducir abandono del funnel
  */
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
@@ -40,6 +44,7 @@ import Step27PlanReady      from './Step27PlanReady';
 import Step28Paywall        from './Step28Paywall';
 import Step29SpinWheel      from './Step29SpinWheel';
 import Step30PaywallDiscount from './Step30PaywallDiscount';
+import FastTrackPlanBuilding from './FastTrackPlanBuilding';
 
 interface OnboardingNavigatorProps {
   onComplete: () => void;
@@ -47,9 +52,42 @@ interface OnboardingNavigatorProps {
 
 export const TOTAL_STEPS = 30;
 
+/**
+ * Fast Track: 8 essential steps that collect the minimum data needed
+ * to compute a nutrition plan and get the user started immediately.
+ *
+ * Route: Splash -> Welcome -> Gender -> Goal -> HeightWeight ->
+ *        Workouts (activity) -> Diet -> Notifications -> PlanBuilding -> Complete
+ */
+export const FAST_TRACK_STEPS = [
+  1,   // Step01Splash (auto-advance)
+  2,   // Step02Welcome (with fast-track CTA)
+  3,   // Step03Gender (gender for BMR calc)
+  10,  // Step10Goal (lose/maintain/gain)
+  8,   // Step08HeightWeight (weight + height)
+  4,   // Step04Workouts (activity level)
+  16,  // Step16Diet (dietary restrictions)
+  23,  // Step23Notifications (permissions)
+] as const;
+
+export const FAST_TRACK_TOTAL = FAST_TRACK_STEPS.length;
+
+/** Maps a fast-track position (1-based) to the original step number */
+function getFastTrackOriginalStep(fastPos: number): number {
+  if (fastPos < 1 || fastPos > FAST_TRACK_STEPS.length) return 1;
+  return FAST_TRACK_STEPS[fastPos - 1];
+}
+
+/** Maps an original step number to its fast-track position (1-based), or -1 if not in fast track */
+function getFastTrackPosition(originalStep: number): number {
+  const idx = FAST_TRACK_STEPS.indexOf(originalStep as typeof FAST_TRACK_STEPS[number]);
+  return idx === -1 ? -1 : idx + 1;
+}
+
 export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
-  const { currentStep, setCurrentStep } = useOnboarding();
+  const { currentStep, setCurrentStep, onboardingMode, setOnboardingMode, computePlan } = useOnboarding();
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
+  const isFastTrack = onboardingMode === 'fast';
 
   // Smooth fade + slide transition between onboarding steps
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -83,33 +121,63 @@ export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorP
     }
   }, [currentStep]);
 
-  const goNext = useCallback(() => {
-    haptics.light();
-    if (currentStep >= TOTAL_STEPS) {
-      handleComplete();
-    } else {
-      // Snappy exit — quick fade + slide out to the left
+  // Total steps for the current mode
+  const totalForMode = isFastTrack ? FAST_TRACK_TOTAL : TOTAL_STEPS;
+
+  // Current position within the active route (1-based)
+  const currentPosition = isFastTrack
+    ? getFastTrackPosition(currentStep)
+    : currentStep;
+
+  const animateTransition = useCallback(
+    (exitOffset: number, callback: () => void) => {
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: -40, duration: 120, useNativeDriver: true }),
-      ]).start(() => {
-        setCurrentStep(currentStep + 1);
-      });
+        Animated.timing(slideAnim, { toValue: exitOffset, duration: 120, useNativeDriver: true }),
+      ]).start(callback);
+    },
+    [],
+  );
+
+  const goNext = useCallback(() => {
+    haptics.light();
+
+    if (isFastTrack) {
+      const pos = getFastTrackPosition(currentStep);
+      if (pos >= FAST_TRACK_TOTAL) {
+        // After last fast-track step, show plan building then complete
+        animateTransition(-40, () => {
+          // Jump to a virtual step 99 to render FastTrackPlanBuilding
+          setCurrentStep(99);
+        });
+      } else {
+        const nextOriginal = getFastTrackOriginalStep(pos + 1);
+        animateTransition(-40, () => setCurrentStep(nextOriginal));
+      }
+    } else {
+      if (currentStep >= TOTAL_STEPS) {
+        handleComplete();
+      } else {
+        animateTransition(-40, () => setCurrentStep(currentStep + 1));
+      }
     }
-  }, [currentStep]);
+  }, [currentStep, isFastTrack]);
 
   const goBack = useCallback(() => {
     haptics.light();
-    if (currentStep > 1) {
-      // Snappy exit — quick fade + slide out to the right
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 40, duration: 120, useNativeDriver: true }),
-      ]).start(() => {
-        setCurrentStep(currentStep - 1);
-      });
+
+    if (isFastTrack) {
+      const pos = getFastTrackPosition(currentStep);
+      if (pos > 1) {
+        const prevOriginal = getFastTrackOriginalStep(pos - 1);
+        animateTransition(40, () => setCurrentStep(prevOriginal));
+      }
+    } else {
+      if (currentStep > 1) {
+        animateTransition(40, () => setCurrentStep(currentStep - 1));
+      }
     }
-  }, [currentStep]);
+  }, [currentStep, isFastTrack]);
 
   const handleComplete = async () => {
     haptics.success();
@@ -117,12 +185,46 @@ export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorP
     onComplete();
   };
 
+  // Called from Step02Welcome when user chooses "Configuracion rapida"
+  const handleStartFastTrack = useCallback(() => {
+    haptics.light();
+    setOnboardingMode('fast');
+    // Jump to the first data-collection step in fast track (Step03Gender)
+    animateTransition(-40, () => setCurrentStep(FAST_TRACK_STEPS[2]));
+  }, []);
+
+  // Called from full-onboarding steps to skip with defaults
+  const handleSkipStep = useCallback(() => {
+    haptics.light();
+    // Just advance, the default values from OnboardingContext will be used
+    goNext();
+  }, [goNext]);
+
   const renderStep = () => {
-    const props = { onNext: goNext, onBack: goBack, step: currentStep, totalSteps: TOTAL_STEPS };
+    // Virtual step 99: FastTrack plan building (compute + auto-complete)
+    if (currentStep === 99) {
+      return (
+        <FastTrackPlanBuilding
+          onNext={handleComplete}
+          onBack={goBack}
+          step={FAST_TRACK_TOTAL}
+          totalSteps={FAST_TRACK_TOTAL}
+        />
+      );
+    }
+
+    const stepPosition = isFastTrack ? currentPosition : currentStep;
+    const props = {
+      onNext: goNext,
+      onBack: goBack,
+      step: stepPosition,
+      totalSteps: totalForMode,
+      onSkip: handleSkipStep,
+    };
 
     switch (currentStep) {
       case 1:  return <Step01Splash {...props} />;
-      case 2:  return <Step02Welcome {...props} onSkipToLogin={handleComplete} />;
+      case 2:  return <Step02Welcome {...props} onSkipToLogin={handleComplete} onFastTrack={handleStartFastTrack} />;
       case 3:  return <Step03Gender {...props} />;
       case 4:  return <Step04Workouts {...props} />;
       case 5:  return <Step05Source {...props} />;
@@ -185,4 +287,5 @@ export interface StepProps {
   onBack: () => void;
   step: number;
   totalSteps: number;
+  onSkip?: () => void;
 }

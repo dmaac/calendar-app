@@ -2,6 +2,8 @@
  * RecipesScreen — Browse recipes with filters by meal type and diet
  * Horizontal filter chips, search bar, recipe cards with macros.
  * Sprint 5: "Recomendadas para ti" section based on remaining daily macros.
+ * Sprint 6: Recommendations moved to top of screen (before search/filters),
+ *           horizontal FlatList, limited to 3 smart picks.
  */
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
@@ -107,7 +109,7 @@ function getBadgeText(reason: string, nextMeal: MealType): string {
 function getSmartRecommendations(
   gap: MacroGap,
   dietPreference: DietType | null,
-  maxResults = 5,
+  maxResults = 3,
 ): RecommendedRecipe[] {
   const nextMeal = getNextMealType();
 
@@ -292,6 +294,8 @@ const recipeKeyExtractor = (item: Recipe) => item.id;
 
 // ─── Recommended Section (horizontal scroll) ───────────────────────────────
 
+const recKeyExtractor = (item: RecommendedRecipe) => item.recipe.id;
+
 function RecommendedSection({
   recommendations,
   onPress,
@@ -301,6 +305,36 @@ function RecommendedSection({
   onPress: (recipe: Recipe) => void;
   c: ReturnType<typeof useThemeColors>;
 }) {
+  // useCallback must be declared before any early return (React hooks rules)
+  const renderRecommendedItem = useCallback(({ item }: { item: RecommendedRecipe }) => (
+    <TouchableOpacity
+      style={[recStyles.card, { backgroundColor: c.surface, borderColor: c.border }]}
+      onPress={() => {
+        haptics.light();
+        onPress(item.recipe);
+      }}
+      activeOpacity={0.7}
+      accessibilityLabel={`Recomendada: ${item.recipe.name}`}
+    >
+      <View style={[recStyles.badgeRow, { backgroundColor: c.accent + '15' }]}>
+        <Ionicons name="sparkles" size={10} color={c.accent} />
+        <Text style={[recStyles.badgeText, { color: c.accent }]}>{item.badge}</Text>
+      </View>
+      <Text style={recStyles.emoji}>{item.recipe.image}</Text>
+      <Text style={[recStyles.name, { color: c.black }]} numberOfLines={2}>
+        {item.recipe.name}
+      </Text>
+      <View style={recStyles.macroRow}>
+        <Text style={[recStyles.kcal, { color: c.accent }]}>{item.recipe.calories} kcal</Text>
+      </View>
+      <View style={recStyles.macroRow}>
+        <Text style={[recStyles.macro, { color: c.protein }]}>P {item.recipe.protein}g</Text>
+        <Text style={[recStyles.macro, { color: c.carbs }]}>C {item.recipe.carbs}g</Text>
+        <Text style={[recStyles.macro, { color: c.fats }]}>G {item.recipe.fat}g</Text>
+      </View>
+    </TouchableOpacity>
+  ), [c, onPress]);
+
   if (recommendations.length === 0) return null;
 
   return (
@@ -312,41 +346,14 @@ function RecommendedSection({
         </View>
         <Text style={[recStyles.subtitle, { color: c.gray }]}>Basado en tu dia</Text>
       </View>
-      <ScrollView
+      <FlatList
+        data={recommendations}
+        keyExtractor={recKeyExtractor}
+        renderItem={renderRecommendedItem}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={recStyles.scroll}
-      >
-        {recommendations.map((rec) => (
-          <TouchableOpacity
-            key={rec.recipe.id}
-            style={[recStyles.card, { backgroundColor: c.surface, borderColor: c.border }]}
-            onPress={() => {
-              haptics.light();
-              onPress(rec.recipe);
-            }}
-            activeOpacity={0.7}
-            accessibilityLabel={`Recomendada: ${rec.recipe.name}`}
-          >
-            <View style={[recStyles.badgeRow, { backgroundColor: c.accent + '15' }]}>
-              <Ionicons name="sparkles" size={10} color={c.accent} />
-              <Text style={[recStyles.badgeText, { color: c.accent }]}>{rec.badge}</Text>
-            </View>
-            <Text style={recStyles.emoji}>{rec.recipe.image}</Text>
-            <Text style={[recStyles.name, { color: c.black }]} numberOfLines={2}>
-              {rec.recipe.name}
-            </Text>
-            <View style={recStyles.macroRow}>
-              <Text style={[recStyles.kcal, { color: c.accent }]}>{rec.recipe.calories} kcal</Text>
-            </View>
-            <View style={recStyles.macroRow}>
-              <Text style={[recStyles.macro, { color: c.protein }]}>P {rec.recipe.protein}g</Text>
-              <Text style={[recStyles.macro, { color: c.carbs }]}>C {rec.recipe.carbs}g</Text>
-              <Text style={[recStyles.macro, { color: c.fats }]}>G {rec.recipe.fat}g</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -473,29 +480,27 @@ export default function RecipesScreen({ navigation }: any) {
     <RecipeCard recipe={item} onPress={() => handleRecipePress(item)} c={c} />
   ), [handleRecipePress, c]);
 
-  const ListHeader = useMemo(() => (
-    <>
-      {/* Smart Recommendations */}
-      {loadingRecs ? (
-        <View style={styles.recsLoading}>
-          <ActivityIndicator size="small" color={c.accent} />
-        </View>
-      ) : (
-        <RecommendedSection
-          recommendations={recommendations}
-          onPress={handleRecipePress}
-          c={c}
-        />
-      )}
-    </>
-  ), [loadingRecs, recommendations, handleRecipePress, c]);
-
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
         <Text style={[styles.headerTitle, { color: c.black }]}>Recetas</Text>
         <Text style={[styles.headerSub, { color: c.gray }]}>{filtered.length} recetas disponibles</Text>
+      </View>
+
+      {/* Smart Recommendations — top of screen, before search/filters */}
+      <View style={{ paddingHorizontal: sidePadding }}>
+        {loadingRecs ? (
+          <View style={styles.recsLoading}>
+            <ActivityIndicator size="small" color={c.accent} />
+          </View>
+        ) : (
+          <RecommendedSection
+            recommendations={recommendations}
+            onPress={handleRecipePress}
+            c={c}
+          />
+        )}
       </View>
 
       {/* Search */}
@@ -576,12 +581,11 @@ export default function RecipesScreen({ navigation }: any) {
         })}
       </ScrollView>
 
-      {/* Recipe list with recommendations header */}
+      {/* Recipe list */}
       <FlatList
         data={filtered}
         keyExtractor={recipeKeyExtractor}
         renderItem={renderRecipeItem}
-        ListHeaderComponent={ListHeader}
         contentContainerStyle={{ paddingHorizontal: sidePadding, paddingBottom: spacing.xl }}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
