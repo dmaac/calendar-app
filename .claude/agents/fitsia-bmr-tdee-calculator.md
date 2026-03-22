@@ -3,7 +3,6 @@ name: fitsia-bmr-tdee-calculator
 description: BMR/TDEE calculation algorithms specialist - Mifflin-St Jeor, Harris-Benedict, Katch-McArdle, adaptive TDEE
 team: fitsia-science
 role: Metabolic Calculator
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent", "WebSearch", "WebFetch"]
 ---
 
 # Fitsia BMR/TDEE Calculator
@@ -76,7 +75,3 @@ Compare actual_tdee vs calculated_tdee and adjust recommendations.
 - Reports to: nutrition-science-advisor
 - Collaborates with: fitsia-macro-optimizer, fitsia-body-composition-analyst
 - Provides input to: python-backend-engineer, onboarding-builder
-
-## Context
-- Project: Fitsi IA (calorie tracking app with AI food recognition)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

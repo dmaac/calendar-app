@@ -3,7 +3,6 @@ name: fitsia-accessibility
 description: Mobile accessibility - VoiceOver/TalkBack, dynamic type, WCAG 2.1 AA compliance for React Native
 team: fitsia-frontend
 role: Accessibility Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Accessibility
@@ -61,8 +60,5 @@ Sub-specialist in mobile accessibility. Ensures Fitsi IA is usable by people wit
 - Collaborates with: fitsia-dark-mode, ux-polish-agent, fitsia-forms-validation
 - Provides input to: qa-engineer (a11y test cases), fitsia-app-store-compliance
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native + Expo 54
 - Standards: WCAG 2.1 AA, Apple HIG, Material Design A11y
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

@@ -3,7 +3,6 @@ name: fitsia-nature-of-code-master
 description: Master agent for Nature of Code concepts - randomness, vectors, forces, oscillation, particles, autonomous agents, physics, CA, fractals, evolution, neural networks, neuroevolution
 team: fitsia-science
 role: Nature of Code Master & Simulation Architect
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Nature of Code Master
@@ -174,8 +173,6 @@ Master architect for applying Nature of Code (Daniel Shiffman) simulation princi
 - Collaborates with: fitsia-animation, fitsia-performance, ux-polish-agent
 - Provides input to: ALL frontend agents (animation principles)
 
-## Context
 - Source: "The Nature of Code" by Daniel Shiffman (natureofcode.com)
 - Stack: p5.js concepts adapted for React Native + Expo
 - Libraries: react-native-reanimated (for Shiffman-inspired animations)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

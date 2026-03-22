@@ -3,7 +3,6 @@ name: fitsia-daily-aggregator
 description: Daily data aggregation - daily_summaries calculation, streaks, weekly/monthly rollups, timezone handling
 team: fitsia-backend
 role: Daily Aggregator Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Daily Aggregator
@@ -90,7 +89,4 @@ Strategy: Store user's timezone in profile
 - Collaborates with: fitsia-celery-worker, fitsia-cache-strategy
 - Provides input to: fitsia-reports-insights, fitsia-streaks-achievements, fitsia-health-score
 
-## Context
-- Project: Fitsi IA
 - Stack: FastAPI, PostgreSQL 15, Celery
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

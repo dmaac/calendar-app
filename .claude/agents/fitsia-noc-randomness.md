@@ -3,7 +3,6 @@ name: fitsia-noc-randomness
 description: Nature of Code Ch0 - random walks, Perlin noise, Gaussian distributions, custom probability, organic randomness
 team: fitsia-science
 role: Randomness & Noise Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia NoC Randomness & Noise
@@ -86,6 +85,4 @@ while (true) {
 - Collaborates with: fitsia-animation, fitsia-ml-personalization
 - Provides input to: fitsia-noc-agents (noise for wander behavior)
 
-## Context
 - Source: Nature of Code, Chapter 0
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

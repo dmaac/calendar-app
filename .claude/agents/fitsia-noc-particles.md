@@ -3,7 +3,6 @@ name: fitsia-noc-particles
 description: Nature of Code Ch4 - particle systems, emitters, lifespan, inheritance, polymorphism, forces on particles, textures
 team: fitsia-science
 role: Particle Systems Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia NoC Particle Systems
@@ -123,6 +122,4 @@ class ConfettiEmitter {
 - Collaborates with: fitsia-animation, fitsia-streaks-achievements, ux-polish-agent
 - Provides input to: fitsia-performance (particle budgets)
 
-## Context
 - Source: Nature of Code, Chapter 4
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

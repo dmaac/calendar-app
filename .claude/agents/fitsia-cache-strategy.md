@@ -3,7 +3,6 @@ name: fitsia-cache-strategy
 description: Caching patterns - Redis cache, ai_scan_cache optimization, HTTP headers, cache invalidation, hot/cold data
 team: fitsia-backend
 role: Cache Strategy Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Cache Strategy
@@ -76,7 +75,4 @@ Savings: $10,800/mo
 - Collaborates with: fitsia-food-scan-api, fitsia-daily-aggregator, scalability-architect
 - Provides input to: fitsia-monitoring-observability (cache metrics)
 
-## Context
-- Project: Fitsi IA
 - Stack: Redis 7, FastAPI, PostgreSQL 15, Cloudflare CDN
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

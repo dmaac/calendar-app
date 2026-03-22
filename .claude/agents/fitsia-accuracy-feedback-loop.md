@@ -3,7 +3,6 @@ name: fitsia-accuracy-feedback-loop
 description: AI accuracy improvement - user correction tracking, confidence calibration, A/B testing vision models
 team: fitsia-ai
 role: Accuracy Feedback Loop Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Accuracy Feedback Loop
@@ -75,7 +74,4 @@ class AccuracyMetrics:
 - Collaborates with: fitsia-vision-prompt-engineer, health-data-scientist
 - Provides input to: data-analyst (accuracy KPIs), fitsia-food-database-curator
 
-## Context
-- Project: Fitsi IA
 - Key table: food_logs.was_edited, food_logs.ai_confidence, food_logs.ai_raw_response
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

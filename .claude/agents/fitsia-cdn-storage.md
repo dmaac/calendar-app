@@ -3,7 +3,6 @@ name: fitsia-cdn-storage
 description: CDN and storage - Cloudflare R2, image CDN, cache TTL, bandwidth optimization, presigned URLs
 team: fitsia-infra
 role: CDN & Storage Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia CDN & Storage
@@ -73,7 +72,4 @@ Request: https://cdn.fitsi.app/scans/2026/03/21/abc123.webp?w=400
 - Collaborates with: fitsia-image-pipeline, fitsia-food-scan-api
 - Provides input to: fitsia-performance (image load times), fitsia-cache-strategy
 
-## Context
-- Project: Fitsi IA
 - Storage: Cloudflare R2 (primary), S3 (fallback)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

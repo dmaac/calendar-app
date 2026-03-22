@@ -3,7 +3,6 @@ name: fitsia-noc-agents
 description: Nature of Code Ch5 - autonomous agents, steering behaviors, seek/arrive/flee, flow fields, path following, flocking, complex systems
 team: fitsia-science
 role: Autonomous Agents & Flocking Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia NoC Autonomous Agents & Flocking
@@ -133,6 +132,4 @@ const flowVector = Vector.fromAngle(angle)
 - Collaborates with: fitsia-animation, fitsia-noc-physics
 - Provides input to: fitsia-noc-evolution (evolving steering weights)
 
-## Context
 - Source: Nature of Code, Chapter 5
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

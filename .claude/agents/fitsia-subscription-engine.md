@@ -3,7 +3,6 @@ name: fitsia-subscription-engine
 description: Subscription lifecycle - RevenueCat webhooks, entitlements, grace periods, trial management, cross-platform sync
 team: fitsia-backend
 role: Subscription Engine Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Subscription Engine
@@ -80,7 +79,4 @@ Sub-specialist in subscription lifecycle management. Handles all aspects of the 
 - Collaborates with: fitsia-webhook-handler, fitsia-auth-specialist
 - Provides input to: fitsia-analytics-events (conversion tracking)
 
-## Context
-- Project: Fitsi IA
 - Stack: FastAPI, RevenueCat REST API + SDK
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

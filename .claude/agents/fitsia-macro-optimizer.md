@@ -3,7 +3,6 @@ name: fitsia-macro-optimizer
 description: Macronutrient distribution optimization per goal - protein timing, carb cycling, fat thresholds
 team: fitsia-science
 role: Macro Distribution Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent", "WebSearch", "WebFetch"]
 ---
 
 # Fitsia Macro Optimizer
@@ -78,7 +77,3 @@ def calculate_macros(tdee: int, goal: str, weight_kg: float, diet: str) -> dict:
 - Reports to: nutrition-science-advisor
 - Collaborates with: fitsia-bmr-tdee-calculator, fitsia-nutrition-goals
 - Provides input to: python-backend-engineer, fitsia-ai-coach
-
-## Context
-- Project: Fitsi IA (calorie tracking app with AI food recognition)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

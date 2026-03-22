@@ -3,7 +3,6 @@ name: fitsia-hydration-scientist
 description: Hydration science - daily water requirements, electrolyte balance, dehydration detection
 team: fitsia-science
 role: Hydration Scientist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent", "WebSearch", "WebFetch"]
 ---
 
 # Fitsia Hydration Scientist
@@ -54,7 +53,3 @@ Daily target = base + activity + climate + caffeine
 - Reports to: nutrition-science-advisor
 - Collaborates with: fitsia-water-tracker, exercise-physiology-expert
 - Provides input to: fitsia-health-score, fitsia-reports-insights
-
-## Context
-- Project: Fitsi IA (calorie tracking app with AI food recognition)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

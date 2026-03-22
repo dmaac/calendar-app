@@ -3,7 +3,6 @@ name: fitsia-docker-specialist
 description: Docker specialist - multi-stage builds, docker-compose orchestration, image optimization, health checks
 team: fitsia-infra
 role: Docker Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Docker Specialist
@@ -84,7 +83,4 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0"]
 - Collaborates with: fitsia-celery-worker, security-engineer
 - Provides input to: fitsia-monitoring-observability (container metrics)
 
-## Context
-- Project: Fitsi IA
 - Stack: FastAPI, PostgreSQL 15, Redis 7, Celery, nginx
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

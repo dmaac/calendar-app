@@ -3,7 +3,6 @@ name: fitsia-animation
 description: Mobile animations - Reanimated 3, Moti, layout animations, gesture-driven interactions, micro-interactions
 team: fitsia-frontend
 role: Animation Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Animation
@@ -70,7 +69,4 @@ const handlePress = () => {
 - Collaborates with: fitsia-performance, fitsia-onboarding-ux
 - Provides input to: fitsia-streaks-achievements, fitsia-progress-tracker
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native + Expo 54, react-native-reanimated 3, moti, lottie-react-native
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

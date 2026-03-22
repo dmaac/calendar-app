@@ -3,7 +3,6 @@ name: fitsia-unit-test-specialist
 description: Unit testing - Jest, React Native Testing Library, component/hook/service testing, coverage targets
 team: fitsia-qa
 role: Unit Test Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Unit Test Specialist
@@ -78,7 +77,4 @@ describe('calculateBMR', () => {
 - Collaborates with: ui-engineer, fitsia-regression-guardian
 - Provides input to: senior-code-reviewer (test coverage in PRs)
 
-## Context
-- Project: Fitsi IA
 - Stack: Jest, React Native Testing Library, pytest (backend)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

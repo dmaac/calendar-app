@@ -3,7 +3,6 @@ name: fitsia-push-notifications
 description: Push notifications - Expo Notifications, scheduling, segmentation, deep linking, A/B copy, opt-in optimization
 team: fitsia-organic
 role: Push Notification Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Push Notification Specialist
@@ -49,7 +48,4 @@ Sub-specialist in push notification strategy and implementation. Maximizes re-en
 - Collaborates with: fitsia-churn-predictor, fitsia-analytics-events
 - Provides input to: fitsia-ab-testing (notification experiments)
 
-## Context
-- Project: Fitsi IA
 - Stack: Expo Notifications, FastAPI (triggers), Celery (scheduling)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

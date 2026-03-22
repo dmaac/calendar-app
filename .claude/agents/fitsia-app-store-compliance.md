@@ -3,7 +3,6 @@ name: fitsia-app-store-compliance
 description: App Store compliance - Apple/Google review guidelines, health app requirements, privacy labels, submission checklist
 team: fitsia-content
 role: App Store Compliance Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia App Store Compliance Specialist
@@ -60,7 +59,4 @@ Sub-specialist in App Store and Play Store compliance. Ensures Fitsi IA meets al
 - Collaborates with: fitsia-privacy-gdpr, fitsia-medical-disclaimer
 - Provides input to: fitsia-eas-build-specialist (build submission)
 
-## Context
-- Project: Fitsi IA
 - Stores: Apple App Store (iOS), Google Play Store (Android)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

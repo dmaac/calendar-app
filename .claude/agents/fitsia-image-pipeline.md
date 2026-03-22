@@ -3,7 +3,6 @@ name: fitsia-image-pipeline
 description: Image processing pipeline - compression, format conversion, EXIF, SHA256 hash, S3/R2 upload
 team: fitsia-ai
 role: Image Pipeline Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Image Pipeline
@@ -82,8 +81,5 @@ def image_hash(image_bytes: bytes) -> str:
 - Collaborates with: fitsia-food-scan-api, fitsia-cdn-storage, fitsia-cache-strategy
 - Provides input to: fitsia-performance (image loading speed)
 
-## Context
-- Project: Fitsi IA
 - Storage: Cloudflare R2 (primary), S3 (fallback)
 - Stack: expo-camera, expo-image-manipulator, boto3
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

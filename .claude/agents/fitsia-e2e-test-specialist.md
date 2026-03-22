@@ -3,7 +3,6 @@ name: fitsia-e2e-test-specialist
 description: End-to-end testing - Detox/Maestro for React Native, full user flow testing, device matrix, CI integration
 team: fitsia-qa
 role: E2E Test Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia E2E Test Specialist
@@ -44,7 +43,4 @@ Sub-specialist in end-to-end testing for React Native apps. Designs and maintain
 - Collaborates with: fitsia-unit-test-specialist, devops-deployer (CI)
 - Provides input to: fitsia-regression-guardian (failed tests trigger alerts)
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native, Expo 54, Detox or Maestro
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

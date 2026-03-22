@@ -3,7 +3,6 @@ name: fitsia-exercise-library
 description: Exercise library - exercise database, muscle groups, form cues, difficulty levels, equipment tags, calorie burn estimation
 team: fitsia-equipment
 role: Exercise Library Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Exercise Library Specialist
@@ -55,7 +54,3 @@ Exercise {
 - Reports to: free-weights-expert (lead)
 - Collaborates with: strength-machines-expert, cardio-machines-expert, functional-equipment-expert
 - Provides input to: fitsia-workout-builder (exercise selection)
-
-## Context
-- Project: Fitsi IA
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

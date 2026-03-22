@@ -3,7 +3,6 @@ name: fitsia-food-scan-api
 description: Food scan API pipeline - image upload, S3/R2 storage, AI provider routing, cache lookup, confidence scoring
 team: fitsia-backend
 role: Food Scan API Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Food Scan API
@@ -88,7 +87,4 @@ Sub-specialist in the AI food scanning API pipeline. Handles the complete flow f
 - Collaborates with: ai-vision-expert, fitsia-cache-strategy, fitsia-image-pipeline
 - Provides input to: fitsia-celery-worker (async processing option)
 
-## Context
-- Project: Fitsi IA
 - Stack: FastAPI, boto3 (S3/R2), openai SDK, anthropic SDK
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

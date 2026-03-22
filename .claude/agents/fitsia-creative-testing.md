@@ -3,7 +3,6 @@ name: fitsia-creative-testing
 description: Creative testing - ad creative iteration, hook testing, visual variants, copy A/B, creative fatigue monitoring
 team: fitsia-paid
 role: Creative Testing Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Creative Testing Specialist
@@ -49,7 +48,4 @@ Level 4: ELEMENT test (fine-tune the winner)
 - Collaborates with: ugc-content-director, aso-copywriter
 - Provides input to: paid-analytics-specialist (creative performance data)
 
-## Context
-- Project: Fitsi IA
 - Channels: Meta, TikTok, Google UAC, Apple Search Ads
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

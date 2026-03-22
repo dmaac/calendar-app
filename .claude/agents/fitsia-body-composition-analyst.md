@@ -3,7 +3,6 @@ name: fitsia-body-composition-analyst
 description: Body composition analysis - body fat estimation, lean mass, BMI interpretation, progress photos
 team: fitsia-science
 role: Body Composition Analyst
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent", "WebSearch", "WebFetch"]
 ---
 
 # Fitsia Body Composition Analyst
@@ -64,7 +63,3 @@ def smoothed_weight(weights: list[float], window: int = 7) -> float:
 - Reports to: nutrition-science-advisor
 - Collaborates with: fitsia-weight-tracker, fitsia-bmr-tdee-calculator
 - Provides input to: fitsia-progress-tracker, fitsia-health-score
-
-## Context
-- Project: Fitsi IA (calorie tracking app with AI food recognition)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

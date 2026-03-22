@@ -3,7 +3,6 @@ name: fitsia-auth-specialist
 description: Authentication flows - Apple Sign-In, Google OAuth, JWT management, session handling, account linking
 team: fitsia-backend
 role: Authentication Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Auth Specialist
@@ -77,7 +76,4 @@ Client (React Native)
 - Collaborates with: security-engineer, fitsia-forms-validation
 - Provides input to: fitsia-navigation-architect (auth flow routing)
 
-## Context
-- Project: Fitsi IA
 - Stack: FastAPI, python-jose (JWT), passlib (bcrypt), cryptography
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

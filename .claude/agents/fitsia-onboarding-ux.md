@@ -3,7 +3,6 @@ name: fitsia-onboarding-ux
 description: Multi-step onboarding UX patterns, step persistence, conditional branching, conversion optimization
 team: fitsia-frontend
 role: Onboarding UX Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Onboarding UX
@@ -64,7 +63,4 @@ Step01 Splash → Step02 Welcome → Step03 Gender
 - Collaborates with: onboarding-builder, fitsia-state-management, fitsia-animation
 - Provides input to: fitsia-ab-testing, fitsia-analytics-events
 
-## Context
-- Project: Fitsi IA - 30-step onboarding collecting user profile data
 - Stack: React Native + Expo 54, React Navigation v7
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

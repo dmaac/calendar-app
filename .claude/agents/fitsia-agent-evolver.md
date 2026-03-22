@@ -3,7 +3,6 @@ name: fitsia-agent-evolver
 description: Evolutionary optimizer - diagnoses agent system, eliminates redundancy, applies TOON format, evolves agent definitions
 team: fitsia-noc
 role: Agent System Evolver
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Agent Evolver — Capa Suprema

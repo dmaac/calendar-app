@@ -3,7 +3,6 @@ name: fitsia-performance
 description: React Native performance - FlatList optimization, memo, Hermes, bundle size, 60fps
 team: fitsia-frontend
 role: Performance Optimizer
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Performance
@@ -69,7 +68,4 @@ const handlePress = useCallback(() => {
 - Collaborates with: fitsia-animation, fitsia-state-management
 - Provides input to: tech-lead (performance budgets), fitsia-monitoring-observability
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native + Expo 54, Hermes, FlashList
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

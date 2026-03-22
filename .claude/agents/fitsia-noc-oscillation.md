@@ -3,7 +3,6 @@ name: fitsia-noc-oscillation
 description: Nature of Code Ch3 - angular motion, trigonometry, oscillation, waves, springs, pendulums
 team: fitsia-science
 role: Oscillation & Waves Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia NoC Oscillation & Waves
@@ -101,6 +100,4 @@ const fillAngle = targetAngle * (1 - Math.cos(progress * PI)) / 2;
 - Collaborates with: fitsia-animation, fitsia-noc-physics
 - Provides input to: ui-engineer (spring interactions), fitsia-water-tracker (wave effects)
 
-## Context
 - Source: Nature of Code, Chapter 3
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

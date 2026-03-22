@@ -3,7 +3,6 @@ name: fitsia-localization
 description: Localization - i18n/l10n framework, Spanish/English translation, cultural adaptation, RTL support, locale-specific content
 team: fitsia-organic
 role: Localization Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Localization Specialist
@@ -48,7 +47,4 @@ Sub-specialist in app internationalization and localization. Ensures Fitsi IA fe
 - Collaborates with: aso-specialist, nutrition-content-creator, fitsia-food-database-curator
 - Provides input to: ui-engineer (i18n-ready components)
 
-## Context
-- Project: Fitsi IA
 - Stack: expo-localization, i18next, react-i18next
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

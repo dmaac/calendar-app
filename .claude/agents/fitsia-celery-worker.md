@@ -3,7 +3,6 @@ name: fitsia-celery-worker
 description: Async task processing - Celery configuration, AI scan queue, daily summaries, retry strategies, Redis broker
 team: fitsia-backend
 role: Celery Worker Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Celery Worker
@@ -82,7 +81,4 @@ app.conf.beat_schedule = {
 - Collaborates with: fitsia-food-scan-api, fitsia-daily-aggregator, fitsia-cache-strategy
 - Provides input to: devops-deployer (worker deployment), fitsia-monitoring-observability
 
-## Context
-- Project: Fitsi IA
 - Stack: Celery 5.x, Redis 7, FastAPI
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

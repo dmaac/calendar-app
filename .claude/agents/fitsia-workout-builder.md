@@ -3,7 +3,6 @@ name: fitsia-workout-builder
 description: Workout builder - training program generation, progressive overload, periodization, template system, rest timer
 team: fitsia-equipment
 role: Workout Builder Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Workout Builder Specialist
@@ -65,7 +64,4 @@ Workout {
 - Collaborates with: fitsia-exercise-library, fitness-science-advisor
 - Provides input to: fitness-mobile-expert (workout screen implementation)
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native (UI), FastAPI (workout API)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

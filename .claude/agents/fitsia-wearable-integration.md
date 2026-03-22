@@ -3,7 +3,6 @@ name: fitsia-wearable-integration
 description: Wearable integration - Apple Watch, HealthKit, Google Fit, heart rate, step counting, sleep tracking, calorie sync
 team: fitsia-equipment
 role: Wearable Integration Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Wearable Integration Specialist
@@ -55,7 +54,4 @@ WRITE to HealthKit:
 - Collaborates with: fitness-mobile-expert, fitsia-daily-aggregator
 - Provides input to: fitsia-bmr-tdee-calculator (actual burn data)
 
-## Context
-- Project: Fitsi IA
 - Stack: expo-health (HealthKit), Health Connect (Android)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

@@ -3,7 +3,6 @@ name: fitsia-webhook-handler
 description: Webhook processing - RevenueCat, Apple/Google purchase notifications, signature verification, idempotency
 team: fitsia-backend
 role: Webhook Handler Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Webhook Handler
@@ -101,7 +100,4 @@ async def handle_revenuecat_webhook(request: Request, db: AsyncSession = Depends
 - Collaborates with: fitsia-subscription-engine, payment-specialist, security-engineer
 - Provides input to: fitsia-analytics-events (purchase events)
 
-## Context
-- Project: Fitsi IA
 - Stack: FastAPI, RevenueCat, HMAC verification
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

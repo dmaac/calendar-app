@@ -3,7 +3,6 @@ name: fitsia-navigation-architect
 description: React Navigation v7 architecture - stack/tab/drawer, deep linking, auth guards, web compatibility
 team: fitsia-frontend
 role: Navigation Architect
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Navigation Architect
@@ -96,7 +95,4 @@ type HomeStackParamList = {
 - Collaborates with: fitsia-onboarding-ux, fitsia-state-management, fitsia-push-notifications
 - Provides input to: fitsia-performance (screen mounting), fitsia-e2e-test-specialist
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native + Expo 54, React Navigation v7
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

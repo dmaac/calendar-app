@@ -3,7 +3,6 @@ name: fitsia-recipe-curator
 description: Recipe curation - healthy recipe database, nutritional validation, ingredient parsing, meal plan generation, dietary filtering
 team: fitsia-content
 role: Recipe Curator
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Recipe Curator
@@ -49,7 +48,4 @@ Sub-specialist in recipe curation and management. Builds and maintains the in-ap
 - Collaborates with: nutrition-science-advisor, fitsia-food-database-curator
 - Provides input to: fitsia-recipes-meals (screen implementation)
 
-## Context
-- Project: Fitsi IA
 - Target: US (English) + LATAM (Spanish)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

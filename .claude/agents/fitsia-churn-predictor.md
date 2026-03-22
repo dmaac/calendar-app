@@ -3,7 +3,6 @@ name: fitsia-churn-predictor
 description: Churn prediction - user risk scoring, engagement signals, win-back triggers, lifecycle segmentation
 team: fitsia-growth
 role: Churn Predictor
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Churn Predictor
@@ -45,7 +44,4 @@ Sub-specialist in user churn prediction and prevention. Identifies at-risk users
 - Collaborates with: fitsia-analytics-events, email-funnel-builder
 - Provides input to: fitsia-push-notifications (trigger timing)
 
-## Context
-- Project: Fitsi IA
 - Stack: FastAPI (scoring), Celery (daily pipeline), PostgreSQL (user data)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

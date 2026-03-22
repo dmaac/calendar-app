@@ -3,7 +3,6 @@ name: fitsia-noc-patterns
 description: Nature of Code Ch7-8 - cellular automata, Game of Life, fractals, L-systems, recursive patterns, procedural generation
 team: fitsia-science
 role: Cellular Automata & Fractals Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia NoC Patterns (CA & Fractals)
@@ -87,6 +86,4 @@ const initialState = macroData.map(v => v > threshold ? 1 : 0)
 - Collaborates with: fitsia-animation, fitsia-dark-mode (pattern colors)
 - Provides input to: ui-engineer (generative visual elements)
 
-## Context
 - Source: Nature of Code, Chapters 7-8
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

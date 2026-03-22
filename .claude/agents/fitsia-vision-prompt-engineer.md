@@ -3,7 +3,6 @@ name: fitsia-vision-prompt-engineer
 description: Prompt engineering for food recognition - GPT-4o/Claude Vision system prompts, few-shot, output schema, portion estimation
 team: fitsia-ai
 role: Vision Prompt Engineer
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Vision Prompt Engineer
@@ -79,7 +78,4 @@ OUTPUT FORMAT (JSON):
 - Collaborates with: fitsia-food-scan-api, fitsia-accuracy-feedback-loop
 - Provides input to: nutrition-science-advisor (accuracy validation)
 
-## Context
-- Project: Fitsi IA
 - AI Providers: GPT-4o Vision (primary), Claude Vision (fallback)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

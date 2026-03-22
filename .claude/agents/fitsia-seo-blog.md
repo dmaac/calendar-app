@@ -3,7 +3,6 @@ name: fitsia-seo-blog
 description: SEO & blog strategy - keyword research, content optimization, blog articles, web landing pages, SERP targeting
 team: fitsia-organic
 role: SEO & Blog Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia SEO & Blog Specialist
@@ -46,7 +45,4 @@ Sub-specialist in search engine optimization and blog content. Drives organic we
 - Collaborates with: aso-specialist, nutrition-content-creator
 - Provides input to: cro-landing-page-specialist (landing page content)
 
-## Context
-- Project: Fitsi IA
 - Target markets: US (English), LATAM (Spanish)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

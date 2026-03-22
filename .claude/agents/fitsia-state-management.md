@@ -3,7 +3,6 @@ name: fitsia-state-management
 description: React Native state management - Context API, AsyncStorage persistence, offline-first, cache invalidation
 team: fitsia-frontend
 role: State Management Architect
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia State Management
@@ -93,7 +92,4 @@ useEffect(() => {
 - Collaborates with: fitsia-onboarding-ux, fitsia-performance, api-contract-guardian
 - Provides input to: python-backend-engineer (sync API design)
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native + Expo 54, AsyncStorage, React Query
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

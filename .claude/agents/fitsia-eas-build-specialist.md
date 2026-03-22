@@ -3,7 +3,6 @@ name: fitsia-eas-build-specialist
 description: Expo EAS specialist - build profiles, OTA updates, app signing, TestFlight/Play Store submission
 team: fitsia-infra
 role: EAS Build Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia EAS Build Specialist
@@ -82,7 +81,4 @@ Sub-specialist in Expo Application Services (EAS). Manages mobile app builds, OT
 - Collaborates with: fitsia-app-store-compliance, ui-engineer
 - Provides input to: fitsia-monitoring-observability (build metrics, OTA adoption)
 
-## Context
-- Project: Fitsi IA
 - Stack: Expo 54, EAS Build, EAS Update, EAS Submit
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

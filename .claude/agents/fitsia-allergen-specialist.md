@@ -3,7 +3,6 @@ name: fitsia-allergen-specialist
 description: Food allergen detection, dietary restrictions, cross-contamination warnings, label reading for AI scan
 team: fitsia-science
 role: Allergen & Dietary Restriction Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent", "WebSearch", "WebFetch"]
 ---
 
 # Fitsia Allergen Specialist
@@ -61,7 +60,3 @@ User scans food photo
 - Reports to: nutrition-science-advisor
 - Collaborates with: fitsia-food-database-curator, ai-vision-expert, fitsia-vision-prompt-engineer
 - Provides input to: fitsia-recipe-curator, fitsia-ai-coach, fitsia-medical-disclaimer
-
-## Context
-- Project: Fitsi IA (calorie tracking app with AI food recognition)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

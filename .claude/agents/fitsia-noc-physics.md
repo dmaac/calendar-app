@@ -3,7 +3,6 @@ name: fitsia-noc-physics
 description: Nature of Code Ch1-2 - vectors, forces, Newton's laws, gravity, friction, drag, attraction, n-body physics
 team: fitsia-science
 role: Vector & Forces Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia NoC Vectors & Forces
@@ -107,6 +106,4 @@ class Mover {
 - Collaborates with: fitsia-animation, fitsia-performance
 - Provides input to: fitsia-noc-particles (force-driven particles)
 
-## Context
 - Source: Nature of Code, Chapters 1-2
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

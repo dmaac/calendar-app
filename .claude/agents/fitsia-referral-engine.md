@@ -3,7 +3,6 @@ name: fitsia-referral-engine
 description: Referral system - invite codes, reward tracking, viral loops, share API, referral attribution
 team: fitsia-growth
 role: Referral Engine Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Referral Engine Specialist
@@ -44,7 +43,4 @@ User A → taps "Invite Friends" → shares link with code
 - Collaborates with: fitsia-analytics-events, fitsia-ab-testing
 - Provides input to: retention-growth-specialist (referral as retention lever)
 
-## Context
-- Project: Fitsi IA
 - Table: referrals (referrer_id, referred_id, code, converted, reward_given)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

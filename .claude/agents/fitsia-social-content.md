@@ -3,7 +3,6 @@ name: fitsia-social-content
 description: Social media content - Instagram/TikTok/Twitter content strategy, UGC curation, community management, viral hooks
 team: fitsia-organic
 role: Social Content Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Social Content Specialist
@@ -45,7 +44,4 @@ Sub-specialist in organic social media content. Creates engaging content for Fit
 - Collaborates with: ugc-content-director, influencer-partnership-manager
 - Provides input to: aso-copywriter (consistent brand voice)
 
-## Context
-- Project: Fitsi IA
 - Target: LATAM (Spanish) + US (English)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

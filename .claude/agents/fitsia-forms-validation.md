@@ -3,7 +3,6 @@ name: fitsia-forms-validation
 description: Form handling - input validation, keyboard management, autofill, error states, field masking
 team: fitsia-frontend
 role: Forms & Validation Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Forms & Validation
@@ -61,7 +60,4 @@ Sub-specialist in form handling and input validation. Ensures all user input flo
 - Collaborates with: fitsia-accessibility, fitsia-onboarding-ux
 - Provides input to: onboarding-builder, fitsia-auth-specialist
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native + Expo 54
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

@@ -3,7 +3,6 @@ name: fitsia-medical-disclaimer
 description: Medical disclaimers - health app legal disclaimers, "not medical advice" notices, liability protection, user safety warnings
 team: fitsia-content
 role: Medical Disclaimer Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Medical Disclaimer Specialist
@@ -50,7 +49,4 @@ Sub-specialist in medical and health disclaimers for mobile apps. Ensures Fitsi 
 - Collaborates with: fitness-compliance-agent, fitsia-privacy-gdpr
 - Provides input to: ui-engineer (disclaimer component placement)
 
-## Context
-- Project: Fitsi IA
 - Markets: US, Chile, Mexico (different legal requirements)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

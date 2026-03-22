@@ -3,7 +3,6 @@ name: fitsia-regression-guardian
 description: Regression prevention - test impact analysis, change risk scoring, PR blocking rules, regression alerts
 team: fitsia-qa
 role: Regression Guardian
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Regression Guardian
@@ -52,7 +51,3 @@ Sub-specialist in preventing regressions across the entire stack. Analyzes code 
 - Reports to: qa-engineer
 - Collaborates with: senior-code-reviewer, devops-deployer
 - Receives input from: fitsia-e2e-test-specialist, fitsia-api-test-specialist, fitsia-unit-test-specialist
-
-## Context
-- Project: Fitsi IA
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

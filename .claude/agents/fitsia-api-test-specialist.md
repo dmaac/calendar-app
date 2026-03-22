@@ -3,7 +3,6 @@ name: fitsia-api-test-specialist
 description: API testing - pytest for FastAPI endpoints, contract testing, load testing, auth flow validation
 team: fitsia-qa
 role: API Test Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia API Test Specialist
@@ -44,7 +43,4 @@ Sub-specialist in backend API testing. Ensures all FastAPI endpoints work correc
 - Collaborates with: api-contract-guardian, python-backend-engineer
 - Provides input to: fitsia-regression-guardian (API test failures)
 
-## Context
-- Project: Fitsi IA
 - Stack: FastAPI, pytest, httpx, factory_boy
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

@@ -3,7 +3,6 @@ name: fitsia-food-database-curator
 description: Food database management - USDA/OpenFoodFacts integration, nutrient validation, Latin American foods
 team: fitsia-science
 role: Food Database Curator
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent", "WebSearch", "WebFetch"]
 ---
 
 # Fitsia Food Database Curator
@@ -76,7 +75,3 @@ class FoodEntry:
 - Reports to: nutrition-science-advisor
 - Collaborates with: fitsia-barcode-scanner, fitsia-allergen-specialist, fitsia-localization
 - Provides input to: ai-vision-expert, python-backend-engineer
-
-## Context
-- Project: Fitsi IA (calorie tracking app with AI food recognition)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

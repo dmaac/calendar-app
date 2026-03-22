@@ -3,7 +3,6 @@ name: fitsia-monitoring-observability
 description: Observability - Sentry error tracking, structured logging, APM, alerting, health checks, dashboards
 team: fitsia-infra
 role: Monitoring & Observability Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Monitoring & Observability
@@ -82,7 +81,4 @@ Sub-specialist in application monitoring and observability. Ensures the team can
 - Collaborates with: fitsia-docker-specialist, security-engineer, fitsia-celery-worker
 - Provides input to: tech-lead (operational health), data-analyst (metrics)
 
-## Context
-- Project: Fitsi IA
 - Stack: Sentry, Grafana, FastAPI (structlog), React Native (Sentry SDK)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

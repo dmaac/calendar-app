@@ -3,7 +3,6 @@ name: fitsia-rep-counter
 description: Rep counter - accelerometer-based rep detection, exercise recognition, set tracking, Apple Watch integration, haptic feedback
 team: fitsia-equipment
 role: Rep Counter Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Rep Counter Specialist
@@ -59,7 +58,4 @@ Sensor data (accelerometer + gyroscope)
 - Collaborates with: fitsia-wearable-integration, fitsia-workout-builder
 - Provides input to: fitsia-exercise-library (exercise patterns database)
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native (sensors), WatchOS (accelerometer), MediaPipe (optional vision)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

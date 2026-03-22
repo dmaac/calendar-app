@@ -3,7 +3,6 @@ name: fitsia-noc-evolution
 description: Nature of Code Ch9-11 - genetic algorithms, neural networks, neuroevolution, fitness functions, selection, crossover, mutation, ml5.js
 team: fitsia-science
 role: Evolution & Neural Networks Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia NoC Evolution & Neural Networks
@@ -134,6 +133,4 @@ class SuggestionDNA {
 - Collaborates with: fitsia-ml-personalization, fitsia-accuracy-feedback-loop, health-data-scientist
 - Provides input to: fitsia-ai-coach (adaptive suggestions), fitsia-churn-predictor (behavioral evolution)
 
-## Context
 - Source: Nature of Code, Chapters 9-11
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

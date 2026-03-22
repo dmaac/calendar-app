@@ -10,7 +10,7 @@
  * - Full accessibility labels and roles
  * - User-friendly error state with retry
  */
-import React, { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Animated,
-  InteractionManager,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,12 +32,14 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 import AnimatedNumber from '../../components/AnimatedNumber';
 import StreakBadge from '../../components/StreakBadge';
 import FitsiMascot from '../../components/FitsiMascot';
-import HealthAlerts, { generateHealthAlerts } from '../../components/HealthAlerts';
-import HealthKitCard from '../../components/HealthKitCard';
-import FastingTimer from '../../components/FastingTimer';
-import WellnessScore from '../../components/WellnessScore';
+// MINIMALIST REDESIGN Phase 1: removed from HomeScreen
+// import HealthAlerts, { generateHealthAlerts } from '../../components/HealthAlerts';
+// import HealthKitCard from '../../components/HealthKitCard';
+// import FastingTimer from '../../components/FastingTimer';
+// import WellnessScore from '../../components/WellnessScore';
 import useFadeIn from '../../hooks/useFadeIn';
-import useHealthKit from '../../hooks/useHealthKit';
+// MINIMALIST REDESIGN Phase 1: HealthKit card removed
+// import useHealthKit from '../../hooks/useHealthKit';
 import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
@@ -47,7 +48,8 @@ import NotificationCenter, {
   useNotifications,
 } from '../../components/NotificationCenter';
 import { syncWidgetData } from '../../services/widgetData.service';
-import TrialBanner from '../../components/TrialBanner';
+// MINIMALIST REDESIGN Phase 1: TrialBanner removed from HomeScreen
+// import TrialBanner from '../../components/TrialBanner';
 
 // ─── Below-the-fold components: lazy loaded to speed up initial render ────────
 // MINIMALIST REDESIGN Phase 1: removed from HomeScreen
@@ -59,20 +61,8 @@ import TrialBanner from '../../components/TrialBanner';
 // const DailyChallenges = lazy(() => import('../../components/DailyChallenges'));
 // const OnboardingProgress = lazy(() => import('../../components/OnboardingProgress'));
 
-// ─── Custom hook: defer rendering of below-fold content after initial paint ───
-function useDeferredRender(delayMs: number = 500): boolean {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const handle = InteractionManager.runAfterInteractions(() => {
-      const timer = setTimeout(() => setReady(true), delayMs);
-      return () => clearTimeout(timer);
-    });
-    return () => handle.cancel();
-  }, [delayMs]);
-  return ready;
-}
-
 // ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
+// MINIMALIST REDESIGN Phase 1: tips removed from HomeScreen, kept array for future use
 const DAILY_TIPS = [
   'Beber agua antes de comer puede ayudarte a reducir la ingesta calorica.',
   'La proteina en el desayuno aumenta la saciedad durante toda la manana.',
@@ -329,24 +319,19 @@ const MealSection = React.memo(function MealSection({
 
 // ─── Stable constant — hoisted outside component to avoid re-creation ────────
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
-const EXERCISE_DAILY_TARGET = 300;
 
 export default function HomeScreen({ navigation }: any) {
-  const { user, isPremium } = useAuth();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
   const c = useThemeColors();
   const { t } = useTranslation();
   const { track } = useAnalytics('Home');
-  const healthKit = useHealthKit();
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [logs, setLogs] = useState<AIFoodLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-
-  // Defer below-fold components by 500ms after initial interactions settle
-  const belowFoldReady = useDeferredRender(500);
 
   // Notification center state
   const {
@@ -487,79 +472,8 @@ export default function HomeScreen({ navigation }: any) {
 
   const hasMeals = logs.length > 0;
 
-  // NutriScore derived data
-  const nutriScoreData = useMemo(() => {
-    const totalFiber = logs.reduce((sum, l) => sum + (l.fiber_g ?? 0), 0);
-    const uniqueFoods = new Set(logs.map((l) => l.food_name.toLowerCase().trim())).size;
-    return { totalFiber, foodVariety: uniqueFoods };
-  }, [logs]);
-
-  // ---- Health Alerts data ----
-  const mockRecentDailyCalories = useMemo(() => {
-    return [consumed, consumed, consumed, consumed, consumed, consumed, consumed];
-  }, [consumed]);
-
-  // Stable onNavigate callback for health alerts to prevent re-creation
-  const onHealthAlertNavigate = useCallback(
-    (screen: string) => navigation.navigate(screen),
-    [navigation],
-  );
-
-  const healthAlerts = useMemo(
-    () =>
-      generateHealthAlerts({
-        avgProtein: protein,
-        targetProtein: proteinTarget,
-        avgFiber: nutriScoreData.totalFiber,
-        recentDailyCalories: mockRecentDailyCalories,
-        onNavigate: onHealthAlertNavigate,
-      }),
-    [protein, proteinTarget, nutriScoreData.totalFiber, mockRecentDailyCalories, onHealthAlertNavigate],
-  );
-
-  // ---- Exercise balance data ----
-  const exerciseBurned = useMemo(() => {
-    return healthKit.connected && healthKit.activeCalories
-      ? healthKit.activeCalories.kcal
-      : 0;
-  }, [healthKit.connected, healthKit.activeCalories]);
-
-  // ---- WellnessScore derived data ----
-  const nutriScoreValue = useMemo(() => {
-    const macroAdh = (actual: number, tgt: number) => {
-      if (tgt <= 0) return 100;
-      return Math.max(0, Math.min(100, (1 - Math.abs(actual - tgt) / tgt) * 100));
-    };
-    const macroSc = macroAdh(protein, proteinTarget) * 0.4
-      + macroAdh(carbs, carbsTarget) * 0.3
-      + macroAdh(fats, fatsTarget) * 0.3;
-    const fiberSc = Math.min(100, ((nutriScoreData.totalFiber) / 25) * 100);
-    const waterSc = Math.min(100, ((summary?.water_ml ?? 0) / 2500) * 100);
-    const varietySc = Math.min(100, ((nutriScoreData.foodVariety) / 4) * 100);
-    return Math.round(macroSc * 0.4 + fiberSc * 0.2 + waterSc * 0.2 + varietySc * 0.2);
-  }, [protein, proteinTarget, carbs, carbsTarget, fats, fatsTarget, nutriScoreData, summary]);
-
-  // Exercise score: active calories vs daily target
-  const exerciseScoreValue = useMemo(() => {
-    return Math.round(Math.min(100, (exerciseBurned / EXERCISE_DAILY_TARGET) * 100));
-  }, [exerciseBurned]);
-
-  // ---- Adaptive calorie banner callbacks (stable refs) ----
-  const onAdaptiveAdjust = useCallback((newTarget: number) => {
-    haptics.success();
-    track('adaptive_calories_adjusted', { from: target, to: newTarget });
-  }, [target, track]);
-
-  const onAdaptiveDismiss = useCallback(() => {
-    track('adaptive_calories_dismissed');
-  }, [track]);
-
-  // ---- TrialBanner callback (stable ref) ----
-  const onStartTrial = useCallback(() => {
-    haptics.medium();
-    track('trial_banner_pressed', { source: 'home' });
-    navigation.navigate('Paywall');
-  }, [track, navigation]);
+  // MINIMALIST REDESIGN Phase 1: removed NutriScore, HealthAlerts, ExerciseBalance,
+  // WellnessScore, AdaptiveCalorieBanner derived data
 
   // ---- Navigation callbacks (stable refs to prevent child re-renders) ----
   const onNavigateToAchievements = useCallback(() => {
@@ -588,16 +502,9 @@ export default function HomeScreen({ navigation }: any) {
     setNotifSheetVisible(false);
   }, []);
 
-  const onNavigateToCoach = useCallback(() => {
-    haptics.light();
-    navigation.navigate('Coach');
-  }, [navigation]);
-
   // ---- QuickAction navigation callbacks (stable refs) ----
   const onQuickScan = useCallback(() => { haptics.light(); navigation.navigate('Scan'); }, [navigation]);
   const onQuickWater = useCallback(() => { haptics.light(); navigation.navigate('Registro'); }, [navigation]);
-  const onQuickRecipes = useCallback(() => { haptics.light(); navigation.navigate('Recipes'); }, [navigation]);
-  const onQuickCoach = useCallback(() => { haptics.light(); navigation.navigate('Coach'); }, [navigation]);
   const onQuickFavorites = useCallback(() => { haptics.light(); navigation.navigate('Favorites'); }, [navigation]);
   const onQuickReports = useCallback(() => { haptics.light(); navigation.navigate('Reports'); }, [navigation]);
 
@@ -606,32 +513,6 @@ export default function HomeScreen({ navigation }: any) {
     track('scan_button_pressed', { source: 'empty_state' });
     navigation.navigate('Scan');
   }, [track, navigation]);
-
-  // ---- OnboardingProgress data (stable ref) ----
-  const onboardingData = useMemo(() => ({
-    hasProfilePhoto: false,
-    mealsLogged: logs.length,
-    hasLoggedWeight: (summary?.streak_days ?? 0) > 0,
-    hasConfiguredGoals: (summary?.target_calories ?? 0) > 0,
-    notificationsEnabled: true,
-  }), [logs.length, summary]);
-
-  // ---- NutriScore goals (stable ref) ----
-  const nutriScoreGoals = useMemo(() => ({
-    target_calories: target,
-    target_protein_g: proteinTarget,
-    target_carbs_g: carbsTarget,
-    target_fats_g: fatsTarget,
-  }), [target, proteinTarget, carbsTarget, fatsTarget]);
-
-  // ---- Today's tip (stable per day) ----
-  const dailyTip = useMemo(() => DAILY_TIPS[new Date().getDate() - 1] ?? DAILY_TIPS[0], []);
-
-  // Adaptive calorie banner uses same data as mock recent
-  const adaptiveRecentCalories = mockRecentDailyCalories;
-
-  // Memoize water value to avoid re-deriving on each render
-  const waterMl = useMemo(() => summary?.water_ml ?? 0, [summary]);
 
   // Memoize calorie ring labels
   const caloriesLeftLabel = useMemo(
@@ -718,37 +599,7 @@ export default function HomeScreen({ navigation }: any) {
             }
           >
             <Animated.View style={fadeStyle}>
-              {/* Wellness Score — the main card, above everything */}
-              <WellnessScore
-                nutriScore={nutriScoreValue}
-                exerciseScore={exerciseScoreValue}
-                waterMl={waterMl}
-                waterGoal={2500}
-                streakDays={streak}
-              />
-
-              {/* Health Alerts */}
-              <HealthAlerts alerts={healthAlerts} />
-
-              {/* Trial banner — 7 days free for non-premium users */}
-              <TrialBanner
-                visible={!isPremium}
-                onStartTrial={onStartTrial}
-              />
-
-              {/* Apple Health card — steps + active calories */}
-              {healthKit.connected && healthKit.steps && healthKit.activeCalories && (
-                <HealthKitCard
-                  steps={healthKit.steps.count}
-                  activeCalories={healthKit.activeCalories.kcal}
-                  loading={healthKit.loading}
-                />
-              )}
-
-              {/* Fasting Timer — collapsible card */}
-              <FastingTimer initiallyCollapsed />
-
-              {/* Calorie card — always above fold */}
+              {/* Calorie Ring + Macro Bars — the core card */}
               <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">
                 <View style={styles.ringRow}>
                   <CalorieRing
@@ -766,145 +617,57 @@ export default function HomeScreen({ navigation }: any) {
                 </View>
               </View>
 
-              {/* ── Below-the-fold: deferred render after 500ms to speed up initial paint ── */}
-              {belowFoldReady && (
-                <Suspense fallback={null}>
-                  {/* Sleep Tracker */}
-                  <SleepTracker initiallyCollapsed />
-
-                  {/* Mood + Energy Tracker */}
-                  <MoodTracker initiallyCollapsed nutriScore={nutriScoreValue} />
-
-                  {/* NutriScore */}
-                  {hasMeals && (
-                    <NutriScore
-                      calories={consumed}
-                      protein={protein}
-                      carbs={carbs}
-                      fat={fats}
-                      fiber={nutriScoreData.totalFiber}
-                      water={waterMl}
-                      foodVariety={nutriScoreData.foodVariety}
-                      goals={nutriScoreGoals}
-                    />
-                  )}
-
-                  {/* Exercise Balance Card */}
-                  {hasMeals && (
-                    <ExerciseBalanceCard
-                      consumed={consumed}
-                      exerciseBurned={exerciseBurned}
-                      target={target}
-                    />
-                  )}
-
-                  {/* Adaptive Calorie Banner */}
-                  <AdaptiveCalorieBanner
-                    recentDailyCalories={adaptiveRecentCalories}
-                    currentTarget={target}
-                    onAdjust={onAdaptiveAdjust}
-                    onDismiss={onAdaptiveDismiss}
-                  />
-
-                  {/* Today's Tip */}
-                  <View style={[styles.tipCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
-                    <View style={styles.tipHeader}>
-                      <FitsiMascot expression="cool" size="small" animation="idle" />
-                      <Text style={[styles.tipTitle, { color: c.black }]}>{t('home.today')} Tip</Text>
-                    </View>
-                    <Text style={[styles.tipText, { color: c.gray }]}>
-                      {dailyTip}
-                    </Text>
-                  </View>
-
-                  {/* Best Day Banner */}
-                  {summary && (summary.meals_logged ?? 0) > 0 && (
-                    <TouchableOpacity
-                      style={styles.bestDayBanner}
-                      onPress={onQuickReports}
-                      activeOpacity={0.8}
-                      accessibilityLabel="Tu mejor dia esta semana: Viernes, 125 gramos de proteinas"
-                      accessibilityRole="button"
-                    >
-                      <Ionicons name="trophy" size={18} color="#F59E0B" />
-                      <Text style={styles.bestDayText}>
-                        <Text style={styles.bestDayBold}>Tu mejor dia esta semana: </Text>
-                        Viernes — 125g proteinas
-                      </Text>
-                      <Ionicons name="chevron-forward" size={14} color="#92400E" />
-                    </TouchableOpacity>
-                  )}
-
-                  {/* Daily Challenges */}
-                  {summary && (
-                    <DailyChallenges
-                      mealsLogged={summary.meals_logged ?? 0}
-                      waterMl={summary.water_ml ?? 0}
-                      proteinG={summary.total_protein_g ?? 0}
-                    />
-                  )}
-
-                  {/* Quick Actions */}
-                  <View style={styles.quickActionsRow}>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                      onPress={onQuickScan}
-                      activeOpacity={0.8}
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
-                        <Ionicons name="camera" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Scan Food</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                      onPress={onQuickWater}
-                      activeOpacity={0.8}
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
-                        <Ionicons name="water" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Add Water</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                      onPress={onQuickRecipes}
-                      activeOpacity={0.8}
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: c.success }]}>
-                        <Ionicons name="book" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Recipes</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                      onPress={onQuickCoach}
-                      activeOpacity={0.8}
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: '#EC4899' }]}>
-                        <Ionicons name="sparkles" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>AI Coach</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                      onPress={onQuickFavorites}
-                      activeOpacity={0.8}
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: '#EF4444' }]}>
-                        <Ionicons name="heart" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Favoritos</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Profile completion progress */}
-                  <OnboardingProgress
-                    data={onboardingData}
-                    navigation={navigation}
-                  />
-                </Suspense>
+              {/* Best Day Banner */}
+              {summary && (summary.meals_logged ?? 0) > 0 && (
+                <TouchableOpacity
+                  style={styles.bestDayBanner}
+                  onPress={onQuickReports}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Tu mejor dia esta semana: Viernes, 125 gramos de proteinas"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="trophy" size={18} color="#F59E0B" />
+                  <Text style={styles.bestDayText}>
+                    <Text style={styles.bestDayBold}>Tu mejor dia esta semana: </Text>
+                    Viernes — 125g proteinas
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color="#92400E" />
+                </TouchableOpacity>
               )}
+
+              {/* Quick Actions — 3 only: Scan, Water, Favorites */}
+              <View style={styles.quickActionsRow}>
+                <TouchableOpacity
+                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                  onPress={onQuickScan}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
+                    <Ionicons name="camera" size={18} color={c.white} />
+                  </View>
+                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Scan</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                  onPress={onQuickWater}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
+                    <Ionicons name="water" size={18} color={c.white} />
+                  </View>
+                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Water</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                  onPress={onQuickFavorites}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: '#EF4444' }]}>
+                    <Ionicons name="heart" size={18} color={c.white} />
+                  </View>
+                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Favoritos</Text>
+                </TouchableOpacity>
+              </View>
 
               {/* Today's meals — always visible (core content) */}
               <Text style={[styles.sectionTitle, { color: c.black }]} accessibilityRole="header">{t('home.today')}</Text>
@@ -950,19 +713,6 @@ export default function HomeScreen({ navigation }: any) {
           </Animated.ScrollView>
         </>
       )}
-
-      {/* Floating AI Coach button */}
-      <TouchableOpacity
-        style={[styles.coachFab, { backgroundColor: c.accent }]}
-        onPress={onNavigateToCoach}
-        activeOpacity={0.85}
-        accessibilityLabel="Abrir AI Coach"
-        accessibilityRole="button"
-        accessibilityHint="Abre el chat con tu coach de nutricion con IA"
-      >
-        <Ionicons name="sparkles" size={20} color={c.white} />
-        <Text style={[styles.coachFabText, { color: c.white }]}>{t('home.aiCoach')}</Text>
-      </TouchableOpacity>
 
       {/* Notification Center bottom sheet */}
       <NotificationCenter
@@ -1141,28 +891,6 @@ const styles = StyleSheet.create({
   scanCtaText: {
     ...typography.label,
   },
-  tipCard: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    ...shadows.sm,
-  },
-  tipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  tipTitle: {
-    ...typography.label,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  tipText: {
-    ...typography.subtitle,
-    lineHeight: 20,
-  },
   bestDayBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1222,21 +950,5 @@ const styles = StyleSheet.create({
   reportBtnText: {
     ...typography.label,
     flex: 1,
-  },
-  coachFab: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    right: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radius.full,
-    minHeight: 44,
-    ...shadows.md,
-  },
-  coachFabText: {
-    ...typography.label,
   },
 });

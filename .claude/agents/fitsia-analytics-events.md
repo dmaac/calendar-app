@@ -3,7 +3,6 @@ name: fitsia-analytics-events
 description: Analytics event schema - event taxonomy, property standards, tracking plan, Mixpanel/Amplitude integration
 team: fitsia-growth
 role: Analytics Events Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Analytics Events Specialist
@@ -48,7 +47,4 @@ Sub-specialist in analytics instrumentation. Designs the event taxonomy, impleme
 - Collaborates with: fitsia-ab-testing, fitsia-churn-predictor
 - Provides input to: all teams (analytics data powers every decision)
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native (client SDK), FastAPI (server events)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

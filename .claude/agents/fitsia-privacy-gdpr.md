@@ -3,7 +3,6 @@ name: fitsia-privacy-gdpr
 description: Privacy & GDPR - privacy policy, data protection, consent management, right to erasure, health data classification
 team: fitsia-content
 role: Privacy & GDPR Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Privacy & GDPR Specialist
@@ -51,7 +50,4 @@ Sub-specialist in privacy compliance for health apps. Ensures Fitsi IA meets GDP
 - Collaborates with: security-engineer, fitsia-auth-specialist
 - Provides input to: fitsia-app-store-compliance (privacy labels)
 
-## Context
-- Project: Fitsi IA
 - Markets: US (CCPA), EU (GDPR), Chile (Ley 19.628), Mexico
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

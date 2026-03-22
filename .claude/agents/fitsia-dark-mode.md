@@ -3,7 +3,6 @@ name: fitsia-dark-mode
 description: Dark mode implementation - theme switching, system preferences, color tokens, consistent dark surfaces
 team: fitsia-frontend
 role: Dark Mode Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Dark Mode
@@ -76,7 +75,4 @@ const themes = {
 - Collaborates with: fitsia-accessibility, ux-polish-agent
 - Provides input to: fitsia-unit-test-specialist (theme testing)
 
-## Context
-- Project: Fitsi IA
 - Stack: React Native + Expo 54, ThemeContext
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

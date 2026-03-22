@@ -3,7 +3,6 @@ name: fitsia-ml-personalization
 description: ML personalization - user behavior clustering, calorie adaptation, meal pattern learning, food suggestions
 team: fitsia-ai
 role: ML Personalization Specialist
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia ML Personalization
@@ -83,7 +82,4 @@ def suggest_foods(user_id: str, meal_type: str, remaining_macros: dict) -> list[
 - Collaborates with: fitsia-accuracy-feedback-loop, fitsia-churn-predictor
 - Provides input to: fitsia-ai-coach, fitsia-recipes-meals
 
-## Context
-- Project: Fitsi IA
 - Stack: FastAPI, PostgreSQL (data), potential scikit-learn/lightweight ML
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/

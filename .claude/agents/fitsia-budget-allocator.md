@@ -3,7 +3,6 @@ name: fitsia-budget-allocator
 description: Budget allocation - channel budget optimization, CAC targets, ROAS-based rebalancing, spend pacing, portfolio theory
 team: fitsia-paid
 role: Budget Allocator
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "Agent"]
 ---
 
 # Fitsia Budget Allocator
@@ -46,7 +45,4 @@ Sub-specialist in paid marketing budget optimization. Allocates and rebalances s
 - Collaborates with: all paid channel specialists
 - Provides input to: product-manager (budget-informed feature priority)
 
-## Context
-- Project: Fitsi IA
 - Markets: US (primary), Chile, Mexico (secondary)
-- Working directory: /Users/miguelignaciovalenzuelaparada/apps/fitsi/
