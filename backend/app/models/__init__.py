@@ -13,6 +13,8 @@ from .push_token import PushToken
 from .feedback import Feedback
 from .workout import WorkoutLog
 from .experiment import Experiment, ExperimentAssignment, ExperimentConversion
+from .nutrition_tip import NutritionTip
+from .recipe import Recipe
 
 __all__ = [
     "User",
@@ -32,4 +34,6 @@ __all__ = [
     "Experiment",
     "ExperimentAssignment",
     "ExperimentConversion",
+    "NutritionTip",
+    "Recipe",
 ]

@@ -1,7 +1,16 @@
 /**
- * WorkoutScreen — Workout tracking with weekly summary, log modal, and recent history
+ * WorkoutScreen — Enhanced workout tracking with exercise database, MET-based
+ * calorie calculation, category/search selector, and recent history re-log.
+ *
+ * Features:
+ * 1. Exercise selector from 50-exercise database (search + category filter)
+ * 2. Automatic calorie calculation: MET * weightKg * 3.5 / 200 * duration
+ * 3. Real-time calorie estimate updates as user adjusts duration
+ * 4. Quick re-log from last 10 workouts
+ * 5. Weekly summary with total minutes, calories, and workout count
+ * 6. Full dark mode support, haptics, analytics
  */
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,66 +19,76 @@ import {
   TouchableOpacity,
   TextInput,
   Animated,
+  FlatList,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import FitsiMascot from '../../components/FitsiMascot';
 import BottomSheet from '../../components/BottomSheet';
+import {
+  Exercise,
+  ExerciseCategory,
+  EXERCISE_CATEGORIES,
+  exerciseDatabase,
+  searchExercises,
+  calculateCalories,
+  caloriesPerMinute,
+} from '../../data/exerciseDatabase';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface WorkoutType {
-  key: string;
-  label: string;
-  icon: string;
-  calPerMin: number; // avg calories per minute
-  color: string;
-}
-
 interface WorkoutEntry {
   id: string;
-  type: WorkoutType;
-  duration: number; // minutes
+  exerciseId: string;
+  exerciseName: string;
+  exerciseCategory: ExerciseCategory;
+  exerciseIcon: string;
+  exerciseColor: string;
+  exerciseMet: number;
+  duration: number;   // minutes
   calories: number;
   notes: string;
-  date: string; // ISO date
+  date: string;       // ISO date (YYYY-MM-DD)
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const WORKOUT_TYPES: WorkoutType[] = [
-  { key: 'cardio',      label: 'Cardio',       icon: 'heart-outline',      calPerMin: 10, color: '#EA4335' },
-  { key: 'strength',    label: 'Fuerza',       icon: 'barbell-outline',    calPerMin: 7,  color: '#4285F4' },
-  { key: 'flexibility', label: 'Flexibilidad', icon: 'body-outline',       calPerMin: 4,  color: '#34A853' },
-  { key: 'sports',      label: 'Deportes',     icon: 'football-outline',   calPerMin: 9,  color: '#FBBC04' },
-  { key: 'other',       label: 'Otro',         icon: 'fitness-outline',    calPerMin: 6,  color: '#9C27B0' },
-];
+const STORAGE_KEY = '@fitsi_workout_log';
+const MAX_HISTORY = 10;
+const DEFAULT_WEIGHT_KG = 70; // fallback if user weight not available
 
-// ─── Mock data (last 7 days) ────────────────────────────────────────────────
+// ─── Mock data (seeds initial display) ──────────────────────────────────────
 
 function generateMockWorkouts(): WorkoutEntry[] {
   const entries: WorkoutEntry[] = [];
   const now = new Date();
   const samples = [
-    { typeIdx: 1, dur: 55, notes: 'Pecho y triceps' },
-    { typeIdx: 0, dur: 30, notes: 'Correr 5K' },
-    { typeIdx: 2, dur: 20, notes: 'Yoga matutino' },
-    { typeIdx: 1, dur: 60, notes: 'Espalda y biceps' },
-    { typeIdx: 3, dur: 90, notes: 'Futbol con amigos' },
+    { exId: 'ex-wgt01', dur: 55, notes: 'Pecho y triceps' },
+    { exId: 'ex-run02', dur: 30, notes: 'Correr 5K' },
+    { exId: 'ex-yog01', dur: 20, notes: 'Yoga matutino' },
+    { exId: 'ex-wgt04', dur: 60, notes: 'Espalda y biceps' },
+    { exId: 'ex-spt01', dur: 90, notes: 'Futbol con amigos' },
   ];
   for (let i = 0; i < samples.length; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() - i - 1);
     const s = samples[i];
-    const type = WORKOUT_TYPES[s.typeIdx];
+    const ex = exerciseDatabase.find((e) => e.id === s.exId) ?? exerciseDatabase[0];
     entries.push({
       id: `mock-${i}`,
-      type,
+      exerciseId: ex.id,
+      exerciseName: ex.name,
+      exerciseCategory: ex.category,
+      exerciseIcon: ex.icon,
+      exerciseColor: ex.color,
+      exerciseMet: ex.met,
       duration: s.dur,
-      calories: Math.round(s.dur * type.calPerMin),
+      calories: calculateCalories(ex.met, DEFAULT_WEIGHT_KG, s.dur),
       notes: s.notes,
       date: d.toISOString().slice(0, 10),
     });
@@ -123,20 +142,29 @@ function SummaryCard({
 function WorkoutRow({
   entry,
   c,
+  onReLog,
 }: {
   entry: WorkoutEntry;
   c: ReturnType<typeof useThemeColors>;
+  onReLog: (entry: WorkoutEntry) => void;
 }) {
   const dateObj = new Date(entry.date + 'T12:00:00');
   const dayLabel = dateObj.toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' });
 
   return (
-    <View style={[styles.workoutRow, { borderBottomColor: c.surface }]}>
-      <View style={[styles.workoutIcon, { backgroundColor: entry.type.color + '18' }]}>
-        <Ionicons name={entry.type.icon as any} size={20} color={entry.type.color} />
+    <TouchableOpacity
+      style={[styles.workoutRow, { borderBottomColor: c.surface }]}
+      onPress={() => { haptics.light(); onReLog(entry); }}
+      activeOpacity={0.7}
+      accessibilityLabel={`Re-registrar ${entry.exerciseName}`}
+      accessibilityHint="Toca para registrar este ejercicio nuevamente"
+      accessibilityRole="button"
+    >
+      <View style={[styles.workoutIcon, { backgroundColor: entry.exerciseColor + '18' }]}>
+        <Ionicons name={entry.exerciseIcon as any} size={20} color={entry.exerciseColor} />
       </View>
       <View style={styles.workoutInfo}>
-        <Text style={[styles.workoutTitle, { color: c.black }]}>{entry.type.label}</Text>
+        <Text style={[styles.workoutTitle, { color: c.black }]}>{entry.exerciseName}</Text>
         <Text style={[styles.workoutMeta, { color: c.gray }]}>
           {dayLabel} · {entry.duration} min · {entry.calories} kcal
         </Text>
@@ -146,7 +174,48 @@ function WorkoutRow({
           </Text>
         ) : null}
       </View>
-    </View>
+      <Ionicons name="refresh-outline" size={16} color={c.disabled} />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Exercise Search Item ───────────────────────────────────────────────────
+
+function ExerciseItem({
+  exercise,
+  isSelected,
+  c,
+  onSelect,
+}: {
+  exercise: Exercise;
+  isSelected: boolean;
+  c: ReturnType<typeof useThemeColors>;
+  onSelect: (ex: Exercise) => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.exerciseItem,
+        { backgroundColor: isSelected ? exercise.color + '18' : c.surface, borderColor: isSelected ? exercise.color : c.grayLight },
+      ]}
+      onPress={() => { haptics.light(); onSelect(exercise); }}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.exerciseItemIcon, { backgroundColor: exercise.color + '15' }]}>
+        <Ionicons name={exercise.icon as any} size={18} color={exercise.color} />
+      </View>
+      <View style={styles.exerciseItemInfo}>
+        <Text style={[styles.exerciseItemName, { color: isSelected ? exercise.color : c.black }]} numberOfLines={1}>
+          {exercise.name}
+        </Text>
+        <Text style={[styles.exerciseItemMet, { color: c.gray }]}>
+          MET {exercise.met}
+        </Text>
+      </View>
+      {isSelected && (
+        <Ionicons name="checkmark-circle" size={20} color={exercise.color} />
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -158,45 +227,122 @@ export default function WorkoutScreen({ navigation }: any) {
   const c = useThemeColors();
   const { track } = useAnalytics('Workouts');
 
+  // ── State ──
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>(generateMockWorkouts);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // Modal state
-  const [selectedType, setSelectedType] = useState<WorkoutType>(WORKOUT_TYPES[0]);
+  // Modal — exercise selection state
+  const [selectedExercise, setSelectedExercise] = useState<Exercise>(exerciseDatabase[0]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<ExerciseCategory | null>(null);
   const [duration, setDuration] = useState(30);
   const [notes, setNotes] = useState('');
+  const [userWeight] = useState(DEFAULT_WEIGHT_KG); // TODO: pull from user profile
 
-  const estimatedCalories = Math.round(duration * selectedType.calPerMin);
+  // ── Derived ──
+  const estimatedCalories = useMemo(
+    () => calculateCalories(selectedExercise.met, userWeight, duration),
+    [selectedExercise.met, userWeight, duration],
+  );
+
+  const calPerMin = useMemo(
+    () => caloriesPerMinute(selectedExercise.met, userWeight),
+    [selectedExercise.met, userWeight],
+  );
+
+  // Filtered exercise list
+  const filteredExercises = useMemo(
+    () => searchExercises(searchQuery, activeCategory ?? undefined),
+    [searchQuery, activeCategory],
+  );
 
   // Weekly summary
-  const totalWorkouts = workouts.length;
-  const totalMinutes = workouts.reduce((sum, w) => sum + w.duration, 0);
-  const totalCalories = workouts.reduce((sum, w) => sum + w.calories, 0);
+  const weeklyStats = useMemo(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - diff);
+    const weekStartStr = weekStart.toISOString().slice(0, 10);
 
+    const thisWeek = workouts.filter((w) => w.date >= weekStartStr);
+    return {
+      count: thisWeek.length,
+      minutes: thisWeek.reduce((s, w) => s + w.duration, 0),
+      calories: thisWeek.reduce((s, w) => s + w.calories, 0),
+    };
+  }, [workouts]);
+
+  // Recent workouts for re-log (last 10)
+  const recentWorkouts = useMemo(() => workouts.slice(0, MAX_HISTORY), [workouts]);
+
+  // ── Persistence ──
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as WorkoutEntry[];
+          if (parsed.length > 0) setWorkouts(parsed);
+        } catch { /* use mock data */ }
+      }
+    });
+  }, []);
+
+  const persistWorkouts = useCallback((updated: WorkoutEntry[]) => {
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+  }, []);
+
+  // ── Modal actions ──
   const openModal = useCallback(() => {
     haptics.light();
-    setSelectedType(WORKOUT_TYPES[0]);
+    setSelectedExercise(exerciseDatabase[0]);
+    setSearchQuery('');
+    setActiveCategory(null);
     setDuration(30);
     setNotes('');
     setModalVisible(true);
     track('log_workout_opened');
   }, []);
 
+  const openModalWithExercise = useCallback((entry: WorkoutEntry) => {
+    const ex = exerciseDatabase.find((e) => e.id === entry.exerciseId) ?? exerciseDatabase[0];
+    setSelectedExercise(ex);
+    setSearchQuery('');
+    setActiveCategory(ex.category);
+    setDuration(entry.duration);
+    setNotes('');
+    setModalVisible(true);
+    track('log_workout_relog', { exerciseId: entry.exerciseId });
+  }, []);
+
   const saveWorkout = useCallback(() => {
     haptics.medium();
     const entry: WorkoutEntry = {
       id: `w-${Date.now()}`,
-      type: selectedType,
+      exerciseId: selectedExercise.id,
+      exerciseName: selectedExercise.name,
+      exerciseCategory: selectedExercise.category,
+      exerciseIcon: selectedExercise.icon,
+      exerciseColor: selectedExercise.color,
+      exerciseMet: selectedExercise.met,
       duration,
       calories: estimatedCalories,
       notes: notes.trim(),
       date: new Date().toISOString().slice(0, 10),
     };
-    setWorkouts((prev) => [entry, ...prev]);
+    const updated = [entry, ...workouts];
+    setWorkouts(updated);
+    persistWorkouts(updated);
     setModalVisible(false);
-    track('workout_logged', { type: selectedType.key, duration, calories: estimatedCalories });
-  }, [selectedType, duration, estimatedCalories, notes]);
+    track('workout_logged', {
+      exerciseId: selectedExercise.id,
+      category: selectedExercise.category,
+      duration,
+      calories: estimatedCalories,
+    });
+  }, [selectedExercise, duration, estimatedCalories, notes, workouts, persistWorkouts]);
 
+  // ── Render ──
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header */}
@@ -221,9 +367,9 @@ export default function WorkoutScreen({ navigation }: any) {
         {/* Weekly Summary */}
         <Text style={[styles.sectionTitle, { color: c.black }]}>RESUMEN SEMANAL</Text>
         <View style={styles.summaryRow}>
-          <SummaryCard icon="barbell-outline" label="Workouts" value={`${totalWorkouts}`} color={c.accent} c={c} delay={0} />
-          <SummaryCard icon="time-outline" label="Minutos" value={`${totalMinutes}`} color="#34A853" c={c} delay={100} />
-          <SummaryCard icon="flame-outline" label="Calorias" value={`${totalCalories}`} color="#EA4335" c={c} delay={200} />
+          <SummaryCard icon="barbell-outline" label="Workouts" value={`${weeklyStats.count}`} color={c.accent} c={c} delay={0} />
+          <SummaryCard icon="time-outline" label="Minutos" value={`${weeklyStats.minutes}`} color="#34A853" c={c} delay={100} />
+          <SummaryCard icon="flame-outline" label="Calorias" value={`${weeklyStats.calories}`} color="#EA4335" c={c} delay={200} />
         </View>
 
         {/* Log Workout Button */}
@@ -239,13 +385,20 @@ export default function WorkoutScreen({ navigation }: any) {
         </TouchableOpacity>
 
         {/* Recent Workouts */}
-        <Text style={[styles.sectionTitle, { color: c.black, marginTop: spacing.lg }]}>ULTIMOS 7 DIAS</Text>
+        <Text style={[styles.sectionTitle, { color: c.black, marginTop: spacing.lg }]}>
+          ULTIMOS WORKOUTS
+        </Text>
+        <Text style={[styles.sectionHint, { color: c.gray }]}>
+          Toca para re-registrar
+        </Text>
         <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
-          {workouts.length === 0 ? (
+          {recentWorkouts.length === 0 ? (
             <View style={styles.emptyState}>
               <FitsiMascot expression="muscle" size="medium" animation="idle" />
-              <Text style={[styles.emptyTitle, { color: c.black }]}>Sin workouts esta semana</Text>
-              <Text style={[styles.emptyText, { color: c.gray }]}>Registra tu primer entrenamiento para ver tus estadisticas y progreso</Text>
+              <Text style={[styles.emptyTitle, { color: c.black }]}>Sin workouts recientes</Text>
+              <Text style={[styles.emptyText, { color: c.gray }]}>
+                Registra tu primer entrenamiento para ver tus estadisticas y progreso
+              </Text>
               <TouchableOpacity
                 style={[styles.emptyCta, { backgroundColor: c.black }]}
                 onPress={openModal}
@@ -258,14 +411,16 @@ export default function WorkoutScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
           ) : (
-            workouts.map((w) => <WorkoutRow key={w.id} entry={w} c={c} />)
+            recentWorkouts.map((w) => (
+              <WorkoutRow key={w.id} entry={w} c={c} onReLog={openModalWithExercise} />
+            ))
           )}
         </View>
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
 
-      {/* Log Workout Bottom Sheet */}
+      {/* ── Log Workout Bottom Sheet ── */}
       <BottomSheet
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
@@ -273,30 +428,107 @@ export default function WorkoutScreen({ navigation }: any) {
       >
         <Text style={[styles.modalTitle, { color: c.black }]}>Registrar Workout</Text>
 
-        {/* Type selector */}
-        <Text style={[styles.modalLabel, { color: c.gray }]}>TIPO</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeScroll}>
-          {WORKOUT_TYPES.map((wt) => {
-            const isSelected = wt.key === selectedType.key;
+        {/* Search */}
+        <View style={[styles.searchContainer, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
+          <Ionicons name="search-outline" size={18} color={c.gray} />
+          <TextInput
+            style={[styles.searchInput, { color: c.black }]}
+            placeholder="Buscar ejercicio..."
+            placeholderTextColor={c.disabled}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color={c.gray} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Category chips */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+          <TouchableOpacity
+            style={[
+              styles.categoryChip,
+              {
+                backgroundColor: activeCategory === null ? c.accent + '20' : c.surface,
+                borderColor: activeCategory === null ? c.accent : c.grayLight,
+              },
+            ]}
+            onPress={() => { haptics.light(); setActiveCategory(null); }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.categoryLabel, { color: activeCategory === null ? c.accent : c.gray }]}>
+              Todos
+            </Text>
+          </TouchableOpacity>
+          {EXERCISE_CATEGORIES.map((cat) => {
+            const isActive = activeCategory === cat.key;
             return (
               <TouchableOpacity
-                key={wt.key}
+                key={cat.key}
                 style={[
-                  styles.typeChip,
-                  { backgroundColor: isSelected ? wt.color + '20' : c.surface, borderColor: isSelected ? wt.color : c.grayLight },
+                  styles.categoryChip,
+                  {
+                    backgroundColor: isActive ? cat.color + '20' : c.surface,
+                    borderColor: isActive ? cat.color : c.grayLight,
+                  },
                 ]}
-                onPress={() => { haptics.light(); setSelectedType(wt); }}
+                onPress={() => { haptics.light(); setActiveCategory(isActive ? null : cat.key); }}
                 activeOpacity={0.7}
               >
-                <Ionicons name={wt.icon as any} size={18} color={isSelected ? wt.color : c.gray} />
-                <Text style={[styles.typeLabel, { color: isSelected ? wt.color : c.gray }]}>{wt.label}</Text>
+                <Ionicons name={cat.icon as any} size={14} color={isActive ? cat.color : c.gray} />
+                <Text style={[styles.categoryLabel, { color: isActive ? cat.color : c.gray }]}>
+                  {cat.label}
+                </Text>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
 
+        {/* Exercise list */}
+        <View style={styles.exerciseListContainer}>
+          <FlatList
+            data={filteredExercises}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <ExerciseItem
+                exercise={item}
+                isSelected={item.id === selectedExercise.id}
+                c={c}
+                onSelect={setSelectedExercise}
+              />
+            )}
+            showsVerticalScrollIndicator={false}
+            style={styles.exerciseList}
+            nestedScrollEnabled
+            initialNumToRender={10}
+            ListEmptyComponent={
+              <View style={styles.noResults}>
+                <Ionicons name="search-outline" size={24} color={c.disabled} />
+                <Text style={[styles.noResultsText, { color: c.gray }]}>
+                  Sin resultados para "{searchQuery}"
+                </Text>
+              </View>
+            }
+          />
+        </View>
+
+        {/* Selected exercise badge */}
+        <View style={[styles.selectedBadge, { backgroundColor: selectedExercise.color + '15', borderColor: selectedExercise.color + '30' }]}>
+          <Ionicons name={selectedExercise.icon as any} size={16} color={selectedExercise.color} />
+          <Text style={[styles.selectedBadgeText, { color: selectedExercise.color }]} numberOfLines={1}>
+            {selectedExercise.name}
+          </Text>
+          <Text style={[styles.selectedBadgeMet, { color: c.gray }]}>
+            MET {selectedExercise.met}
+          </Text>
+        </View>
+
         {/* Duration stepper */}
-        <Text style={[styles.modalLabel, { color: c.gray, marginTop: spacing.md }]}>DURACION</Text>
+        <Text style={[styles.modalLabel, { color: c.gray, marginTop: spacing.sm }]}>DURACION</Text>
         <View style={styles.durationRow}>
           <TouchableOpacity
             style={[styles.stepperBtn, { backgroundColor: c.surface }, duration <= 5 && { opacity: 0.4 }]}
@@ -308,21 +540,26 @@ export default function WorkoutScreen({ navigation }: any) {
           </TouchableOpacity>
           <Text style={[styles.durationValue, { color: c.black }]}>{duration} min</Text>
           <TouchableOpacity
-            style={[styles.stepperBtn, { backgroundColor: c.surface }, duration >= 120 && { opacity: 0.4 }]}
-            onPress={() => { haptics.light(); setDuration((d) => Math.min(120, d + 5)); }}
-            disabled={duration >= 120}
+            style={[styles.stepperBtn, { backgroundColor: c.surface }, duration >= 180 && { opacity: 0.4 }]}
+            onPress={() => { haptics.light(); setDuration((d) => Math.min(180, d + 5)); }}
+            disabled={duration >= 180}
             activeOpacity={0.6}
           >
             <Ionicons name="add" size={20} color={c.black} />
           </TouchableOpacity>
         </View>
 
-        {/* Calorie estimate */}
+        {/* Calorie estimate (real-time) */}
         <View style={[styles.calEstimate, { backgroundColor: c.surface }]}>
           <Ionicons name="flame-outline" size={18} color="#EA4335" />
-          <Text style={[styles.calEstimateText, { color: c.black }]}>
-            ~{estimatedCalories} kcal estimadas
-          </Text>
+          <View style={styles.calEstimateInfo}>
+            <Text style={[styles.calEstimateText, { color: c.black }]}>
+              ~{estimatedCalories} kcal estimadas
+            </Text>
+            <Text style={[styles.calEstimateRate, { color: c.gray }]}>
+              {calPerMin.toFixed(1)} kcal/min ({userWeight} kg)
+            </Text>
+          </View>
         </View>
 
         {/* Notes */}
@@ -379,9 +616,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.label,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  sectionHint: {
+    ...typography.caption,
+    marginBottom: spacing.sm,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -449,7 +690,7 @@ const styles = StyleSheet.create({
   },
   emptyCtaText: { ...typography.label },
 
-  // Bottom sheet content
+  // ── Bottom sheet content ──
   modalTitle: { ...typography.titleSm, marginBottom: spacing.md },
   modalLabel: {
     ...typography.label,
@@ -457,18 +698,107 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: spacing.xs,
   },
-  typeScroll: { marginBottom: spacing.sm },
-  typeChip: {
+
+  // Search
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    height: 44,
+    marginBottom: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.body,
+    paddingVertical: 0,
+  },
+
+  // Category chips
+  categoryScroll: {
+    marginBottom: spacing.sm,
+    maxHeight: 40,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.xs + 2,
     borderRadius: radius.full,
     borderWidth: 1,
-    marginRight: spacing.sm,
+    marginRight: spacing.xs,
   },
-  typeLabel: { ...typography.label },
+  categoryLabel: { ...typography.caption, fontWeight: '600' },
+
+  // Exercise list
+  exerciseListContainer: {
+    maxHeight: 160,
+    marginBottom: spacing.sm,
+  },
+  exerciseList: {
+    flexGrow: 0,
+  },
+  exerciseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginBottom: spacing.xs,
+  },
+  exerciseItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exerciseItemInfo: {
+    flex: 1,
+  },
+  exerciseItemName: {
+    ...typography.bodyMd,
+    fontSize: 14,
+  },
+  exerciseItemMet: {
+    ...typography.caption,
+  },
+  noResults: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+    gap: spacing.xs,
+  },
+  noResultsText: {
+    ...typography.caption,
+    textAlign: 'center',
+  },
+
+  // Selected badge
+  selectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginBottom: spacing.xs,
+  },
+  selectedBadgeText: {
+    ...typography.bodyMd,
+    fontSize: 14,
+    flex: 1,
+  },
+  selectedBadgeMet: {
+    ...typography.caption,
+  },
+
+  // Duration
   durationRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -484,6 +814,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   durationValue: { ...typography.titleSm, minWidth: 80, textAlign: 'center' },
+
+  // Calorie estimate
   calEstimate: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -492,7 +824,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginTop: spacing.sm,
   },
+  calEstimateInfo: {
+    flex: 1,
+  },
   calEstimateText: { ...typography.bodyMd },
+  calEstimateRate: { ...typography.caption, marginTop: 2 },
+
+  // Notes
   notesInput: {
     borderRadius: radius.md,
     borderWidth: 1,
@@ -501,6 +839,8 @@ const styles = StyleSheet.create({
     ...typography.body,
     textAlignVertical: 'top',
   },
+
+  // Save
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -40,6 +40,8 @@ import ExerciseBalanceCard from '../../components/ExerciseBalanceCard';
 import AdaptiveCalorieBanner from '../../components/AdaptiveCalorieBanner';
 import HealthKitCard from '../../components/HealthKitCard';
 import FastingTimer from '../../components/FastingTimer';
+import SleepTracker from '../../components/SleepTracker';
+import WellnessScore from '../../components/WellnessScore';
 import useFadeIn from '../../hooks/useFadeIn';
 import useHealthKit from '../../hooks/useHealthKit';
 import usePulse from '../../hooks/usePulse';
@@ -510,6 +512,29 @@ export default function HomeScreen({ navigation }: any) {
     ? healthKit.activeCalories.kcal
     : 0;
 
+  // ---- WellnessScore derived data ----
+  // NutriScore value for wellness (reuse the same calculation the NutriScore component uses)
+  const nutriScoreValue = useMemo(() => {
+    // Macro adherence sub-score
+    const macroAdh = (actual: number, tgt: number) => {
+      if (tgt <= 0) return 100;
+      return Math.max(0, Math.min(100, (1 - Math.abs(actual - tgt) / tgt) * 100));
+    };
+    const macroSc = macroAdh(protein, proteinTarget) * 0.4
+      + macroAdh(carbs, carbsTarget) * 0.3
+      + macroAdh(fats, fatsTarget) * 0.3;
+    const fiberSc = Math.min(100, ((nutriScoreData.totalFiber) / 25) * 100);
+    const waterSc = Math.min(100, ((summary?.water_ml ?? 0) / 2500) * 100);
+    const varietySc = Math.min(100, ((nutriScoreData.foodVariety) / 4) * 100);
+    return Math.round(macroSc * 0.4 + fiberSc * 0.2 + waterSc * 0.2 + varietySc * 0.2);
+  }, [protein, proteinTarget, carbs, carbsTarget, fats, fatsTarget, nutriScoreData, summary]);
+
+  // Exercise score: active calories vs 300 kcal target (moderate daily goal)
+  const exerciseScoreValue = useMemo(() => {
+    const target = 300; // reasonable daily active calorie target
+    return Math.round(Math.min(100, (exerciseBurned / target) * 100));
+  }, [exerciseBurned]);
+
   // ---- Adaptive calorie banner data ----
   // TODO: Replace with real 7-day history from API
   const adaptiveRecentCalories = mockRecentDailyCalories;
@@ -606,7 +631,16 @@ export default function HomeScreen({ navigation }: any) {
             }
           >
             <Animated.View style={fadeStyle}>
-              {/* Health Alerts — top of scroll, above everything */}
+              {/* Wellness Score — the main card, above everything */}
+              <WellnessScore
+                nutriScore={nutriScoreValue}
+                exerciseScore={exerciseScoreValue}
+                waterMl={summary?.water_ml ?? 0}
+                waterGoal={2500}
+                streakDays={streak}
+              />
+
+              {/* Health Alerts */}
               <HealthAlerts alerts={healthAlerts} />
 
               {/* Trial banner — 7 days free for non-premium users */}
@@ -630,6 +664,9 @@ export default function HomeScreen({ navigation }: any) {
 
               {/* Fasting Timer — collapsible card */}
               <FastingTimer initiallyCollapsed />
+
+              {/* Sleep Tracker — collapsible card */}
+              <SleepTracker initiallyCollapsed />
 
               {/* Calorie card */}
               <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">

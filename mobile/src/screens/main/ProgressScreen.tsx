@@ -45,6 +45,7 @@ import ProgressPhotos from '../../components/ProgressPhotos';
 import BodyMetrics from '../../components/BodyMetrics';
 import MicronutrientDashboard from '../../components/MicronutrientDashboard';
 import SupplementTracker from '../../components/SupplementTracker';
+import WorkoutSummaryCard, { WorkoutLogEntry } from '../../components/WorkoutSummaryCard';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import useStreak from '../../hooks/useStreak';
@@ -107,6 +108,38 @@ const MOCK_WEEKLY_SUMMARY = {
   avgCarbs: 210,
   avgFats: 62,
 };
+
+// Mock data for WorkoutSummaryCard
+function generateMockWorkoutLog(): WorkoutLogEntry[] {
+  const entries: WorkoutLogEntry[] = [];
+  const now = new Date();
+  const samples = [
+    { name: 'Pesas (general)',        cat: 'weights',  color: '#6366F1', icon: 'barbell-outline',   dur: 55, cal: 337 },
+    { name: 'Correr (ritmo moderado)', cat: 'running',  color: '#EA4335', icon: 'walk-outline',      dur: 30, cal: 360 },
+    { name: 'Yoga (Hatha)',           cat: 'yoga',     color: '#8B5CF6', icon: 'body-outline',      dur: 20, cal: 61  },
+    { name: 'Peso muerto / Deadlift', cat: 'weights',  color: '#6366F1', icon: 'barbell-outline',   dur: 60, cal: 441 },
+    { name: 'Futbol',                 cat: 'sports',   color: '#F97316', icon: 'football-outline',  dur: 90, cal: 771 },
+    { name: 'Spinning / Indoor cycling', cat: 'cycling', color: '#10B981', icon: 'bicycle-outline', dur: 45, cal: 468 },
+  ];
+  for (let i = 0; i < samples.length; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const s = samples[i];
+    entries.push({
+      id: `pw-${i}`,
+      exerciseName: s.name,
+      exerciseCategory: s.cat,
+      exerciseColor: s.color,
+      exerciseIcon: s.icon,
+      duration: s.dur,
+      calories: s.cal,
+      date: d.toISOString().slice(0, 10),
+    });
+  }
+  return entries;
+}
+
+const MOCK_WORKOUT_LOG = generateMockWorkoutLog();
 
 // Weight history (last ~120 days for ALL filter)
 function generateWeightHistory(days: number, start: number, current: number): { date: Date; weight: number }[] {
@@ -582,6 +615,9 @@ export default function ProgressScreen() {
 
         {/* ── Body Metrics Tracker ── */}
         <BodyMetrics />
+
+        {/* ── Workout Summary (weekly activity) ── */}
+        <WorkoutSummaryCard workouts={MOCK_WORKOUT_LOG} />
 
         {/* ── Micronutrient Dashboard (expandable) ── */}
         <MicronutrientDashboard />

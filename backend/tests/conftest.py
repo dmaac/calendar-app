@@ -51,6 +51,8 @@ from app.models.onboarding_profile import OnboardingProfile
 from app.models.ai_food_log import AIFoodLog
 from app.models.ai_scan_cache import AIScanCache
 from app.models.subscription import Subscription
+from app.models.nutrition_tip import NutritionTip
+from app.models.recipe import Recipe
 
 
 # ─── Async test engine ────────────────────────────────────────────────────────
@@ -160,6 +162,23 @@ def _create_redis_mock():
     async def mock_ping():
         return True
 
+    async def mock_flushdb():
+        store.clear()
+
+    async def mock_incr(key):
+        current = int(store.get(key, 0))
+        store[key] = str(current + 1)
+        return current + 1
+
+    async def mock_info(section=None):
+        return {"db0": {"keys": len(store)}}
+
+    async def mock_ttl(key):
+        return -2 if key not in store else 300
+
+    async def mock_expire(key, ttl):
+        return True
+
     redis.get = AsyncMock(side_effect=mock_get)
     redis.setex = AsyncMock(side_effect=mock_setex)
     redis.set = AsyncMock(side_effect=mock_set)
@@ -167,6 +186,11 @@ def _create_redis_mock():
     redis.exists = AsyncMock(side_effect=mock_exists)
     redis.scan = AsyncMock(side_effect=mock_scan)
     redis.ping = AsyncMock(side_effect=mock_ping)
+    redis.flushdb = AsyncMock(side_effect=mock_flushdb)
+    redis.incr = AsyncMock(side_effect=mock_incr)
+    redis.info = AsyncMock(side_effect=mock_info)
+    redis.ttl = AsyncMock(side_effect=mock_ttl)
+    redis.expire = AsyncMock(side_effect=mock_expire)
 
     # Expose store for test assertions
     redis._test_store = store
@@ -228,6 +252,25 @@ async def inactive_user_fixture(async_session: AsyncSession) -> User:
     return user
 
 
+@pytest_asyncio.fixture(name="admin_user")
+async def admin_user_fixture(async_session: AsyncSession) -> User:
+    """Create an admin test user."""
+    user = User(
+        email="admin@example.com",
+        first_name="Admin",
+        last_name="User",
+        hashed_password=get_password_hash("Adminpassword123"),
+        is_active=True,
+        provider="email",
+        is_premium=True,
+        is_admin=True,
+    )
+    async_session.add(user)
+    await async_session.commit()
+    await async_session.refresh(user)
+    return user
+
+
 # ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 async def create_user_and_get_headers(
@@ -274,6 +317,52 @@ async def auth_user_and_headers_fixture(client: AsyncClient) -> tuple[dict, int]
     return await create_user_and_get_headers(
         client, email="authu@example.com", password="Authpassword123"
     )
+
+
+async def create_admin_and_get_headers(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    email: str = "admin@fitsi.test",
+    password: str = "Adminpassword123",
+) -> tuple[dict, int]:
+    """Register a user, promote to admin, log in, return (headers, user_id)."""
+    # Register
+    await client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "first_name": "Admin",
+            "last_name": "Test",
+        },
+    )
+    # Promote to admin via direct DB update
+    from sqlmodel import select as sm_select
+    result = await async_session.execute(sm_select(User).where(User.email == email))
+    user = result.scalars().first()
+    if user:
+        user.is_admin = True
+        async_session.add(user)
+        await async_session.commit()
+    # Login
+    login_resp = await client.post(
+        "/auth/login",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    data = login_resp.json()
+    headers = {"Authorization": f"Bearer {data['access_token']}"}
+    return headers, data["user_id"]
+
+
+@pytest_asyncio.fixture(name="admin_auth_headers")
+async def admin_auth_headers_fixture(
+    client: AsyncClient,
+    async_session: AsyncSession,
+) -> dict:
+    """Register an admin user and return auth headers."""
+    headers, _ = await create_admin_and_get_headers(client, async_session)
+    return headers
 
 
 # ─── Food test data ──────────────────────────────────────────────────────────
