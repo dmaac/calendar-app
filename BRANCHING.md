@@ -1,4 +1,4 @@
-# Branching Strategy — Cal AI
+# Branching Strategy — Fitsi IA
 
 ## Ramas
 

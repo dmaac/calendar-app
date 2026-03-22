@@ -9,6 +9,20 @@ from .onboarding_profile import OnboardingProfile
 from .ai_food_log import AIFoodLog
 from .ai_scan_cache import AIScanCache
 from .subscription import Subscription
+from .push_token import PushToken
+from .feedback import Feedback
+from .workout import WorkoutLog
+from .experiment import Experiment, ExperimentAssignment, ExperimentConversion
+from .nutrition_tip import NutritionTip
+from .recipe import Recipe
+from .webhook import Webhook, WebhookDelivery
+from .corporate import (
+    CorporateCompany,
+    CorporateMembership,
+    CorporateTeam,
+    FamilyGroup,
+    FamilyMembership,
+)
 
 __all__ = [
     "User",
@@ -22,4 +36,19 @@ __all__ = [
     "AIFoodLog",
     "AIScanCache",
     "Subscription",
+    "PushToken",
+    "Feedback",
+    "WorkoutLog",
+    "Experiment",
+    "ExperimentAssignment",
+    "ExperimentConversion",
+    "NutritionTip",
+    "Recipe",
+    "Webhook",
+    "WebhookDelivery",
+    "CorporateCompany",
+    "CorporateMembership",
+    "CorporateTeam",
+    "FamilyGroup",
+    "FamilyMembership",
 ]

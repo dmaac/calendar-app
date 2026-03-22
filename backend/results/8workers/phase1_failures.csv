@@ -1,0 +1,8 @@
+Method,Name,Error,Occurrences
+POST,POST /auth/login,CatchResponseError('Login failed for user_0008@fitsi.test: 401'),1
+GET,GET /nutrition-profile/,HTTPError('404 Client Error: Not Found for url: GET /nutrition-profile/'),2
+POST,POST /auth/login,CatchResponseError('Login failed for user_0048@fitsi.test: 401'),2
+POST,POST /auth/login,CatchResponseError('Login failed for user_0061@fitsi.test: 401'),2
+POST,POST /auth/login,CatchResponseError('Login failed for user_0082@fitsi.test: 401'),1
+POST,POST /api/food/water,HTTPError('500 Server Error: Internal Server Error for url: POST /api/food/water'),5
+POST,POST /auth/login,CatchResponseError('Login failed for user_0016@fitsi.test: 401'),1

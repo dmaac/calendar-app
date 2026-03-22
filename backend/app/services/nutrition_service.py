@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from ..models.nutrition_profile import (
@@ -10,6 +10,7 @@ from ..models.nutrition_profile import (
     ActivityLevel,
     NutritionGoal,
 )
+from ..models.onboarding_profile import OnboardingProfile
 
 
 class NutritionService:
@@ -123,6 +124,12 @@ class NutritionService:
 
         target_calories = round(target_calories)
 
+        # Gender-differentiated calorie floor (clinical safety minimum)
+        if gender == Gender.MALE or gender == "male":
+            target_calories = max(1500, target_calories)
+        else:
+            target_calories = max(1200, target_calories)
+
         # Macro split: 30% protein, 40% carbs, 30% fat
         target_protein_g = round((target_calories * 0.30) / 4)
         target_carbs_g = round((target_calories * 0.40) / 4)
@@ -134,6 +141,102 @@ class NutritionService:
             "target_carbs_g": target_carbs_g,
             "target_fat_g": target_fat_g,
         }
+
+    async def get_profile_with_fallback(self, user_id: int) -> Optional[UserNutritionProfile]:
+        """Get UserNutritionProfile, falling back to generating one from OnboardingProfile."""
+        profile = await self.get_profile(user_id)
+        if profile:
+            return profile
+
+        # Fallback: generate from OnboardingProfile
+        stmt = select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
+        result = await self.session.exec(stmt)
+        onboarding = result.first()
+        if not onboarding:
+            return None
+
+        # Derive age from birth_date
+        age = 30
+        if onboarding.birth_date:
+            today = date.today()
+            age = (
+                today.year
+                - onboarding.birth_date.year
+                - ((today.month, today.day) < (onboarding.birth_date.month, onboarding.birth_date.day))
+            )
+
+        # Map onboarding goal to NutritionGoal
+        goal = NutritionGoal.MAINTAIN
+        raw_goal = (onboarding.goal or "").lower()
+        if "lose" in raw_goal:
+            goal = NutritionGoal.LOSE_WEIGHT
+        elif "gain" in raw_goal:
+            goal = NutritionGoal.GAIN_MUSCLE
+
+        # Map gender
+        gender = None
+        if onboarding.gender:
+            g = onboarding.gender.lower()
+            if g == "male":
+                gender = Gender.MALE
+            elif g == "female":
+                gender = Gender.FEMALE
+            else:
+                gender = Gender.OTHER
+
+        # Map workouts_per_week to activity level
+        workouts = onboarding.workouts_per_week or 3
+        if workouts == 0:
+            activity_level = ActivityLevel.SEDENTARY
+        elif workouts <= 2:
+            activity_level = ActivityLevel.LIGHTLY_ACTIVE
+        elif workouts <= 4:
+            activity_level = ActivityLevel.MODERATELY_ACTIVE
+        elif workouts <= 6:
+            activity_level = ActivityLevel.VERY_ACTIVE
+        else:
+            activity_level = ActivityLevel.EXTRA_ACTIVE
+
+        # Use onboarding calculated values if available, otherwise compute
+        if onboarding.daily_calories and onboarding.daily_protein_g:
+            target_calories = float(onboarding.daily_calories)
+            target_protein_g = float(onboarding.daily_protein_g)
+            target_carbs_g = float(onboarding.daily_carbs_g or 250)
+            target_fat_g = float(onboarding.daily_fats_g or 65)
+        else:
+            height = onboarding.height_cm or 170.0
+            weight = onboarding.weight_kg or 70.0
+            targets = self.calculate_targets(
+                height_cm=height,
+                weight_kg=weight,
+                age=age,
+                gender=gender.value if gender else "other",
+                activity_level=activity_level.value,
+                goal=goal.value,
+            )
+            target_calories = targets["target_calories"]
+            target_protein_g = targets["target_protein_g"]
+            target_carbs_g = targets["target_carbs_g"]
+            target_fat_g = targets["target_fat_g"]
+
+        # Create and persist the profile so future requests are fast
+        new_profile = UserNutritionProfile(
+            user_id=user_id,
+            height_cm=onboarding.height_cm,
+            weight_kg=onboarding.weight_kg,
+            age=age,
+            gender=gender,
+            activity_level=activity_level,
+            goal=goal,
+            target_calories=target_calories,
+            target_protein_g=target_protein_g,
+            target_carbs_g=target_carbs_g,
+            target_fat_g=target_fat_g,
+        )
+        self.session.add(new_profile)
+        await self.session.commit()
+        await self.session.refresh(new_profile)
+        return new_profile
 
     def _calculate_targets(self, profile: UserNutritionProfile) -> dict:
         """Internal helper: calculate targets from a profile if enough data exists."""

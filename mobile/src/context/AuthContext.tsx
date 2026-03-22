@@ -17,6 +17,7 @@ import { Platform } from 'react-native';
 import { User } from '../types';
 import * as authService from '../services/auth.service';
 import ApiService from '../services/api';
+import * as purchaseService from '../services/purchase.service';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -39,6 +40,9 @@ interface AuthContextType {
   markOnboardingComplete: () => Promise<void>;
   resetOnboarding: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  setPremiumStatus: (isPremium: boolean) => void;
+  /** DEV ONLY: bypass auth and enter app with a mock user */
+  devBypass: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,9 +55,9 @@ export const useAuth = () => {
 
 // ─── Google OAuth config ──────────────────────────────────────────────────────
 // Redirect URI for Google — in production use your bundle ID
-const GOOGLE_CLIENT_ID_IOS     = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ?? '';
-const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID ?? '';
-const GOOGLE_CLIENT_ID_WEB     = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ?? '';
+const GOOGLE_CLIENT_ID_IOS     = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
+const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '';
+const GOOGLE_CLIENT_ID_WEB     = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
 
 const googleClientId = Platform.select({
   ios:     GOOGLE_CLIENT_ID_IOS,
@@ -116,6 +120,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Load user profile
       const userData = await ApiService.getCurrentUser();
       setUser(userData);
+
+      // Initialize RevenueCat and identify user
+      await purchaseService.initializePurchases(String(userData.id));
+
+      // Check premium status from RevenueCat (source of truth for subscriptions)
+      const rcPremium = await purchaseService.checkSubscriptionStatus();
+      if (rcPremium && !userData.is_premium) {
+        // RevenueCat says premium but backend doesn't — update local state
+        // (backend will be synced via webhooks)
+        userData.is_premium = true;
+        setUser({ ...userData });
+      }
     } catch (err) {
       // Session invalid — clear and start fresh
       await authService.clearTokens();
@@ -127,6 +143,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchAndSetUser = async () => {
     const userData = await ApiService.getCurrentUser();
     setUser(userData);
+
+    // Identify user with RevenueCat after login/register
+    await purchaseService.initializePurchases(String(userData.id));
+    await purchaseService.identifyUser(String(userData.id));
+
     return userData;
   };
 
@@ -169,7 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ── Google Sign In ─────────────────────────────────────────────────────────
   const loginWithGoogle = useCallback(async () => {
     if (!googleClientId) {
-      throw new Error('Google client ID not configured. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS/ANDROID/WEB in .env');
+      throw new Error('Google client ID not configured. Set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID / EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID / EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env');
     }
     await googlePromptAsync();
     // Result is handled by the useEffect watching googleResponse
@@ -186,9 +207,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
-    await authService.logout();
+    try {
+      await authService.logout();
+    } catch (err) {
+      console.error('authService.logout failed:', err);
+    }
+    try {
+      await purchaseService.logOutPurchases();
+    } catch (err) {
+      console.error('purchaseService.logOutPurchases failed:', err);
+    }
     // Keep onboarding_completed so returning users see Login, not onboarding again
-    await AsyncStorage.multiRemove(['onboarding_data_v2', 'onboarding_current_step']);
+    await AsyncStorage.multiRemove(['onboarding_data_v2', 'onboarding_current_step']).catch(() => {});
     setUser(null);
     // isOnboardingComplete stays true → AuthNavigator shows Login
   }, []);
@@ -211,6 +241,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(userData);
   }, []);
 
+  // ── Set premium status (called after successful purchase) ────────────────
+  const setPremiumStatus = useCallback((isPremium: boolean) => {
+    setUser(prev => prev ? { ...prev, is_premium: isPremium } : prev);
+  }, []);
+
+  // ── DEV BYPASS: register+login a dev user so all APIs work with real tokens ─
+  const devBypass = useCallback(async () => {
+    if (!__DEV__) {
+      return;
+    }
+
+    const devEmail = 'dev@fitsiai.com';
+    const devPassword = 'DevPass1234';
+
+    try {
+      // Try to register (will 400 if already exists — that's fine)
+      await authService.register({
+        email: devEmail,
+        password: devPassword,
+        first_name: 'Dev',
+        last_name: 'User',
+      }).catch(() => {}); // ignore "already registered"
+
+      // Login to get real JWT tokens stored in SecureStore
+      await authService.login({ username: devEmail, password: devPassword });
+
+      // Fetch real user profile from backend
+      const userData = await ApiService.getCurrentUser();
+
+      await AsyncStorage.setItem('onboarding_completed', 'true');
+      setIsOnboardingComplete(true);
+      setUser(userData);
+    } catch (err) {
+      // Fallback: if backend is unreachable, use offline mock (no API calls will work)
+      console.warn('DevBypass: backend unreachable, using offline mock', err);
+      const mockUser: User = {
+        id: 999,
+        email: devEmail,
+        first_name: 'Dev',
+        last_name: 'User',
+        is_active: true,
+        is_premium: true,
+        provider: 'email',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem('onboarding_completed', 'true');
+      setIsOnboardingComplete(true);
+      setUser(mockUser);
+    }
+  }, []);
+
   // ─────────────────────────────────────────────────────────────────────────
   const value: AuthContextType = {
     user,
@@ -226,6 +308,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     markOnboardingComplete,
     resetOnboarding,
     refreshUser,
+    setPremiumStatus,
+    devBypass,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

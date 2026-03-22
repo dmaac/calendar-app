@@ -8,23 +8,26 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const PERMS = [
-  { icon: 'scale-outline',    label: 'Peso' },
-  { icon: 'walk-outline',     label: 'Pasos' },
-  { icon: 'flame-outline',    label: 'Calorías quemadas' },
-  { icon: 'heart-outline',    label: 'Frecuencia cardíaca' },
+  { icon: 'scale-outline',   label: 'Peso' },
+  { icon: 'walk-outline',    label: 'Pasos' },
+  { icon: 'flame-outline',   label: 'Calorias quemadas' },
+  { icon: 'heart-outline',   label: 'Frecuencia cardiaca' },
 ];
 
-export default function Step20Health({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step20Health({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { update } = useOnboarding();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   const handleConnect = async () => {
     // In production: request HealthKit (iOS) or Health Connect (Android) permissions
-    // For now, mark as connected and proceed
     update('healthConnected', true);
     onNext();
   };
@@ -37,18 +40,34 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
   const appName = Platform.OS === 'ios' ? 'Apple Health' : 'Google Health';
   const iconName = Platform.OS === 'ios' ? 'heart-circle' : 'fitness';
 
+  const footer = (
+    <>
+      <PrimaryButton label={`Conectar ${appName}`} onPress={handleConnect} />
+      <PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" />
+    </>
+  );
+
   return (
     <OnboardingLayout
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
-      footer={<><PrimaryButton label={`Conectar ${appName}`} onPress={handleConnect} /><PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" /></>}
+      onSkip={onSkip}
+      footer={footer}
     >
-      <Text style={styles.title}>Conectar con{'\n'}{appName}</Text>
+      <Text
+        style={styles.title}
+        accessibilityRole="header"
+      >
+        Conectar con{'\n'}{appName}
+      </Text>
 
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        {/* App icon */}
-        <View style={styles.iconRow}>
+        {/* App icons with connection indicator */}
+        <View
+          style={styles.iconRow}
+          accessibilityLabel={`Conectar ${appName} con Fitsi IA`}
+        >
           <View style={[styles.appIcon, { backgroundColor: '#FF2D55' }]}>
             <Ionicons name={iconName as any} size={40} color={colors.white} />
           </View>
@@ -63,17 +82,30 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
         </View>
 
         <Text style={styles.desc}>
-          Sincroniza tus datos de salud para un registro más preciso de calorías y actividad.
+          Sincroniza tus datos de salud para un registro mas preciso de calorias y actividad.
         </Text>
 
         {/* Permissions list */}
-        <View style={styles.permsCard}>
+        <View
+          style={styles.permsCard}
+          accessibilityRole="list"
+          accessibilityLabel="Datos que leeremos de tu app de salud"
+        >
           <Text style={styles.permsTitle}>Leeremos:</Text>
           {PERMS.map((p, i) => (
-            <View key={i} style={styles.permRow}>
+            <View
+              key={i}
+              style={styles.permRow}
+              accessibilityLabel={`${p.label}: permitido`}
+            >
               <Ionicons name={p.icon as any} size={18} color={colors.gray} />
               <Text style={styles.permLabel}>{p.label}</Text>
-              <Ionicons name="checkmark-circle" size={18} color={colors.accent} style={{ marginLeft: 'auto' }} />
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={colors.accent}
+                style={styles.permCheck}
+              />
             </View>
           ))}
         </View>
@@ -83,8 +115,16 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
 }
 
 const styles = StyleSheet.create({
-  title: { ...typography.title, color: colors.black, marginTop: spacing.md },
-  content: { flex: 1, justifyContent: 'center', gap: spacing.xl },
+  title: {
+    ...typography.title,
+    color: colors.black,
+    marginTop: spacing.md,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing.xl,
+  },
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -92,7 +132,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   appIcon: {
-    width: 72, height: 72,
+    width: 72,
+    height: 72,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
@@ -103,13 +144,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dot: {
-    width: 6, height: 6,
+    width: 6,
+    height: 6,
     borderRadius: 3,
     backgroundColor: colors.grayLight,
   },
   desc: {
     ...typography.subtitle,
-    color: colors.black,
+    color: colors.gray,
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: spacing.md,
@@ -120,11 +162,22 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
-  permsTitle: { ...typography.label, color: colors.black, marginBottom: spacing.xs },
+  permsTitle: {
+    ...typography.label,
+    color: colors.black,
+    marginBottom: spacing.xs,
+  },
   permRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  permLabel: { ...typography.option, color: colors.black, flex: 1 },
+  permLabel: {
+    ...typography.option,
+    color: colors.black,
+    flex: 1,
+  },
+  permCheck: {
+    marginLeft: 'auto',
+  },
 });

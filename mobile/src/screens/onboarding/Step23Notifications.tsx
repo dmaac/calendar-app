@@ -14,7 +14,7 @@ const NOTIF_EXAMPLES = [
   { time: '7:30 PM', text: '✅ ¡Excelente día! Alcanzaste tu meta', sub: 'Toca para ver tu resumen' },
 ];
 
-export default function Step23Notifications({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step23Notifications({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { update } = useOnboarding();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -28,17 +28,17 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
 
     // Desayuno 8:00 AM
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Cal AI', body: '🌅 ¡Buenos días! Registra tu desayuno' },
+      content: { title: 'Fitsi IA', body: '🌅 ¡Buenos días! Registra tu desayuno' },
       trigger: { type: 'calendar', hour: 8, minute: 0, repeats: true } as any,
     });
     // Almuerzo 1:00 PM
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Cal AI', body: '🥗 ¡Hora de comer! No olvides fotografiar tu almuerzo' },
+      content: { title: 'Fitsi IA', body: '🥗 ¡Hora de comer! No olvides fotografiar tu almuerzo' },
       trigger: { type: 'calendar', hour: 13, minute: 0, repeats: true } as any,
     });
     // Resumen nocturno 8:30 PM
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Cal AI', body: '✅ Revisa tu resumen del día y cierra fuerte' },
+      content: { title: 'Fitsi IA', body: '✅ Revisa tu resumen del día y cierra fuerte' },
       trigger: { type: 'calendar', hour: 20, minute: 30, repeats: true } as any,
     });
   };
@@ -65,7 +65,13 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
-      footer={<><PrimaryButton label="Activar recordatorios" onPress={handleEnable} /><PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" /></>}
+      onSkip={onSkip}
+      footer={
+        <>
+          <PrimaryButton label="Activar recordatorios" onPress={handleEnable} />
+          <PrimaryButton label="Ahora no" onPress={handleSkip} variant="ghost" />
+        </>
+      }
     >
       <Text style={styles.title}>Mantén el rumbo{'\n'}con recordatorios</Text>
       <Text style={styles.subtitle}>
@@ -80,7 +86,7 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.notifTop}>
-                <Text style={styles.notifApp}>Cal AI</Text>
+                <Text style={styles.notifApp}>Fitsi IA</Text>
                 <Text style={styles.notifTime}>{n.time}</Text>
               </View>
               <Text style={styles.notifText}>{n.text}</Text>

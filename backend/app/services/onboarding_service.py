@@ -133,11 +133,16 @@ class OnboardingService:
         if "lose" in goal:
             target_calories = tdee - daily_deficit
         elif "gain" in goal:
-            target_calories = tdee + daily_deficit
+            # Cap surplus at 500 kcal/day to prevent excessive bulk
+            target_calories = tdee + min(daily_deficit, 500)
         else:
             target_calories = tdee
 
-        target_calories = max(1200, round(target_calories))
+        # Gender-differentiated calorie floor (clinical safety minimum)
+        if gender == "male":
+            target_calories = max(1500, round(target_calories))
+        else:
+            target_calories = max(1200, round(target_calories))
 
         # Macro split: 30% protein, 40% carbs, 30% fat (by calories)
         protein_g = round((target_calories * 0.30) / 4)

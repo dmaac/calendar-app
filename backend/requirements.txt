@@ -17,5 +17,9 @@ slowapi
 PyJWT
 aiofiles
 httpx
+anthropic
+Pillow
 google-auth
 gunicorn
+packaging
+reportlab

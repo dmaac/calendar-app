@@ -1,31 +1,59 @@
 {
   "expo": {
-    "name": "Cal AI",
-    "slug": "cal-ai",
-    "scheme": "calai",
+    "name": "Fitsi IA",
+    "slug": "fitsiai",
+    "scheme": "fitsiai",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/mascot/fitsi-cute.png",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/mascot/fitsi-cute.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#4285F4"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fitsiai.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Fitsi necesita acceso a tu camara para escanear alimentos y registrar tus comidas con IA.",
+        "NSPhotoLibraryUsageDescription": "Fitsi necesita acceso a tus fotos para seleccionar imagenes de alimentos y registrar tus comidas."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/mascot/fitsi-cute.png",
+        "backgroundColor": "#4285F4"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fitsiai.app",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-localization",
+      "expo-camera",
+      "expo-image-picker",
+      [
+        "expo-apple-authentication"
+      ]
+    ],
+    "updates": {
+      "url": "https://u.expo.dev/YOUR_PROJECT_ID_HERE"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_PROJECT_ID_HERE"
+      }
+    },
+    "owner": "fitsiai"
   }
 }

@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
@@ -33,8 +32,13 @@ const FEATURES = [
   },
 ];
 
-export default function Step22Flexibility({ onNext, onBack, step, totalSteps }: StepProps) {
-  const fadeAnims = FEATURES.map(() => useRef(new Animated.Value(0)).current);
+export default function Step22Flexibility({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
+  // Pre-create a fixed number of refs to satisfy Rules of Hooks (no hooks inside loops)
+  const fade0 = useRef(new Animated.Value(0)).current;
+  const fade1 = useRef(new Animated.Value(0)).current;
+  const fade2 = useRef(new Animated.Value(0)).current;
+  const fade3 = useRef(new Animated.Value(0)).current;
+  const fadeAnims = [fade0, fade1, fade2, fade3];
 
   useEffect(() => {
     Animated.stagger(120,
@@ -47,6 +51,7 @@ export default function Step22Flexibility({ onNext, onBack, step, totalSteps }: 
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <Text style={styles.title}>Todo lo que{'\n'}necesitas para lograrlo</Text>
@@ -74,7 +79,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.md,
     width: '48%',
     gap: spacing.xs,

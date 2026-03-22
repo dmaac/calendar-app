@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script para iniciar la aplicación mobile React Native Expo
-# Autor: Calendar App Team
+# Autor: Fitsi IA Team
 # Fecha: 2025-09-29
 
 set -e  # Exit on error
@@ -20,7 +20,7 @@ API_URL="${API_URL:-http://localhost:8000}"
 clear
 
 echo "============================================================"
-echo "  📱 Calendar App Mobile - Expo Launcher"
+echo "  📱 Fitsi IA Mobile - Expo Launcher"
 echo "============================================================"
 echo ""
 

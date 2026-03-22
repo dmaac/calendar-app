@@ -2,13 +2,15 @@
  * api.ts — HTTP transport layer
  *
  * - Único axios instance para toda la app
- * - Request interceptor: inyecta Bearer token
+ * - Request interceptor: inyecta Bearer token + security headers
  * - Response interceptor: en 401, intenta refresh automático (rolling refresh)
  *   y reintenta la request original una vez
+ * - GET retry: 1 automatic retry on network error
  * - Preserva compatibilidad con todos los endpoints existentes
  */
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import * as authService from './auth.service';
 
 // ─── Base URL ─────────────────────────────────────────────────────────────────
@@ -19,11 +21,17 @@ const getBaseUrl = (): string => {
     if (Platform.OS === 'android') return 'http://10.0.2.2:8000';
     return 'http://172.20.10.13:8000'; // iOS físico — cambiar por tu IP local
   }
-  return process.env.EXPO_PUBLIC_API_URL ?? 'https://api.calai.app';
+  // SEC: Production must use HTTPS
+  return process.env.EXPO_PUBLIC_API_URL ?? 'https://api.fitsiai.app';
 };
 
 export const BASE_URL = getBaseUrl();
 authService.setBaseUrl(BASE_URL);
+
+// ─── App metadata for security headers ────────────────────────────────────────
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
+const APP_PLATFORM = Platform.OS; // 'ios' | 'android' | 'web'
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 
@@ -37,8 +45,13 @@ const processQueue = (token: string | null) => {
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
+  timeout: 30_000, // SEC: 30s default timeout
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'X-App-Version': APP_VERSION,
+    'X-Platform': APP_PLATFORM,
+  },
 });
 
 // ── Request: inject access token ──────────────────────────────────────────────
@@ -46,6 +59,7 @@ api.interceptors.request.use(async (config) => {
   const token = await authService.getAccessToken();
   if (token) {
     config.headers = config.headers ?? {};
+    // SEC: Token only in Authorization header, never in URL params
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -114,6 +128,24 @@ api.interceptors.response.use(
   }
 );
 
+// ── Retry interceptor: 1 automatic retry for GET on network errors ────────────
+api.interceptors.response.use(undefined, async (error: AxiosError) => {
+  const config = error.config as AxiosRequestConfig & { _retryCount?: number };
+  if (!config) return Promise.reject(error);
+
+  const isGet = (config.method ?? '').toUpperCase() === 'GET';
+  const isNetworkError = !error.response; // no response = network/timeout error
+  const retryCount = config._retryCount ?? 0;
+
+  // SEC: Only retry idempotent GET requests, max 1 retry, only on network errors
+  if (isGet && isNetworkError && retryCount < 1) {
+    config._retryCount = retryCount + 1;
+    return api.request(config);
+  }
+
+  return Promise.reject(error);
+});
+
 // ─── Domain methods (legacy + new) ────────────────────────────────────────────
 // Mantiene compatibilidad con todas las pantallas existentes
 
@@ -166,7 +198,7 @@ const ApiService = {
     if (query) params.append('query', query);
     params.append('limit', limit.toString());
     const res = await api.get(`/foods/?${params}`);
-    return res.data;
+    return res.data.items ?? res.data;
   },
 
   async getFood(id: number) {
@@ -182,7 +214,7 @@ const ApiService = {
 
   async getMeals(date: string) {
     const res = await api.get(`/meals/?target_date=${date}`);
-    return res.data;
+    return res.data.items ?? res.data;
   },
 
   async deleteMeal(id: number) {
@@ -214,6 +246,11 @@ const ApiService = {
       height_cm: heightCm, weight_kg: weightKg, age, gender, activity_level: activityLevel, goal,
     });
     return res.data;
+  },
+
+  // ── Account ─────────────────────────────────────────────────────────────
+  async deleteAccount() {
+    await api.delete('/auth/me');
   },
 };
 

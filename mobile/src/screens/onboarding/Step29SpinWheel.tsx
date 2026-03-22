@@ -5,21 +5,23 @@ import { colors, typography, spacing, radius, useLayout } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
+import { haptics } from '../../hooks/useHaptics';
 
 const SEGMENTS = [
-  { label: '40% OFF', color: '#FF7A5C' },
+  { label: '40% OFF', color: '#4285F4' },
   { label: '1 Month', color: '#111111' },
-  { label: '50% OFF', color: '#FF7A5C' },
+  { label: '50% OFF', color: '#4285F4' },
   { label: 'Otra vez', color: '#E5E5EA' },
-  { label: '60% OFF', color: '#FF7A5C' },
+  { label: '60% OFF', color: '#4285F4' },
   { label: '30% OFF', color: '#8E8E93' },
   { label: '3 Days Free', color: '#111111' },
-  { label: '80% OFF', color: '#FF7A5C' },
+  { label: '80% OFF', color: '#4285F4' },
 ];
 
 const SEGMENT_ANGLE = (2 * Math.PI) / SEGMENTS.length;
+const DEGREES_PER_SEGMENT = 360 / SEGMENTS.length;
 
-// Winning segment is always index 7 (80% OFF) — index calculation accounts for spin
+// Winning segment is always index 7 (80% OFF) -- index calculation accounts for spin
 const WINNING_IDX = 7;
 
 function polarToCart(cx: number, cy: number, r: number, angle: number) {
@@ -43,37 +45,87 @@ function buildSegmentPath(idx: number, cx: number, cy: number, r: number): strin
   ].join(' ');
 }
 
+/**
+ * Custom easing: strong deceleration that simulates wheel friction.
+ * Starts fast, slows dramatically in the last 30% for suspense.
+ */
+function wheelDeceleration(t: number): number {
+  // Combine two curves: fast start + dramatic slow end
+  if (t < 0.7) {
+    // First 70%: cover 92% of the distance (fast)
+    return 0.92 * Easing.out(Easing.quad)(t / 0.7);
+  }
+  // Last 30%: cover remaining 8% (dramatic slow-down for suspense)
+  const tail = (t - 0.7) / 0.3;
+  return 0.92 + 0.08 * Easing.out(Easing.cubic)(tail);
+}
+
 export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: StepProps) {
   const { innerWidth } = useLayout();
   const WHEEL_SIZE = Math.min(Math.round(innerWidth * 0.85), 320);
   const WHEEL_CENTER = WHEEL_SIZE / 2;
 
   const spinAnim = useRef(new Animated.Value(0)).current;
+  const resultBannerScale = useRef(new Animated.Value(0)).current;
+  const resultBannerOpacity = useRef(new Animated.Value(0)).current;
   const [spun, setSpun] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState('');
+  const lastTickSegment = useRef(-1);
+
+  // Haptic ticks: fire a selection haptic each time the wheel crosses a segment boundary
+  useEffect(() => {
+    if (!spinning) return;
+    const listenerId = spinAnim.addListener(({ value }) => {
+      const currentSegment = Math.floor(value / DEGREES_PER_SEGMENT);
+      if (currentSegment !== lastTickSegment.current) {
+        lastTickSegment.current = currentSegment;
+        haptics.selection();
+      }
+    });
+    return () => {
+      spinAnim.removeListener(listenerId);
+    };
+  }, [spinning]);
 
   const handleSpin = () => {
     if (spinning || spun) return;
     setSpinning(true);
+    haptics.medium();
+    lastTickSegment.current = -1;
 
     // Land on winning segment: 80% OFF (index 7)
-    // Full rotations + offset to land on segment 7
-    const degreesPerSegment = 360 / SEGMENTS.length;
-    const winningDeg = WINNING_IDX * degreesPerSegment;
-    // We spin 5 full rotations + land on the winning segment
-    // Pointer is at top (270°), segment starts at -startAngle from top
-    const targetDeg = 5 * 360 + (360 - winningDeg + degreesPerSegment / 2);
+    const targetOffset = WINNING_IDX * DEGREES_PER_SEGMENT + DEGREES_PER_SEGMENT / 2;
+    // 6 full rotations + offset to center on the winning segment
+    const targetDeg = 6 * 360 + targetOffset;
 
     Animated.timing(spinAnim, {
       toValue: targetDeg,
-      duration: 4000,
-      easing: Easing.out(Easing.cubic),
+      duration: 4500,
+      easing: wheelDeceleration,
       useNativeDriver: true,
     }).start(() => {
       setSpinning(false);
       setSpun(true);
       setResult(SEGMENTS[WINNING_IDX].label);
+      haptics.success();
+
+      // Animate result banner entrance with a bouncy spring
+      resultBannerScale.setValue(0.6);
+      resultBannerOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(resultBannerScale, {
+          toValue: 1,
+          friction: 5,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(resultBannerOpacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
     });
   };
 
@@ -93,16 +145,21 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
             style={[styles.spinBtn, spinning && styles.spinBtnDisabled]}
             onPress={handleSpin}
             activeOpacity={0.8}
+            accessibilityLabel={spinning ? 'Girando la ruleta' : 'Girar la ruleta para obtener un descuento'}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: spinning }}
           >
-            <Text style={styles.spinBtnText}>{spinning ? 'Girando...' : '🎰 ¡GIRAR!'}</Text>
+            <Text style={styles.spinBtnText}>{spinning ? 'Girando...' : 'GIRAR'}</Text>
           </TouchableOpacity>
         ) : (
           <PrimaryButton label="Reclamar mi descuento" onPress={onNext} />
         )
       }
     >
-      <Text style={styles.title}>¡Gira para desbloquear{'\n'}tu descuento!</Text>
-      <Text style={styles.subtitle}>Un giro por usuario. ¡Buena suerte! 🍀</Text>
+      <Text style={styles.title} accessibilityRole="header">
+        Gira para desbloquear{'\n'}tu descuento!
+      </Text>
+      <Text style={styles.subtitle}>Un giro por usuario. Buena suerte!</Text>
 
       <View style={styles.wheelContainer}>
         {/* Pointer */}
@@ -147,10 +204,20 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
       </View>
 
       {spun && result ? (
-        <View style={styles.resultBanner}>
+        <Animated.View
+          style={[
+            styles.resultBanner,
+            {
+              transform: [{ scale: resultBannerScale }],
+              opacity: resultBannerOpacity,
+            },
+          ]}
+          accessibilityLabel={`Ganaste: ${result}`}
+          accessibilityLiveRegion="polite"
+        >
           <Text style={styles.resultEmoji}>🎉</Text>
           <Text style={styles.resultText}>Ganaste: <Text style={styles.resultHighlight}>{result}</Text></Text>
-        </View>
+        </Animated.View>
       ) : null}
     </OnboardingLayout>
   );

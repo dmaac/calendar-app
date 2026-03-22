@@ -7,7 +7,7 @@ import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
-export default function Step24Referral({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step24Referral({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const [code, setCode] = useState(data.referralCode || '');
   const [error, setError] = useState('');
@@ -27,7 +27,13 @@ export default function Step24Referral({ onNext, onBack, step, totalSteps }: Ste
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
-      footer={<><PrimaryButton label="Aplicar código" onPress={handleContinue} disabled={code.trim().length === 0} /><PrimaryButton label="Omitir" onPress={onNext} variant="ghost" /></>}
+      onSkip={onSkip}
+      footer={
+        <>
+          <PrimaryButton label="Aplicar codigo" onPress={handleContinue} disabled={code.trim().length === 0} />
+          <PrimaryButton label="Omitir" onPress={onNext} variant="ghost" />
+        </>
+      }
     >
       <Text style={styles.title}>¿Tienes un{'\n'}código de referido?</Text>
       <Text style={styles.subtitle}>Ingresa el código de un amigo para desbloquear un descuento especial.</Text>

@@ -7,9 +7,9 @@
 
 ## ¿Qué es este proyecto?
 
-**Cal AI Clone** — App de tracking de calorías con IA.
+**Fitsi IA** — App de tracking de calorías con IA.
 - El usuario saca una foto a su comida → la IA identifica los nutrientes → se registra automáticamente.
-- Onboarding de 30 pasos (clonado de Cal AI) que recopila datos del usuario para generar un plan personalizado.
+- Onboarding de 30 pasos que recopila datos del usuario para generar un plan personalizado.
 - Modelo de negocio: freemium con paywall (suscripción mensual/anual + one-time offer).
 
 **Usuario objetivo:** Personas que quieren perder/mantener/ganar peso sin el esfuerzo de contar calorías manualmente.
@@ -66,18 +66,25 @@ calendar-app/
 
 ---
 
-## Design System (Cal AI style)
+## Design System (Fitsia IA — Norte Digital palette)
 
 ```typescript
-// Colores
+// Colores Light
 bg:        '#FFFFFF'
-surface:   '#F5F5F7'   // cards, opciones
-black:     '#111111'   // texto principal, botones
-gray:      '#8E8E93'   // subtítulos
-grayLight: '#E5E5EA'   // bordes, disabled track
-accent:    '#FF7A5C'   // naranja/salmon (highlights)
-disabled:  '#C7C7CC'   // botón deshabilitado
+surface:   '#F5F5F5'   // cards, opciones
+black:     '#1A1A2E'   // texto principal
+gray:      '#666666'   // subtítulos
+grayLight: '#E0E0E0'   // bordes
+accent:    '#4285F4'   // azul principal (highlights, CTAs)
+primary:   '#4285F4'   // botones primarios
+disabled:  '#BDBDBD'   // botón deshabilitado
 white:     '#FFFFFF'
+success:   '#34A853'   // Google green
+
+// Colores Dark
+bg:        '#0D0D1A'
+surface:   '#1A1A2E'
+accent:    '#5B9CF6'   // azul claro (dark mode)
 
 // Tipografía
 title:   28px bold 800
@@ -201,7 +208,7 @@ Leyenda: ⬜ PENDIENTE | 🔄 EN PROGRESO | ✅ COMPLETO | ❌ CON ERRORES
 
 ## Figma reference
 
-- Board: Cal AI's Onboarding - Broken down (Community)
+- Board: Fitsi IA Onboarding - Broken down (Community)
 - File key: `VgUp4jmiVXFFqZpbgQIanp`
 - API Token: en `~/.claude/settings.json` bajo mcpServers.figma
 - Para re-fetchear imágenes: `curl -H "X-Figma-Token: <token>" "https://api.figma.com/v1/files/VgUp4jmiVXFFqZpbgQIanp"`

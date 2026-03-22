@@ -69,6 +69,15 @@ class MealService:
     async def get_meal_by_id(self, meal_id: int) -> Optional[MealLog]:
         return await self.session.get(MealLog, meal_id)
 
+    async def get_meal_by_id_for_user(self, meal_id: int, user_id: int) -> Optional[MealLog]:
+        """SEC: Fetch meal scoped to user_id to prevent IDOR timing leaks."""
+        statement = select(MealLog).where(
+            MealLog.id == meal_id,
+            MealLog.user_id == user_id,
+        )
+        result = await self.session.exec(statement)
+        return result.first()
+
     async def delete_meal(self, meal_id: int, user_id: int) -> bool:
         meal = await self.session.get(MealLog, meal_id)
         if not meal or meal.user_id != user_id:
@@ -133,24 +142,89 @@ class MealService:
             "total_sugar": total_sugar,
             "target_calories": summary.target_calories,
             "water_ml": summary.water_ml,
+            "meals_count": len(meals),
         }
 
     async def get_weekly_summary(self, user_id: int, end_date: date) -> List[dict]:
         """Return 7 daily summaries ending on end_date."""
-        summaries = []
-        for i in range(6, -1, -1):
-            day = end_date - timedelta(days=i)
-            summaries.append(await self.get_daily_summary_with_fiber_sugar(user_id, day))
-        return summaries
+        start_date = end_date - timedelta(days=6)
+        return await self._get_range_summary(user_id, start_date, end_date)
 
     async def get_history(self, user_id: int, days: int) -> List[dict]:
-        """Return daily summaries for the last N days (ending today-ish, based on the most recent date)."""
+        """Return daily summaries for the last N days."""
         end_date = date.today()
-        summaries = []
-        for i in range(days - 1, -1, -1):
-            day = end_date - timedelta(days=i)
-            summaries.append(await self.get_daily_summary_with_fiber_sugar(user_id, day))
-        return summaries
+        start_date = end_date - timedelta(days=days - 1)
+        return await self._get_range_summary(user_id, start_date, end_date)
+
+    async def _get_range_summary(self, user_id: int, start_date: date, end_date: date) -> List[dict]:
+        """Batch-fetch summaries + meal aggregates for a date range (avoids N+1)."""
+        # 1. Fetch all existing daily summaries in range
+        stmt = select(DailyNutritionSummary).where(
+            DailyNutritionSummary.user_id == user_id,
+            DailyNutritionSummary.date >= start_date,
+            DailyNutritionSummary.date <= end_date,
+        )
+        result = await self.session.exec(stmt)
+        summaries_by_date = {s.date: s for s in result.all()}
+
+        # 2. Aggregate fiber/sugar + meal count per day from meal logs (single query)
+        meal_agg_stmt = (
+            select(
+                MealLog.date,
+                func.sum(MealLog.total_fiber).label("total_fiber"),
+                func.sum(MealLog.total_sugar).label("total_sugar"),
+                func.count().label("meals_count"),
+            )
+            .where(
+                MealLog.user_id == user_id,
+                MealLog.date >= start_date,
+                MealLog.date <= end_date,
+            )
+            .group_by(MealLog.date)
+        )
+        meal_result = await self.session.exec(meal_agg_stmt)
+        meal_aggs = {row[0]: row for row in meal_result.all()}
+
+        # 3. Build results for each day in range
+        results = []
+        current = start_date
+        while current <= end_date:
+            summary = summaries_by_date.get(current)
+            agg = meal_aggs.get(current)
+
+            total_fiber = round(float(agg[1] or 0), 1) if agg else 0.0
+            total_sugar = round(float(agg[2] or 0), 1) if agg else 0.0
+            meals_count = int(agg[3]) if agg else 0
+
+            if summary:
+                results.append({
+                    "date": current,
+                    "total_calories": summary.total_calories,
+                    "total_protein": summary.total_protein,
+                    "total_carbs": summary.total_carbs,
+                    "total_fat": summary.total_fat,
+                    "total_fiber": total_fiber,
+                    "total_sugar": total_sugar,
+                    "target_calories": summary.target_calories,
+                    "water_ml": summary.water_ml,
+                    "meals_count": meals_count,
+                })
+            else:
+                results.append({
+                    "date": current,
+                    "total_calories": 0.0,
+                    "total_protein": 0.0,
+                    "total_carbs": 0.0,
+                    "total_fat": 0.0,
+                    "total_fiber": total_fiber,
+                    "total_sugar": total_sugar,
+                    "target_calories": 2000.0,
+                    "water_ml": 0.0,
+                    "meals_count": meals_count,
+                })
+            current += timedelta(days=1)
+
+        return results
 
     async def update_water(self, user_id: int, target_date: date, water_ml: float) -> DailyNutritionSummary:
         summary = await self.get_daily_summary(user_id, target_date)

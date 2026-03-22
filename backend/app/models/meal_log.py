@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Index
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, date
 from enum import Enum
@@ -29,8 +30,13 @@ class MealLogBase(SQLModel):
 
 
 class MealLog(MealLogBase, table=True):
+    __table_args__ = (
+        # Composite index for the most common query: meals by user + date
+        Index("ix_meallog_user_date", "user_id", "date"),
+    )
+
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
+    user_id: int = Field(foreign_key="user.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     user: "User" = Relationship(back_populates="meal_logs")

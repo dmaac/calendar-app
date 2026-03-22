@@ -1,7 +1,15 @@
-# OS
-.DS_Store
+# =============================================================================
+# Fitsi IA — Root .gitignore
+# =============================================================================
 
-# Python
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -10,35 +18,56 @@ dist/
 build/
 *.egg
 
-# Virtual environments
+# ── Virtual environments ─────────────────────────────────────────────────────
 venv/
 .venv/
 env/
 
-# Environment variables
+# ── Environment variables (NEVER commit secrets) ─────────────────────────────
 .env
 .env.local
+.env.*.local
+backend/.env
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Coverage & testing
-.coverage
-htmlcov/
-.pytest_cache/
-
-# Database
-*.db
-
-# Node/Mobile
+# ── Node / Mobile ─────────────────────────────────────────────────────────────
 node_modules/
 .expo/
 ios/Pods/
+*.tsbuildinfo
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+web-build/
 
-# Byte-compiled
-*.pyc
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.code-workspace
+
+# ── Coverage & testing ────────────────────────────────────────────────────────
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+coverage.xml
+
+# ── Database (local dev files) ────────────────────────────────────────────────
+*.db
+*.sqlite3
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# Do not ignore docker-compose files — they are config, not secrets.
+
+# ── Nginx certs (never commit TLS keys) ──────────────────────────────────────
+nginx/certs/*.pem
+nginx/certs/*.key
+nginx/certs/*.crt
+
+# ── EAS / Expo ────────────────────────────────────────────────────────────────
+# Google services JSON (contains private key)
+mobile/google-services.json
+mobile/GoogleService-Info.plist
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
 .dev-logs/
-backend/.env
+*.log

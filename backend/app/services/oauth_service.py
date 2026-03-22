@@ -1,4 +1,5 @@
 """Apple and Google OAuth token verification."""
+import logging
 import httpx
 import jwt as pyjwt
 from typing import Optional
@@ -7,6 +8,8 @@ from sqlmodel import select
 from app.models.user import User
 from app.core.security import get_password_hash
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 APPLE_KEYS_URL = "https://appleid.apple.com/auth/keys"
 
@@ -36,12 +39,18 @@ async def verify_apple_token(identity_token: str) -> Optional[dict]:
         )
         return claims
     except Exception as e:
-        print(f"Apple token verification failed: {e}")
+        logger.warning("Apple token verification failed: %s", e)
         return None
 
 
 async def verify_google_token(id_token: str, client_id: str) -> Optional[dict]:
-    """Verify Google ID token."""
+    """Verify Google ID token.
+
+    TODO:SECURITY [Medium] Replace tokeninfo endpoint with google-auth library's
+    id_token.verify_oauth2_token() for production-grade verification. The tokeninfo
+    endpoint is intended for debugging, not production use. It also sends the token
+    over query string which may be logged by intermediaries.
+    """
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(

@@ -8,12 +8,12 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const OPTIONS = [
-  { value: 'lose' as const,     label: 'Perder peso',   emoji: '📉' },
-  { value: 'maintain' as const, label: 'Mantener',      emoji: '⚖️' },
-  { value: 'gain' as const,     label: 'Ganar peso',    emoji: '📈' },
+  { value: 'lose' as const,     label: 'Perder peso',      subtitle: 'Deficit calorico controlado', icon: 'trending-down-outline' },
+  { value: 'maintain' as const, label: 'Mantener mi peso',  subtitle: 'Equilibrio calorico diario',  icon: 'reorder-two-outline' },
+  { value: 'gain' as const,     label: 'Ganar peso',        subtitle: 'Superavit para ganar masa',   icon: 'trending-up-outline' },
 ];
 
-export default function Step10Goal({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step10Goal({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
 
   return (
@@ -21,17 +21,21 @@ export default function Step10Goal({ onNext, onBack, step, totalSteps }: StepPro
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} disabled={!data.goal} />}
     >
-      <Text style={styles.title}>¿Cuál es tu objetivo?</Text>
-      <Text style={styles.subtitle}>Esto nos ayuda a generar un plan para tu ingesta calórica.</Text>
+      <Text style={styles.title}>Cual es tu objetivo?</Text>
+      <Text style={styles.subtitle}>
+        Esto define tu plan de calorias diarias y progreso esperado.
+      </Text>
 
       <View style={styles.options}>
         {OPTIONS.map(opt => (
           <OptionCard
             key={opt.value}
             label={opt.label}
-            emoji={opt.emoji}
+            subtitle={opt.subtitle}
+            icon={opt.icon}
             selected={data.goal === opt.value}
             onPress={() => update('goal', opt.value)}
           />

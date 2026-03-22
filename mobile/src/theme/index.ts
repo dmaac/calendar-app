@@ -1,42 +1,145 @@
-import { Platform, useWindowDimensions } from 'react-native';
+import { Platform, useColorScheme, useWindowDimensions } from 'react-native';
 
-// ─── Design tokens (Cal AI style) ──────────────────────────────────────────
-export const colors = {
+// ─── Design tokens (Fitsi IA style) ───────────────────────────────────────────
+
+/** Light mode palette — Fitsia IA (Norte Digital inspired) */
+export const lightColors = {
   // Fondos
   bg: '#FFFFFF',
-  surface: '#F5F5F7',
-  surfaceAlt: '#F0F0F5',
+  surface: '#F5F5F5',
+  surfaceAlt: '#EEF2F7',
 
   // Texto
-  black: '#111111',
-  gray: '#8E8E93',
-  grayLight: '#E5E5EA',
+  black: '#1A1A2E',
+  gray: '#666666',
+  grayLight: '#E0E0E0',
 
   // Acciones
-  primary: '#111111',       // botón primario
-  accent: '#FF7A5C',        // naranja highlight
+  primary: '#4285F4',
+  accent: '#4285F4',
 
   // Estados
-  disabled: '#C7C7CC',
-  disabledBg: '#E5E5EA',
+  disabled: '#BDBDBD',
+  disabledBg: '#E0E0E0',
   white: '#FFFFFF',
 
   // Macros (dashboard)
-  calories: '#111111',
-  carbs: '#F59E0B',
-  protein: '#EF4444',
-  fats: '#3B82F6',
-  success: '#10B981',
+  calories: '#1A1A2E',
+  carbs: '#FBBC04',
+  protein: '#EA4335',
+  fats: '#4285F4',
+  success: '#34A853',
 
-  // Tabs (app principal)
-  tabActive: '#111111',
-  tabInactive: '#C7C7CC',
-  border: '#E5E5EA',
+  // Tabs
+  tabActive: '#4285F4',
+  tabInactive: '#BDBDBD',
+  border: '#E0E0E0',
 
-  // Badge (streak, premium)
-  badgeBg: '#FEF3C7',
-  badgeText: '#92400E',
+  // Badge
+  badgeBg: '#E8F0FE',
+  badgeText: '#1967D2',
 };
+
+/** Dark mode palette — Fitsia IA (Norte Digital inspired, WCAG AA) */
+export const darkColors: typeof lightColors = {
+  bg: '#0D0D1A',
+  surface: '#1A1A2E',
+  surfaceAlt: '#252540',
+
+  black: '#F0F0F5',
+  gray: '#A0A0B0',
+  grayLight: '#2E2E45',
+
+  primary: '#5B9CF6',
+  accent: '#5B9CF6',
+
+  disabled: '#555570',
+  disabledBg: '#252540',
+  white: '#FFFFFF',
+
+  calories: '#F0F0F5',
+  carbs: '#FDD663',
+  protein: '#F28B82',
+  fats: '#8AB4F8',
+  success: '#81C995',
+
+  tabActive: '#5B9CF6',
+  tabInactive: '#555570',
+  border: '#2E2E45',
+
+  badgeBg: '#1A237E',
+  badgeText: '#8AB4F8',
+};
+
+// Default export for backward compatibility — light palette
+export const colors = lightColors;
+
+/**
+ * Parses a hex color string (#RRGGBB) into [r, g, b] components.
+ */
+function parseHex(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.substring(0, 2), 16),
+    parseInt(h.substring(2, 4), 16),
+    parseInt(h.substring(4, 6), 16),
+  ];
+}
+
+/**
+ * Converts [r, g, b] components back to a hex string.
+ */
+function toHex(r: number, g: number, b: number): string {
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  return '#' + [clamp(r), clamp(g), clamp(b)]
+    .map((v) => v.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase();
+}
+
+/**
+ * Interpolates between two or three hex colors based on a normalized factor t (0..1).
+ * With two colors: linear interpolation.
+ * With three colors (cold, mid, warm): 0->cold, 0.5->mid, 1.0->warm.
+ */
+export function interpolateColor(t: number, cold: string, mid: string, warm: string): string {
+  const [cr, cg, cb] = parseHex(cold);
+  const [mr, mg, mb] = parseHex(mid);
+  const [wr, wg, wb] = parseHex(warm);
+
+  if (t <= 0.5) {
+    const f = t * 2; // 0..1 within first half
+    return toHex(
+      cr + (mr - cr) * f,
+      cg + (mg - cg) * f,
+      cb + (mb - cb) * f,
+    );
+  } else {
+    const f = (t - 0.5) * 2; // 0..1 within second half
+    return toHex(
+      mr + (wr - mr) * f,
+      mg + (wg - mg) * f,
+      mb + (wb - mb) * f,
+    );
+  }
+}
+
+/**
+ * useThemeColors — Returns the correct color palette based on app theme (ThemeContext).
+ * Falls back to device color scheme if ThemeContext is not available.
+ */
+export function useThemeColors() {
+  try {
+    // Use app-level theme context (supports toggle from Settings + warmth)
+    const { useAppTheme } = require('../context/ThemeContext');
+    const { colors: themeColors } = useAppTheme();
+    return themeColors;
+  } catch {
+    // Fallback: use OS color scheme (for screens rendered outside ThemeProvider)
+    const scheme = useColorScheme();
+    return scheme === 'dark' ? darkColors : lightColors;
+  }
+}
 
 // ─── Meal type colors (shared across LogScreen, HomeScreen, ScanScreen, AddFoodScreen) ─
 export const mealColors: Record<string, { label: string; icon: string; color: string }> = {

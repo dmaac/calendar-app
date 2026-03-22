@@ -4,7 +4,10 @@
  * El endpoint /api/food/scan recibe multipart/form-data con la imagen.
  */
 import { api } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FoodScanResult, AIFoodLog, DailySummary } from '../types';
+
+const AI_PROVIDER_KEY = '@fitsi_ai_provider';
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -23,9 +26,19 @@ export const scanFood = async (
     type: 'image/jpeg',
   } as any);
 
+  const headers: Record<string, string> = { 'Content-Type': 'multipart/form-data' };
+
+  // Send AI provider preference if user has configured one
+  try {
+    const provider = await AsyncStorage.getItem(AI_PROVIDER_KEY);
+    if (provider && provider !== 'auto') {
+      headers['X-AI-Provider'] = provider;
+    }
+  } catch {}
+
   const res = await api.post('/api/food/scan', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 30000, // AI calls pueden tardar hasta 30s
+    headers,
+    timeout: 60000, // AI calls pueden tardar hasta 60s (backend retries up to 3x)
   });
   return res.data;
 };
@@ -43,7 +56,8 @@ function localDateStr(d = new Date()): string {
 export const getFoodLogs = async (date?: string): Promise<AIFoodLog[]> => {
   const d = date ?? localDateStr();
   const res = await api.get(`/api/food/logs?date=${d}`);
-  return res.data;
+  // Handle both paginated response {items: [...]} and plain array formats
+  return Array.isArray(res.data) ? res.data : (res.data.items ?? []);
 };
 
 /** Elimina un log de comida. */
@@ -53,7 +67,7 @@ export const deleteFoodLog = async (id: number): Promise<void> => {
 
 /** Edita las macros de un log (usuario corrige el AI). */
 export const editFoodLog = async (id: number, updates: Partial<AIFoodLog>): Promise<void> => {
-  await api.put(`/api/food/logs/${id}`, null, { params: updates });
+  await api.put(`/api/food/logs/${id}`, updates);
 };
 
 /** Resumen del día (calorías, macros, progreso vs objetivo). */

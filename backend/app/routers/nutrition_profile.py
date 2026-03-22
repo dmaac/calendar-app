@@ -20,12 +20,12 @@ async def get_nutrition_profile(
     session: AsyncSession = Depends(get_session),
 ):
     nutrition_service = NutritionService(session)
-    profile = await nutrition_service.get_profile(current_user.id)
+    profile = await nutrition_service.get_profile_with_fallback(current_user.id)
 
     if not profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Nutrition profile not found. Create one first.",
+            detail="Nutrition profile not found. Complete onboarding first.",
         )
 
     return profile
