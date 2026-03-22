@@ -650,15 +650,15 @@
                     // ── Step 4: Compute positions for ALL SPECIALISTS ──
                     // Distribute across FULL canvas width in team blocks
                     const specTeamNames = Object.keys(specByTeam).sort();
-                    const specStartY = h * 0.30;
+                    const specStartY = h * 0.28;
                     const specEndY = h - pad;
                     const specH = specEndY - specStartY;
 
-                    // Layout: 6 columns of teams, teams wrap vertically
-                    const gridCols = 6;
+                    // Layout: 5 columns of teams, teams wrap vertically
+                    const gridCols = 5;
                     const teamBlockW = usableW / gridCols;
                     const teamBlockH = specH / Math.ceil(specTeamNames.length / gridCols);
-                    const sp = 11; // node spacing within team block
+                    const sp = 12; // node spacing within team block
 
                     specTeamNames.forEach((team, ti) => {
                         const names = specByTeam[team];
@@ -685,16 +685,28 @@
                     });
 
                     // ── Step 5: LOCK ALL nodes with fx/fy ──
+                    // EVERY node must get a position. Nothing floats free.
+                    let unpositioned = 0;
                     allNodesData.forEach(d => {
                         const pos = fixedPos[d.name || d.id];
                         if (pos) {
                             d.fx = pos.x;
                             d.fy = pos.y;
                         } else if (d.isTeam) {
-                            d.fx = -500;
-                            d.fy = -500;
+                            // Hide team bubble nodes off-screen
+                            d.fx = -9999;
+                            d.fy = -9999;
+                        } else {
+                            // Catch-all: any agent without a position goes to the bottom grid
+                            // This prevents orphan blobs in the top-left
+                            const fallbackCol = unpositioned % 20;
+                            const fallbackRow = Math.floor(unpositioned / 20);
+                            d.fx = pad + 30 + fallbackCol * 14;
+                            d.fy = specStartY + specH * 0.85 + fallbackRow * 14;
+                            unpositioned++;
                         }
                     });
+                    if (unpositioned > 0) console.log(`Pyramid: ${unpositioned} agents had no team match, placed in fallback grid`);
 
                     // ── Step 6: Disable ALL forces (everything is fixed) ──
                     simulation.force("charge").strength(0);
