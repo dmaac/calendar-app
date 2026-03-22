@@ -267,7 +267,7 @@ function ReferralCard({ onViewDetails }: ReferralCardProps) {
 
       {/* Share button */}
       <TouchableOpacity
-        style={[styles.shareBtn, { backgroundColor: c.black }]}
+        style={[styles.shareBtn, { backgroundColor: c.accent }]}
         onPress={handleShare}
         activeOpacity={0.85}
         accessibilityLabel="Invitar amigos. Compartir codigo de referido"

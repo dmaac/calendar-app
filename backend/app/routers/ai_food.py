@@ -32,6 +32,7 @@ from ..services.ai_scan_service import (
     get_daily_summary,
 )
 from ..core.cache import cache_get, cache_set, cache_delete, daily_summary_key, CACHE_TTL
+from ..services.nutrition_risk_service import invalidate_risk_cache
 from pydantic import BaseModel, Field
 
 
@@ -192,6 +193,8 @@ async def scan_food(
     except Exception:
         pass
 
+    invalidate_risk_cache(current_user.id)
+
     return result
 
 
@@ -236,6 +239,8 @@ async def manual_food_log(
         await cache_delete(daily_summary_key(current_user.id, date_type.today().isoformat()))
     except Exception:
         pass
+
+    invalidate_risk_cache(current_user.id)
 
     return {
         "id": log.id,
@@ -519,6 +524,8 @@ async def update_food_log(
     except Exception:
         pass
 
+    invalidate_risk_cache(current_user.id)
+
     return {"message": "Updated", "id": log.id}
 
 
@@ -547,6 +554,8 @@ async def delete_food_log(
         await cache_delete(daily_summary_key(current_user.id, log_date))
     except Exception:
         pass
+
+    invalidate_risk_cache(current_user.id)
 
     return {"message": "Deleted"}
 

@@ -1,25 +1,40 @@
 """
 Nutrition Risk Engine router.
 
-GET /api/risk/summary    — risk summary for the authenticated user (last 7 days).
-GET /api/risk/daily      — today's adherence record for the authenticated user.
-GET /api/risk/history    — last N days of adherence records.
-GET /api/risk/analytics  — aggregated risk analytics for the authenticated user.
-GET /api/risk/admin/dashboard — admin-only aggregated risk stats.
-POST /api/risk/event     — track a risk analytics event.
+GET  /api/risk/summary    — risk summary for the authenticated user (last 7 days).
+GET  /api/risk/daily      — today's adherence record for the authenticated user.
+GET  /api/risk/history    — last N days of adherence records.
+POST /api/risk/recalculate — recalculate today's adherence (Item 65).
+POST /api/risk/backfill   — recalculate last N days (max 90) (Item 66).
+GET  /api/risk/analytics  — aggregated risk analytics for the authenticated user.
+GET  /api/risk/admin/dashboard — admin-only aggregated risk stats.
+POST /api/risk/event      — track a risk analytics event.
 """
 
-from __future__ import annotations
+# Note: Do NOT use `from __future__ import annotations` here.
+# FastAPI needs real type objects at decoration time for Pydantic models.
 
 import logging
+import time as time_mod
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+# SEC: Rate limiting — uses slowapi if available (registered in main.py)
+try:
+    from slowapi import Limiter
+    from slowapi.util import get_remote_address
+    _limiter = Limiter(key_func=get_remote_address)
+    _rate_limit_enabled = True
+except ImportError:
+    _rate_limit_enabled = False
+
+_rl = lambda limit_str: (_limiter.limit(limit_str) if _rate_limit_enabled else lambda f: f)
 
 from ..core.database import get_session
 from ..models.nutrition_adherence import DailyNutritionAdherence
@@ -137,12 +152,17 @@ class AdminRiskDashboardResponse(BaseModel):
 # --- Endpoints ---
 
 @router.get("/summary", response_model=RiskSummaryResponse)
+@_rl("30/minute")
 async def get_risk_summary(
+    request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Return the 7-day risk summary for the authenticated user."""
+    _t0 = time_mod.perf_counter()
     data = await get_user_risk_summary(current_user.id, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return RiskSummaryResponse(
         avg_risk_score=data["avg_risk_score"],
         avg_quality_score=data["avg_quality_score"],
@@ -158,7 +178,9 @@ async def get_risk_summary(
 
 
 @router.get("/daily", response_model=DailyAdherenceResponse)
+@_rl("30/minute")
 async def get_daily_adherence(
+    request: Request,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -197,7 +219,9 @@ async def get_daily_adherence(
 
 
 @router.get("/history", response_model=List[DailyAdherenceResponse])
+@_rl("30/minute")
 async def get_adherence_history(
+    request: Request,
     days: int = Query(default=7, ge=1, le=90),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -240,7 +264,9 @@ async def get_adherence_history(
 
 
 @router.get("/health-score", response_model=IntegratedHealthScoreResponse)
+@_rl("30/minute")
 async def get_health_score(
+    request: Request,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -276,7 +302,9 @@ def _adherence_to_response(record: DailyNutritionAdherence) -> DailyAdherenceRes
 
 
 @router.post("/recalculate", response_model=DailyAdherenceResponse)
+@_rl("10/minute")
 async def recalculate_today(
+    request: Request,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -286,7 +314,9 @@ async def recalculate_today(
 
 
 @router.post("/backfill", response_model=BackfillResponse)
+@_rl("10/minute")
 async def backfill_adherence(
+    request: Request,
     days: int = Query(default=30, ge=1, le=90),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -302,7 +332,9 @@ async def backfill_adherence(
 
 
 @router.get("/analytics", response_model=RiskAnalyticsResponse)
+@_rl("30/minute")
 async def get_risk_analytics(
+    request: Request,
     days: int = Query(default=7, ge=1, le=90),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -313,7 +345,9 @@ async def get_risk_analytics(
 
 
 @router.post("/event", response_model=TrackRiskEventResponse, status_code=status.HTTP_201_CREATED)
+@_rl("10/minute")
 async def post_risk_event(
+    request: Request,
     body: TrackRiskEventRequest,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -336,10 +370,13 @@ async def post_risk_event(
 
 
 @router.get("/admin/dashboard", response_model=AdminRiskDashboardResponse)
+@_rl("30/minute")
 async def admin_risk_dashboard(
+    request: Request,
     admin_user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     """Admin-only: aggregated risk stats across all users."""
+    logger.info("Admin dashboard accessed by user_id=%d", admin_user.id)
     data = await get_admin_risk_dashboard(session)
     return AdminRiskDashboardResponse(**data)

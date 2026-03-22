@@ -687,15 +687,12 @@ export default function LogScreen({ navigation }: any) {
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Fitsi contextual expression */}
-        {logs.length === 0 ? (
+        {/* Empty state */}
+        {logs.length === 0 && (
           <View style={styles.globalEmptyState}>
-            <FitsiMascot
-              expression="hungry"
-              size="medium"
-              animation="sad"
-              message={isToday(selectedDate) ? 'Aun no has registrado nada hoy' : 'Sin registros este dia'}
-            />
+            <Text style={[{ color: c.gray, fontSize: 14, textAlign: 'center' }]}>
+              {isToday(selectedDate) ? 'Aun no has registrado nada hoy' : 'Sin registros este dia'}
+            </Text>
             {isToday(selectedDate) && (
               <TouchableOpacity
                 style={[styles.globalEmptyCta, { backgroundColor: c.accent }]}
@@ -708,14 +705,6 @@ export default function LogScreen({ navigation }: any) {
                 <Text style={[styles.globalEmptyCtaText, { color: c.white }]}>Registrar comida</Text>
               </TouchableOpacity>
             )}
-          </View>
-        ) : (
-          <View style={{ alignItems: 'center', paddingVertical: spacing.xs }}>
-            <FitsiMascot
-              expression="happy"
-              size="small"
-              animation="idle"
-            />
           </View>
         )}
 

@@ -20,6 +20,31 @@ from ..models.risk_analytics_event import RiskAnalyticsEvent
 
 logger = logging.getLogger(__name__)
 
+# Fields that must never appear in analytics metadata (PII / PHI)
+_PII_FIELDS = {
+    "name", "first_name", "last_name", "email", "phone", "phone_number",
+    "address", "date_of_birth", "dob", "ssn", "password", "token",
+    "ip", "ip_address", "device_id",
+}
+
+# Fields explicitly allowed in analytics metadata
+_ALLOWED_METADATA_FIELDS = {
+    "event_type", "variant", "score", "risk_score", "quality_score",
+    "intervention_type", "intervention_variant", "status", "source",
+    "screen", "action", "label", "value",
+}
+
+
+def _sanitize_metadata(metadata: dict) -> dict:
+    """Strip PII fields from analytics metadata. Only safe keys pass through."""
+    if not metadata:
+        return {}
+    return {
+        k: v for k, v in metadata.items()
+        if k.lower() not in _PII_FIELDS
+    }
+
+
 # Valid event types
 VALID_EVENT_TYPES = {
     "risk_card_impression",
@@ -44,6 +69,9 @@ async def track_risk_event(
     """Log a risk-related analytics event."""
     if event_type not in VALID_EVENT_TYPES:
         raise ValueError(f"Invalid event_type: {event_type}")
+
+    # SEC: Strip any PII from client-supplied metadata
+    metadata = _sanitize_metadata(metadata)
 
     # Inject A/B variant into metadata automatically
     if "variant" not in metadata:

@@ -54,6 +54,8 @@ import NutritionSemaphore from '../../components/NutritionSemaphore';
 import CalorieComparisonCard from '../../components/CalorieComparisonCard';
 import useNutritionRisk from '../../hooks/useNutritionRisk';
 import RiskSkeleton from '../../components/RiskSkeleton';
+import RecoveryPlanCard, { RecoveryPlanData } from '../../components/RecoveryPlanCard';
+import { apiClient } from '../../services/apiClient';
 // MINIMALIST REDESIGN Phase 1: TrialBanner removed from HomeScreen
 // import TrialBanner from '../../components/TrialBanner';
 
@@ -353,6 +355,28 @@ export default function HomeScreen({ navigation }: any) {
     refetch: refetchRisk,
   } = useNutritionRisk();
 
+  // Recovery plan (only fetched when risk > 40)
+  const [recoveryPlan, setRecoveryPlan] = useState<RecoveryPlanData | null>(null);
+
+  const fetchRecoveryPlan = useCallback(async () => {
+    try {
+      const res = await apiClient.get<RecoveryPlanData>('/api/risk/recovery-plan', {
+        params: { horizon: '24h' },
+      });
+      setRecoveryPlan(res.data);
+    } catch {
+      setRecoveryPlan(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (riskScore > 40 && !riskLoading) {
+      fetchRecoveryPlan();
+    } else {
+      setRecoveryPlan(null);
+    }
+  }, [riskScore, riskLoading, fetchRecoveryPlan]);
+
   // Notification center state
   const {
     notifications,
@@ -455,10 +479,10 @@ export default function HomeScreen({ navigation }: any) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
-    await Promise.all([load(), refetchAlerts(), refetchRisk()]);
+    await Promise.all([load(), refetchAlerts(), refetchRisk(), fetchRecoveryPlan()]);
     haptics.success();
     setRefreshing(false);
-  }, [load, refetchAlerts, refetchRisk]);
+  }, [load, refetchAlerts, refetchRisk, fetchRecoveryPlan]);
 
   // Memoize greeting to avoid calling t() on every render
   const greetingText = useMemo(() => {
@@ -549,6 +573,12 @@ export default function HomeScreen({ navigation }: any) {
   const onSuggestedMeal = useCallback(() => { haptics.light(); navigation.navigate('Recipes'); }, [navigation]);
   const isHighRisk = riskScore > 40;
 
+  const onRecoveryRegister = useCallback(() => {
+    haptics.light();
+    track('recovery_register_food_pressed');
+    navigation.navigate('Scan');
+  }, [track, navigation]);
+
   const onScanFromEmpty = useCallback(() => {
     haptics.light();
     track('scan_button_pressed', { source: 'empty_state' });
@@ -593,8 +623,8 @@ export default function HomeScreen({ navigation }: any) {
             accessibilityHint="Abre la camara para escanear alimentos con IA"
             activeOpacity={0.85}
           >
-            <Animated.View style={[styles.scanBtn, { backgroundColor: c.black }, pulseStyle]}>
-              <Ionicons name="camera" size={20} color={c.white} />
+            <Animated.View style={[styles.scanBtn, { backgroundColor: c.white }, pulseStyle]}>
+              <Ionicons name="camera" size={20} color="#1A1A2E" />
             </Animated.View>
           </TouchableOpacity>
         </View>
@@ -635,7 +665,6 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           ) : daysWithData === 0 ? (
             <View style={[styles.riskEmptyState, { paddingHorizontal: sidePadding }]}>
-              <FitsiMascot expression="thinking" size="small" animation="idle" />
               <Text style={[styles.riskEmptyText, { color: c.gray }]}>
                 Registra tu primera comida para ver tu puntaje de salud
               </Text>
@@ -708,6 +737,11 @@ export default function HomeScreen({ navigation }: any) {
 
               {/* Calorie comparison bar */}
               <CalorieComparisonCard logged={consumed} target={target} status={riskStatus} />
+
+              {/* Recovery plan — shown when risk > 40 */}
+              {recoveryPlan && riskScore > 40 && (
+                <RecoveryPlanCard plan={recoveryPlan} onRegisterFood={onRecoveryRegister} />
+              )}
 
               {/* Best Day Banner */}
               {summary && (summary.meals_logged ?? 0) > 0 && (
@@ -842,14 +876,14 @@ export default function HomeScreen({ navigation }: any) {
                   <Text style={[styles.emptyText, { color: c.black }]}>{t('home.noMealsLogged')}</Text>
                   <Text style={[styles.emptyHint, { color: c.gray }]}>{t('home.scanYourFood')}</Text>
                   <TouchableOpacity
-                    style={[styles.scanCta, { backgroundColor: c.black }]}
+                    style={[styles.scanCta, { backgroundColor: c.white }]}
                     onPress={onScanFromEmpty}
                     accessibilityLabel="Escanear ahora"
                     accessibilityRole="button"
                     accessibilityHint="Abre la camara para escanear tu primer alimento del dia"
                   >
-                    <Ionicons name="camera-outline" size={18} color={c.white} />
-                    <Text style={[styles.scanCtaText, { color: c.white }]}>{t('home.scanNow')}</Text>
+                    <Ionicons name="camera-outline" size={18} color="#1A1A2E" />
+                    <Text style={[styles.scanCtaText, { color: '#1A1A2E' }]}>{t('home.scanNow')}</Text>
                   </TouchableOpacity>
                 </View>
               )}

@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import time as time_mod
 from datetime import date, datetime, time as dt_time, timedelta
 from typing import Optional
 
@@ -181,6 +182,16 @@ CAUSE_MESSAGES: dict[str, list[dict]] = {
 # Key: "{user_id}:{severity}" -> datetime of last intervention
 _intervention_cooldowns: dict[str, datetime] = {}
 
+# In-memory risk summary cache (Item 71) — 5 min TTL
+# Key: user_id -> (timestamp_seconds, summary_dict)
+_risk_summary_cache: dict[int, tuple[float, dict]] = {}
+_RISK_SUMMARY_TTL = 300  # 5 minutes
+
+
+def invalidate_risk_cache(user_id: int) -> None:
+    """Remove a user's cached risk summary (Item 72)."""
+    _risk_summary_cache.pop(user_id, None)
+
 
 # ---------------------------------------------------------------------------
 # Goal helpers
@@ -196,26 +207,51 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
     )
     profile = result.first()
     if profile is not None:
-        return {
+        return _validate_goals({
             "calories": int(profile.target_calories),
             "protein_g": int(profile.target_protein_g),
             "fat_g": int(profile.target_fat_g),
             "carbs_g": int(profile.target_carbs_g),
-        }
+        })
 
     result = await session.exec(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
     onboarding = result.first()
     if onboarding is not None and onboarding.daily_calories is not None:
-        return {
+        return _validate_goals({
             "calories": int(onboarding.daily_calories),
             "protein_g": int(onboarding.daily_protein_g or 150),
             "fat_g": int(onboarding.daily_fats_g or 65),
             "carbs_g": int(onboarding.daily_carbs_g or 250),
-        }
+        })
 
-    return {"calories": 2000, "protein_g": 150, "fat_g": 65, "carbs_g": 250}
+    return _validate_goals({"calories": 2000, "protein_g": 150, "fat_g": 65, "carbs_g": 250})
+
+
+def _validate_goals(goals: dict) -> dict:
+    """Validate and sanitize nutrition goals (Item 77)."""
+    defaults = {"calories": 2000, "protein_g": 150, "fat_g": 65, "carbs_g": 250}
+
+    calories = goals.get("calories", defaults["calories"])
+    if calories is None or calories <= 0 or calories > 10000:
+        logger.warning("Invalid calorie goal %s, using default 2000", calories)
+        calories = defaults["calories"]
+
+    protein_g = max(0, goals.get("protein_g", defaults["protein_g"]) or 0)
+    fat_g = max(0, goals.get("fat_g", defaults["fat_g"]) or 0)
+    carbs_g = max(0, goals.get("carbs_g", defaults["carbs_g"]) or 0)
+
+    # Sanity check: total macro calories should not exceed 1.5x calorie target
+    macro_calories = (protein_g * 4) + (carbs_g * 4) + (fat_g * 9)
+    if macro_calories > calories * 1.5:
+        logger.warning(
+            "Macro calories (%d) exceed 1.5x calorie target (%d), using defaults",
+            macro_calories, calories,
+        )
+        return defaults
+
+    return {"calories": int(calories), "protein_g": int(protein_g), "fat_g": int(fat_g), "carbs_g": int(carbs_g)}
 
 
 # ---------------------------------------------------------------------------
@@ -819,6 +855,8 @@ async def calculate_daily_adherence(
     Calculate (or update) the adherence record for user_id on target_date.
     Persists the result in daily_nutrition_adherence and returns it.
     """
+    _t0 = time_mod.perf_counter()
+
     goals = await _get_goals(user_id, session)
     totals = await _get_day_totals(user_id, target_date, session)
     distinct_meals = await _get_distinct_meals_count(user_id, target_date, session)
@@ -909,6 +947,21 @@ async def calculate_daily_adherence(
     existing = result.first()
 
     if existing:
+        # Item 82: Idempotent recalculation — skip DB write if nothing changed
+        if (
+            existing.calories_logged == calories_logged
+            and existing.meals_logged == totals["meal_count"]
+            and existing.calories_target == calories_target
+            and existing.nutrition_risk_score == nutrition_risk_score
+        ):
+            _duration_ms = (time_mod.perf_counter() - _t0) * 1000
+            logger.debug("Skipping idempotent recalc for user %d, date %s", user_id, target_date)
+            if _duration_ms > 500:
+                logger.warning("Risk calculation for user %d took %.2fms (idempotent skip)", user_id, _duration_ms)
+            else:
+                logger.info("Risk calculation for user %d took %.2fms (idempotent skip)", user_id, _duration_ms)
+            return existing
+
         existing.calories_target = calories_target
         existing.calories_logged = calories_logged
         existing.calories_ratio = round(calories_ratio, 4)
@@ -926,6 +979,11 @@ async def calculate_daily_adherence(
         session.add(existing)
         await session.commit()
         await session.refresh(existing)
+        _duration_ms = (time_mod.perf_counter() - _t0) * 1000
+        if _duration_ms > 500:
+            logger.warning("Risk calculation for user %d took %.2fms", user_id, _duration_ms)
+        else:
+            logger.info("Risk calculation for user %d took %.2fms", user_id, _duration_ms)
         return existing
 
     adherence = DailyNutritionAdherence(
@@ -949,6 +1007,11 @@ async def calculate_daily_adherence(
     session.add(adherence)
     await session.commit()
     await session.refresh(adherence)
+    _duration_ms = (time_mod.perf_counter() - _t0) * 1000
+    if _duration_ms > 500:
+        logger.warning("Risk calculation for user %d took %.2fms", user_id, _duration_ms)
+    else:
+        logger.info("Risk calculation for user %d took %.2fms", user_id, _duration_ms)
     return adherence
 
 
@@ -965,6 +1028,16 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
     - suggested interventions based on current status
     - confidence_score, primary/secondary risk reasons, intervention metadata
     """
+    _t0 = time_mod.perf_counter()
+
+    # Item 71: Check cache first
+    cached = _risk_summary_cache.get(user_id)
+    if cached is not None:
+        cached_ts, cached_data = cached
+        if (time_mod.time() - cached_ts) < _RISK_SUMMARY_TTL:
+            logger.debug("Risk summary cache hit for user %d", user_id)
+            return cached_data
+
     today = date.today()
 
     # Calculate adherence for today (ensures fresh data)
@@ -1022,7 +1095,7 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
             protein_logged=0,
             protein_target=goals["protein_g"],
         )
-        return {
+        no_data_summary = {
             "avg_risk_score": 100,
             "avg_quality_score": 0,
             "avg_calories_logged": 0,
@@ -1039,6 +1112,13 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
             "consistency_score_7d": 0,
             "recovery": {"recovering": False, "improvement_pct": 0},
         }
+        _risk_summary_cache[user_id] = (time_mod.time(), no_data_summary)
+        _duration_ms = (time_mod.perf_counter() - _t0) * 1000
+        if _duration_ms > 500:
+            logger.warning("Risk summary for user %d took %.2fms (no data)", user_id, _duration_ms)
+        else:
+            logger.info("Risk summary for user %d took %.2fms (no data)", user_id, _duration_ms)
+        return no_data_summary
 
     # Item 15: weighted averages — last 3 days at 2x weight
     sorted_records = sorted(records, key=lambda r: r.date)
@@ -1111,7 +1191,7 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
         protein_target=today_adherence.protein_target,
     )
 
-    return {
+    summary = {
         "avg_risk_score": avg_risk,
         "avg_quality_score": avg_quality,
         "avg_calories_logged": avg_calories,
@@ -1128,6 +1208,18 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
         "consistency_score_7d": consistency_score_7d,
         "recovery": recovery,
     }
+
+    # Item 71: Cache the result
+    _risk_summary_cache[user_id] = (time_mod.time(), summary)
+
+    # Item 75: Log duration
+    _duration_ms = (time_mod.perf_counter() - _t0) * 1000
+    if _duration_ms > 500:
+        logger.warning("Risk summary for user %d took %.2fms", user_id, _duration_ms)
+    else:
+        logger.info("Risk summary for user %d took %.2fms", user_id, _duration_ms)
+
+    return summary
 
 
 def _get_intervention(
@@ -1187,10 +1279,38 @@ def _get_intervention(
 # Incremental recalculation on food log (Item 58b)
 # ---------------------------------------------------------------------------
 
+async def purge_old_adherence_records(session: AsyncSession, days_to_keep: int = 365) -> int:
+    """Delete adherence records older than N days. Returns count deleted.
+
+    Intended for scheduled jobs only -- no endpoint exposed.
+    """
+    from sqlalchemy import delete as sa_delete
+
+    cutoff = date.today() - timedelta(days=days_to_keep)
+    count_result = await session.execute(
+        select(func.count(DailyNutritionAdherence.id)).where(
+            DailyNutritionAdherence.date < cutoff,
+        )
+    )
+    count = count_result.scalar() or 0
+
+    if count > 0:
+        await session.execute(
+            sa_delete(DailyNutritionAdherence).where(
+                DailyNutritionAdherence.date < cutoff,
+            )
+        )
+        await session.commit()
+        logger.info("purge_old_adherence: deleted %d records older than %s", count, cutoff.isoformat())
+
+    return count
+
+
 async def recalculate_on_food_log(user_id: int, session: AsyncSession) -> DailyNutritionAdherence:
     """
     Lightweight recalculation triggered after a food is logged.
     Only recalculates today's adherence — no 7-day summary.
     """
+    invalidate_risk_cache(user_id)
     today = date.today()
     return await calculate_daily_adherence(user_id, today, session)
