@@ -85,7 +85,7 @@ function getFastTrackPosition(originalStep: number): number {
 }
 
 export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
-  const { currentStep, setCurrentStep, onboardingMode, setOnboardingMode, computePlan } = useOnboarding();
+  const { currentStep, setCurrentStep, onboardingMode, setOnboardingMode } = useOnboarding();
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const isFastTrack = onboardingMode === 'fast';
 
@@ -167,6 +167,12 @@ export default function OnboardingNavigator({ onComplete }: OnboardingNavigatorP
     haptics.light();
 
     if (isFastTrack) {
+      if (currentStep === 99) {
+        // From plan building, go back to last fast-track step
+        const lastStep = getFastTrackOriginalStep(FAST_TRACK_TOTAL);
+        animateTransition(40, () => setCurrentStep(lastStep));
+        return;
+      }
       const pos = getFastTrackPosition(currentStep);
       if (pos > 1) {
         const prevOriginal = getFastTrackOriginalStep(pos - 1);
