@@ -15,6 +15,7 @@ from .workout import WorkoutLog
 from .experiment import Experiment, ExperimentAssignment, ExperimentConversion
 from .nutrition_tip import NutritionTip
 from .recipe import Recipe
+from .webhook import Webhook, WebhookDelivery
 
 __all__ = [
     "User",
@@ -36,4 +37,6 @@ __all__ = [
     "ExperimentConversion",
     "NutritionTip",
     "Recipe",
+    "Webhook",
+    "WebhookDelivery",
 ]

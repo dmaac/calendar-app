@@ -20,7 +20,7 @@ from .core.logging_config import setup_logging
 from .core.response_cache import ResponseCacheMiddleware, response_cache_stats
 from .core.validation import RequestValidationMiddleware
 from .core.performance import PerformanceMiddleware, performance_stats
-from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router
+from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router, webhooks_router
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger("fitsi.requests")
@@ -141,6 +141,10 @@ openapi_tags = [
     {
         "name": "analytics",
         "description": "Product analytics summary: DAU/WAU/MAU, retention (D1/D7/D30), feature usage breakdown, and revenue metrics.",
+    },
+    {
+        "name": "webhooks",
+        "description": "Webhook management: register endpoints, view delivery history, send test payloads. Events: meal_logged, goal_reached, streak_milestone, workout_logged.",
     },
     {
         "name": "root",
@@ -383,6 +387,11 @@ async def lifespan(app: FastAPI):
     # Print startup banner
     _print_startup_banner(db_ok=db_ok, redis_ok=redis_ok)
 
+    # Initialize event bus and wire webhook dispatch handlers
+    from .core.event_bus import event_bus  # noqa: F401 — ensure singleton is created
+    import app.services.webhook_service  # noqa: F401 — auto-registers event_bus handlers
+    logger.info("Event bus initialized with events: %s", event_bus.registered_events)
+
     # Start periodic background cleanup
     from .core.background_tasks import start_periodic_cleanup
     cleanup_task = asyncio.create_task(start_periodic_cleanup(interval_hours=24))
@@ -496,6 +505,7 @@ app.include_router(foods_catalog_router)
 app.include_router(user_data_router)
 app.include_router(experiments_router)
 app.include_router(analytics_router)
+app.include_router(webhooks_router)
 
 
 @app.get("/", tags=["root"])

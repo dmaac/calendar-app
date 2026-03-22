@@ -57,7 +57,8 @@ export default function OnboardingProgress({ data, navigation }: OnboardingProgr
       label: 'Foto de perfil',
       icon: 'camera-outline',
       completed: data.hasProfilePhoto,
-      navigateTo: 'PersonalDetails',
+      navigateTo: 'Perfil',
+      navigateParams: { screen: 'PersonalDetails' },
     },
     {
       key: 'meals',
@@ -71,7 +72,8 @@ export default function OnboardingProgress({ data, navigation }: OnboardingProgr
       label: 'Peso registrado',
       icon: 'scale-outline',
       completed: data.hasLoggedWeight,
-      navigateTo: 'WeightTracking',
+      navigateTo: 'Perfil',
+      navigateParams: { screen: 'WeightTracking' },
     },
     {
       key: 'goals',
@@ -85,7 +87,8 @@ export default function OnboardingProgress({ data, navigation }: OnboardingProgr
       label: 'Notificaciones activas',
       icon: 'notifications-outline',
       completed: data.notificationsEnabled,
-      navigateTo: 'Settings',
+      navigateTo: 'Perfil',
+      navigateParams: { screen: 'Settings' },
     },
   ], [data]);
 

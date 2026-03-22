@@ -20,6 +20,7 @@ from .foods_catalog import router as foods_catalog_router
 from .user_data import router as user_data_router
 from .experiments import router as experiments_router
 from .analytics import router as analytics_router
+from .webhooks import router as webhooks_router
 
 __all__ = [
     "auth_router",
@@ -44,4 +45,5 @@ __all__ = [
     "user_data_router",
     "experiments_router",
     "analytics_router",
+    "webhooks_router",
 ]

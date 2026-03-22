@@ -665,8 +665,8 @@ export default function HomeScreen({ navigation }: any) {
               {/* Fasting Timer — collapsible card */}
               <FastingTimer initiallyCollapsed />
 
-              {/* Sleep Tracker — collapsible card */}
-              <SleepTracker initiallyCollapsed />
+              {/* Sleep Tracker — temporarily disabled (hooks order bug) */}
+              {/* <SleepTracker initiallyCollapsed /> */}
 
               {/* Calorie card */}
               <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">
