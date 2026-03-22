@@ -175,7 +175,7 @@ openapi_tags = [
     },
     {
         "name": "progress",
-        "description": "Progress system: celebrations, daily missions, weekly summaries, XP, and gamification.",
+        "description": "Progress system: XP, levels, streaks, coins, achievements, daily missions, weekly challenges, reward shop, and celebrations.",
     },
     {
         "name": "root",

@@ -66,7 +66,7 @@ const MOCK_ACHIEVEMENTS: AchievementData[] = [
 export default function AchievementShowcaseScreen({ navigation }: any) {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
-  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].key);
+  const [activeCategory, setActiveCategory] = useState<string>(CATEGORIES[0].key);
   const [selectedAchievement, setSelectedAchievement] = useState<AchievementData | null>(null);
 
   const screenWidth = Dimensions.get('window').width;

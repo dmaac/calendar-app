@@ -170,9 +170,9 @@ const LevelUpOverlay = React.memo(function LevelUpOverlay({
 
         {/* Mascot */}
         <FitsiMascot
-          expression="celebrate"
+          expression="party"
           size="medium"
-          animation="celebrate"
+          animation="bounce"
         />
 
         {/* Rewards earned */}

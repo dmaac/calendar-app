@@ -49,6 +49,9 @@ import useNutritionRisk from '../../hooks/useNutritionRisk';
 import RiskSkeleton from '../../components/RiskSkeleton';
 import RecoveryPlanCard, { RecoveryPlanData } from '../../components/RecoveryPlanCard';
 import { apiClient } from '../../services/apiClient';
+import ProgressWidget from '../../components/ProgressWidget';
+import DailyMissionsCard from '../../components/DailyMissionsCard';
+import useProgress from '../../hooks/useProgress';
 
 // ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
 const DAILY_TIPS = [
@@ -335,6 +338,18 @@ export default function HomeScreen({ navigation }: any) {
     refetch: refetchRisk,
   } = useNutritionRisk();
 
+  // Progress system
+  const {
+    level: progressLevel,
+    levelName: progressLevelName,
+    currentXp: progressXp,
+    xpToNextLevel: progressXpNext,
+    currentStreak: progressStreak,
+    coins: progressCoins,
+    missions: progressMissions,
+    refetch: refetchProgress,
+  } = useProgress();
+
   // Recovery plan (only fetched when risk > 40)
   const [recoveryPlan, setRecoveryPlan] = useState<RecoveryPlanData | null>(null);
 
@@ -473,10 +488,10 @@ export default function HomeScreen({ navigation }: any) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
-    await Promise.all([load(), refetchAlerts(), refetchRisk(), fetchRecoveryPlan()]);
+    await Promise.all([load(), refetchAlerts(), refetchRisk(), fetchRecoveryPlan(), refetchProgress()]);
     haptics.success();
     setRefreshing(false);
-  }, [load, refetchAlerts, refetchRisk, fetchRecoveryPlan]);
+  }, [load, refetchAlerts, refetchRisk, fetchRecoveryPlan, refetchProgress]);
 
   // Memoize greeting to avoid calling t() on every render
   const greetingText = useMemo(() => {
@@ -578,6 +593,11 @@ export default function HomeScreen({ navigation }: any) {
     track('scan_button_pressed', { source: 'empty_state' });
     navigation.navigate('Scan');
   }, [track, navigation]);
+
+  const onProgressPress = useCallback(() => {
+    haptics.light();
+    navigation.navigate('AchievementShowcase');
+  }, [navigation]);
 
   // Memoize calorie ring labels
   const caloriesLeftLabel = useMemo(
@@ -734,6 +754,20 @@ export default function HomeScreen({ navigation }: any) {
                   </View>
                 </View>
               </View>
+
+              {/* Progress widget */}
+              <ProgressWidget
+                levelName={progressLevelName}
+                levelNumber={progressLevel}
+                currentXp={progressXp}
+                xpToNextLevel={progressXpNext}
+                streakDays={progressStreak}
+                coins={progressCoins}
+                onPress={onProgressPress}
+              />
+
+              {/* Daily missions */}
+              <DailyMissionsCard missions={progressMissions} />
 
               {/* Calorie comparison bar */}
               <CalorieComparisonCard logged={consumed} target={target} status={riskStatus} />
