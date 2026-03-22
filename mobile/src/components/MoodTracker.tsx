@@ -162,7 +162,7 @@ const LevelSlider = React.memo(function LevelSlider({
       style={sliderStyles.container}
       accessibilityLabel={`${label}: nivel ${value} de 5, ${getLevelLabel(value, type)}`}
       accessibilityRole="adjustable"
-      accessibilityValue={{ min: 1, max: 5, now: value }}
+      accessibilityValue={{ min: 1, max: 5, now: Math.round(value) }}
     >
       <View style={sliderStyles.labelRow}>
         <Ionicons name={icon as any} size={16} color={color} />

@@ -190,7 +190,7 @@ const CalorieRing = React.memo(function CalorieRing({
       style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
       accessibilityLabel={`${Math.round(consumed)} de ${Math.round(target)} kilocalorías consumidas, ${Math.round(remaining)} restantes`}
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: target, now: consumed }}
+      accessibilityValue={{ min: 0, max: Math.round(target), now: Math.round(consumed) }}
     >
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
         {/* Track */}
@@ -251,7 +251,7 @@ const MacroBar = React.memo(function MacroBar({
       style={styles.macroItem}
       accessibilityLabel={`${label}: ${Math.round(value)} de ${Math.round(target)} ${unit}`}
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: target, now: value }}
+      accessibilityValue={{ min: 0, max: Math.round(target), now: Math.round(value) }}
     >
       <View style={styles.macroHeader}>
         <Text style={[styles.macroLabel, { color: c.gray }]}>{label}</Text>

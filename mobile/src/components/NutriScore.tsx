@@ -183,7 +183,7 @@ export default function NutriScore(props: NutriScoreProps) {
       style={[s.card, { backgroundColor: c.surface, borderColor: c.grayLight }]}
       accessibilityLabel={`NutriScore: ${score} de 100, ${label}`}
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: 100, now: score }}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(score) }}
     >
       <View style={s.topRow}>
         {/* Ring */}

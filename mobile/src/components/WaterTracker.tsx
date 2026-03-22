@@ -383,7 +383,7 @@ export default function WaterTracker({ waterMl, onAdd, goal: goalProp, weightKg 
           style={s.ringWrap}
           accessibilityLabel={`Agua: ${waterMl} de ${goal} mililitros. ${Math.round(pct * 100)} por ciento completado`}
           accessibilityRole="progressbar"
-          accessibilityValue={{ min: 0, max: goal, now: waterMl }}
+          accessibilityValue={{ min: 0, max: Math.round(goal), now: Math.round(waterMl) }}
         >
           <Svg width={SIZE} height={SIZE}>
             {/* Background track */}

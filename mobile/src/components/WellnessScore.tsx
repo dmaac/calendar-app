@@ -364,7 +364,7 @@ export default function WellnessScore({
       style={[s.card, { backgroundColor: c.surface, borderColor: c.grayLight }]}
       accessibilityLabel={`Wellness Score: ${totalScore} de 100. ${scoreLabel}. ${trend.label}`}
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: 100, now: totalScore }}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(totalScore) }}
     >
       {/* Top row: ring + info */}
       <View style={s.topRow}>
