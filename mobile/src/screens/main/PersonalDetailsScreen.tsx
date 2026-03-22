@@ -15,8 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography, spacing, radius, useThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
-import { getOnboardingProfile } from '../../services/onboarding.service';
+import { getOnboardingProfile, updateProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
+import { haptics } from '../../hooks/useHaptics';
 
 const GENDER_LABELS: Record<string, string> = {
   male: 'Male',
@@ -38,6 +39,17 @@ export default function PersonalDetailsScreen({ navigation }: any) {
 
   const [profile, setProfile] = useState<OnboardingProfileRead | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stepGoal, setStepGoal] = useState(10000);
+
+  const handleUpdateField = async (field: string, value: any) => {
+    haptics.success();
+    try {
+      await updateProfile({ [field]: value });
+      setProfile((prev) => prev ? { ...prev, [field]: value } : prev);
+    } catch {
+      Alert.alert('Error', 'No se pudo actualizar. Intenta de nuevo.');
+    }
+  };
 
   useEffect(() => {
     getOnboardingProfile()
@@ -77,19 +89,39 @@ export default function PersonalDetailsScreen({ navigation }: any) {
       label: 'Date of birth',
       value: birthDateFormatted,
       hasValue: !!profile?.birth_date,
-      onPress: () => {},
+      onPress: () => {
+        Alert.alert('Fecha de nacimiento', 'Selecciona tu fecha de nacimiento:', [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Ir a Editar Perfil', onPress: () => navigation.navigate('EditProfile', { profile }) },
+        ]);
+      },
     },
     {
       label: 'Gender',
       value: genderLabel,
       hasValue: !!profile?.gender,
-      onPress: () => {},
+      onPress: () => {
+        Alert.alert('Genero', 'Selecciona tu genero:', [
+          { text: 'Male', onPress: () => handleUpdateField('gender', 'male') },
+          { text: 'Female', onPress: () => handleUpdateField('gender', 'female') },
+          { text: 'Other', onPress: () => handleUpdateField('gender', 'other') },
+          { text: 'Cancelar', style: 'cancel' },
+        ]);
+      },
     },
     {
       label: 'Daily step goal',
-      value: '10000 steps',
+      value: `${stepGoal} steps`,
       hasValue: true,
-      onPress: () => {},
+      onPress: () => {
+        Alert.alert('Meta de pasos', 'Selecciona tu meta diaria:', [
+          { text: '5,000', onPress: () => setStepGoal(5000) },
+          { text: '7,500', onPress: () => setStepGoal(7500) },
+          { text: '10,000', onPress: () => setStepGoal(10000) },
+          { text: '15,000', onPress: () => setStepGoal(15000) },
+          { text: 'Cancelar', style: 'cancel' },
+        ]);
+      },
     },
   ];
 
