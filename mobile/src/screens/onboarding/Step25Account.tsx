@@ -165,6 +165,8 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              accessibilityLabel="Correo electronico"
+              accessibilityHint="Ingresa tu direccion de correo electronico"
             />
           </View>
 
@@ -178,8 +180,14 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
               onChangeText={setPassword}
               secureTextEntry={!showPass}
               autoCapitalize="none"
+              accessibilityLabel="Contrasena"
+              accessibilityHint="Ingresa una contrasena de al menos 6 caracteres"
             />
-            <TouchableOpacity onPress={() => setShowPass(v => !v)}>
+            <TouchableOpacity
+              onPress={() => setShowPass(v => !v)}
+              accessibilityLabel={showPass ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+              accessibilityRole="button"
+            >
               <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.gray} />
             </TouchableOpacity>
           </View>
@@ -206,7 +214,13 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
             <Text style={styles.link}>Términos</Text> y{' '}
             <Text style={styles.link}>Política de privacidad</Text>.
           </Text>
-          <TouchableOpacity onPress={onNext} activeOpacity={0.6}>
+          <TouchableOpacity
+            onPress={onNext}
+            activeOpacity={0.6}
+            accessibilityLabel="Saltar por ahora"
+            accessibilityRole="button"
+            accessibilityHint="Continua sin crear una cuenta"
+          >
             <Text style={styles.skipLink}>Saltar por ahora</Text>
           </TouchableOpacity>
         </View>
@@ -239,7 +253,14 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
 
           {/* Google — white with border below */}
           <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: fadeAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-            <TouchableOpacity style={[styles.socialBtn, styles.googleBtn]} onPress={handleGoogle} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={[styles.socialBtn, styles.googleBtn]}
+              onPress={handleGoogle}
+              activeOpacity={0.8}
+              accessibilityLabel="Continuar con Google"
+              accessibilityRole="button"
+              accessibilityHint="Inicia sesion usando tu cuenta de Google"
+            >
               <Text style={styles.googleG}>G</Text>
               <Text style={[styles.socialBtnText, { color: colors.black }]}>Continuar con Google</Text>
             </TouchableOpacity>
@@ -253,7 +274,14 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
 
           {/* Email */}
           <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: fadeAnims[3].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-            <TouchableOpacity style={[styles.socialBtn, styles.emailBtn]} onPress={() => setMode('email')} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={[styles.socialBtn, styles.emailBtn]}
+              onPress={() => setMode('email')}
+              activeOpacity={0.8}
+              accessibilityLabel="Continuar con Email"
+              accessibilityRole="button"
+              accessibilityHint="Crea una cuenta usando correo electronico y contrasena"
+            >
               <Ionicons name="mail-outline" size={22} color={colors.black} />
               <Text style={[styles.socialBtnText, { color: colors.black }]}>Continuar con Email</Text>
             </TouchableOpacity>

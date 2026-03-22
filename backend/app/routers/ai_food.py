@@ -93,7 +93,7 @@ router = APIRouter(prefix="/api", tags=["ai-food"])
 # ─── Scan ─────────────────────────────────────────────────────────────────────
 
 @router.post("/food/scan")
-@(_limiter.limit("20/minute") if _rate_limit_enabled else lambda f: f)
+@(_limiter.limit("10/minute") if _rate_limit_enabled else lambda f: f)
 async def scan_food(
     request: Request,
     image: UploadFile = File(..., description="Food photo (JPEG/PNG, max 10MB)"),

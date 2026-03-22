@@ -288,12 +288,12 @@ export default function MainNavigator() {
       })}
     >
       {/* Home tab mounts immediately; other tabs lazy-load on first visit to reduce initial memory */}
-      <Tab.Screen name="Inicio"   component={HomeStack}     options={{ tabBarLabel: t('tabs.home') }} />
-      <Tab.Screen name="Registro" component={LogStack}      options={{ tabBarLabel: t('tabs.log'), lazy: true }} />
-      <Tab.Screen name="Progress" component={ProgressScreen} options={{ tabBarLabel: t('tabs.progress'), lazy: true }} />
-      <Tab.Screen name="Groups"    component={GroupsScreen}     options={{ tabBarLabel: t('tabs.groups'), lazy: true }} />
-      <Tab.Screen name="Community" component={CommunityScreen} options={{ tabBarLabel: t('tabs.community'), lazy: true }} />
-      <Tab.Screen name="Perfil"    component={ProfileStack}    options={{ tabBarLabel: t('tabs.profile'), lazy: true }} />
+      <Tab.Screen name="Inicio"   component={HomeStack}     options={{ tabBarLabel: t('tabs.home'), tabBarAccessibilityLabel: 'Inicio' }} />
+      <Tab.Screen name="Registro" component={LogStack}      options={{ tabBarLabel: t('tabs.log'), tabBarAccessibilityLabel: 'Registro de comidas', lazy: true }} />
+      <Tab.Screen name="Progress" component={ProgressScreen} options={{ tabBarLabel: t('tabs.progress'), tabBarAccessibilityLabel: 'Progreso y estadisticas', lazy: true }} />
+      <Tab.Screen name="Groups"    component={GroupsScreen}     options={{ tabBarLabel: t('tabs.groups'), tabBarAccessibilityLabel: 'Grupos de nutricion', lazy: true }} />
+      <Tab.Screen name="Community" component={CommunityScreen} options={{ tabBarLabel: t('tabs.community'), tabBarAccessibilityLabel: 'Comunidad y logros', lazy: true }} />
+      <Tab.Screen name="Perfil"    component={ProfileStack}    options={{ tabBarLabel: t('tabs.profile'), tabBarAccessibilityLabel: 'Perfil y configuracion', lazy: true }} />
     </Tab.Navigator>
   );
 }

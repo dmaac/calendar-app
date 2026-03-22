@@ -89,6 +89,9 @@ function AppearanceButton({
         onPress();
       }}
       activeOpacity={0.7}
+      accessibilityLabel={`Apariencia: ${label}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
     >
       <Ionicons
         name={icon as any}
@@ -141,6 +144,9 @@ function SettingsRow({
       onPress={onPress}
       activeOpacity={onPress ? 0.6 : 1}
       disabled={!onPress}
+      accessibilityLabel={value != null ? `${label}: ${value}` : label}
+      accessibilityRole={onPress ? 'button' : 'text'}
+      accessibilityHint={onPress && !destructive ? `Navega a ${label.toLowerCase()}` : undefined}
     >
       <View style={[styles.iconCircle, { backgroundColor: destructive ? '#FFEDED' : c.surface }]}>
         <Ionicons
@@ -178,7 +184,10 @@ function ToggleRow({
   c: ReturnType<typeof useThemeColors>;
 }) {
   return (
-    <View style={[styles.row, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.grayLight }]}>
+    <View
+      style={[styles.row, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.grayLight }]}
+      accessibilityLabel={`${label}: ${value ? 'activado' : 'desactivado'}`}
+    >
       <View style={[styles.iconCircle, { backgroundColor: c.surface }]}>
         <Ionicons name={icon as any} size={18} color={iconColor} />
       </View>
@@ -192,6 +201,8 @@ function ToggleRow({
         trackColor={{ false: c.grayLight, true: c.accent }}
         thumbColor={c.white}
         ios_backgroundColor={c.grayLight}
+        accessibilityLabel={label}
+        accessibilityRole="switch"
       />
     </View>
   );
@@ -238,10 +249,15 @@ function SliderRow({
           onPress={() => { haptics.light(); onDecrease(); }}
           disabled={value <= min}
           activeOpacity={0.6}
+          accessibilityLabel={`Disminuir ${label.toLowerCase()}`}
+          accessibilityRole="button"
         >
           <Ionicons name="remove" size={18} color={value <= min ? c.disabled : c.black} />
         </TouchableOpacity>
-        <Text style={[styles.stepperValue, { color: c.black }]}>
+        <Text
+          style={[styles.stepperValue, { color: c.black }]}
+          accessibilityLabel={`${label}: ${value.toFixed(1)} ${unit}`}
+        >
           {value.toFixed(1)} {unit}
         </Text>
         <TouchableOpacity
@@ -249,6 +265,8 @@ function SliderRow({
           onPress={() => { haptics.light(); onIncrease(); }}
           disabled={value >= max}
           activeOpacity={0.6}
+          accessibilityLabel={`Aumentar ${label.toLowerCase()}`}
+          accessibilityRole="button"
         >
           <Ionicons name="add" size={18} color={value >= max ? c.disabled : c.black} />
         </TouchableOpacity>
@@ -463,6 +481,8 @@ export default function SettingsScreen({ navigation }: any) {
           style={[styles.backButton, { backgroundColor: c.surface }]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
+          accessibilityLabel="Volver"
+          accessibilityRole="button"
         >
           <Ionicons name="chevron-back" size={20} color={c.black} />
         </TouchableOpacity>
@@ -806,6 +826,7 @@ export default function SettingsScreen({ navigation }: any) {
             iconColor="#F59E0B"
             label={t('settings.rateApp')}
             onPress={handleRateApp}
+            isLast={false}
             c={c}
           />
           <SettingsRow

@@ -55,7 +55,10 @@ function GroupCard({
   colors: ReturnType<typeof useThemeColors>;
 }) {
   return (
-    <View style={[s.card, { backgroundColor: colors.surface }]}>
+    <View
+      style={[s.card, { backgroundColor: colors.surface }]}
+      accessibilityLabel={`Grupo ${group.name}, ${formatMembers(group.members)}${joined ? ', unido' : ''}`}
+    >
       <View style={[s.cardEmoji, { backgroundColor: colors.surfaceAlt }]}>
         <Text style={s.emoji}>{group.emoji}</Text>
       </View>
@@ -67,6 +70,8 @@ function GroupCard({
         style={[s.joinBtn, { backgroundColor: colors.white }, joined && { backgroundColor: colors.surfaceAlt }]}
         onPress={onToggle}
         activeOpacity={0.7}
+        accessibilityLabel={joined ? `Salir de ${group.name}` : `Unirse a ${group.name}`}
+        accessibilityRole="button"
       >
         <Text style={[s.joinText, joined && { color: colors.gray }]}>
           {joined ? 'Joined' : 'Join'}
@@ -84,7 +89,14 @@ function EmptyGroups({ onDiscover, colors }: { onDiscover: () => void; colors: R
       <FitsiMascot expression="wink" size="medium" animation="wave" />
       <Text style={[s.emptyTitle, { color: colors.black, marginTop: spacing.sm }]}>Unete a tu primer grupo!</Text>
       <Text style={[s.emptySubtitle, { color: colors.gray }]}>Conecta con personas que comparten tus mismos objetivos de nutricion y fitness</Text>
-      <TouchableOpacity style={[s.ctaBtn, { backgroundColor: colors.accent }]} onPress={() => { haptics.light(); onDiscover(); }} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={[s.ctaBtn, { backgroundColor: colors.accent }]}
+        onPress={() => { haptics.light(); onDiscover(); }}
+        activeOpacity={0.7}
+        accessibilityLabel="Explorar grupos"
+        accessibilityRole="button"
+        accessibilityHint="Desplaza hacia abajo para ver los grupos disponibles"
+      >
         <Text style={s.ctaText}>Explorar grupos</Text>
       </TouchableOpacity>
     </View>
@@ -127,7 +139,7 @@ export default function GroupsScreen() {
     <View style={[s.container, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={[s.headerTitle, { color: c.black }]}>Groups</Text>
+        <Text style={[s.headerTitle, { color: c.black }]} accessibilityRole="header">Groups</Text>
       </View>
 
       <ScrollView
@@ -146,6 +158,9 @@ export default function GroupsScreen() {
             track('challenges_opened');
             navigation.navigate('Inicio', { screen: 'Challenges' });
           }}
+          accessibilityLabel="Desafios semanales. Compite y gana XP cada semana"
+          accessibilityRole="button"
+          accessibilityHint="Abre la pantalla de desafios semanales"
         >
           <Ionicons name="trophy" size={22} color={c.accent} />
           <View style={s.challengesBannerInfo}>
