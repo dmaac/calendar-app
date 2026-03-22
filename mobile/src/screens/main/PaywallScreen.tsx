@@ -26,6 +26,7 @@ import { PurchasesPackage } from 'react-native-purchases';
 import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import * as purchaseService from '../../services/purchase.service';
+import { haptics } from '../../hooks/useHaptics';
 
 type Plan = 'monthly' | 'annual';
 
@@ -168,10 +169,12 @@ export default function PaywallScreen({ navigation }: any) {
 
   // ── Purchase flow ─────────────────────────────────────────────────────────
   const handleSubscribe = useCallback(async () => {
+    haptics.medium();
     const pkg = selectedPlan === 'annual' ? annualPackage : monthlyPackage;
 
     if (!pkg) {
       // No package available — likely web or SDK not initialized
+      haptics.error();
       Alert.alert(
         'No disponible',
         'Las compras in-app solo estan disponibles en la app nativa. Descarga la app desde la App Store o Google Play.',
@@ -192,6 +195,7 @@ export default function PaywallScreen({ navigation }: any) {
 
       if (result.success && result.isPremium) {
         // Purchase successful — update local premium status
+        haptics.success();
         setPremiumStatus(true);
         Alert.alert(
           'Bienvenido a Premium',
@@ -218,12 +222,14 @@ export default function PaywallScreen({ navigation }: any) {
 
   // ── Restore purchases ─────────────────────────────────────────────────────
   const handleRestore = useCallback(async () => {
+    haptics.light();
     setRestoring(true);
 
     try {
       const result = await purchaseService.restorePurchases();
 
       if (result.isPremium) {
+        haptics.success();
         setPremiumStatus(true);
         Alert.alert(
           'Compra restaurada',
@@ -252,7 +258,7 @@ export default function PaywallScreen({ navigation }: any) {
       {/* Close / back */}
       <TouchableOpacity
         style={[styles.closeBtn, { right: sidePadding, backgroundColor: c.surface }]}
-        onPress={() => navigation.goBack?.() ?? navigation.navigate('Perfil')}
+        onPress={() => { haptics.light(); navigation.goBack?.() ?? navigation.navigate('Perfil'); }}
       >
         <Ionicons name="close" size={20} color={c.black} />
       </TouchableOpacity>
@@ -301,7 +307,7 @@ export default function PaywallScreen({ navigation }: any) {
                 <TouchableOpacity
                   key={key}
                   style={[styles.planCard, { backgroundColor: c.surface }, isSelected && { backgroundColor: c.black, borderColor: c.black }]}
-                  onPress={() => setSelectedPlan(key)}
+                  onPress={() => { haptics.selection(); setSelectedPlan(key); }}
                   activeOpacity={0.8}
                 >
                   {plan.badge && (

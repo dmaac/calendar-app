@@ -140,9 +140,11 @@ const CHART_PAD_RIGHT = 12;
 const WeightLineChart = React.memo(function WeightLineChart({
   data,
   width,
+  colors: C,
 }: {
   data: { date: Date; weight: number }[];
   width: number;
+  colors: ReturnType<typeof useProgressColors>;
 }) {
   if (data.length < 2) return null;
 
@@ -267,10 +269,12 @@ const CaloriesBarChart = React.memo(function CaloriesBarChart({
   data,
   target,
   width,
+  colors: C,
 }: {
   data: { day: string; value: number }[];
   target: number;
   width: number;
+  colors: ReturnType<typeof useProgressColors>;
 }) {
   const drawW = width - BAR_PAD_LEFT - BAR_PAD_RIGHT;
   const drawH = BAR_CHART_H - BAR_PAD_TOP - BAR_PAD_BOTTOM;
@@ -346,10 +350,12 @@ const WeightChangeRow = React.memo(function WeightChangeRow({
   label,
   value,
   maxAbsValue,
+  colors: C,
 }: {
   label: string;
   value: number;
   maxAbsValue: number;
+  colors: ReturnType<typeof useProgressColors>;
 }) {
   const absVal = Math.abs(value);
   const barPct = maxAbsValue > 0 ? (absVal / maxAbsValue) * 100 : 0;
@@ -357,9 +363,9 @@ const WeightChangeRow = React.memo(function WeightChangeRow({
   const displayText = value === 0 ? 'No change' : `${value > 0 ? '+' : ''}${value.toFixed(1)} kg`;
 
   return (
-    <View style={s.changeRow}>
-      <Text style={s.changeLabel}>{label}</Text>
-      <View style={s.changeBarContainer}>
+    <View style={[s.changeRow, { borderBottomColor: C.separator }]}>
+      <Text style={[s.changeLabel, { color: C.textSecondary }]}>{label}</Text>
+      <View style={[s.changeBarContainer, { backgroundColor: C.separator + '20' }]}>
         <View
           style={[
             s.changeBar,
@@ -370,7 +376,7 @@ const WeightChangeRow = React.memo(function WeightChangeRow({
           ]}
         />
       </View>
-      <Text style={[s.changeValue, isLoss && { color: C.accent }]}>
+      <Text style={[s.changeValue, { color: C.textSecondary }, isLoss && { color: C.accent }]}>
         {displayText}
       </Text>
     </View>
@@ -402,10 +408,10 @@ export default function ProgressScreen() {
   );
 
   return (
-    <View style={[s.screen, { paddingTop: insets.top }]}>
+    <View style={[s.screen, { paddingTop: insets.top, backgroundColor: C.bg }]}>
       {/* Header */}
       <View style={[s.header, { paddingHorizontal: sidePadding }]}>
-        <Text style={s.headerTitle}>Progress</Text>
+        <Text style={[s.headerTitle, { color: C.textPrimary }]}>Progress</Text>
       </View>
 
       <ScrollView
@@ -416,101 +422,117 @@ export default function ProgressScreen() {
       >
         {/* ── Streak + Badges ── */}
         <View style={s.topCardsRow}>
-          <View style={s.topCard}>
+          <View style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
             <FitsiMascot expression="muscle" size="small" animation="idle" />
-            <Text style={s.topCardValue}>{MOCK.streak}</Text>
-            <Text style={s.topCardLabel}>Day Streak</Text>
+            <Text style={[s.topCardValue, { color: C.textPrimary }]}>{MOCK.streak}</Text>
+            <Text style={[s.topCardLabel, { color: C.textSecondary }]}>Day Streak</Text>
           </View>
-          <View style={s.topCard}>
-            <View style={s.topCardIcon}>
+          <View style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+            <View style={[s.topCardIcon, { backgroundColor: C.separator + '30' }]}>
               <Ionicons name="medal" size={24} color={C.medal} />
             </View>
-            <Text style={s.topCardValue}>{MOCK.badges}</Text>
-            <Text style={s.topCardLabel}>Badges Earned</Text>
+            <Text style={[s.topCardValue, { color: C.textPrimary }]}>{MOCK.badges}</Text>
+            <Text style={[s.topCardLabel, { color: C.textSecondary }]}>Badges Earned</Text>
           </View>
         </View>
 
         {/* ── Current Weight Card ── */}
-        <View style={s.card}>
+        <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
           <View style={s.weightHeaderRow}>
             <View>
-              <Text style={s.weightLabel}>Current Weight</Text>
-              <Text style={s.weightValue}>{MOCK.currentWeight} kg</Text>
+              <Text style={[s.weightLabel, { color: C.textSecondary }]}>Current Weight</Text>
+              <Text style={[s.weightValue, { color: C.textPrimary }]}>{MOCK.currentWeight} kg</Text>
             </View>
-            <View style={s.weightBadge}>
+            <View style={[s.weightBadge, { backgroundColor: C.accent + '1F' }]}>
               <Ionicons name="scale-outline" size={14} color={C.accent} />
-              <Text style={s.weightBadgeText}>Next: {MOCK.nextWeighIn}</Text>
+              <Text style={[s.weightBadgeText, { color: C.accentLight }]}>Next: {MOCK.nextWeighIn}</Text>
             </View>
           </View>
 
           <View style={s.weightStatsRow}>
             <View style={s.weightStat}>
-              <Text style={s.weightStatLabel}>Start</Text>
-              <Text style={s.weightStatValue}>{MOCK.startWeight} kg</Text>
+              <Text style={[s.weightStatLabel, { color: C.textTertiary }]}>Start</Text>
+              <Text style={[s.weightStatValue, { color: C.textPrimary }]}>{MOCK.startWeight} kg</Text>
             </View>
-            <View style={s.weightStatDivider} />
+            <View style={[s.weightStatDivider, { backgroundColor: C.separator }]} />
             <View style={s.weightStat}>
-              <Text style={s.weightStatLabel}>Goal</Text>
-              <Text style={s.weightStatValue}>{MOCK.goalWeight} kg</Text>
+              <Text style={[s.weightStatLabel, { color: C.textTertiary }]}>Goal</Text>
+              <Text style={[s.weightStatValue, { color: C.textPrimary }]}>{MOCK.goalWeight} kg</Text>
             </View>
           </View>
 
           <View style={s.goalPrediction}>
             <Ionicons name="trending-down" size={14} color={C.green} />
-            <Text style={s.goalPredictionText}>At your goal by {MOCK.goalDate}</Text>
+            <Text style={[s.goalPredictionText, { color: C.green }]}>At your goal by {MOCK.goalDate}</Text>
           </View>
         </View>
 
         {/* ── Weight Progress Chart ── */}
-        <View style={s.card}>
-          <Text style={s.sectionTitle}>Weight Progress</Text>
+        <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Weight Progress</Text>
 
           {/* Time filter pills */}
           <View style={s.filterRow}>
             {TIME_FILTERS.map((f) => (
               <TouchableOpacity
                 key={f}
-                style={[s.filterPill, timeFilter === f && s.filterPillActive]}
+                style={[
+                  s.filterPill,
+                  { backgroundColor: C.separator + '30' },
+                  timeFilter === f && { backgroundColor: C.accent },
+                ]}
                 onPress={() => { haptics.light(); setTimeFilter(f); }}
                 activeOpacity={0.7}
               >
-                <Text style={[s.filterPillText, timeFilter === f && s.filterPillTextActive]}>
+                <Text style={[
+                  s.filterPillText,
+                  { color: C.textSecondary },
+                  timeFilter === f && { color: C.white },
+                ]}>
                   {f}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <WeightLineChart data={weightData} width={innerWidth - spacing.md * 2} />
+          <WeightLineChart data={weightData} width={innerWidth - spacing.md * 2} colors={C} />
         </View>
 
         {/* ── Weight Changes Table ── */}
-        <View style={s.card}>
-          <Text style={s.sectionTitle}>Weight Changes</Text>
-          {WEIGHT_CHANGES.map((c) => (
+        <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Weight Changes</Text>
+          {WEIGHT_CHANGES.map((wc) => (
             <WeightChangeRow
-              key={c.label}
-              label={c.label}
-              value={c.value}
+              key={wc.label}
+              label={wc.label}
+              value={wc.value}
               maxAbsValue={maxAbsChange}
+              colors={C}
             />
           ))}
         </View>
 
-        {/* ── Progress Photos ── */}
-        <View style={s.card}>
-          <Text style={s.sectionTitle}>Progress Photos</Text>
-          <Text style={s.photoSubtitle}>Track your visual transformation</Text>
+        {/* ── Progress Photos (empty state) ── */}
+        <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Progress Photos</Text>
 
-          <TouchableOpacity style={s.uploadBtn} activeOpacity={0.8} onPress={() => haptics.light()}>
+          <View style={s.photoEmptyState}>
+            <FitsiMascot expression="cute" size="small" animation="idle" />
+            <Text style={[s.photoEmptyTitle, { color: C.textPrimary }]}>No photos yet</Text>
+            <Text style={[s.photoEmptyDesc, { color: C.textSecondary }]}>
+              Take a photo every week to see your visual transformation over time
+            </Text>
+          </View>
+
+          <TouchableOpacity style={[s.uploadBtn, { backgroundColor: C.accent }]} activeOpacity={0.8} onPress={() => haptics.light()}>
             <Ionicons name="camera-outline" size={20} color={C.white} />
-            <Text style={s.uploadBtnText}>+ Upload a Photo</Text>
+            <Text style={[s.uploadBtnText, { color: C.white }]}>+ Upload a Photo</Text>
           </TouchableOpacity>
 
-          {/* Empty state grid placeholder */}
+          {/* Placeholder grid */}
           <View style={s.photoGrid}>
             {[0, 1, 2].map((i) => (
-              <View key={i} style={s.photoPlaceholder}>
+              <View key={i} style={[s.photoPlaceholder, { borderColor: C.cardBorder, backgroundColor: C.separator + '15' }]}>
                 <Ionicons name="image-outline" size={28} color={C.textTertiary} />
               </View>
             ))}
@@ -518,15 +540,16 @@ export default function ProgressScreen() {
         </View>
 
         {/* ── Daily Average Calories ── */}
-        <View style={s.card}>
-          <Text style={s.sectionTitle}>Daily Average Calories</Text>
-          <Text style={s.calSubtitle}>
+        <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Daily Average Calories</Text>
+          <Text style={[s.calSubtitle, { color: C.textTertiary }]}>
             Target: {CALORIE_TARGET} kcal
           </Text>
           <CaloriesBarChart
             data={DAILY_CALORIES}
             target={CALORIE_TARGET}
             width={innerWidth - spacing.md * 2}
+            colors={C}
           />
         </View>
 
@@ -536,12 +559,11 @@ export default function ProgressScreen() {
   );
 }
 
-// ─── Styles ─────────────────────────────────────────────────────────────────
+// ─── Styles (layout only — colors applied inline from theme) ─────────────
 
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: C.bg,
   },
   header: {
     paddingVertical: spacing.md,
@@ -549,7 +571,6 @@ const s = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: C.white,
     letterSpacing: -0.5,
   },
   scroll: {
@@ -564,10 +585,8 @@ const s = StyleSheet.create({
   },
   topCard: {
     flex: 1,
-    backgroundColor: C.card,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: C.cardBorder,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     alignItems: 'center',
@@ -577,7 +596,6 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs,
@@ -585,19 +603,15 @@ const s = StyleSheet.create({
   topCardValue: {
     fontSize: 28,
     fontWeight: '800',
-    color: C.white,
   },
   topCardLabel: {
     ...typography.caption,
-    color: C.textSecondary,
   },
 
   // ── Card ──
   card: {
-    backgroundColor: C.card,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: C.cardBorder,
     padding: spacing.md,
     marginBottom: spacing.md,
   },
@@ -611,26 +625,22 @@ const s = StyleSheet.create({
   },
   weightLabel: {
     ...typography.caption,
-    color: C.textSecondary,
     marginBottom: 4,
   },
   weightValue: {
     fontSize: 32,
     fontWeight: '800',
-    color: C.white,
   },
   weightBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(59,130,246,0.12)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radius.full,
   },
   weightBadgeText: {
     ...typography.caption,
-    color: C.accentLight,
     fontWeight: '600',
   },
   weightStatsRow: {
@@ -644,18 +654,15 @@ const s = StyleSheet.create({
   },
   weightStatLabel: {
     ...typography.caption,
-    color: C.textTertiary,
     marginBottom: 2,
   },
   weightStatValue: {
     ...typography.bodyMd,
-    color: C.textPrimary,
     fontWeight: '700',
   },
   weightStatDivider: {
     width: 1,
     height: 28,
-    backgroundColor: C.separator,
   },
   goalPrediction: {
     flexDirection: 'row',
@@ -668,14 +675,12 @@ const s = StyleSheet.create({
   },
   goalPredictionText: {
     ...typography.caption,
-    color: C.green,
     fontWeight: '600',
   },
 
   // ── Section title ──
   sectionTitle: {
     ...typography.titleSm,
-    color: C.white,
     marginBottom: spacing.sm,
   },
 
@@ -689,18 +694,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  filterPillActive: {
-    backgroundColor: C.accent,
   },
   filterPillText: {
     ...typography.caption,
-    color: C.textSecondary,
     fontWeight: '600',
-  },
-  filterPillTextActive: {
-    color: C.white,
   },
 
   // ── Weight Changes ──
@@ -709,18 +706,15 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: C.separator,
   },
   changeLabel: {
     width: 70,
     ...typography.caption,
-    color: C.textSecondary,
     fontWeight: '600',
   },
   changeBarContainer: {
     flex: 1,
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 4,
     marginHorizontal: spacing.sm,
     overflow: 'hidden',
@@ -732,30 +726,37 @@ const s = StyleSheet.create({
   changeValue: {
     width: 80,
     ...typography.caption,
-    color: C.textSecondary,
     fontWeight: '600',
     textAlign: 'right',
   },
 
   // ── Progress Photos ──
-  photoSubtitle: {
+  photoEmptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.xs,
+  },
+  photoEmptyTitle: {
+    ...typography.bodyMd,
+    marginTop: spacing.xs,
+  },
+  photoEmptyDesc: {
     ...typography.caption,
-    color: C.textTertiary,
-    marginBottom: spacing.md,
+    textAlign: 'center',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
   },
   uploadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: C.accent,
     borderRadius: radius.full,
     paddingVertical: 12,
     marginBottom: spacing.md,
   },
   uploadBtnText: {
     ...typography.button,
-    color: C.white,
   },
   photoGrid: {
     flexDirection: 'row',
@@ -764,10 +765,8 @@ const s = StyleSheet.create({
   photoPlaceholder: {
     flex: 1,
     aspectRatio: 0.75,
-    backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: C.cardBorder,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -776,7 +775,6 @@ const s = StyleSheet.create({
   // ── Daily Calories ──
   calSubtitle: {
     ...typography.caption,
-    color: C.textTertiary,
     marginBottom: spacing.sm,
   },
 });

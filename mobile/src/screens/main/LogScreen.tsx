@@ -11,8 +11,6 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
-  Modal,
-  Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +25,7 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 import WaterTracker from '../../components/WaterTracker';
 import FitsiMascot from '../../components/FitsiMascot';
 import ConfettiEffect from '../../components/ConfettiEffect';
+import BottomSheet from '../../components/BottomSheet';
 import { showNotification } from '../../components/InAppNotification';
 
 const MEAL_META = mealColors;
@@ -47,8 +46,8 @@ const MOCK_LOGS: AIFoodLog[] = [
   { id: -4, logged_at: new Date().toISOString(), meal_type: 'dinner', food_name: 'Salmon con verduras', calories: 420, carbs_g: 12, protein_g: 35, fats_g: 22, fiber_g: 6, image_url: null, ai_confidence: 0.91, was_edited: false },
 ];
 
-// ─── Add options modal (memoized to skip re-render when log list changes) ────
-const AddModal = React.memo(function AddModal({
+// ─── Add options bottom sheet (memoized to skip re-render when log list changes)
+const AddSheet = React.memo(function AddSheet({
   visible,
   mealType,
   onClose,
@@ -65,87 +64,63 @@ const AddModal = React.memo(function AddModal({
 }) {
   const c = useThemeColors();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={modalStyles.overlay} onPress={onClose} accessibilityLabel="Cerrar menu" accessibilityRole="button">
-        <View style={[modalStyles.sheet, { backgroundColor: c.bg }]}>
-          <View style={[modalStyles.handle, { backgroundColor: c.grayLight }]} />
-          <Text style={[modalStyles.title, { color: c.gray }]}>
-            Añadir a {mealType ? MEAL_META[mealType]?.label : 'comida'}
-          </Text>
-          <TouchableOpacity
-            style={modalStyles.option}
-            onPress={onScan}
-            activeOpacity={0.7}
-            accessibilityLabel="Escanear con IA. Saca una foto a tu comida"
-            accessibilityRole="button"
-          >
-            <View style={[modalStyles.optIcon, { backgroundColor: c.black }]}>
-              <Ionicons name="camera" size={20} color={c.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[modalStyles.optLabel, { color: c.black }]}>Escanear con IA</Text>
-              <Text style={[modalStyles.optSub, { color: c.gray }]}>Saca una foto a tu comida</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={c.grayLight} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={modalStyles.option}
-            onPress={onSearch}
-            activeOpacity={0.7}
-            accessibilityLabel="Buscar alimento en la base de datos"
-            accessibilityRole="button"
-          >
-            <View style={[modalStyles.optIcon, { backgroundColor: c.accent + '15' }]}>
-              <Ionicons name="search" size={20} color={c.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[modalStyles.optLabel, { color: c.black }]}>Buscar alimento</Text>
-              <Text style={[modalStyles.optSub, { color: c.gray }]}>Busca en nuestra base de datos</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={c.grayLight} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={modalStyles.option}
-            onPress={onManual}
-            activeOpacity={0.7}
-            accessibilityLabel="Añadir manualmente. Escribe el nombre y macros"
-            accessibilityRole="button"
-          >
-            <View style={[modalStyles.optIcon, { backgroundColor: c.surface }]}>
-              <Ionicons name="create-outline" size={20} color={c.black} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[modalStyles.optLabel, { color: c.black }]}>Añadir manualmente</Text>
-              <Text style={[modalStyles.optSub, { color: c.gray }]}>Escribe el nombre y macros</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={c.grayLight} />
-          </TouchableOpacity>
+    <BottomSheet visible={visible} onClose={onClose}>
+      <Text style={[sheetStyles.title, { color: c.gray }]}>
+        Anadir a {mealType ? MEAL_META[mealType]?.label : 'comida'}
+      </Text>
+      <TouchableOpacity
+        style={sheetStyles.option}
+        onPress={onScan}
+        activeOpacity={0.7}
+        accessibilityLabel="Escanear con IA. Saca una foto a tu comida"
+        accessibilityRole="button"
+      >
+        <View style={[sheetStyles.optIcon, { backgroundColor: c.black }]}>
+          <Ionicons name="camera" size={20} color={c.white} />
         </View>
-      </Pressable>
-    </Modal>
+        <View style={{ flex: 1 }}>
+          <Text style={[sheetStyles.optLabel, { color: c.black }]}>Escanear con IA</Text>
+          <Text style={[sheetStyles.optSub, { color: c.gray }]}>Saca una foto a tu comida</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={c.grayLight} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={sheetStyles.option}
+        onPress={onSearch}
+        activeOpacity={0.7}
+        accessibilityLabel="Buscar alimento en la base de datos"
+        accessibilityRole="button"
+      >
+        <View style={[sheetStyles.optIcon, { backgroundColor: c.accent + '15' }]}>
+          <Ionicons name="search" size={20} color={c.accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[sheetStyles.optLabel, { color: c.black }]}>Buscar alimento</Text>
+          <Text style={[sheetStyles.optSub, { color: c.gray }]}>Busca en nuestra base de datos</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={c.grayLight} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={sheetStyles.option}
+        onPress={onManual}
+        activeOpacity={0.7}
+        accessibilityLabel="Anadir manualmente. Escribe el nombre y macros"
+        accessibilityRole="button"
+      >
+        <View style={[sheetStyles.optIcon, { backgroundColor: c.surface }]}>
+          <Ionicons name="create-outline" size={20} color={c.black} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[sheetStyles.optLabel, { color: c.black }]}>Anadir manualmente</Text>
+          <Text style={[sheetStyles.optSub, { color: c.gray }]}>Escribe el nombre y macros</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={c.grayLight} />
+      </TouchableOpacity>
+    </BottomSheet>
   );
 });
 
-const modalStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    paddingBottom: spacing.xl,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: spacing.sm,
-  },
+const sheetStyles = StyleSheet.create({
   title: { ...typography.label, textAlign: 'center', marginBottom: spacing.xs },
   option: {
     flexDirection: 'row',
@@ -524,7 +499,7 @@ export default function LogScreen({ navigation }: any) {
       </ScrollView>
       )}
 
-      <AddModal
+      <AddSheet
         visible={modalMeal !== null}
         mealType={modalMeal}
         onClose={closeModal}

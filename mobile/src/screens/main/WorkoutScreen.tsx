@@ -8,11 +8,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Modal,
   TextInput,
   Animated,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +17,7 @@ import { useThemeColors, typography, spacing, radius, shadows, useLayout } from 
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import FitsiMascot from '../../components/FitsiMascot';
+import BottomSheet from '../../components/BottomSheet';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -245,8 +243,19 @@ export default function WorkoutScreen({ navigation }: any) {
         <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
           {workouts.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="barbell-outline" size={32} color={c.grayLight} />
-              <Text style={[styles.emptyText, { color: c.gray }]}>No hay workouts registrados</Text>
+              <FitsiMascot expression="muscle" size="medium" animation="idle" />
+              <Text style={[styles.emptyTitle, { color: c.black }]}>Sin workouts esta semana</Text>
+              <Text style={[styles.emptyText, { color: c.gray }]}>Registra tu primer entrenamiento para ver tus estadisticas y progreso</Text>
+              <TouchableOpacity
+                style={[styles.emptyCta, { backgroundColor: c.black }]}
+                onPress={openModal}
+                activeOpacity={0.85}
+                accessibilityLabel="Registrar primer workout"
+                accessibilityRole="button"
+              >
+                <Ionicons name="add-circle-outline" size={18} color={c.white} />
+                <Text style={[styles.emptyCtaText, { color: c.white }]}>Registrar workout</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             workouts.map((w) => <WorkoutRow key={w.id} entry={w} c={c} />)
@@ -256,107 +265,90 @@ export default function WorkoutScreen({ navigation }: any) {
         <View style={{ height: spacing.xl }} />
       </ScrollView>
 
-      {/* Log Workout Modal */}
-      <Modal
+      {/* Log Workout Bottom Sheet */}
+      <BottomSheet
         visible={modalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setModalVisible(false)}
+        onClose={() => setModalVisible(false)}
+        avoidKeyboard
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalOverlay}
-        >
+        <Text style={[styles.modalTitle, { color: c.black }]}>Registrar Workout</Text>
+
+        {/* Type selector */}
+        <Text style={[styles.modalLabel, { color: c.gray }]}>TIPO</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeScroll}>
+          {WORKOUT_TYPES.map((wt) => {
+            const isSelected = wt.key === selectedType.key;
+            return (
+              <TouchableOpacity
+                key={wt.key}
+                style={[
+                  styles.typeChip,
+                  { backgroundColor: isSelected ? wt.color + '20' : c.surface, borderColor: isSelected ? wt.color : c.grayLight },
+                ]}
+                onPress={() => { haptics.light(); setSelectedType(wt); }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name={wt.icon as any} size={18} color={isSelected ? wt.color : c.gray} />
+                <Text style={[styles.typeLabel, { color: isSelected ? wt.color : c.gray }]}>{wt.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Duration stepper */}
+        <Text style={[styles.modalLabel, { color: c.gray, marginTop: spacing.md }]}>DURACION</Text>
+        <View style={styles.durationRow}>
           <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setModalVisible(false)}
-          />
-          <View style={[styles.modalContent, { backgroundColor: c.bg, paddingBottom: insets.bottom + spacing.md }]}>
-            {/* Modal header */}
-            <View style={styles.modalHandle}>
-              <View style={[styles.handle, { backgroundColor: c.grayLight }]} />
-            </View>
-            <Text style={[styles.modalTitle, { color: c.black }]}>Registrar Workout</Text>
+            style={[styles.stepperBtn, { backgroundColor: c.surface }, duration <= 5 && { opacity: 0.4 }]}
+            onPress={() => { haptics.light(); setDuration((d) => Math.max(5, d - 5)); }}
+            disabled={duration <= 5}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="remove" size={20} color={c.black} />
+          </TouchableOpacity>
+          <Text style={[styles.durationValue, { color: c.black }]}>{duration} min</Text>
+          <TouchableOpacity
+            style={[styles.stepperBtn, { backgroundColor: c.surface }, duration >= 120 && { opacity: 0.4 }]}
+            onPress={() => { haptics.light(); setDuration((d) => Math.min(120, d + 5)); }}
+            disabled={duration >= 120}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="add" size={20} color={c.black} />
+          </TouchableOpacity>
+        </View>
 
-            {/* Type selector */}
-            <Text style={[styles.modalLabel, { color: c.gray }]}>TIPO</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeScroll}>
-              {WORKOUT_TYPES.map((wt) => {
-                const isSelected = wt.key === selectedType.key;
-                return (
-                  <TouchableOpacity
-                    key={wt.key}
-                    style={[
-                      styles.typeChip,
-                      { backgroundColor: isSelected ? wt.color + '20' : c.surface, borderColor: isSelected ? wt.color : c.grayLight },
-                    ]}
-                    onPress={() => { haptics.light(); setSelectedType(wt); }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name={wt.icon as any} size={18} color={isSelected ? wt.color : c.gray} />
-                    <Text style={[styles.typeLabel, { color: isSelected ? wt.color : c.gray }]}>{wt.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+        {/* Calorie estimate */}
+        <View style={[styles.calEstimate, { backgroundColor: c.surface }]}>
+          <Ionicons name="flame-outline" size={18} color="#EA4335" />
+          <Text style={[styles.calEstimateText, { color: c.black }]}>
+            ~{estimatedCalories} kcal estimadas
+          </Text>
+        </View>
 
-            {/* Duration stepper */}
-            <Text style={[styles.modalLabel, { color: c.gray, marginTop: spacing.md }]}>DURACION</Text>
-            <View style={styles.durationRow}>
-              <TouchableOpacity
-                style={[styles.stepperBtn, { backgroundColor: c.surface }, duration <= 5 && { opacity: 0.4 }]}
-                onPress={() => { haptics.light(); setDuration((d) => Math.max(5, d - 5)); }}
-                disabled={duration <= 5}
-                activeOpacity={0.6}
-              >
-                <Ionicons name="remove" size={20} color={c.black} />
-              </TouchableOpacity>
-              <Text style={[styles.durationValue, { color: c.black }]}>{duration} min</Text>
-              <TouchableOpacity
-                style={[styles.stepperBtn, { backgroundColor: c.surface }, duration >= 120 && { opacity: 0.4 }]}
-                onPress={() => { haptics.light(); setDuration((d) => Math.min(120, d + 5)); }}
-                disabled={duration >= 120}
-                activeOpacity={0.6}
-              >
-                <Ionicons name="add" size={20} color={c.black} />
-              </TouchableOpacity>
-            </View>
+        {/* Notes */}
+        <Text style={[styles.modalLabel, { color: c.gray, marginTop: spacing.md }]}>NOTAS (OPCIONAL)</Text>
+        <TextInput
+          style={[styles.notesInput, { backgroundColor: c.surface, color: c.black, borderColor: c.grayLight }]}
+          placeholder="Ej: Pecho y espalda, 5K en cinta..."
+          placeholderTextColor={c.disabled}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          maxLength={200}
+        />
 
-            {/* Calorie estimate */}
-            <View style={[styles.calEstimate, { backgroundColor: c.surface }]}>
-              <Ionicons name="flame-outline" size={18} color="#EA4335" />
-              <Text style={[styles.calEstimateText, { color: c.black }]}>
-                ~{estimatedCalories} kcal estimadas
-              </Text>
-            </View>
-
-            {/* Notes */}
-            <Text style={[styles.modalLabel, { color: c.gray, marginTop: spacing.md }]}>NOTAS (OPCIONAL)</Text>
-            <TextInput
-              style={[styles.notesInput, { backgroundColor: c.surface, color: c.black, borderColor: c.grayLight }]}
-              placeholder="Ej: Pecho y espalda, 5K en cinta..."
-              placeholderTextColor={c.disabled}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              maxLength={200}
-            />
-
-            {/* Save button */}
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: c.black }]}
-              onPress={saveWorkout}
-              activeOpacity={0.85}
-              accessibilityLabel="Guardar workout"
-              accessibilityRole="button"
-            >
-              <Ionicons name="checkmark-circle-outline" size={20} color={c.white} />
-              <Text style={[styles.saveBtnText, { color: c.white }]}>Guardar</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        {/* Save button */}
+        <TouchableOpacity
+          style={[styles.saveBtn, { backgroundColor: c.black }]}
+          onPress={saveWorkout}
+          activeOpacity={0.85}
+          accessibilityLabel="Guardar workout"
+          accessibilityRole="button"
+        >
+          <Ionicons name="checkmark-circle-outline" size={20} color={c.white} />
+          <Text style={[styles.saveBtnText, { color: c.white }]}>Guardar</Text>
+        </TouchableOpacity>
+      </BottomSheet>
     </View>
   );
 }
@@ -444,19 +436,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
     gap: spacing.sm,
   },
-  emptyText: { ...typography.caption },
-
-  // Modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalContent: {
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
+  emptyTitle: { ...typography.bodyMd, marginTop: spacing.sm },
+  emptyText: { ...typography.caption, textAlign: 'center', paddingHorizontal: spacing.md },
+  emptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.full,
+    marginTop: spacing.sm,
   },
-  modalHandle: { alignItems: 'center', marginBottom: spacing.sm },
-  handle: { width: 40, height: 4, borderRadius: 2 },
+  emptyCtaText: { ...typography.label },
+
+  // Bottom sheet content
   modalTitle: { ...typography.titleSm, marginBottom: spacing.md },
   modalLabel: {
     ...typography.label,

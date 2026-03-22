@@ -16,6 +16,7 @@ from .core.config import settings
 from .core.versioning import APIVersionMiddleware
 from .core.etag import ETagMiddleware
 from .core.idempotency import IdempotencyMiddleware
+from .core.logging_config import setup_logging
 from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router
 
 logger = logging.getLogger(__name__)
@@ -319,13 +320,15 @@ def _print_startup_banner(db_ok: bool, redis_ok: bool) -> None:
 ================================================================================
 """
     logger.info(banner)
-    print(banner, flush=True)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _start_time
     _start_time = time.time()
+
+    # Configure structured logging before anything else
+    setup_logging(production=settings.is_production)
 
     # Startup
     await create_db_and_tables()
@@ -423,6 +426,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=settings.cors_methods,
     allow_headers=settings.cors_headers,
+    expose_headers=["ETag", "X-Request-ID", "X-Idempotent-Replayed"],
 )
 
 # Include routers

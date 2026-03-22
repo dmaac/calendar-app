@@ -19,6 +19,7 @@ import Svg, { Circle, G, Path } from 'react-native-svg';
 import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { getOnboardingProfile, saveOnboardingStep } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
+import { haptics } from '../../hooks/useHaptics';
 
 // ─── Mifflin-St Jeor recalculation ──────────────────────────────────────────
 function recalcRecommended(profile: OnboardingProfileRead) {
@@ -425,6 +426,7 @@ export default function NutritionGoalsScreen({ navigation }: any) {
   };
 
   const handleSave = async () => {
+    haptics.light();
     setSaving(true);
     try {
       await saveOnboardingStep({
@@ -433,8 +435,10 @@ export default function NutritionGoalsScreen({ navigation }: any) {
         daily_carbs_g: carbs,
         daily_fats_g: fats,
       } as any);
+      haptics.success();
       navigation.goBack();
     } catch {
+      haptics.error();
       Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
     } finally {
       setSaving(false);
@@ -453,7 +457,7 @@ export default function NutritionGoalsScreen({ navigation }: any) {
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: c.surface }]}>
+        <TouchableOpacity onPress={() => { haptics.light(); navigation.goBack(); }} style={[styles.backBtn, { backgroundColor: c.surface }]}>
           <Ionicons name="chevron-back" size={20} color={c.black} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: c.black }]}>Edit Nutrition Goals</Text>
@@ -536,7 +540,7 @@ export default function NutritionGoalsScreen({ navigation }: any) {
         />
 
         {/* Reset button */}
-        <TouchableOpacity style={styles.resetBtn} onPress={handleReset} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.resetBtn} onPress={() => { haptics.light(); handleReset(); }} activeOpacity={0.7}>
           <Ionicons name="refresh-outline" size={18} color={c.accent} />
           <Text style={[styles.resetText, { color: c.accent }]}>Reset to Recommended</Text>
         </TouchableOpacity>

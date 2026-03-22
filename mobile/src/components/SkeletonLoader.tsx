@@ -10,7 +10,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View, ViewStyle } from 'react-native';
-import { colors, radius } from '../theme';
+import { colors, radius, useThemeColors } from '../theme';
 
 interface SkeletonProps {
   /** Width of the skeleton bar. Defaults to '100%'. */
@@ -29,6 +29,7 @@ export default function SkeletonLoader({
   borderRadius: br = radius.sm,
   style,
 }: SkeletonProps) {
+  const c = useThemeColors();
   const opacity = useRef(new Animated.Value(0.35)).current;
   const shimmerTranslate = useRef(new Animated.Value(-1)).current;
 
@@ -73,7 +74,7 @@ export default function SkeletonLoader({
     <Animated.View
       style={[
         baseStyle.bar,
-        { width: width as any, height, borderRadius: br, opacity },
+        { width: width as any, height, borderRadius: br, opacity, backgroundColor: c.grayLight },
         style,
       ]}
       accessibilityLabel="Cargando contenido"
@@ -86,6 +87,7 @@ export default function SkeletonLoader({
           {
             height,
             borderRadius: br,
+            backgroundColor: c.white + '35',
             transform: [{
               translateX: shimmerTranslate.interpolate({
                 inputRange: [-1, 1],
@@ -101,25 +103,25 @@ export default function SkeletonLoader({
 
 const baseStyle = StyleSheet.create({
   bar: {
-    backgroundColor: colors.grayLight,
     overflow: 'hidden',
   },
   shimmer: {
     position: 'absolute',
     width: 60,
-    backgroundColor: 'rgba(255,255,255,0.35)',
   },
 });
 
 /**
  * HomeSkeleton — Full skeleton for the HomeScreen dashboard.
  * Shows a calorie ring placeholder + macro bars + meal cards.
+ * Uses theme colors for proper dark/light mode support.
  */
 export function HomeSkeleton() {
+  const c = useThemeColors();
   return (
     <Animated.View style={skeletonStyles.container}>
       {/* Calorie ring placeholder */}
-      <Animated.View style={skeletonStyles.ringRow}>
+      <Animated.View style={[skeletonStyles.ringRow, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
         <SkeletonLoader width={160} height={160} borderRadius={80} />
         <Animated.View style={skeletonStyles.macros}>
           <SkeletonLoader height={12} width="60%" />
@@ -135,12 +137,12 @@ export function HomeSkeleton() {
       <SkeletonLoader width={60} height={12} style={{ marginTop: 20, marginBottom: 12 }} />
 
       {/* Meal card placeholders */}
-      <Animated.View style={skeletonStyles.mealCard}>
+      <Animated.View style={[skeletonStyles.mealCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
         <SkeletonLoader width="40%" height={14} />
         <SkeletonLoader height={12} style={{ marginTop: 8 }} />
         <SkeletonLoader height={12} width="80%" style={{ marginTop: 6 }} />
       </Animated.View>
-      <Animated.View style={skeletonStyles.mealCard}>
+      <Animated.View style={[skeletonStyles.mealCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
         <SkeletonLoader width="35%" height={14} />
         <SkeletonLoader height={12} style={{ marginTop: 8 }} />
       </Animated.View>
@@ -156,10 +158,8 @@ const skeletonStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    backgroundColor: colors.white,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.grayLight,
     padding: 16,
     marginBottom: 16,
   },
@@ -168,10 +168,8 @@ const skeletonStyles = StyleSheet.create({
     gap: 8,
   },
   mealCard: {
-    backgroundColor: colors.white,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.grayLight,
     padding: 16,
     marginBottom: 8,
   },

@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography, spacing, radius, useThemeColors } from '../../theme';
+import { haptics } from '../../hooks/useHaptics';
 
 const BENEFITS = [
   { emoji: '\u{1F465}', text: 'Up to 6 members, one plan' },
@@ -26,6 +27,7 @@ export default function FamilyPlanScreen({ navigation }: any) {
   const c = useThemeColors();
 
   const handleUpgrade = () => {
+    haptics.medium();
     Alert.alert('Family Plan', 'Family Plan upgrade coming soon!');
   };
 
@@ -35,7 +37,7 @@ export default function FamilyPlanScreen({ navigation }: any) {
       <View style={[styles.header, { borderBottomColor: c.grayLight }]}>
         <TouchableOpacity
           style={[styles.backBtn, { backgroundColor: c.surface }]}
-          onPress={() => navigation.goBack()}
+          onPress={() => { haptics.light(); navigation.goBack(); }}
           activeOpacity={0.7}
         >
           <Ionicons name="chevron-back" size={20} color={c.black} />
