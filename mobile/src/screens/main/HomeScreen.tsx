@@ -48,6 +48,8 @@ import NotificationCenter, {
   useNotifications,
 } from '../../components/NotificationCenter';
 import { syncWidgetData } from '../../services/widgetData.service';
+import NutritionAlerts from '../../components/NutritionAlert';
+import useNutritionAlerts from '../../hooks/useNutritionAlerts';
 // MINIMALIST REDESIGN Phase 1: TrialBanner removed from HomeScreen
 // import TrialBanner from '../../components/TrialBanner';
 
@@ -333,6 +335,9 @@ export default function HomeScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  // Nutrition alerts
+  const { alerts: nutritionAlerts, refetch: refetchAlerts } = useNutritionAlerts();
+
   // Notification center state
   const {
     notifications,
@@ -435,10 +440,10 @@ export default function HomeScreen({ navigation }: any) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
-    await load();
+    await Promise.all([load(), refetchAlerts()]);
     haptics.success();
     setRefreshing(false);
-  }, [load]);
+  }, [load, refetchAlerts]);
 
   // Memoize greeting to avoid calling t() on every render
   const greetingText = useMemo(() => {
@@ -501,6 +506,21 @@ export default function HomeScreen({ navigation }: any) {
   const onCloseNotifications = useCallback(() => {
     setNotifSheetVisible(false);
   }, []);
+
+  // Nutrition alert action handler — navigates based on backend action_route
+  const onAlertAction = useCallback((route: string) => {
+    const routeMap: Record<string, string> = {
+      '/log': 'Registro',
+      '/scan': 'Scan',
+      '/dashboard': 'Home',
+      '/water': 'Registro',
+      '/foods': 'FoodSearch',
+      '/foods?category=protein': 'FoodSearch',
+      '/foods?category=healthy': 'FoodSearch',
+    };
+    const screen = routeMap[route] || 'Home';
+    navigation.navigate(screen);
+  }, [navigation]);
 
   // ---- QuickAction navigation callbacks (stable refs) ----
   const onQuickScan = useCallback(() => { haptics.light(); navigation.navigate('Scan'); }, [navigation]);
@@ -578,6 +598,13 @@ export default function HomeScreen({ navigation }: any) {
               <Ionicons name="wifi-outline" size={16} color={c.white} />
               <Text style={[styles.errorBannerText, { color: c.white }]}>{t('home.offlineBanner')}</Text>
             </TouchableOpacity>
+          )}
+
+          {/* Nutrition alerts — rendered above scroll content */}
+          {nutritionAlerts.length > 0 && (
+            <View style={{ paddingHorizontal: sidePadding }}>
+              <NutritionAlerts alerts={nutritionAlerts} onAction={onAlertAction} />
+            </View>
           )}
 
           <Animated.ScrollView
