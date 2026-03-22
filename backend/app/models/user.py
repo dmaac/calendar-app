@@ -34,6 +34,9 @@ class User(UserBase, table=True):
     # Premium flag
     is_premium: bool = Field(default=False)
 
+    # Admin flag — grants access to /api/admin/* endpoints
+    is_admin: bool = Field(default=False)
+
     activities: List["Activity"] = Relationship(back_populates="user")
     meal_logs: List["MealLog"] = Relationship(back_populates="user")
     daily_nutrition_summaries: List["DailyNutritionSummary"] = Relationship(back_populates="user")
@@ -53,6 +56,7 @@ class UserRead(UserBase):
     id: int
     provider: str = "email"
     is_premium: bool = False
+    is_admin: bool = False
     created_at: datetime
     updated_at: datetime
 

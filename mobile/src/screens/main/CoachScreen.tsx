@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -56,13 +57,28 @@ const WEEKLY_SUMMARY =
 function getCoachResponse(input: string): string {
   const lower = input.toLowerCase();
 
+  // ── Support / help responses (checked first — higher priority) ────────────
+  if (lower.includes('cancelar') || lower.includes('suscripcion')) {
+    return 'Puedes cancelar tu suscripcion en Settings > Cuenta > Gestion de suscripcion, o directamente en la App Store.';
+  }
+  if (lower.includes('eliminar') || lower.includes('borrar') || (lower.includes('cuenta') && (lower.includes('delete') || lower.includes('quitar')))) {
+    return 'Ve a Settings > Cuenta > Eliminar cuenta. Tus datos se eliminaran en 30 dias segun nuestra politica de privacidad.';
+  }
+  if (lower.includes('error') || lower.includes('bug') || lower.includes('crash') || lower.includes('falla')) {
+    return 'Lamento el inconveniente. Intenta: 1) Cerrar y abrir la app, 2) Actualizar a la ultima version, 3) Contactar soporte si persiste.';
+  }
+  if (lower.includes('soporte') || lower.includes('problema') || lower.includes('ayuda')) {
+    return 'Puedo ayudarte! Para soporte tecnico, ve a Perfil > Settings > Ayuda. Para problemas con cobros, contacta support@fitsi.app';
+  }
+
+  // ── Nutrition responses ───────────────────────────────────────────────────
   if (lower.includes('comer') || lower.includes('comida') || lower.includes('receta') || lower.includes('cocinar')) {
     return RECIPES[Math.floor(Math.random() * RECIPES.length)];
   }
   if (lower.includes('semana') || lower.includes('progreso') || lower.includes('resumen') || lower.includes('stats')) {
     return WEEKLY_SUMMARY;
   }
-  if (lower.includes('tip') || lower.includes('consejo') || lower.includes('ayuda') || lower.includes('sugerencia')) {
+  if (lower.includes('tip') || lower.includes('consejo') || lower.includes('sugerencia')) {
     return TIPS[Math.floor(Math.random() * TIPS.length)];
   }
   if (lower.includes('dieta') || lower.includes('plan') || lower.includes('bajar') || lower.includes('peso')) {
@@ -280,6 +296,22 @@ export default function CoachScreen({ navigation }: any) {
         </View>
       )}
 
+      {/* Human support button */}
+      <TouchableOpacity
+        style={[styles.humanSupportBtn, { borderTopColor: c.border, backgroundColor: c.bg }]}
+        onPress={() => {
+          haptics.light();
+          track('coach_human_support_tapped');
+          Linking.openURL('mailto:support@fitsi.app?subject=Soporte%20Fitsi%20App');
+        }}
+        activeOpacity={0.7}
+        accessibilityLabel="Hablar con soporte humano"
+        accessibilityRole="button"
+      >
+        <Ionicons name="headset-outline" size={16} color={c.accent} />
+        <Text style={[styles.humanSupportText, { color: c.accent }]}>Hablar con soporte humano</Text>
+      </TouchableOpacity>
+
       {/* Input */}
       <View
         style={[
@@ -422,8 +454,20 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontWeight: '500',
   },
-  inputContainer: {
+  humanSupportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs + 2,
+    paddingVertical: spacing.sm,
     borderTopWidth: 1,
+  },
+  humanSupportText: {
+    ...typography.caption,
+    fontWeight: '600',
+  },
+  inputContainer: {
+    borderTopWidth: 0,
     paddingTop: spacing.sm,
   },
   inputRow: {

@@ -10,6 +10,7 @@ from .ai_food_log import AIFoodLog
 from .ai_scan_cache import AIScanCache
 from .subscription import Subscription
 from .push_token import PushToken
+from .feedback import Feedback
 
 __all__ = [
     "User",
@@ -24,4 +25,5 @@ __all__ = [
     "AIScanCache",
     "Subscription",
     "PushToken",
+    "Feedback",
 ]
