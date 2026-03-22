@@ -17,6 +17,9 @@ from .core.versioning import APIVersionMiddleware
 from .core.etag import ETagMiddleware
 from .core.idempotency import IdempotencyMiddleware
 from .core.logging_config import setup_logging
+from .core.response_cache import ResponseCacheMiddleware, response_cache_stats
+from .core.validation import RequestValidationMiddleware
+from .core.performance import PerformanceMiddleware, performance_stats
 from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router
 
 logger = logging.getLogger(__name__)
@@ -439,8 +442,17 @@ app.add_middleware(AppVersionMiddleware)
 # Request logging (tracks in-flight requests, includes request_id)
 app.add_middleware(RequestLoggingMiddleware)
 
+# Performance monitoring — X-Response-Time header + slow request logging
+app.add_middleware(PerformanceMiddleware)
+
+# Request body size validation — reject oversized payloads early
+app.add_middleware(RequestValidationMiddleware)
+
 # API versioning (detects version from header or URL prefix)
 app.add_middleware(APIVersionMiddleware)
+
+# Response cache auto-invalidation on mutating requests (POST/PUT/PATCH/DELETE)
+app.add_middleware(ResponseCacheMiddleware)
 
 # ETag / conditional requests — returns 304 Not Modified when content unchanged
 app.add_middleware(ETagMiddleware)
@@ -458,7 +470,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=settings.cors_methods,
     allow_headers=settings.cors_headers,
-    expose_headers=["ETag", "X-Request-ID", "X-Idempotent-Replayed"],
+    expose_headers=["ETag", "X-Request-ID", "X-Idempotent-Replayed", "X-Response-Time"],
 )
 
 # Include routers
@@ -575,6 +587,18 @@ async def prometheus_metrics():
     """Prometheus-compatible metrics endpoint."""
     from .core.metrics import collect_metrics
     return Response(content=collect_metrics(), media_type="text/plain; charset=utf-8")
+
+
+@app.get("/api/metrics/performance", tags=["admin"])
+async def get_performance_metrics():
+    """Performance metrics: avg/p50/p95/p99 response times, slow requests, top slow endpoints."""
+    return performance_stats()
+
+
+@app.get("/api/cache/response/stats", tags=["admin"])
+async def get_response_cache_stats():
+    """In-memory response cache stats: hits, misses, hit ratio, entry count."""
+    return response_cache_stats()
 
 
 @app.get("/api/circuit-breakers", tags=["admin"])

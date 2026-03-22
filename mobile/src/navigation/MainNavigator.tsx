@@ -1,6 +1,6 @@
 /**
  * MainNavigator — Tab bar principal (post-onboarding)
- * 6 tabs: Inicio · Escanear · Recetas · Registro · Groups · Perfil
+ * 6 tabs: Inicio · Registro · Progress · Groups · Community · Perfil
  * Cada tab tiene su propio Stack para navegacion anidada.
  *
  * UX Polish:
@@ -53,6 +53,7 @@ import HelpScreen           from '../screens/main/HelpScreen';
 import AboutScreen          from '../screens/main/AboutScreen';
 import WorkoutScreen        from '../screens/main/WorkoutScreen';
 import ChallengesScreen     from '../screens/main/ChallengesScreen';
+import CommunityScreen      from '../screens/main/CommunityScreen';
 import PrivacyPolicy        from '../screens/legal/PrivacyPolicy';
 import TermsOfService       from '../screens/legal/TermsOfService';
 
@@ -66,6 +67,7 @@ type TabIconName =
   | 'nutrition' | 'nutrition-outline'
   | 'book' | 'book-outline'
   | 'people' | 'people-outline'
+  | 'chatbubbles' | 'chatbubbles-outline'
   | 'trending-up' | 'trending-up-outline'
   | 'person' | 'person-outline';
 
@@ -137,13 +139,14 @@ const tabIconStyles = StyleSheet.create({
 });
 
 const TAB_ICONS: Record<string, [TabIconName, TabIconName]> = {
-  Inicio:   ['home',   'home-outline'],
-  Escanear: ['camera', 'camera-outline'],
-  Recetas:  ['nutrition', 'nutrition-outline'],
-  Registro: ['book',   'book-outline'],
-  Progress: ['trending-up', 'trending-up-outline'],
-  Groups:   ['people', 'people-outline'],
-  Perfil:   ['person', 'person-outline'],
+  Inicio:    ['home',         'home-outline'],
+  Escanear:  ['camera',       'camera-outline'],
+  Recetas:   ['nutrition',    'nutrition-outline'],
+  Registro:  ['book',         'book-outline'],
+  Progress:  ['trending-up',  'trending-up-outline'],
+  Groups:    ['people',       'people-outline'],
+  Community: ['chatbubbles',  'chatbubbles-outline'],
+  Perfil:    ['person',       'person-outline'],
 };
 
 // Stack navigators para tabs que necesitan navegacion anidada
@@ -180,6 +183,10 @@ const HomeStack = () => (
     <Stack.Screen name="MealPlan"     component={MealPlanScreen} />
     <Stack.Screen name="Challenges"  component={ChallengesScreen} />
     <Stack.Screen name="Paywall"     component={PaywallScreen} />
+    <Stack.Screen name="Scan"        component={ScanScreen} />
+    <Stack.Screen name="Barcode"     component={BarcodeScreen} />
+    <Stack.Screen name="Recipes"     component={RecipesScreen} />
+    <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} />
   </Stack.Navigator>
 );
 
@@ -277,8 +284,9 @@ export default function MainNavigator() {
       <Tab.Screen name="Inicio"   component={HomeStack}     options={{ tabBarLabel: t('tabs.home') }} />
       <Tab.Screen name="Registro" component={LogStack}      options={{ tabBarLabel: t('tabs.log'), lazy: true }} />
       <Tab.Screen name="Progress" component={ProgressScreen} options={{ tabBarLabel: t('tabs.progress'), lazy: true }} />
-      <Tab.Screen name="Groups"   component={GroupsScreen}  options={{ tabBarLabel: t('tabs.groups'), lazy: true }} />
-      <Tab.Screen name="Perfil"   component={ProfileStack}  options={{ tabBarLabel: t('tabs.profile'), lazy: true }} />
+      <Tab.Screen name="Groups"    component={GroupsScreen}     options={{ tabBarLabel: t('tabs.groups'), lazy: true }} />
+      <Tab.Screen name="Community" component={CommunityScreen} options={{ tabBarLabel: t('tabs.community'), lazy: true }} />
+      <Tab.Screen name="Perfil"    component={ProfileStack}    options={{ tabBarLabel: t('tabs.profile'), lazy: true }} />
     </Tab.Navigator>
   );
 }

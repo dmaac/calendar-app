@@ -548,7 +548,7 @@ export default function HomeScreen({ navigation }: any) {
             onPress={() => {
               haptics.light();
               track('scan_button_pressed', { source: 'header' });
-              navigation.navigate('Escanear');
+              navigation.navigate('Scan');
             }}
             accessibilityLabel="Escanear comida con la camara"
             accessibilityRole="button"
@@ -715,7 +715,7 @@ export default function HomeScreen({ navigation }: any) {
               <View style={styles.quickActionsRow}>
                 <TouchableOpacity
                   style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={() => { haptics.light(); navigation.navigate('Escanear'); }}
+                  onPress={() => { haptics.light(); navigation.navigate('Scan'); }}
                   activeOpacity={0.8}
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
@@ -735,7 +735,7 @@ export default function HomeScreen({ navigation }: any) {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={() => { haptics.light(); navigation.navigate('Recetas'); }}
+                  onPress={() => { haptics.light(); navigation.navigate('Recipes'); }}
                   activeOpacity={0.8}
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: c.success }]}>
@@ -785,7 +785,7 @@ export default function HomeScreen({ navigation }: any) {
                     onPress={() => {
                       haptics.light();
                       track('scan_button_pressed', { source: 'empty_state' });
-                      navigation.navigate('Escanear');
+                      navigation.navigate('Scan');
                     }}
                     accessibilityLabel="Escanear ahora"
                     accessibilityRole="button"

@@ -64,7 +64,7 @@ export default function OnboardingProgress({ data, navigation }: OnboardingProgr
       label: '5+ comidas registradas',
       icon: 'restaurant-outline',
       completed: data.mealsLogged >= 5,
-      navigateTo: 'Escanear',
+      navigateTo: 'Scan',
     },
     {
       key: 'weight',

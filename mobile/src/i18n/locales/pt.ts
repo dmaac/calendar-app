@@ -6,6 +6,7 @@ const pt = {
     log: 'Registro',
     progress: 'Progresso',
     groups: 'Grupos',
+    community: 'Comunidade',
     profile: 'Perfil',
   },
   home: {

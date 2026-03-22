@@ -9,7 +9,9 @@
  * 5. Weight Progress SVG line chart with time filters (90D, 6M, 1Y, ALL)
  * 6. Weight Changes table (3d, 7d, 14d, 30d, 90d, All Time)
  * 7. Progress Photos section with upload button
- * 8. Daily Average Calories bar chart
+ * 8. Micronutrient Dashboard (expandable, estimated from logged foods)
+ * 9. Supplement Tracker (daily checklist + weekly history)
+ * 10. Daily Average Calories bar chart
  *
  * Uses ThemeContext for dark/light mode support.
  */
@@ -41,6 +43,8 @@ import ShareProgressCard from '../../components/ShareProgressCard';
 import WeeklySummary from '../../components/WeeklySummary';
 import ProgressPhotos from '../../components/ProgressPhotos';
 import BodyMetrics from '../../components/BodyMetrics';
+import MicronutrientDashboard from '../../components/MicronutrientDashboard';
+import SupplementTracker from '../../components/SupplementTracker';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import useStreak from '../../hooks/useStreak';
@@ -578,6 +582,12 @@ export default function ProgressScreen() {
 
         {/* ── Body Metrics Tracker ── */}
         <BodyMetrics />
+
+        {/* ── Micronutrient Dashboard (expandable) ── */}
+        <MicronutrientDashboard />
+
+        {/* ── Supplement Tracker ── */}
+        <SupplementTracker />
 
         {/* ── Daily Average Calories ── */}
         <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>

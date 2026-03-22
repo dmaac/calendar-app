@@ -446,7 +446,7 @@ export default function LogScreen({ navigation }: any) {
   const handleScan = useCallback(() => {
     haptics.light();
     closeModal();
-    navigation.navigate('Escanear');
+    navigation.navigate('Inicio', { screen: 'Scan' });
   }, [navigation]);
 
   const handleManual = useCallback(() => {
