@@ -181,7 +181,7 @@ export interface GroceryListProps {
 
 // -- Component --
 
-export default function GroceryList({ recipeIds, onClose }: GroceryListProps) {
+function GroceryListInner({ recipeIds, onClose }: GroceryListProps) {
   const c = useThemeColors();
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -577,6 +577,8 @@ export default function GroceryList({ recipeIds, onClose }: GroceryListProps) {
     </KeyboardAvoidingView>
   );
 }
+
+export default React.memo(GroceryListInner);
 
 // -- Styles --
 

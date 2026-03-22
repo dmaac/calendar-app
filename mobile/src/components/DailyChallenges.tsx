@@ -280,7 +280,7 @@ function ChallengeRow({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function DailyChallenges({
+function DailyChallengesInner({
   mealsLogged,
   waterMl,
   proteinG,
@@ -460,6 +460,8 @@ export default function DailyChallenges({
     </Animated.View>
   );
 }
+
+export default React.memo(DailyChallengesInner);
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 

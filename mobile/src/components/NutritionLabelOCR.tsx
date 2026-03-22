@@ -90,7 +90,7 @@ export interface NutritionLabelOCRProps {
 
 // -- Component --
 
-export default function NutritionLabelOCR({ onLogged, onClose }: NutritionLabelOCRProps) {
+function NutritionLabelOCRInner({ onLogged, onClose }: NutritionLabelOCRProps) {
   const c = useThemeColors();
   const { track } = useAnalytics('NutritionLabel');
   const [values, setValues] = useState<NutritionValues>(EMPTY_VALUES);
@@ -459,6 +459,8 @@ export default function NutritionLabelOCR({ onLogged, onClose }: NutritionLabelO
     </KeyboardAvoidingView>
   );
 }
+
+export default React.memo(NutritionLabelOCRInner);
 
 // -- Styles --
 

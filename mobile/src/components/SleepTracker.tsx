@@ -571,15 +571,6 @@ export default function SleepTracker({
     return () => arcProgress.removeListener(id);
   }, []);
 
-  if (!loaded) return null;
-
-  // ─── Render ────────────────────────────────────────────────────────
-
-  const durationColor = getDurationColor(duration);
-  const qualityColor = getQualityColor(quality);
-  const qualityLabel = getQualityLabel(quality);
-  const isLogged = state.loggedToday || todayRecord !== undefined;
-
   // Average sleep this week
   const weekAvg = useMemo(() => {
     const last7 = getLast7Days();
@@ -590,6 +581,15 @@ export default function SleepTracker({
       weekRecords.length;
     return avg;
   }, [history]);
+
+  if (!loaded) return null;
+
+  // ─── Render ────────────────────────────────────────────────────────
+
+  const durationColor = getDurationColor(duration);
+  const qualityColor = getQualityColor(quality);
+  const qualityLabel = getQualityLabel(quality);
+  const isLogged = state.loggedToday || todayRecord !== undefined;
 
   return (
     <View

@@ -467,7 +467,7 @@ interface NotificationCenterProps {
   onClearAll: () => void;
 }
 
-export default function NotificationCenter({
+function NotificationCenterInner({
   visible,
   onClose,
   notifications,
@@ -568,6 +568,8 @@ export default function NotificationCenter({
     </BottomSheet>
   );
 }
+
+export default React.memo(NotificationCenterInner);
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 

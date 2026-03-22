@@ -424,7 +424,7 @@ function ResultRow({
 
 // ---- Main component ----------------------------------------------------------
 
-export default function FoodSearch({ onLogged, mealType = 'snack', inline = false }: FoodSearchProps) {
+function FoodSearchInner({ onLogged, mealType = 'snack', inline = false }: FoodSearchProps) {
   const c = useThemeColors();
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, 300);
@@ -680,6 +680,8 @@ export default function FoodSearch({ onLogged, mealType = 'snack', inline = fals
     </View>
   );
 }
+
+export default React.memo(FoodSearchInner);
 
 // ---- Styles ------------------------------------------------------------------
 

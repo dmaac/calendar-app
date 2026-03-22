@@ -140,7 +140,7 @@ const STORAGE_KEY_CUSTOM = '@fitsi_supplement_custom';
 
 // ---- Component --------------------------------------------------------------
 
-export default function SupplementTracker() {
+function SupplementTrackerInner() {
   const c = useThemeColors();
   const { isDark } = useAppTheme();
 
@@ -586,6 +586,8 @@ export default function SupplementTracker() {
     </View>
   );
 }
+
+export default React.memo(SupplementTrackerInner);
 
 // ---- Styles -----------------------------------------------------------------
 

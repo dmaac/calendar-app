@@ -120,7 +120,7 @@ interface FastingTimerProps {
   initiallyCollapsed?: boolean;
 }
 
-export default function FastingTimer({ initiallyCollapsed = false }: FastingTimerProps) {
+function FastingTimerInner({ initiallyCollapsed = false }: FastingTimerProps) {
   const c = useThemeColors();
   const [state, setState] = useState<FastingState>(DEFAULT_STATE);
   const [loaded, setLoaded] = useState(false);
@@ -514,6 +514,8 @@ export default function FastingTimer({ initiallyCollapsed = false }: FastingTime
     </View>
   );
 }
+
+export default React.memo(FastingTimerInner);
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 

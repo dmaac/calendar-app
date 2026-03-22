@@ -393,7 +393,7 @@ function FoodCard({
 
 // ---- Main component ----------------------------------------------------------
 
-export default function FoodComparison({ visible, onClose, initialFoodA }: FoodComparisonProps) {
+function FoodComparisonInner({ visible, onClose, initialFoodA }: FoodComparisonProps) {
   const c = useThemeColors();
   const [foodA, setFoodA] = useState<ComparisonFood | null>(initialFoodA ?? null);
   const [foodB, setFoodB] = useState<ComparisonFood | null>(null);
@@ -648,6 +648,8 @@ export default function FoodComparison({ visible, onClose, initialFoodA }: FoodC
     </Modal>
   );
 }
+
+export default React.memo(FoodComparisonInner);
 
 // ---- Styles ------------------------------------------------------------------
 

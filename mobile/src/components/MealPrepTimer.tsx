@@ -289,7 +289,7 @@ export interface MealPrepTimerProps {
 
 // -- Main Component --
 
-export default function MealPrepTimer({ initiallyCollapsed = false }: MealPrepTimerProps) {
+function MealPrepTimerInner({ initiallyCollapsed = false }: MealPrepTimerProps) {
   const c = useThemeColors();
   const [timers, setTimers] = useState<PrepTimer[]>([]);
   const [collapsed, setCollapsed] = useState(initiallyCollapsed);
@@ -667,6 +667,8 @@ export default function MealPrepTimer({ initiallyCollapsed = false }: MealPrepTi
     </View>
   );
 }
+
+export default React.memo(MealPrepTimerInner);
 
 // -- Styles --
 
