@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 from ..core.database import get_session
@@ -90,6 +90,42 @@ async def get_recent_foods(
     return await food_service.get_recent_foods(current_user.id, limit=limit)
 
 
+@router.get("/search")
+async def search_foods(
+    query: str = Query(..., min_length=1, description="Search foods by name (supports fuzzy matching)"),
+    offset: int = Query(0, ge=0, description="Number of items to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Max number of results"),
+    min_calories: Optional[float] = Query(None, ge=0, description="Minimum calories filter"),
+    max_calories: Optional[float] = Query(None, ge=0, description="Maximum calories filter"),
+    diet_type: Optional[str] = Query(
+        None,
+        description="Diet filter: vegetarian, vegan, keto, low_fat, high_protein",
+    ),
+    sort_by: str = Query(
+        "relevance",
+        description="Sort by: relevance, name, calories, calories_desc, protein",
+    ),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Search the food database with fuzzy matching and filters.
+
+    Fuzzy matching allows typos (e.g. "poyo" finds "pollo").
+    Results include a relevance_score (0.0 - 1.0).
+    """
+    food_service = FoodService(session)
+    items, total = await food_service.search_foods(
+        query=query,
+        limit=limit,
+        offset=offset,
+        min_calories=min_calories,
+        max_calories=max_calories,
+        diet_type=diet_type,
+        sort_by=sort_by,
+    )
+    return {"items": items, "total": total, "offset": offset, "limit": limit}
+
+
 @router.get("/", response_model=PaginatedResponse[FoodRead])
 async def get_foods(
     query: str = Query(None, description="Search foods by name"),
@@ -101,11 +137,12 @@ async def get_foods(
     food_service = FoodService(session)
 
     if query:
-        foods, total = await food_service.search_foods(query, limit=limit, offset=offset)
+        # Use the basic ILIKE search for the generic list endpoint
+        items, total = await food_service.search_foods(query, limit=limit, offset=offset)
     else:
-        foods, total = await food_service.get_all_foods(limit=limit, offset=offset)
+        items, total = await food_service.get_all_foods(limit=limit, offset=offset)
 
-    return PaginatedResponse(items=foods, total=total, offset=offset, limit=limit)
+    return PaginatedResponse(items=items, total=total, offset=offset, limit=limit)
 
 
 @router.get("/{food_id}", response_model=FoodRead)

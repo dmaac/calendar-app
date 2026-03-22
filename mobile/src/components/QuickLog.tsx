@@ -1,11 +1,12 @@
 /**
  * QuickLog -- Re-log comidas frecuentes en <5 segundos
  *
- * Muestra las ultimas 5 comidas logueadas como chips horizontales.
+ * Muestra las ultimas 5 comidas logueadas como chips horizontales,
+ * PLUS productos escaneados por barcode (de scan history) para re-log rapido.
  * Un tap re-logea la comida con la fecha de hoy via manualLogFood().
  * Usa haptics + in-app notification para feedback inmediato.
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +14,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors, typography, spacing, radius, shadows, mealColors } from '../theme';
@@ -21,6 +23,7 @@ import { showNotification } from './InAppNotification';
 import * as foodService from '../services/food.service';
 import { AIFoodLog } from '../types';
 import { MealType } from '../services/food.service';
+import { getScanHistory, ScanHistoryItem } from '../services/barcode.service';
 
 interface QuickLogProps {
   /** Recent food logs (component takes last 5 unique by food_name) */
@@ -52,11 +55,50 @@ function getUniqueRecent(logs: AIFoodLog[], limit = 5): AIFoodLog[] {
   return result;
 }
 
+/**
+ * Filter scan history items that are NOT already in recentLogs (avoid duplication).
+ * Takes the most recent N items.
+ */
+function getUniqueBarcodeItems(
+  scanHistory: ScanHistoryItem[],
+  recentLogs: AIFoodLog[],
+  limit = 3,
+): ScanHistoryItem[] {
+  const loggedNames = new Set(
+    recentLogs.map((l) => l.food_name.toLowerCase().trim()),
+  );
+
+  const result: ScanHistoryItem[] = [];
+  for (const item of scanHistory) {
+    const nameKey = item.product.name.toLowerCase().trim();
+    const brandedKey = item.product.brand
+      ? `${item.product.name} (${item.product.brand})`.toLowerCase().trim()
+      : nameKey;
+
+    if (!loggedNames.has(nameKey) && !loggedNames.has(brandedKey)) {
+      result.push(item);
+    }
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
 export default function QuickLog({ recentLogs, onLogged }: QuickLogProps) {
   const c = useThemeColors();
-  const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [loadingId, setLoadingId] = useState<number | string | null>(null);
+  const [barcodeItems, setBarcodeItems] = useState<ScanHistoryItem[]>([]);
+
+  // Load barcode scan history
+  useEffect(() => {
+    let mounted = true;
+    getScanHistory().then((items) => {
+      if (mounted) setBarcodeItems(items);
+    });
+    return () => { mounted = false; };
+  }, [recentLogs]); // Re-load when recentLogs changes (after a new log)
 
   const items = getUniqueRecent(recentLogs);
+  const barcodeExtras = getUniqueBarcodeItems(barcodeItems, recentLogs, 3);
 
   const handleQuickLog = useCallback(async (log: AIFoodLog) => {
     haptics.light();
@@ -92,7 +134,43 @@ export default function QuickLog({ recentLogs, onLogged }: QuickLogProps) {
     }
   }, [onLogged]);
 
-  if (items.length === 0) return null;
+  const handleBarcodeQuickLog = useCallback(async (item: ScanHistoryItem) => {
+    haptics.light();
+    setLoadingId(`barcode_${item.barcode}`);
+
+    const p = item.product;
+    try {
+      await foodService.manualLogFood({
+        food_name: p.brand ? `${p.name} (${p.brand})` : p.name,
+        calories: Math.round(p.calories),
+        carbs_g: Math.round(p.carbs_g * 10) / 10,
+        protein_g: Math.round(p.protein_g * 10) / 10,
+        fats_g: Math.round(p.fat_g * 10) / 10,
+        fiber_g: p.fiber_g != null ? Math.round(p.fiber_g * 10) / 10 : undefined,
+        serving_size: p.serving_size ?? '100g',
+        meal_type: 'snack',
+      });
+
+      haptics.success();
+      showNotification({
+        message: `${p.name} registrado!`,
+        type: 'success',
+        icon: 'checkmark-circle',
+      });
+      onLogged?.();
+    } catch {
+      haptics.error();
+      showNotification({
+        message: 'Error al registrar. Intenta de nuevo.',
+        type: 'warning',
+        icon: 'alert-circle',
+      });
+    } finally {
+      setLoadingId(null);
+    }
+  }, [onLogged]);
+
+  if (items.length === 0 && barcodeExtras.length === 0) return null;
 
   return (
     <View
@@ -112,6 +190,7 @@ export default function QuickLog({ recentLogs, onLogged }: QuickLogProps) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.chipScroll}
       >
+        {/* Regular food log chips */}
         {items.map((log) => {
           const meta = mealColors[log.meal_type] ?? mealColors.snack;
           const isLoading = loadingId === log.id;
@@ -147,6 +226,61 @@ export default function QuickLog({ recentLogs, onLogged }: QuickLogProps) {
                     <View style={s.chipMacros}>
                       <Text style={[s.chipKcal, { color: c.gray }]}>
                         {Math.round(log.calories)} kcal
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Re-log icon */}
+                  <Ionicons name="add-circle" size={20} color={c.accent} />
+                </>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+
+        {/* Barcode scan history chips */}
+        {barcodeExtras.map((item) => {
+          const isLoading = loadingId === `barcode_${item.barcode}`;
+
+          return (
+            <TouchableOpacity
+              key={`barcode_${item.barcode}`}
+              style={[s.chip, { backgroundColor: c.bg, borderColor: c.grayLight }]}
+              onPress={() => handleBarcodeQuickLog(item)}
+              activeOpacity={0.7}
+              disabled={isLoading}
+              accessibilityLabel={`Registrar ${item.product.name}, ${item.product.calories} kilocalorias (escaneado)`}
+              accessibilityRole="button"
+              accessibilityHint="Toca para registrar este producto escaneado"
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color={c.accent} style={s.chipLoader} />
+              ) : (
+                <>
+                  {/* Barcode icon to distinguish from AI-scanned items */}
+                  {item.product.image_url ? (
+                    <Image
+                      source={{ uri: item.product.image_url }}
+                      style={[s.chipImageIcon, { backgroundColor: c.grayLight }]}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <View style={[s.chipIcon, { backgroundColor: c.accent + '20' }]}>
+                      <Ionicons name="barcode-outline" size={14} color={c.accent} />
+                    </View>
+                  )}
+
+                  {/* Food name + macros */}
+                  <View style={s.chipContent}>
+                    <Text
+                      style={[s.chipName, { color: c.black }]}
+                      numberOfLines={1}
+                    >
+                      {item.product.name}
+                    </Text>
+                    <View style={s.chipMacros}>
+                      <Text style={[s.chipKcal, { color: c.gray }]}>
+                        {item.product.calories} kcal
                       </Text>
                     </View>
                   </View>
@@ -214,6 +348,11 @@ const s = StyleSheet.create({
     borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  chipImageIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.sm,
   },
   chipContent: {
     flex: 1,

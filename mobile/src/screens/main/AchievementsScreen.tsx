@@ -2,7 +2,7 @@
  * AchievementsScreen — Grid of badges/achievements.
  * Shows locked/unlocked state, with unlock animation + haptics.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   ScrollView,
   Animated,
   Dimensions,
+  TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import FitsiMascot from '../../components/FitsiMascot';
+import ShareableCard from '../../components/ShareableCard';
 
 // ─── Achievement definitions ────────────────────────────────────────────────
 
@@ -172,11 +175,13 @@ function BadgeCard({
   unlocked,
   index,
   c,
+  onShare,
 }: {
   achievement: Achievement;
   unlocked: boolean;
   index: number;
   c: ReturnType<typeof useThemeColors>;
+  onShare?: (achievement: Achievement) => void;
 }) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -278,6 +283,20 @@ function BadgeCard({
       >
         {achievement.description}
       </Text>
+      {unlocked && onShare && (
+        <TouchableOpacity
+          onPress={() => {
+            haptics.light();
+            onShare(achievement);
+          }}
+          style={[styles.shareBadgeBtn, { backgroundColor: c.accent + '15' }]}
+          accessibilityLabel={`Compartir ${achievement.title}`}
+          accessibilityRole="button"
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name="share-outline" size={14} color={c.accent} />
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 }
@@ -290,10 +309,16 @@ export default function AchievementsScreen({ navigation }: any) {
   const c = useThemeColors();
   const { track } = useAnalytics('Achievements');
   const stats = useUserStats();
+  const [shareAchievement, setShareAchievement] = useState<Achievement | null>(null);
 
   const unlockedCount = ACHIEVEMENTS.filter(
     (a) => (stats[a.conditionKey as keyof typeof stats] ?? 0) >= a.conditionValue,
   ).length;
+
+  const handleShareBadge = (achievement: Achievement) => {
+    track('share_achievement_open', { badge_id: achievement.id });
+    setShareAchievement(achievement);
+  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
@@ -332,11 +357,48 @@ export default function AchievementsScreen({ navigation }: any) {
               unlocked={unlocked}
               index={index}
               c={c}
+              onShare={unlocked ? handleShareBadge : undefined}
             />
           );
         })}
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+
+      {/* Share modal */}
+      <Modal
+        visible={shareAchievement !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShareAchievement(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: c.bg }]}>
+            {shareAchievement && (
+              <ShareableCard
+                type="achievement"
+                data={{
+                  title: shareAchievement.title,
+                  description: shareAchievement.description,
+                  icon: shareAchievement.icon,
+                  color: shareAchievement.color,
+                }}
+                onShareComplete={() => {
+                  track('share_achievement_sent', { badge_id: shareAchievement.id });
+                  setShareAchievement(null);
+                }}
+              />
+            )}
+            <TouchableOpacity
+              onPress={() => setShareAchievement(null)}
+              style={[styles.modalClose, { backgroundColor: c.surface }]}
+              accessibilityLabel="Cerrar"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.modalCloseText, { color: c.gray }]}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -402,5 +464,36 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     textAlign: 'center',
     lineHeight: 13,
+  },
+  shareBadgeBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  modalClose: {
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.full,
+  },
+  modalCloseText: {
+    ...typography.label,
   },
 });

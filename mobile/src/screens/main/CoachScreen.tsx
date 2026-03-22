@@ -1,8 +1,18 @@
 /**
- * CoachScreen — AI Coach Chat (mock/local)
- * Chat UI with bubble messages, quick suggestions, and keyword-based responses.
+ * CoachScreen — AI Coach Chat
+ *
+ * Real chat interface powered by the backend AI coach API.
+ * Features:
+ *   - Bubble-style messages: user (right, accent) + coach (left, surface)
+ *   - Auto-loads daily insight on first open (empty history)
+ *   - 3 quick-suggestion chips for common questions
+ *   - Fitsi mascot avatar on coach messages
+ *   - Loading indicator while waiting for response
+ *   - Message history persisted via useCoach hook
+ *   - Human support fallback link
+ *   - Dark mode compatible via theme system
  */
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,87 +27,29 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
+import { colors, typography, spacing, radius, useLayout, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import { useCoach, CoachMessage } from '../../hooks/useCoach';
 import FitsiMascot from '../../components/FitsiMascot';
-import { nutritionTips } from '../../data/nutritionTips';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface Message {
-  id: string;
-  text: string;
-  isUser: boolean;
-  timestamp: number;
-}
-
-const RECIPES = [
-  'Prueba un bowl de quinoa con pollo a la plancha, espinaca, tomate cherry y aderezo de limon. Aprox 450 kcal, alto en proteina.',
-  'Wrap integral con atun, palta, lechuga y tomate. Rapido, nutritivo y unas 380 kcal.',
-  'Avena overnight: avena + leche de almendras + chia + banana + canela. Perfecta para el desayuno, ~350 kcal.',
-  'Ensalada mediterranea: pepino, tomate, aceitunas, queso feta, aceite de oliva. Ligera y deliciosa, ~300 kcal.',
-];
-
-const WEEKLY_SUMMARY =
-  'Esta semana llevas un promedio de 1,850 kcal/dia. Tu proteina esta en buen rango (130g promedio). Podrias mejorar en carbos complejos — intenta agregar mas legumbres y granos integrales.';
-
-function getCoachResponse(input: string): string {
-  const lower = input.toLowerCase();
-
-  // ── Support / help responses (checked first — higher priority) ────────────
-  if (lower.includes('cancelar') || lower.includes('suscripcion')) {
-    return 'Puedes cancelar tu suscripcion en Settings > Cuenta > Gestion de suscripcion, o directamente en la App Store.';
-  }
-  if (lower.includes('eliminar') || lower.includes('borrar') || (lower.includes('cuenta') && (lower.includes('delete') || lower.includes('quitar')))) {
-    return 'Ve a Settings > Cuenta > Eliminar cuenta. Tus datos se eliminaran en 30 dias segun nuestra politica de privacidad.';
-  }
-  if (lower.includes('error') || lower.includes('bug') || lower.includes('crash') || lower.includes('falla')) {
-    return 'Lamento el inconveniente. Intenta: 1) Cerrar y abrir la app, 2) Actualizar a la ultima version, 3) Contactar soporte si persiste.';
-  }
-  if (lower.includes('soporte') || lower.includes('problema') || lower.includes('ayuda')) {
-    return 'Puedo ayudarte! Para soporte tecnico, ve a Perfil > Settings > Ayuda. Para problemas con cobros, contacta support@fitsi.app';
-  }
-
-  // ── Nutrition responses ───────────────────────────────────────────────────
-  if (lower.includes('comer') || lower.includes('comida') || lower.includes('receta') || lower.includes('cocinar')) {
-    return RECIPES[Math.floor(Math.random() * RECIPES.length)];
-  }
-  if (lower.includes('semana') || lower.includes('progreso') || lower.includes('resumen') || lower.includes('stats')) {
-    return WEEKLY_SUMMARY;
-  }
-  if (lower.includes('tip') || lower.includes('consejo') || lower.includes('sugerencia')) {
-    const tip = nutritionTips[Math.floor(Math.random() * nutritionTips.length)];
-    return `${tip.text}\n\nFuente: ${tip.source}`;
-  }
-  if (lower.includes('dieta') || lower.includes('plan') || lower.includes('bajar') || lower.includes('peso')) {
-    return 'Para bajar de peso de forma saludable, lo ideal es un deficit de 300-500 kcal por dia. Combinalo con actividad fisica y priorizando proteinas para mantener tu masa muscular.';
-  }
-
-  return 'Puedo ayudarte con nutricion, recetas, y tu progreso semanal. Preguntame lo que quieras!';
-}
-
-// ─── Quick suggestions ───────────────────────────────────────────────────────
+// ─── Quick suggestion chips ─────────────────────────────────────────────────
 
 const SUGGESTIONS = [
-  'Que deberia comer?',
-  'Como va mi semana?',
-  'Dame un tip',
-  'Analiza mi dieta',
+  { label: 'Que como de almuerzo?', icon: 'restaurant-outline' as const },
+  { label: 'Como voy hoy?', icon: 'trending-up-outline' as const },
+  { label: 'Sugiere un snack', icon: 'cafe-outline' as const },
 ];
 
-// ─── Welcome message ─────────────────────────────────────────────────────────
+// ─── Chat bubble (memoized) ─────────────────────────────────────────────────
 
-const WELCOME_MESSAGE: Message = {
-  id: 'welcome',
-  text: 'Hola! Soy tu coach de nutricion con IA. Puedo ayudarte con recetas, tips nutricionales y analizar tu progreso. Que necesitas?',
-  isUser: false,
-  timestamp: Date.now(),
-};
-
-// ─── Chat bubble (memoized — each bubble is pure given its message) ──────────
-
-const ChatBubble = React.memo(function ChatBubble({ message, c }: { message: Message; c: ReturnType<typeof useThemeColors> }) {
+const ChatBubble = React.memo(function ChatBubble({
+  message,
+  c,
+}: {
+  message: CoachMessage;
+  c: ReturnType<typeof useThemeColors>;
+}) {
   return (
     <View
       style={[
@@ -119,28 +71,37 @@ const ChatBubble = React.memo(function ChatBubble({ message, c }: { message: Mes
         ]}
         accessibilityLabel={`${message.isUser ? 'Tu' : 'Coach'}: ${message.text}`}
       >
-        <Text
-          style={[
-            styles.bubbleText,
-            { color: c.black },
-          ]}
-        >
+        <Text style={[styles.bubbleText, { color: c.black }]}>
           {message.text}
+        </Text>
+        <Text style={[styles.timestamp, { color: c.disabled }]}>
+          {formatTime(message.timestamp)}
         </Text>
       </View>
     </View>
   );
 });
 
-// ─── Typing indicator (memoized — props rarely change) ──────────────────────
+// ─── Typing indicator (memoized) ────────────────────────────────────────────
 
-const TypingIndicator = React.memo(function TypingIndicator({ c }: { c: ReturnType<typeof useThemeColors> }) {
+const TypingIndicator = React.memo(function TypingIndicator({
+  c,
+}: {
+  c: ReturnType<typeof useThemeColors>;
+}) {
   return (
     <View style={[styles.bubbleRow, styles.bubbleRowCoach]}>
       <View style={[styles.avatarContainer, { backgroundColor: c.surface }]}>
         <FitsiMascot expression="thinking" size="small" animation="thinking" disableTouch />
       </View>
-      <View style={[styles.bubble, styles.bubbleCoach, styles.typingBubble, { backgroundColor: c.surface }]}>
+      <View
+        style={[
+          styles.bubble,
+          styles.bubbleCoach,
+          styles.typingBubble,
+          { backgroundColor: c.surface },
+        ]}
+      >
         <ActivityIndicator size="small" color={c.gray} />
         <Text style={[styles.typingText, { color: c.gray }]}>Pensando...</Text>
       </View>
@@ -148,85 +109,116 @@ const TypingIndicator = React.memo(function TypingIndicator({ c }: { c: ReturnTy
   );
 });
 
-// ─── Main component ──────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-export default function CoachScreen({ navigation }: any) {
+function formatTime(timestamp: number): string {
+  const d = new Date(timestamp);
+  const h = d.getHours().toString().padStart(2, '0');
+  const m = d.getMinutes().toString().padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+// ─── Main component ─────────────────────────────────────────────────────────
+
+export default function CoachScreen({ navigation }: { navigation: { goBack: () => void } }) {
   const insets = useSafeAreaInsets();
-  const { contentWidth, sidePadding } = useLayout();
+  const { sidePadding } = useLayout();
   const c = useThemeColors();
   const { track } = useAnalytics('Coach');
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
-  const [inputText, setInputText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const inputRef = useRef<TextInput>(null);
+  const [inputText, setInputText] = React.useState('');
+  const insightLoadedRef = useRef(false);
 
-  const sanitizeInput = (text: string): string => {
-    return text
-      .trim()
-      .replace(/<[^>]*>/g, '')    // strip HTML tags
-      .replace(/&[a-z]+;/gi, '')  // strip HTML entities
-      .slice(0, 500);
-  };
+  const {
+    messages,
+    loading,
+    error,
+    sendMessage,
+    loadInsight,
+    dismissError,
+  } = useCoach();
 
-  const sendMessage = useCallback(
-    (text: string) => {
-      const trimmed = sanitizeInput(text);
-      if (!trimmed || isTyping) return;
+  // ── Load daily insight on first open (only if no history) ─────────────────
+
+  useEffect(() => {
+    if (insightLoadedRef.current) return;
+    insightLoadedRef.current = true;
+
+    // Only auto-load insight if conversation is empty
+    if (messages.length === 0) {
+      loadInsight();
+      track('coach_insight_loaded');
+    }
+  }, [messages.length, loadInsight, track]);
+
+  // ── Auto-scroll on new messages or loading state ──────────────────────────
+
+  useEffect(() => {
+    if (flatListRef.current && messages.length > 0) {
+      const timer = setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, loading]);
+
+  // ── Send handler ──────────────────────────────────────────────────────────
+
+  const handleSend = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || loading) return;
 
       haptics.light();
       track('coach_message_sent', { message_length: trimmed.length });
-      const userMsg: Message = {
-        id: `user-${Date.now()}`,
-        text: trimmed,
-        isUser: true,
-        timestamp: Date.now(),
-      };
-
-      setMessages((prev) => [...prev, userMsg]);
       setInputText('');
-      setIsTyping(true);
-
-      // Simulate coach "thinking" delay
-      const delay = 800 + Math.random() * 1200;
-      setTimeout(() => {
-        const response = getCoachResponse(trimmed);
-        const coachMsg: Message = {
-          id: `coach-${Date.now()}`,
-          text: response,
-          isUser: false,
-          timestamp: Date.now(),
-        };
-        setMessages((prev) => [...prev, coachMsg]);
-        setIsTyping(false);
-        haptics.light();
-      }, delay);
+      await sendMessage(trimmed);
+      haptics.light();
     },
-    [isTyping, track],
+    [loading, sendMessage, track],
   );
+
+  // ── Suggestion chip handler ───────────────────────────────────────────────
 
   const handleSuggestion = useCallback(
     (text: string) => {
-      sendMessage(text);
+      haptics.light();
+      track('coach_suggestion_tapped', { suggestion: text });
+      handleSend(text);
     },
-    [sendMessage],
+    [handleSend, track],
   );
 
-  // Memoized renderItem to avoid re-creating closure on every render
-  const renderChatItem = useCallback(({ item }: { item: Message }) => (
-    <ChatBubble message={item} c={c} />
-  ), [c]);
+  // ── Dismiss error on tap ──────────────────────────────────────────────────
 
-  // Stable keyExtractor
-  const chatKeyExtractor = useCallback((item: Message) => item.id, []);
+  const handleDismissError = useCallback(() => {
+    haptics.light();
+    dismissError();
+  }, [dismissError]);
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    if (flatListRef.current && messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  }, [messages, isTyping]);
+  // ── FlatList callbacks (stable refs) ──────────────────────────────────────
+
+  const renderChatItem = useCallback(
+    ({ item }: { item: CoachMessage }) => <ChatBubble message={item} c={c} />,
+    [c],
+  );
+
+  const chatKeyExtractor = useCallback((item: CoachMessage) => item.id, []);
+
+  const handleContentSizeChange = useCallback(() => {
+    flatListRef.current?.scrollToEnd({ animated: true });
+  }, []);
+
+  // ── Sanitize input on change ──────────────────────────────────────────────
+
+  const handleInputChange = useCallback((t: string) => {
+    setInputText(t.replace(/<[^>]*>/g, '').slice(0, 500));
+  }, []);
+
+  // ── Determine if suggestions should show ──────────────────────────────────
+
+  const showSuggestions = messages.length <= 1 && !loading;
 
   return (
     <KeyboardAvoidingView
@@ -234,8 +226,13 @@ export default function CoachScreen({ navigation }: any) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={0}
     >
-      {/* Header */}
-      <View style={[styles.header, { paddingHorizontal: sidePadding, borderBottomColor: c.border }]}>
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <View
+        style={[
+          styles.header,
+          { paddingHorizontal: sidePadding, borderBottomColor: c.border },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => {
             haptics.light();
@@ -248,14 +245,18 @@ export default function CoachScreen({ navigation }: any) {
           <Ionicons name="chevron-back" size={22} color={c.black} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: c.black }]}>AI Coach</Text>
-          <Text style={[styles.headerSubtitle, { color: c.gray }]}>Nutricion personalizada</Text>
+          <View style={styles.headerTitleRow}>
+            <View style={[styles.onlineDot, { backgroundColor: c.success }]} />
+            <Text style={[styles.headerTitle, { color: c.black }]}>AI Coach</Text>
+          </View>
+          <Text style={[styles.headerSubtitle, { color: c.gray }]}>
+            Nutricion personalizada
+          </Text>
         </View>
         <View style={styles.backBtn} />
       </View>
 
-      {/* Messages */}
-      {/* Performance: limited render batch + smaller window to reduce off-screen nodes */}
+      {/* ── Messages ───────────────────────────────────────────────────────── */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -270,36 +271,70 @@ export default function CoachScreen({ navigation }: any) {
         scrollEventThrottle={16}
         bounces={true}
         overScrollMode="never"
-        ListFooterComponent={isTyping ? <TypingIndicator c={c} /> : null}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }
-        initialNumToRender={15}
+        ListFooterComponent={loading ? <TypingIndicator c={c} /> : null}
+        onContentSizeChange={handleContentSizeChange}
+        initialNumToRender={20}
         maxToRenderPerBatch={10}
         windowSize={7}
+        ListEmptyComponent={
+          loading ? null : (
+            <View style={styles.emptyContainer}>
+              <FitsiMascot expression="happy" size="small" animation="wave" disableTouch />
+              <Text style={[styles.emptyText, { color: c.gray }]}>
+                Tu coach de nutricion esta listo para ayudarte
+              </Text>
+            </View>
+          )
+        }
       />
 
-      {/* Quick suggestions */}
-      {messages.length <= 1 && !isTyping && (
+      {/* ── Error banner ───────────────────────────────────────────────────── */}
+      {error && (
+        <TouchableOpacity
+          style={[styles.errorBanner, { backgroundColor: c.surface }]}
+          onPress={handleDismissError}
+          activeOpacity={0.7}
+          accessibilityLabel="Descartar error"
+          accessibilityRole="button"
+        >
+          <Ionicons name="warning-outline" size={16} color={c.protein} />
+          <Text style={[styles.errorText, { color: c.protein }]} numberOfLines={2}>
+            {error}
+          </Text>
+          <Ionicons name="close" size={14} color={c.gray} />
+        </TouchableOpacity>
+      )}
+
+      {/* ── Quick suggestions ──────────────────────────────────────────────── */}
+      {showSuggestions && (
         <View style={[styles.suggestionsRow, { paddingHorizontal: sidePadding }]}>
           {SUGGESTIONS.map((s) => (
             <TouchableOpacity
-              key={s}
-              style={[styles.suggestionChip, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-              onPress={() => handleSuggestion(s)}
-              accessibilityLabel={s}
+              key={s.label}
+              style={[
+                styles.suggestionChip,
+                { backgroundColor: c.surface, borderColor: c.grayLight },
+              ]}
+              onPress={() => handleSuggestion(s.label)}
+              accessibilityLabel={s.label}
               accessibilityRole="button"
               activeOpacity={0.7}
             >
-              <Text style={[styles.suggestionText, { color: c.black }]}>{s}</Text>
+              <Ionicons name={s.icon} size={14} color={c.accent} />
+              <Text style={[styles.suggestionText, { color: c.black }]}>
+                {s.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
-      {/* Human support button */}
+      {/* ── Human support link ─────────────────────────────────────────────── */}
       <TouchableOpacity
-        style={[styles.humanSupportBtn, { borderTopColor: c.border, backgroundColor: c.bg }]}
+        style={[
+          styles.humanSupportBtn,
+          { borderTopColor: c.border, backgroundColor: c.bg },
+        ]}
         onPress={() => {
           haptics.light();
           track('coach_human_support_tapped');
@@ -310,10 +345,12 @@ export default function CoachScreen({ navigation }: any) {
         accessibilityRole="button"
       >
         <Ionicons name="headset-outline" size={16} color={c.accent} />
-        <Text style={[styles.humanSupportText, { color: c.accent }]}>Hablar con soporte humano</Text>
+        <Text style={[styles.humanSupportText, { color: c.accent }]}>
+          Hablar con soporte humano
+        </Text>
       </TouchableOpacity>
 
-      {/* Input */}
+      {/* ── Input bar ──────────────────────────────────────────────────────── */}
       <View
         style={[
           styles.inputContainer,
@@ -327,34 +364,43 @@ export default function CoachScreen({ navigation }: any) {
       >
         <View style={styles.inputRow}>
           <TextInput
+            ref={inputRef}
             style={[styles.input, { backgroundColor: c.surface, color: c.black }]}
             value={inputText}
-            onChangeText={(t) => setInputText(t.replace(/<[^>]*>/g, '').slice(0, 500))}
+            onChangeText={handleInputChange}
             placeholder="Escribe tu pregunta..."
             placeholderTextColor={c.disabled}
             multiline
             maxLength={500}
             returnKeyType="send"
-            onSubmitEditing={() => sendMessage(inputText)}
+            onSubmitEditing={() => handleSend(inputText)}
             blurOnSubmit={false}
+            editable={!loading}
             accessibilityLabel="Campo de mensaje"
           />
           <TouchableOpacity
-            onPress={() => sendMessage(inputText)}
+            onPress={() => handleSend(inputText)}
             style={[
               styles.sendBtn,
-              (!inputText.trim() || isTyping) && { backgroundColor: c.surface },
+              {
+                backgroundColor:
+                  inputText.trim() && !loading ? c.accent : c.surface,
+              },
             ]}
-            disabled={!inputText.trim() || isTyping}
+            disabled={!inputText.trim() || loading}
             accessibilityLabel="Enviar mensaje"
             accessibilityRole="button"
             activeOpacity={0.7}
           >
-            <Ionicons
-              name="send"
-              size={18}
-              color={inputText.trim() && !isTyping ? colors.white : c.disabled}
-            />
+            {loading ? (
+              <ActivityIndicator size="small" color={c.disabled} />
+            ) : (
+              <Ionicons
+                name="send"
+                size={18}
+                color={inputText.trim() ? colors.white : c.disabled}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -362,12 +408,14 @@ export default function CoachScreen({ navigation }: any) {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -385,6 +433,16 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   headerTitle: {
     ...typography.titleSm,
   },
@@ -392,6 +450,8 @@ const styles = StyleSheet.create({
     ...typography.caption,
     marginTop: 1,
   },
+
+  // Messages
   messageList: {
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
@@ -431,6 +491,14 @@ const styles = StyleSheet.create({
     ...typography.body,
     lineHeight: 22,
   },
+  timestamp: {
+    ...typography.caption,
+    fontSize: 10,
+    marginTop: spacing.xs,
+    textAlign: 'right',
+  },
+
+  // Typing indicator
   typingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -439,6 +507,37 @@ const styles = StyleSheet.create({
   typingText: {
     ...typography.caption,
   },
+
+  // Empty state
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+    gap: spacing.md,
+  },
+  emptyText: {
+    ...typography.subtitle,
+    textAlign: 'center',
+    maxWidth: 240,
+  },
+
+  // Error banner
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+  },
+  errorText: {
+    ...typography.caption,
+    flex: 1,
+  },
+
+  // Suggestions
   suggestionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -446,6 +545,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   suggestionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
@@ -455,6 +557,8 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontWeight: '500',
   },
+
+  // Human support
   humanSupportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -467,6 +571,8 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontWeight: '600',
   },
+
+  // Input
   inputContainer: {
     borderTopWidth: 0,
     paddingTop: spacing.sm,
@@ -489,7 +595,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },

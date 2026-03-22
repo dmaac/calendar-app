@@ -1,9 +1,17 @@
 /**
  * BarcodeScreen — Scan food product barcodes (EAN-13, UPC-A)
  * Uses expo-camera barcodeScannerSettings for detection.
- * Looks up nutrition data on Open Food Facts, lets the user pick servings, and logs to diary.
+ * Looks up nutrition data on Open Food Facts (with backend fallback),
+ * lets the user pick servings, and logs to diary.
+ *
+ * Sprint 4 improvements:
+ * - Scan history (last 10 barcodes) persisted via AsyncStorage
+ * - Inline history list on the scanning view for quick re-log
+ * - Local product cache for instant repeat lookups
+ * - Backend fallback when Open Food Facts fails
+ * - "Add manually" flow when product not found
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +22,7 @@ import {
   ScrollView,
   Image,
   Animated,
-  Platform,
+  FlatList,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +30,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
-import { lookupBarcode, BarcodeProduct } from '../../services/barcode.service';
+import {
+  lookupBarcode,
+  BarcodeProduct,
+  ScanHistoryItem,
+  getScanHistory,
+  clearScanHistory,
+} from '../../services/barcode.service';
 import * as foodService from '../../services/food.service';
 import SuccessCheckmark from '../../components/SuccessCheckmark';
 
@@ -39,7 +53,21 @@ const SERVING_OPTIONS = [0.5, 1, 1.5, 2];
 
 type ScreenState = 'scanning' | 'loading' | 'result' | 'not_found' | 'logged';
 
-function MacroPill({ label, value, unit, color, colors }: { label: string; value: number; unit: string; color: string; colors: ReturnType<typeof useThemeColors> }) {
+// ─── MacroPill sub-component ────────────────────────────────────────────────
+
+function MacroPill({
+  label,
+  value,
+  unit,
+  color,
+  colors,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+  color: string;
+  colors: ReturnType<typeof useThemeColors>;
+}) {
   return (
     <View
       style={[styles.macroPill, { borderColor: color + '40', backgroundColor: color + '10' }]}
@@ -50,6 +78,78 @@ function MacroPill({ label, value, unit, color, colors }: { label: string; value
     </View>
   );
 }
+
+// ─── History item sub-component ─────────────────────────────────────────────
+
+function HistoryItem({
+  item,
+  colors,
+  onPress,
+}: {
+  item: ScanHistoryItem;
+  colors: ReturnType<typeof useThemeColors>;
+  onPress: (product: BarcodeProduct) => void;
+}) {
+  const timeAgo = getTimeAgo(item.scanned_at);
+
+  return (
+    <TouchableOpacity
+      style={[styles.historyItem, { backgroundColor: colors.surface, borderColor: colors.grayLight }]}
+      onPress={() => onPress(item.product)}
+      activeOpacity={0.7}
+      accessibilityLabel={`${item.product.name}, ${item.product.calories} kilocalorias. Escaneado ${timeAgo}`}
+      accessibilityRole="button"
+    >
+      {item.product.image_url ? (
+        <Image
+          source={{ uri: item.product.image_url }}
+          style={[styles.historyImage, { backgroundColor: colors.grayLight }]}
+          resizeMode="contain"
+        />
+      ) : (
+        <View style={[styles.historyImagePlaceholder, { backgroundColor: colors.grayLight }]}>
+          <Ionicons name="cube-outline" size={18} color={colors.gray} />
+        </View>
+      )}
+
+      <View style={styles.historyContent}>
+        <Text style={[styles.historyName, { color: colors.black }]} numberOfLines={1}>
+          {item.product.name}
+        </Text>
+        {item.product.brand ? (
+          <Text style={[styles.historyBrand, { color: colors.gray }]} numberOfLines={1}>
+            {item.product.brand}
+          </Text>
+        ) : null}
+        <Text style={[styles.historyMacros, { color: colors.gray }]}>
+          {item.product.calories} kcal
+          {' \u00B7 '}P:{item.product.protein_g}g
+          {' \u00B7 '}C:{item.product.carbs_g}g
+          {' \u00B7 '}G:{item.product.fat_g}g
+        </Text>
+      </View>
+
+      <View style={styles.historyRight}>
+        <Text style={[styles.historyTime, { color: colors.gray }]}>{timeAgo}</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.gray} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function getTimeAgo(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return `${Math.floor(days / 7)}sem`;
+}
+
+// ─── Main component ─────────────────────────────────────────────────────────
 
 export default function BarcodeScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
@@ -64,6 +164,7 @@ export default function BarcodeScreen({ navigation, route }: any) {
   const [selectedMeal, setSelectedMeal] = useState<MealType>(route?.params?.mealType ?? 'lunch');
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
+  const [history, setHistory] = useState<ScanHistoryItem[]>([]);
 
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -73,8 +174,21 @@ export default function BarcodeScreen({ navigation, route }: any) {
 
   // Scanning line animation
   const scanLineY = useRef(new Animated.Value(0)).current;
+
+  // Load scan history on mount and when returning to scanning state
+  const loadHistory = useCallback(async () => {
+    const items = await getScanHistory();
+    setHistory(items);
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
   useEffect(() => {
     if (state === 'scanning') {
+      loadHistory();
+
       const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(scanLineY, { toValue: 1, duration: 2000, useNativeDriver: true }),
@@ -115,13 +229,42 @@ export default function BarcodeScreen({ navigation, route }: any) {
       if (result) {
         setProduct(result);
         setState('result');
-        track('barcode_scanned', { barcode: data, product_name: result.name });
+        track('barcode_scanned', { barcode: data, product_name: result.name, source: 'camera' });
       } else {
         setState('not_found');
       }
     } catch {
       setState('not_found');
     }
+  };
+
+  /** Called when user taps a history item to view/log it. */
+  const handleHistorySelect = (prod: BarcodeProduct) => {
+    haptics.light();
+    setProduct(prod);
+    setScannedCode(prod.barcode);
+    setServings(1);
+    setState('result');
+    track('barcode_history_selected', { barcode: prod.barcode, product_name: prod.name });
+  };
+
+  const handleClearHistory = () => {
+    Alert.alert(
+      'Borrar historial',
+      'Se eliminara el historial de codigos escaneados.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar',
+          style: 'destructive',
+          onPress: async () => {
+            haptics.light();
+            await clearScanHistory();
+            setHistory([]);
+          },
+        },
+      ],
+    );
   };
 
   const handleLogFood = async () => {
@@ -143,6 +286,7 @@ export default function BarcodeScreen({ navigation, route }: any) {
       setState('logged');
       track('barcode_food_logged', {
         product_name: product.name,
+        barcode: product.barcode,
         meal_type: selectedMeal,
         servings,
         calories: Math.round(product.calories * servings),
@@ -305,6 +449,12 @@ export default function BarcodeScreen({ navigation, route }: any) {
           >
             <Text style={[styles.resultName, { color: c.black }]}>{product.name}</Text>
             {product.brand ? <Text style={[styles.resultBrand, { color: c.gray }]}>{product.brand}</Text> : null}
+
+            {/* Barcode badge */}
+            <View style={[styles.barcodeBadge, { backgroundColor: c.surface }]}>
+              <Ionicons name="barcode-outline" size={12} color={c.gray} />
+              <Text style={[styles.barcodeBadgeText, { color: c.gray }]}>{product.barcode}</Text>
+            </View>
 
             {/* Calories */}
             <View style={styles.calorieBox}>
@@ -480,7 +630,7 @@ export default function BarcodeScreen({ navigation, route }: any) {
 
       {/* Manual entry fallback */}
       <TouchableOpacity
-        style={[styles.secondaryBtn, { marginHorizontal: sidePadding, marginTop: spacing.md, backgroundColor: c.surface }]}
+        style={[styles.secondaryBtn, { marginHorizontal: sidePadding, marginTop: spacing.sm, backgroundColor: c.surface }]}
         onPress={handleManualEntry}
         activeOpacity={0.7}
         accessibilityLabel="Anadir manualmente"
@@ -489,9 +639,43 @@ export default function BarcodeScreen({ navigation, route }: any) {
         <Ionicons name="create-outline" size={18} color={c.black} />
         <Text style={[styles.secondaryBtnText, { color: c.black }]}>Anadir manualmente</Text>
       </TouchableOpacity>
+
+      {/* ── Scan history ──────────────────────────────────────────────────────── */}
+      {history.length > 0 && (
+        <View style={[styles.historySection, { paddingHorizontal: sidePadding }]}>
+          <View style={styles.historyHeader}>
+            <View style={styles.historyHeaderLeft}>
+              <Ionicons name="time-outline" size={16} color={c.accent} />
+              <Text style={[styles.historyTitle, { color: c.black }]}>Escaneados recientes</Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleClearHistory}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Borrar historial de escaneos"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.historyClear, { color: c.gray }]}>Borrar</Text>
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={history}
+            keyExtractor={(item) => item.barcode}
+            renderItem={({ item }) => (
+              <HistoryItem item={item} colors={c} onPress={handleHistorySelect} />
+            )}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.historyList}
+            style={styles.historyFlatList}
+          />
+        </View>
+      )}
     </View>
   );
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const CORNER = 22;
 const styles = StyleSheet.create({
@@ -516,11 +700,11 @@ const styles = StyleSheet.create({
   // Camera
   cameraContainer: {
     aspectRatio: 3 / 4,
-    maxHeight: 340,
+    maxHeight: 260,
     borderRadius: radius.xl,
     overflow: 'hidden',
     alignSelf: 'center',
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -545,7 +729,7 @@ const styles = StyleSheet.create({
   hint: {
     ...typography.caption,
     textAlign: 'center',
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
 
   // Back button (result view)
@@ -558,6 +742,21 @@ const styles = StyleSheet.create({
   // Product image
   productImage: {
     height: 160, borderRadius: radius.xl, marginBottom: spacing.md,
+  },
+
+  // Barcode badge
+  barcodeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  barcodeBadgeText: {
+    ...typography.caption,
+    fontSize: 11,
   },
 
   // Result card
@@ -655,4 +854,80 @@ const styles = StyleSheet.create({
   // Success
   successText: { ...typography.titleMd },
   successHint: { ...typography.caption, marginTop: spacing.xs },
+
+  // ── Scan history ────────────────────────────────────────────────────────────
+  historySection: {
+    flex: 1,
+    marginTop: spacing.md,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  historyHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  historyTitle: {
+    ...typography.label,
+    fontWeight: '700',
+  },
+  historyClear: {
+    ...typography.caption,
+  },
+  historyFlatList: {
+    flex: 1,
+  },
+  historyList: {
+    gap: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  historyImage: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+  },
+  historyImagePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  historyContent: {
+    flex: 1,
+    gap: 1,
+  },
+  historyName: {
+    ...typography.caption,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  historyBrand: {
+    ...typography.caption,
+    fontSize: 11,
+  },
+  historyMacros: {
+    fontSize: 11,
+    fontWeight: '400',
+  },
+  historyRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  historyTime: {
+    ...typography.caption,
+    fontSize: 10,
+  },
 });

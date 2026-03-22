@@ -17,6 +17,7 @@ import Svg, { Rect, Line, Circle, Path, G, Text as SvgText } from 'react-native-
 import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import FitsiMascot from '../../components/FitsiMascot';
+import { shareWeeklySummary } from '../../components/ShareableCard';
 
 // ─── Mock data ───────────────────────────────────────────────────────────────
 
@@ -446,6 +447,25 @@ export default function ReportsScreen({ navigation }: any) {
           ))}
         </View>
 
+        {/* Share summary */}
+        <TouchableOpacity
+          style={styles.shareBtn}
+          activeOpacity={0.8}
+          onPress={() => {
+            haptics.light();
+            shareWeeklySummary({
+              avgCalories: summary.avgCalories,
+              avgProtein: summary.avgProtein,
+              adherence: summary.adherence,
+            }).catch(() => {});
+          }}
+          accessibilityLabel="Compartir resumen semanal"
+          accessibilityRole="button"
+        >
+          <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+          <Text style={styles.shareBtnText}>Compartir resumen</Text>
+        </TouchableOpacity>
+
         <View style={{ height: spacing.xl }} />
       </ScrollView>
     </View>
@@ -530,5 +550,20 @@ const styles = StyleSheet.create({
     ...typography.caption,
     flex: 1,
     lineHeight: 18,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#1A73E8',
+    paddingVertical: spacing.sm + 4,
+    borderRadius: radius.full,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  shareBtnText: {
+    ...typography.button,
+    color: '#FFFFFF',
   },
 });

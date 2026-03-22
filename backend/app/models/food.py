@@ -6,6 +6,7 @@ from datetime import datetime
 class FoodBase(SQLModel):
     name: str = Field(index=True, min_length=1)
     brand: Optional[str] = None
+    category: Optional[str] = Field(default=None, index=True)
     serving_size: float = Field(default=100.0, gt=0)
     serving_unit: str = "g"
     calories: float = Field(ge=0)
@@ -38,6 +39,7 @@ class FoodRead(FoodBase):
 class FoodUpdate(SQLModel):
     name: Optional[str] = Field(default=None, min_length=1)
     brand: Optional[str] = None
+    category: Optional[str] = None
     serving_size: Optional[float] = Field(default=None, gt=0)
     serving_unit: Optional[str] = None
     calories: Optional[float] = Field(default=None, ge=0)

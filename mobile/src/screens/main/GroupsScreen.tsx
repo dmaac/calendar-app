@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
@@ -95,6 +96,7 @@ function EmptyGroups({ onDiscover, colors }: { onDiscover: () => void; colors: R
 export default function GroupsScreen() {
   const insets = useSafeAreaInsets();
   const c = useThemeColors();
+  const navigation = useNavigation<any>();
   const { track } = useAnalytics('Groups');
   const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
   const scrollRef = React.useRef<ScrollView>(null);
@@ -135,6 +137,24 @@ export default function GroupsScreen() {
         bounces={true}
         overScrollMode="never"
       >
+        {/* Challenges Banner */}
+        <TouchableOpacity
+          style={[s.challengesBanner, { backgroundColor: c.accent + '15' }]}
+          activeOpacity={0.7}
+          onPress={() => {
+            haptics.light();
+            track('challenges_opened');
+            navigation.navigate('Inicio', { screen: 'Challenges' });
+          }}
+        >
+          <Ionicons name="trophy" size={22} color={c.accent} />
+          <View style={s.challengesBannerInfo}>
+            <Text style={[s.challengesBannerTitle, { color: c.black }]}>Weekly Challenges</Text>
+            <Text style={[s.challengesBannerDesc, { color: c.gray }]}>Compite y gana XP cada semana</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={c.gray} />
+        </TouchableOpacity>
+
         {/* Your Groups */}
         <Text style={[s.sectionTitle, { color: c.black }]}>Your Groups</Text>
 
@@ -265,6 +285,26 @@ const s = StyleSheet.create({
   ctaText: {
     ...typography.label,
     color: '#111111',
+  },
+
+  // Challenges banner
+  challengesBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  challengesBannerInfo: {
+    flex: 1,
+  },
+  challengesBannerTitle: {
+    ...typography.bodyMd,
+  },
+  challengesBannerDesc: {
+    ...typography.caption,
+    marginTop: 2,
   },
 
   // All joined

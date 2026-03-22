@@ -17,6 +17,7 @@ COMMON_FOODS = [
     {
         "name": "Chicken Breast",
         "brand": "Generic",
+        "category": "proteins",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 165.0,
@@ -30,6 +31,7 @@ COMMON_FOODS = [
     {
         "name": "White Rice (cooked)",
         "brand": "Generic",
+        "category": "grains",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 130.0,
@@ -43,6 +45,7 @@ COMMON_FOODS = [
     {
         "name": "Whole Eggs",
         "brand": "Generic",
+        "category": "proteins",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 155.0,
@@ -56,6 +59,7 @@ COMMON_FOODS = [
     {
         "name": "Banana",
         "brand": "Generic",
+        "category": "fruits",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 89.0,
@@ -69,6 +73,7 @@ COMMON_FOODS = [
     {
         "name": "Oatmeal (dry)",
         "brand": "Generic",
+        "category": "grains",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 389.0,
@@ -82,6 +87,7 @@ COMMON_FOODS = [
     {
         "name": "Salmon (Atlantic, cooked)",
         "brand": "Generic",
+        "category": "proteins",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 208.0,
@@ -95,6 +101,7 @@ COMMON_FOODS = [
     {
         "name": "Broccoli",
         "brand": "Generic",
+        "category": "vegetables",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 34.0,
@@ -108,6 +115,7 @@ COMMON_FOODS = [
     {
         "name": "Sweet Potato (cooked)",
         "brand": "Generic",
+        "category": "vegetables",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 86.0,
@@ -121,6 +129,7 @@ COMMON_FOODS = [
     {
         "name": "Greek Yogurt (plain, nonfat)",
         "brand": "Generic",
+        "category": "dairy",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 59.0,
@@ -134,6 +143,7 @@ COMMON_FOODS = [
     {
         "name": "Almonds",
         "brand": "Generic",
+        "category": "fats",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 579.0,
@@ -147,6 +157,7 @@ COMMON_FOODS = [
     {
         "name": "Avocado",
         "brand": "Generic",
+        "category": "fats",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 160.0,
@@ -160,6 +171,7 @@ COMMON_FOODS = [
     {
         "name": "Whole Milk",
         "brand": "Generic",
+        "category": "dairy",
         "serving_size": 100.0,
         "serving_unit": "ml",
         "calories": 61.0,
@@ -173,6 +185,7 @@ COMMON_FOODS = [
     {
         "name": "Whole Wheat Bread",
         "brand": "Generic",
+        "category": "grains",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 247.0,
@@ -186,6 +199,7 @@ COMMON_FOODS = [
     {
         "name": "Pasta (cooked)",
         "brand": "Generic",
+        "category": "grains",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 131.0,
@@ -199,6 +213,7 @@ COMMON_FOODS = [
     {
         "name": "Apple",
         "brand": "Generic",
+        "category": "fruits",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 52.0,
@@ -212,6 +227,7 @@ COMMON_FOODS = [
     {
         "name": "Orange",
         "brand": "Generic",
+        "category": "fruits",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 47.0,
@@ -225,6 +241,7 @@ COMMON_FOODS = [
     {
         "name": "Ground Beef (85% lean)",
         "brand": "Generic",
+        "category": "proteins",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 250.0,
@@ -238,6 +255,7 @@ COMMON_FOODS = [
     {
         "name": "Tuna (canned in water)",
         "brand": "Generic",
+        "category": "proteins",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 116.0,
@@ -251,6 +269,7 @@ COMMON_FOODS = [
     {
         "name": "Spinach (raw)",
         "brand": "Generic",
+        "category": "vegetables",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 23.0,
@@ -264,6 +283,7 @@ COMMON_FOODS = [
     {
         "name": "Olive Oil",
         "brand": "Generic",
+        "category": "fats",
         "serving_size": 100.0,
         "serving_unit": "ml",
         "calories": 884.0,
@@ -277,6 +297,7 @@ COMMON_FOODS = [
     {
         "name": "Peanut Butter",
         "brand": "Generic",
+        "category": "fats",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 588.0,
@@ -290,6 +311,7 @@ COMMON_FOODS = [
     {
         "name": "Brown Rice (cooked)",
         "brand": "Generic",
+        "category": "grains",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 111.0,
@@ -303,6 +325,7 @@ COMMON_FOODS = [
     {
         "name": "Cottage Cheese (low fat)",
         "brand": "Generic",
+        "category": "dairy",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 72.0,
@@ -316,6 +339,7 @@ COMMON_FOODS = [
     {
         "name": "Whey Protein Powder",
         "brand": "Generic",
+        "category": "proteins",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 375.0,
@@ -329,6 +353,7 @@ COMMON_FOODS = [
     {
         "name": "Turkey Breast",
         "brand": "Generic",
+        "category": "proteins",
         "serving_size": 100.0,
         "serving_unit": "g",
         "calories": 135.0,
@@ -337,6 +362,76 @@ COMMON_FOODS = [
         "fat_g": 1.0,
         "fiber_g": 0.0,
         "sugar_g": 0.0,
+        "is_verified": True,
+    },
+    {
+        "name": "Pollo Asado",
+        "brand": "Generic",
+        "category": "proteins",
+        "serving_size": 100.0,
+        "serving_unit": "g",
+        "calories": 190.0,
+        "protein_g": 28.0,
+        "carbs_g": 0.0,
+        "fat_g": 8.0,
+        "fiber_g": 0.0,
+        "sugar_g": 0.0,
+        "is_verified": True,
+    },
+    {
+        "name": "Strawberries",
+        "brand": "Generic",
+        "category": "fruits",
+        "serving_size": 100.0,
+        "serving_unit": "g",
+        "calories": 32.0,
+        "protein_g": 0.7,
+        "carbs_g": 7.7,
+        "fat_g": 0.3,
+        "fiber_g": 2.0,
+        "sugar_g": 4.9,
+        "is_verified": True,
+    },
+    {
+        "name": "Blueberries",
+        "brand": "Generic",
+        "category": "fruits",
+        "serving_size": 100.0,
+        "serving_unit": "g",
+        "calories": 57.0,
+        "protein_g": 0.7,
+        "carbs_g": 14.5,
+        "fat_g": 0.3,
+        "fiber_g": 2.4,
+        "sugar_g": 10.0,
+        "is_verified": True,
+    },
+    {
+        "name": "Quinoa (cooked)",
+        "brand": "Generic",
+        "category": "grains",
+        "serving_size": 100.0,
+        "serving_unit": "g",
+        "calories": 120.0,
+        "protein_g": 4.4,
+        "carbs_g": 21.3,
+        "fat_g": 1.9,
+        "fiber_g": 2.8,
+        "sugar_g": 0.9,
+        "is_verified": True,
+    },
+    {
+        "name": "Tomato",
+        "brand": "Generic",
+        "category": "vegetables",
+        "serving_size": 100.0,
+        "serving_unit": "g",
+        "calories": 18.0,
+        "protein_g": 0.9,
+        "carbs_g": 3.9,
+        "fat_g": 0.2,
+        "fiber_g": 1.2,
+        "sugar_g": 2.6,
         "is_verified": True,
     },
 ]

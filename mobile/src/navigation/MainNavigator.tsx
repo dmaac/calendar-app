@@ -51,6 +51,7 @@ import FoodSearchScreen     from '../screens/main/FoodSearchScreen';
 import CalendarViewScreen   from '../screens/main/CalendarViewScreen';
 import HelpScreen           from '../screens/main/HelpScreen';
 import WorkoutScreen        from '../screens/main/WorkoutScreen';
+import ChallengesScreen     from '../screens/main/ChallengesScreen';
 import PrivacyPolicy        from '../screens/legal/PrivacyPolicy';
 import TermsOfService       from '../screens/legal/TermsOfService';
 
@@ -175,6 +176,7 @@ const HomeStack = () => (
     <Stack.Screen name="Reports"      component={ReportsScreen} />
     <Stack.Screen name="Coach"        component={CoachScreen} />
     <Stack.Screen name="MealPlan"     component={MealPlanScreen} />
+    <Stack.Screen name="Challenges"  component={ChallengesScreen} />
   </Stack.Navigator>
 );
 
@@ -270,8 +272,6 @@ export default function MainNavigator() {
     >
       {/* Home tab mounts immediately; other tabs lazy-load on first visit to reduce initial memory */}
       <Tab.Screen name="Inicio"   component={HomeStack}     options={{ tabBarLabel: t('tabs.home') }} />
-      <Tab.Screen name="Escanear" component={ScanStack}     options={{ tabBarLabel: t('tabs.scan'), lazy: true }} />
-      <Tab.Screen name="Recetas"  component={RecipesStack}  options={{ tabBarLabel: t('tabs.recipes'), lazy: true }} />
       <Tab.Screen name="Registro" component={LogStack}      options={{ tabBarLabel: t('tabs.log'), lazy: true }} />
       <Tab.Screen name="Progress" component={ProgressScreen} options={{ tabBarLabel: t('tabs.progress'), lazy: true }} />
       <Tab.Screen name="Groups"   component={GroupsScreen}  options={{ tabBarLabel: t('tabs.groups'), lazy: true }} />
