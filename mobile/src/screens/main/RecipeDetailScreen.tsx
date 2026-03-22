@@ -26,6 +26,7 @@ import { Recipe } from '../../data/recipes';
 import * as foodService from '../../services/food.service';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import MealPrepTimer from '../../components/MealPrepTimer';
 
 // ─── Portion multipliers ──────────────────────────────────────────────────────
 
@@ -427,6 +428,9 @@ export default function RecipeDetailScreen({ route, navigation }: any) {
 
         {/* Cooking Timer */}
         <CookingTimer prepTime={recipe.prepTime} c={c} />
+
+        {/* Meal Prep Timers — parallel cooking timers */}
+        <MealPrepTimer initiallyCollapsed />
 
         {/* Ingredients */}
         <Text style={[styles.sectionTitle, { color: c.black }]}>Ingredientes</Text>

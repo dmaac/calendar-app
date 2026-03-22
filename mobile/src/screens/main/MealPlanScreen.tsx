@@ -20,6 +20,7 @@ import { useThemeColors, typography, spacing, radius, shadows, useLayout } from 
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import FitsiMascot from '../../components/FitsiMascot';
+import GroceryList from '../../components/GroceryList';
 import { recipes, Recipe, MealType as RecipeMealType } from '../../data/recipes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -396,6 +397,7 @@ export default function MealPlanScreen({ navigation }: any) {
     slot: 'breakfast',
   });
   const spinAnim = useRef(new Animated.Value(0)).current;
+  const [showGroceryList, setShowGroceryList] = useState(false);
 
   const todayIdx = new Date().getDay(); // 0=Sun
   const adjustedIdx = todayIdx === 0 ? 6 : todayIdx - 1; // Convert to Mon=0
@@ -448,6 +450,15 @@ export default function MealPlanScreen({ navigation }: any) {
       navigation.navigate('RecipeDetail', { recipe });
     }
   }, [navigation, track]);
+
+  /** Collect all recipe IDs from the weekly plan for the grocery list. */
+  const allRecipeIds = useMemo(
+    () =>
+      weeklyPlan.flatMap((d) =>
+        [d.breakfast.recipeId, d.lunch.recipeId, d.dinner.recipeId].filter(Boolean) as string[],
+      ),
+    [weeklyPlan],
+  );
 
   const spinRotation = spinAnim.interpolate({
     inputRange: [0, 1],
@@ -536,6 +547,28 @@ export default function MealPlanScreen({ navigation }: any) {
           />
         ))}
 
+        {/* Grocery List CTA */}
+        <TouchableOpacity
+          style={[styles.groceryCta, { backgroundColor: c.success + '12', borderColor: c.success + '40' }]}
+          onPress={() => {
+            haptics.light();
+            track('grocery_list_opened');
+            setShowGroceryList(true);
+          }}
+          activeOpacity={0.7}
+          accessibilityLabel="Abrir lista de compras"
+          accessibilityRole="button"
+        >
+          <Ionicons name="cart-outline" size={20} color={c.success} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.groceryCtaTitle, { color: c.success }]}>Lista de Compras</Text>
+            <Text style={[styles.groceryCtaSub, { color: c.gray }]}>
+              Genera tu lista automatica del plan semanal
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={c.success} />
+        </TouchableOpacity>
+
         {/* Regenerate CTA */}
         <TouchableOpacity
           style={[styles.regenCta, { borderColor: c.grayLight }]}
@@ -548,6 +581,16 @@ export default function MealPlanScreen({ navigation }: any) {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+
+      {/* Grocery List Modal */}
+      <Modal visible={showGroceryList} animationType="slide">
+        <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: c.bg }}>
+          <GroceryList
+            recipeIds={allRecipeIds}
+            onClose={() => setShowGroceryList(false)}
+          />
+        </View>
+      </Modal>
 
       {/* Swap Modal */}
       <SwapModal
@@ -677,6 +720,24 @@ const styles = StyleSheet.create({
   },
   macroPill: {
     ...typography.caption,
+  },
+  groceryCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    ...shadows.sm,
+  },
+  groceryCtaTitle: {
+    ...typography.label,
+    marginBottom: 2,
+  },
+  groceryCtaSub: {
+    ...typography.caption,
+    fontSize: 11,
   },
   regenCta: {
     flexDirection: 'row',

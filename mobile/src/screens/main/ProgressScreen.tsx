@@ -46,6 +46,7 @@ import BodyMetrics from '../../components/BodyMetrics';
 import MicronutrientDashboard from '../../components/MicronutrientDashboard';
 import SupplementTracker from '../../components/SupplementTracker';
 import WorkoutSummaryCard, { WorkoutLogEntry } from '../../components/WorkoutSummaryCard';
+import CalendarHeatmap from '../../components/CalendarHeatmap';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import useStreak from '../../hooks/useStreak';
@@ -515,6 +516,9 @@ export default function ProgressScreen() {
           fats={MOCK_DAILY_PROGRESS.fats}
           onShareComplete={() => track('daily_progress_shared')}
         />
+
+        {/* ── Calendar Heatmap (90 days NutriScore) ── */}
+        <CalendarHeatmap />
 
         {/* ── Streak + Badges ── */}
         <View style={s.topCardsRow}>

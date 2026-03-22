@@ -42,6 +42,7 @@ import HealthKitCard from '../../components/HealthKitCard';
 import FastingTimer from '../../components/FastingTimer';
 import SleepTracker from '../../components/SleepTracker';
 import WellnessScore from '../../components/WellnessScore';
+import MoodTracker from '../../components/MoodTracker';
 import useFadeIn from '../../hooks/useFadeIn';
 import useHealthKit from '../../hooks/useHealthKit';
 import usePulse from '../../hooks/usePulse';
@@ -667,6 +668,9 @@ export default function HomeScreen({ navigation }: any) {
 
               {/* Sleep Tracker — temporarily disabled (hooks order bug) */}
               {/* <SleepTracker initiallyCollapsed /> */}
+
+              {/* Mood + Energy Tracker — collapsible card */}
+              <MoodTracker initiallyCollapsed nutriScore={nutriScoreValue} />
 
               {/* Calorie card */}
               <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">

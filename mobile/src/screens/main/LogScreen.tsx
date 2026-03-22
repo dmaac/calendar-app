@@ -33,6 +33,7 @@ import QuickLog from '../../components/QuickLog';
 import { showNotification } from '../../components/InAppNotification';
 import SwipeableMealItem from '../../components/SwipeableMealItem';
 import FoodComparison from '../../components/FoodComparison';
+import FoodDiary from '../../components/FoodDiary';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
 
@@ -718,6 +719,15 @@ export default function LogScreen({ navigation }: any) {
             </View>
           );
         })}
+
+        {/* Food Diary -- emotional journal for meals */}
+        {logs.length > 0 && (
+          <FoodDiary
+            mealType={logs[0]?.meal_type}
+            foodName={logs[0]?.food_name}
+            date={dateStr}
+          />
+        )}
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
