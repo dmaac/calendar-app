@@ -22,7 +22,7 @@ function smoothPath(points: { x: number; y: number }[]): string {
   return d;
 }
 
-export default function Step18ProgressChart({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step18ProgressChart({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data } = useOnboarding();
   const { innerWidth } = useLayout();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -76,6 +76,7 @@ export default function Step18ProgressChart({ onNext, onBack, step, totalSteps }
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <Text

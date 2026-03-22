@@ -13,7 +13,7 @@ const FEATURES = [
   { icon: 'trash-outline',             text: 'Elimina tus datos en cualquier momento' },
 ];
 
-export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step19Trust({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
@@ -38,6 +38,7 @@ export default function Step19Trust({ onNext, onBack, step, totalSteps }: StepPr
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Entendido" onPress={onNext} />}
     >
       <Text

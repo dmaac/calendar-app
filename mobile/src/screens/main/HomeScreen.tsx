@@ -39,11 +39,17 @@ import HealthAlerts, { generateHealthAlerts } from '../../components/HealthAlert
 import ExerciseBalanceCard from '../../components/ExerciseBalanceCard';
 import AdaptiveCalorieBanner from '../../components/AdaptiveCalorieBanner';
 import HealthKitCard from '../../components/HealthKitCard';
+import FastingTimer from '../../components/FastingTimer';
 import useFadeIn from '../../hooks/useFadeIn';
 import useHealthKit from '../../hooks/useHealthKit';
 import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import NotificationCenter, {
+  NotificationBell,
+  useNotifications,
+} from '../../components/NotificationCenter';
+import { syncWidgetData } from '../../services/widgetData.service';
 
 // ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
 const DAILY_TIPS = [
@@ -327,6 +333,17 @@ export default function HomeScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  // Notification center state
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    dismiss: dismissNotification,
+    clearAll: clearAllNotifications,
+  } = useNotifications();
+  const [notifSheetVisible, setNotifSheetVisible] = useState(false);
+
   // Fade-in animation for content — show even during error if mock data is loaded
   const fadeStyle = useFadeIn(!loading);
 
@@ -393,6 +410,28 @@ export default function HomeScreen({ navigation }: any) {
       load();
     }, [])
   );
+
+  // Sync widget data whenever summary or logs update
+  useEffect(() => {
+    if (!summary) return;
+    const totalFiber = logs.reduce((sum, l) => sum + (l.fiber_g ?? 0), 0);
+    const uniqueFoods = new Set(logs.map((l) => l.food_name.toLowerCase().trim())).size;
+    syncWidgetData({
+      total_calories: summary.total_calories,
+      target_calories: summary.target_calories,
+      total_protein_g: summary.total_protein_g,
+      target_protein_g: summary.target_protein_g,
+      total_carbs_g: summary.total_carbs_g,
+      target_carbs_g: summary.target_carbs_g,
+      total_fats_g: summary.total_fats_g,
+      target_fats_g: summary.target_fats_g,
+      water_ml: summary.water_ml,
+      streak_days: summary.streak_days,
+      meals_logged: summary.meals_logged,
+      total_fiber_g: totalFiber,
+      food_variety: uniqueFoods,
+    }).catch(() => {});
+  }, [summary, logs]);
 
   // Stable callback ref to avoid re-creating on every render
   const onRefresh = useCallback(async () => {
@@ -496,6 +535,13 @@ export default function HomeScreen({ navigation }: any) {
               navigation.navigate('Achievements');
             }}
           />
+          <NotificationBell
+            unreadCount={unreadCount}
+            onPress={() => {
+              track('notification_bell_pressed', { unread: unreadCount });
+              setNotifSheetVisible(true);
+            }}
+          />
           <TouchableOpacity
             onPress={() => {
               haptics.light();
@@ -569,6 +615,9 @@ export default function HomeScreen({ navigation }: any) {
                   loading={healthKit.loading}
                 />
               )}
+
+              {/* Fasting Timer — collapsible card */}
+              <FastingTimer initiallyCollapsed />
 
               {/* Calorie card */}
               <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">
@@ -764,6 +813,17 @@ export default function HomeScreen({ navigation }: any) {
         <Ionicons name="sparkles" size={20} color={c.white} />
         <Text style={[styles.coachFabText, { color: c.white }]}>{t('home.aiCoach')}</Text>
       </TouchableOpacity>
+
+      {/* Notification Center bottom sheet */}
+      <NotificationCenter
+        visible={notifSheetVisible}
+        onClose={() => setNotifSheetVisible(false)}
+        notifications={notifications}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onDismiss={dismissNotification}
+        onClearAll={clearAllNotifications}
+      />
     </View>
   );
 }

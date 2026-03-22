@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius, useLayout, useThemeColors } from '../../theme';
-import { saveOnboardingStep } from '../../services/onboarding.service';
+import { updateProfile } from '../../services/onboarding.service';
 import { showNotification } from '../../components/InAppNotification';
 import { OnboardingProfileRead } from '../../types';
 import { useAnalytics } from '../../hooks/useAnalytics';
@@ -246,19 +246,19 @@ export default function EditProfileScreen({ navigation, route }: any) {
     });
 
     try {
-      await saveOnboardingStep({
+      await updateProfile({
         weight_kg:        weightKg,
         height_cm:        heightCm,
         target_weight_kg: targetWeightKg,
-        goal:             goal as any,
+        goal,
         weekly_speed_kg:  weeklySpeedKg,
-        diet_type:        dietType as any,
-        unit_system:      unitSystem as any,
+        diet_type:        dietType,
+        unit_system:      unitSystem,
         daily_calories:   preview.calories,
         daily_protein_g:  preview.protein,
         daily_carbs_g:    preview.carbs,
         daily_fats_g:     preview.fats,
-      } as any);
+      });
 
       haptics.success();
       showNotification({ message: 'Perfil actualizado!', type: 'success' });

@@ -32,7 +32,7 @@ const FEATURES = [
   },
 ];
 
-export default function Step22Flexibility({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step22Flexibility({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   // Pre-create a fixed number of refs to satisfy Rules of Hooks (no hooks inside loops)
   const fade0 = useRef(new Animated.Value(0)).current;
   const fade1 = useRef(new Animated.Value(0)).current;
@@ -51,6 +51,7 @@ export default function Step22Flexibility({ onNext, onBack, step, totalSteps }: 
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <Text style={styles.title}>Todo lo que{'\n'}necesitas para lograrlo</Text>

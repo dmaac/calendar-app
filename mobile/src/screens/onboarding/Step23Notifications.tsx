@@ -14,7 +14,7 @@ const NOTIF_EXAMPLES = [
   { time: '7:30 PM', text: '✅ ¡Excelente día! Alcanzaste tu meta', sub: 'Toca para ver tu resumen' },
 ];
 
-export default function Step23Notifications({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step23Notifications({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { update } = useOnboarding();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -65,6 +65,7 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps }
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={
         <>
           <PrimaryButton label="Activar recordatorios" onPress={handleEnable} />

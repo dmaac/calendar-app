@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
-import { getOnboardingProfile, saveOnboardingStep } from '../../services/onboarding.service';
+import { getOnboardingProfile, updateProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
 import { haptics } from '../../hooks/useHaptics';
 
@@ -429,12 +429,12 @@ export default function NutritionGoalsScreen({ navigation }: any) {
     haptics.light();
     setSaving(true);
     try {
-      await saveOnboardingStep({
+      await updateProfile({
         daily_calories: calories,
         daily_protein_g: protein,
         daily_carbs_g: carbs,
         daily_fats_g: fats,
-      } as any);
+      });
       haptics.success();
       navigation.goBack();
     } catch {

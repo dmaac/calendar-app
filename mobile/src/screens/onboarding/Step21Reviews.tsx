@@ -40,7 +40,7 @@ function Stars({ count }: { count: number }) {
   );
 }
 
-export default function Step21Reviews({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step21Reviews({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -52,6 +52,7 @@ export default function Step21Reviews({ onNext, onBack, step, totalSteps }: Step
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       scrollable={false}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >

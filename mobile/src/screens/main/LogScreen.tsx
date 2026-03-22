@@ -32,6 +32,8 @@ import BottomSheet from '../../components/BottomSheet';
 import QuickLog from '../../components/QuickLog';
 import { showNotification } from '../../components/InAppNotification';
 import SwipeableMealItem from '../../components/SwipeableMealItem';
+import { getOnboardingProfile } from '../../services/onboarding.service';
+import { OnboardingProfileRead } from '../../types';
 
 const MEAL_META = mealColors;
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -209,7 +211,17 @@ export default function LogScreen({ navigation }: any) {
   const [modalMeal, setModalMeal] = useState<MealType | null>(null);
   const [error, setError] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
+  const [userWeightKg, setUserWeightKg] = useState<number | undefined>(undefined);
   const prevLogCount = useRef(0);
+
+  // Load user weight for personalized water goal (30ml/kg)
+  useEffect(() => {
+    getOnboardingProfile()
+      .then((p) => {
+        if (p?.weight_kg) setUserWeightKg(p.weight_kg);
+      })
+      .catch(() => {});
+  }, []);
 
   // ─── Day navigation state ────────────────────────────────────────────────
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -617,7 +629,7 @@ export default function LogScreen({ navigation }: any) {
         )}
 
         {/* Water tracking */}
-        <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
+        <WaterTracker waterMl={waterMl} onAdd={handleAddWater} weightKg={userWeightKg} />
 
         {/* Quick Log -- re-log recent meals in one tap */}
         <QuickLog recentLogs={logs} onLogged={load} />

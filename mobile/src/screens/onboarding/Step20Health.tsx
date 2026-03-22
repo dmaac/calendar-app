@@ -14,7 +14,7 @@ const PERMS = [
   { icon: 'heart-outline',   label: 'Frecuencia cardiaca' },
 ];
 
-export default function Step20Health({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step20Health({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { update } = useOnboarding();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -52,6 +52,7 @@ export default function Step20Health({ onNext, onBack, step, totalSteps }: StepP
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={footer}
     >
       <Text

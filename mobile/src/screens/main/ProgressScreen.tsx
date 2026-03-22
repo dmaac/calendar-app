@@ -39,6 +39,8 @@ import { useAppTheme } from '../../context/ThemeContext';
 import FitsiMascot from '../../components/FitsiMascot';
 import ShareProgressCard from '../../components/ShareProgressCard';
 import WeeklySummary from '../../components/WeeklySummary';
+import ProgressPhotos from '../../components/ProgressPhotos';
+import BodyMetrics from '../../components/BodyMetrics';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import useStreak from '../../hooks/useStreak';
@@ -571,32 +573,11 @@ export default function ProgressScreen() {
           ))}
         </View>
 
-        {/* ── Progress Photos (empty state) ── */}
-        <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
-          <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Progress Photos</Text>
+        {/* ── Progress Photos (full component) ── */}
+        <ProgressPhotos />
 
-          <View style={s.photoEmptyState}>
-            <FitsiMascot expression="cute" size="small" animation="idle" />
-            <Text style={[s.photoEmptyTitle, { color: C.textPrimary }]}>No photos yet</Text>
-            <Text style={[s.photoEmptyDesc, { color: C.textSecondary }]}>
-              Take a photo every week to see your visual transformation over time
-            </Text>
-          </View>
-
-          <TouchableOpacity style={[s.uploadBtn, { backgroundColor: C.accent }]} activeOpacity={0.8} onPress={() => haptics.light()}>
-            <Ionicons name="camera-outline" size={20} color={C.white} />
-            <Text style={[s.uploadBtnText, { color: C.white }]}>+ Upload a Photo</Text>
-          </TouchableOpacity>
-
-          {/* Placeholder grid */}
-          <View style={s.photoGrid}>
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={[s.photoPlaceholder, { borderColor: C.cardBorder, backgroundColor: C.separator + '15' }]}>
-                <Ionicons name="image-outline" size={28} color={C.textTertiary} />
-              </View>
-            ))}
-          </View>
-        </View>
+        {/* ── Body Metrics Tracker ── */}
+        <BodyMetrics />
 
         {/* ── Daily Average Calories ── */}
         <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
@@ -787,48 +768,6 @@ const s = StyleSheet.create({
     ...typography.caption,
     fontWeight: '600',
     textAlign: 'right',
-  },
-
-  // ── Progress Photos ──
-  photoEmptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.xs,
-  },
-  photoEmptyTitle: {
-    ...typography.bodyMd,
-    marginTop: spacing.xs,
-  },
-  photoEmptyDesc: {
-    ...typography.caption,
-    textAlign: 'center',
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  uploadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    borderRadius: radius.full,
-    paddingVertical: 12,
-    marginBottom: spacing.md,
-  },
-  uploadBtnText: {
-    ...typography.button,
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  photoPlaceholder: {
-    flex: 1,
-    aspectRatio: 0.75,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   // ── Daily Calories ──
