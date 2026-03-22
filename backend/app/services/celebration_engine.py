@@ -586,6 +586,21 @@ async def process_post_meal_events(
         if missions:
             celebrations.append(missions)
 
+        # 9. Evaluate ALL 100 achievements from achievement_engine
+        try:
+            from .achievement_engine import evaluate_achievements
+            new_achievements = await evaluate_achievements(user_id, session)
+            for ach in new_achievements:
+                celebrations.append({
+                    "type": "achievement_unlocked",
+                    "message": f"Logro desbloqueado: {ach.get('name', '')}!",
+                    "emoji": "🏆",
+                    "intensity": "high" if ach.get("rarity") == "epic" else "medium",
+                    "data": ach,
+                })
+        except Exception as exc:
+            logger.warning("Achievement evaluation failed for user %d: %s", user_id, exc)
+
         # Flush all pending changes
         await session.flush()
 
