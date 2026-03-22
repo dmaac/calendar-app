@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # AI provider selection: "claude", "openai", "auto" (Claude -> OpenAI -> mock)
     ai_provider: str = "auto"
 
+    # Supabase
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
+    supabase_service_key: str = ""
+
     # CORS — default to wildcard for local dev only.
     # In production set CORS_ORIGINS to a comma-separated list of allowed origins.
     cors_origins: List[str] = ["*"]
@@ -60,7 +65,7 @@ class Settings(BaseSettings):
     cors_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     cors_headers: List[str] = [
         "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With",
-        "X-App-Version", "X-Platform", "X-Idempotency-Key", "If-None-Match",
+        "X-App-Version", "X-API-Version", "X-Platform", "X-Idempotency-Key", "If-None-Match",
     ]
 
     # Deployment environment — set ENV=production in prod to enforce stricter checks.

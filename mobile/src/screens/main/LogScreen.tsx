@@ -133,6 +133,7 @@ const AddSheet = React.memo(function AddSheet({
         activeOpacity={0.7}
         accessibilityLabel="Escanear con IA. Saca una foto a tu comida"
         accessibilityRole="button"
+        accessibilityHint="Abre la camara para escanear tu comida con inteligencia artificial"
       >
         <View style={[sheetStyles.optIcon, { backgroundColor: c.black }]}>
           <Ionicons name="camera" size={20} color={c.white} />
@@ -149,6 +150,7 @@ const AddSheet = React.memo(function AddSheet({
         activeOpacity={0.7}
         accessibilityLabel="Buscar alimento en la base de datos"
         accessibilityRole="button"
+        accessibilityHint="Abre la busqueda de alimentos en la base de datos"
       >
         <View style={[sheetStyles.optIcon, { backgroundColor: c.accent + '15' }]}>
           <Ionicons name="search" size={20} color={c.accent} />
@@ -165,6 +167,7 @@ const AddSheet = React.memo(function AddSheet({
         activeOpacity={0.7}
         accessibilityLabel="Anadir manualmente. Escribe el nombre y macros"
         accessibilityRole="button"
+        accessibilityHint="Abre el formulario para agregar un alimento con sus macronutrientes"
       >
         <View style={[sheetStyles.optIcon, { backgroundColor: c.surface }]}>
           <Ionicons name="create-outline" size={20} color={c.black} />

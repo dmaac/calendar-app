@@ -21,6 +21,8 @@ from .user_data import router as user_data_router
 from .experiments import router as experiments_router
 from .analytics import router as analytics_router
 from .webhooks import router as webhooks_router
+from .corporate import router as corporate_router
+from .family import router as family_router
 
 __all__ = [
     "auth_router",
@@ -46,4 +48,6 @@ __all__ = [
     "experiments_router",
     "analytics_router",
     "webhooks_router",
+    "corporate_router",
+    "family_router",
 ]

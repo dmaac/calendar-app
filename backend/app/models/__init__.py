@@ -16,6 +16,13 @@ from .experiment import Experiment, ExperimentAssignment, ExperimentConversion
 from .nutrition_tip import NutritionTip
 from .recipe import Recipe
 from .webhook import Webhook, WebhookDelivery
+from .corporate import (
+    CorporateCompany,
+    CorporateMembership,
+    CorporateTeam,
+    FamilyGroup,
+    FamilyMembership,
+)
 
 __all__ = [
     "User",
@@ -39,4 +46,9 @@ __all__ = [
     "Recipe",
     "Webhook",
     "WebhookDelivery",
+    "CorporateCompany",
+    "CorporateMembership",
+    "CorporateTeam",
+    "FamilyGroup",
+    "FamilyMembership",
 ]

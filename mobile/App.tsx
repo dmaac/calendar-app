@@ -7,6 +7,8 @@ import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import OfflineModeBanner from './src/components/OfflineModeBanner';
+import GlobalLoadingOverlay from './src/components/GlobalLoadingOverlay';
 
 function AppContent() {
   const { isDark } = useAppTheme();
@@ -14,6 +16,8 @@ function AppContent() {
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <AppNavigator />
+      <OfflineModeBanner />
+      <GlobalLoadingOverlay />
     </>
   );
 }

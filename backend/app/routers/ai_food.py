@@ -183,6 +183,9 @@ async def scan_food(
         # We pass them through but cap length to avoid any accidental data leakage.
         safe_msg = str(e)[:200] if str(e) else "AI scan failed. Please try again."
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=safe_msg)
+    except Exception as e:
+        logger.error("Food scan unexpected error: user_id=%s type=%s error=%s", current_user.id, type(e).__name__, e)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI scanning is temporarily unavailable. Please try again.")
 
     try:
         await cache_delete(daily_summary_key(current_user.id, date_type.today().isoformat()))

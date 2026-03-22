@@ -14,13 +14,14 @@ from starlette.responses import RedirectResponse
 from .core.database import create_db_and_tables
 from .core.config import settings
 from .core.versioning import APIVersionMiddleware
+from .core.api_version import APIVersionHeaderMiddleware
 from .core.etag import ETagMiddleware
 from .core.idempotency import IdempotencyMiddleware
 from .core.logging_config import setup_logging
 from .core.response_cache import ResponseCacheMiddleware, response_cache_stats
 from .core.validation import RequestValidationMiddleware
 from .core.performance import PerformanceMiddleware, performance_stats
-from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router, webhooks_router
+from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router, webhooks_router, corporate_router, family_router
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger("fitsi.requests")
@@ -145,6 +146,14 @@ openapi_tags = [
     {
         "name": "webhooks",
         "description": "Webhook management: register endpoints, view delivery history, send test payloads. Events: meal_logged, goal_reached, streak_milestone, workout_logged.",
+    },
+    {
+        "name": "corporate",
+        "description": "Corporate Wellness: company registration, aggregated employee KPIs, team leaderboards, and employee invitations.",
+    },
+    {
+        "name": "family",
+        "description": "Family Plan: create family groups, invite members, view shared nutrition stats and daily summaries.",
     },
     {
         "name": "root",
@@ -457,8 +466,13 @@ app.add_middleware(PerformanceMiddleware)
 # Request body size validation — reject oversized payloads early
 app.add_middleware(RequestValidationMiddleware)
 
-# API versioning (detects version from header or URL prefix)
+# API versioning (detects version from Accept-Version header or URL prefix)
 app.add_middleware(APIVersionMiddleware)
+
+# API versioning via X-API-Version header or api_version query param.
+# Added after (= inner = runs after) APIVersionMiddleware, so X-API-Version
+# and ?api_version override Accept-Version when both are present.
+app.add_middleware(APIVersionHeaderMiddleware)
 
 # Response cache auto-invalidation on mutating requests (POST/PUT/PATCH/DELETE)
 app.add_middleware(ResponseCacheMiddleware)
@@ -506,6 +520,8 @@ app.include_router(user_data_router)
 app.include_router(experiments_router)
 app.include_router(analytics_router)
 app.include_router(webhooks_router)
+app.include_router(corporate_router)
+app.include_router(family_router)
 
 
 @app.get("/", tags=["root"])

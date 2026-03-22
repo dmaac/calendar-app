@@ -241,6 +241,7 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
           style={[styles.backBtn, { backgroundColor: c.surface }]}
           accessibilityLabel="Volver"
           accessibilityRole="button"
+          accessibilityHint="Regresa a la pantalla anterior"
         >
           <Ionicons name="chevron-back" size={22} color={c.black} />
         </TouchableOpacity>
@@ -318,6 +319,7 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
               onPress={() => handleSuggestion(s.label)}
               accessibilityLabel={s.label}
               accessibilityRole="button"
+              accessibilityHint="Envia esta pregunta sugerida al coach"
               activeOpacity={0.7}
             >
               <Ionicons name={s.icon} size={14} color={c.accent} />
@@ -343,6 +345,7 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
         activeOpacity={0.7}
         accessibilityLabel="Hablar con soporte humano"
         accessibilityRole="button"
+        accessibilityHint="Abre tu email para contactar al equipo de soporte"
       >
         <Ionicons name="headset-outline" size={16} color={c.accent} />
         <Text style={[styles.humanSupportText, { color: c.accent }]}>
@@ -377,6 +380,7 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
             blurOnSubmit={false}
             editable={!loading}
             accessibilityLabel="Campo de mensaje"
+            accessibilityHint="Escribe una pregunta para tu coach de nutricion"
           />
           <TouchableOpacity
             onPress={() => handleSend(inputText)}
@@ -390,6 +394,7 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
             disabled={!inputText.trim() || loading}
             accessibilityLabel="Enviar mensaje"
             accessibilityRole="button"
+            accessibilityHint="Envia tu pregunta al coach de nutricion"
             activeOpacity={0.7}
           >
             {loading ? (

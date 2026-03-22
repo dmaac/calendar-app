@@ -261,6 +261,7 @@ export interface FoodScanResponse {
   logged_at: string;                 // ISO 8601 datetime
   image_url: string | null;
   ai_confidence: number;
+  ai_provider: string | null;
   cache_hit: boolean;
 }
 

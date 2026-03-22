@@ -487,7 +487,7 @@ export default function ProgressScreen() {
   return (
     <View style={[s.screen, { paddingTop: insets.top, backgroundColor: C.bg }]}>
       {/* Header */}
-      <View style={[s.header, { paddingHorizontal: sidePadding }]}>
+      <View style={[s.header, { paddingHorizontal: sidePadding }]} accessibilityRole="header">
         <Text style={[s.headerTitle, { color: C.textPrimary }]}>Progress</Text>
       </View>
 
@@ -522,16 +522,22 @@ export default function ProgressScreen() {
 
         {/* ── Streak + Badges ── */}
         <View style={s.topCardsRow}>
-          <View style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+          <View
+            style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}
+            accessibilityLabel={`Racha de ${displayStreak} dias${hasFreezeAvailable ? ', congelamiento disponible' : ''}`}
+          >
             <FitsiMascot expression="muscle" size="small" animation="idle" />
             <Text style={[s.topCardValue, { color: C.textPrimary }]}>{displayStreak}</Text>
             <Text style={[s.topCardLabel, { color: C.textSecondary }]}>
               Day Streak{hasFreezeAvailable ? ' \u2744' : ''}
             </Text>
           </View>
-          <View style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+          <View
+            style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}
+            accessibilityLabel={`${MOCK.badges} insignias obtenidas`}
+          >
             <View style={[s.topCardIcon, { backgroundColor: C.separator + '30' }]}>
-              <Ionicons name="medal" size={24} color={C.medal} />
+              <Ionicons name="medal" size={24} color={C.medal} accessibilityRole="image" accessibilityLabel="Icono de medalla" />
             </View>
             <Text style={[s.topCardValue, { color: C.textPrimary }]}>{MOCK.badges}</Text>
             <Text style={[s.topCardLabel, { color: C.textSecondary }]}>Badges Earned</Text>
@@ -539,7 +545,10 @@ export default function ProgressScreen() {
         </View>
 
         {/* ── Current Weight Card ── */}
-        <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+        <View
+          style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}
+          accessibilityLabel={`Peso actual ${MOCK.currentWeight} kilogramos. Peso inicial ${MOCK.startWeight}, objetivo ${MOCK.goalWeight}`}
+        >
           <View style={s.weightHeaderRow}>
             <View>
               <Text style={[s.weightLabel, { color: C.textSecondary }]}>Current Weight</Text>
@@ -570,8 +579,12 @@ export default function ProgressScreen() {
         </View>
 
         {/* ── Weight Progress Chart ── */}
-        <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
-          <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Weight Progress</Text>
+        <View
+          style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}
+          accessibilityLabel="Grafico de progreso de peso"
+          accessibilityRole="summary"
+        >
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">Weight Progress</Text>
 
           {/* Time filter pills */}
           <View style={s.filterRow}>
@@ -585,6 +598,10 @@ export default function ProgressScreen() {
                 ]}
                 onPress={() => { haptics.light(); setTimeFilter(f); }}
                 activeOpacity={0.7}
+                accessibilityLabel={`Filtro de tiempo ${f}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: timeFilter === f }}
+                accessibilityHint={`Muestra datos de peso de los ultimos ${f === 'ALL' ? 'todos los periodos' : f}`}
               >
                 <Text style={[
                   s.filterPillText,
@@ -602,7 +619,7 @@ export default function ProgressScreen() {
 
         {/* ── Weight Changes Table ── */}
         <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
-          <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Weight Changes</Text>
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">Weight Changes</Text>
           {WEIGHT_CHANGES.map((wc) => (
             <WeightChangeRow
               key={wc.label}
@@ -631,7 +648,7 @@ export default function ProgressScreen() {
 
         {/* ── Daily Average Calories ── */}
         <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
-          <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Daily Average Calories</Text>
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">Daily Average Calories</Text>
           <Text style={[s.calSubtitle, { color: C.textTertiary }]}>
             Target: {CALORIE_TARGET} kcal
           </Text>

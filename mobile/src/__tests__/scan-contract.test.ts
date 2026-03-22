@@ -26,6 +26,7 @@
  *     logged_at: string (ISO 8601),
  *     image_url: string | null,
  *     ai_confidence: number,
+ *     ai_provider: string | null,
  *     cache_hit: boolean,
  *   }
  *   Error responses: 413 (too large), 415 (bad mime), 422 (bad meal_type), 429 (quota), 502 (AI fail)
@@ -69,6 +70,7 @@ describe('POST /api/food/scan — contract', () => {
       logged_at: '2026-03-22T12:00:00+00:00',
       image_url: null,
       ai_confidence: 0.92,
+      ai_provider: 'openai',
       cache_hit: false,
     };
 

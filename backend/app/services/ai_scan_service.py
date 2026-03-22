@@ -37,6 +37,7 @@ from ..models.ai_scan_cache import AIScanCache
 from ..core.config import settings
 from ..core.cache import cache_get, cache_set, ai_scan_key
 from .claude_vision_service import scan_with_claude
+from .storage_service import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -494,6 +495,17 @@ async def scan_and_log_food(
     Returns dict with all nutrition fields + cache_hit flag.
     """
     image_hash = _hash_image(image_bytes)
+
+    # 0. Upload image to Supabase Storage (non-blocking — don't fail the scan)
+    if not image_url:
+        try:
+            image_url = await upload_image(
+                file_bytes=image_bytes,
+                filename=f"{image_hash}.jpg",
+                bucket="food-scans",
+            )
+        except Exception as e:
+            logger.warning("Image upload to storage failed (%s) — continuing without URL", e)
 
     # 1. Try cache
     cached = await _get_cached_scan(image_hash, session)

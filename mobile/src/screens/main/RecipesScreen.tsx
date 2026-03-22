@@ -208,6 +208,7 @@ const RecipeCard = React.memo(function RecipeCard({
         ]}
         accessibilityLabel={`${recipe.name}, ${recipe.calories} calorias, ${recipe.prepTime} minutos`}
         accessibilityRole="button"
+        accessibilityHint="Toca para ver detalle de la receta"
       >
         <View style={[cardStyles.emojiContainer, { backgroundColor: c.grayLight }]}>
           <Text style={cardStyles.emoji}>{recipe.image}</Text>
@@ -314,7 +315,9 @@ function RecommendedSection({
         onPress(item.recipe);
       }}
       activeOpacity={0.7}
-      accessibilityLabel={`Recomendada: ${item.recipe.name}`}
+      accessibilityLabel={`Recomendada: ${item.recipe.name}, ${item.recipe.calories} calorias`}
+      accessibilityRole="button"
+      accessibilityHint="Toca para ver detalle de la receta"
     >
       <View style={[recStyles.badgeRow, { backgroundColor: c.accent + '15' }]}>
         <Ionicons name="sparkles" size={10} color={c.accent} />
@@ -517,7 +520,7 @@ export default function RecipesScreen({ navigation }: any) {
             accessibilityLabel="Buscar recetas"
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} accessibilityLabel="Limpiar busqueda">
+            <TouchableOpacity onPress={() => setSearch('')} accessibilityLabel="Limpiar busqueda" accessibilityRole="button" accessibilityHint="Borra el texto de busqueda">
               <Ionicons name="close-circle" size={18} color={c.gray} />
             </TouchableOpacity>
           )}
@@ -541,7 +544,9 @@ export default function RecipesScreen({ navigation }: any) {
               ]}
               onPress={() => { haptics.light(); setMealFilter(f.key); }}
               accessibilityLabel={`Filtrar por ${f.label}`}
+              accessibilityRole="button"
               accessibilityState={{ selected: active }}
+              accessibilityHint={`Muestra recetas de ${f.label.toLowerCase()}`}
             >
               <Text style={[styles.filterText, { color: active ? c.white : c.gray }]}>
                 {f.label}
@@ -571,7 +576,9 @@ export default function RecipesScreen({ navigation }: any) {
               ]}
               onPress={() => { haptics.light(); setDietFilter(f.key); }}
               accessibilityLabel={`Filtrar dieta ${f.label}`}
+              accessibilityRole="button"
               accessibilityState={{ selected: active }}
+              accessibilityHint={`Filtra recetas de dieta ${f.label.toLowerCase()}`}
             >
               <Text style={[styles.filterSmallText, { color: active ? c.accent : c.gray, fontWeight: active ? '700' : '400' }]}>
                 {f.label}
