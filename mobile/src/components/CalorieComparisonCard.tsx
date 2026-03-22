@@ -10,8 +10,8 @@
  *
  * A marker shows where the user currently sits.
  */
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors, typography, spacing, radius } from '../theme';
 import useHaptics from '../hooks/useHaptics';
@@ -76,6 +76,34 @@ function CalorieComparisonCard({ logged, target, status, weekAvg }: CalorieCompa
   // Bar represents 0% to 160% of target
   const markerPct = Math.min(Math.max((ratio / 1.6) * 100, 0), 100);
 
+  // Animated marker position — slides smoothly when zone changes
+  const markerAnim = useRef(new Animated.Value(markerPct)).current;
+  const colorFadeAnim = useRef(new Animated.Value(1)).current;
+  const prevStatusRef = useRef(status);
+
+  useEffect(() => {
+    Animated.timing(markerAnim, {
+      toValue: markerPct,
+      duration: 500,
+      useNativeDriver: false,
+    }).start();
+  }, [markerPct, markerAnim]);
+
+  // Color fade when status zone changes
+  useEffect(() => {
+    if (prevStatusRef.current !== status) {
+      prevStatusRef.current = status;
+      colorFadeAnim.setValue(0);
+      Animated.timing(colorFadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [status, colorFadeAnim]);
+
+  const animatedStatusOpacity = colorFadeAnim;
+
   const deficit = target - logged;
   const isDeficit = deficit > 0;
   const diffText = isDeficit
@@ -133,17 +161,28 @@ function CalorieComparisonCard({ logged, target, status, weekAvg }: CalorieCompa
         <View style={[styles.zone, { flex: 18.75, backgroundColor: z.red }]} />
       </View>
 
-      {/* Marker */}
+      {/* Animated Marker */}
       <View style={styles.markerRow}>
-        <View style={[styles.marker, { left: `${markerPct}%` as any, backgroundColor: statusColor }]}>
+        <Animated.View
+          style={[
+            styles.marker,
+            {
+              left: markerAnim.interpolate({
+                inputRange: [0, 100],
+                outputRange: ['0%', '100%'],
+              }) as any,
+              backgroundColor: statusColor,
+            },
+          ]}
+        >
           <View style={[styles.markerDot, { backgroundColor: statusColor }]} />
-        </View>
+        </Animated.View>
       </View>
 
-      {/* Status line */}
-      <Text style={[styles.statusText, { color: statusColor }]}>
+      {/* Status line with fade transition */}
+      <Animated.Text style={[styles.statusText, { color: statusColor, opacity: animatedStatusOpacity }]}>
         {diffText}
-      </Text>
+      </Animated.Text>
 
       {/* Weekly average */}
       {weekAvg != null && (

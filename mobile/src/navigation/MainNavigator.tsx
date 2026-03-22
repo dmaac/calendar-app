@@ -55,6 +55,7 @@ import WorkoutScreen        from '../screens/main/WorkoutScreen';
 import ChallengesScreen     from '../screens/main/ChallengesScreen';
 import CommunityScreen      from '../screens/main/CommunityScreen';
 import FavoritesScreen      from '../screens/main/FavoritesScreen';
+import RiskDetailScreen     from '../screens/main/RiskDetailScreen';
 import PrivacyPolicy        from '../screens/legal/PrivacyPolicy';
 import TermsOfService       from '../screens/legal/TermsOfService';
 
@@ -189,6 +190,7 @@ const HomeStack = () => (
     <Stack.Screen name="Recipes"     component={RecipesScreen} />
     <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} />
     <Stack.Screen name="Favorites"   component={FavoritesScreen} />
+    <Stack.Screen name="RiskDetail"  component={RiskDetailScreen} />
   </Stack.Navigator>
 );
 

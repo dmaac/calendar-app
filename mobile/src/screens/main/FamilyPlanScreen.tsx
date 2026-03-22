@@ -1,5 +1,5 @@
 /**
- * FamilyPlanScreen — Cal AI style with dark cards, emoji illustration, feature bullets
+ * FamilyPlanScreen — Fitsi style with dark cards, emoji illustration, feature bullets
  */
 import React from 'react';
 import {
@@ -56,7 +56,7 @@ export default function FamilyPlanScreen({ navigation }: any) {
         </View>
 
         {/* Title */}
-        <Text style={[styles.mainTitle, { color: c.black }]}>Cal AI Family Plan</Text>
+        <Text style={[styles.mainTitle, { color: c.black }]}>Fitsi Family Plan</Text>
         <Text style={[styles.subtitle, { color: c.gray }]}>
           One subscription for the whole family. Everyone gets their own personalized experience.
         </Text>

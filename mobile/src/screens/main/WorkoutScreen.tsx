@@ -356,7 +356,7 @@ export default function WorkoutScreen({ navigation }: any) {
           <Ionicons name="chevron-back" size={20} color={c.black} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: c.black }]}>Workouts</Text>
-        <FitsiMascot expression="muscle" size="small" animation="idle" disableTouch />
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView
@@ -374,7 +374,7 @@ export default function WorkoutScreen({ navigation }: any) {
 
         {/* Log Workout Button */}
         <TouchableOpacity
-          style={[styles.logBtn, { backgroundColor: c.black }]}
+          style={[styles.logBtn, { backgroundColor: c.accent }]}
           onPress={openModal}
           activeOpacity={0.85}
           accessibilityLabel="Registrar workout"
@@ -394,13 +394,12 @@ export default function WorkoutScreen({ navigation }: any) {
         <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
           {recentWorkouts.length === 0 ? (
             <View style={styles.emptyState}>
-              <FitsiMascot expression="muscle" size="medium" animation="idle" />
               <Text style={[styles.emptyTitle, { color: c.black }]}>Sin workouts recientes</Text>
               <Text style={[styles.emptyText, { color: c.gray }]}>
                 Registra tu primer entrenamiento para ver tus estadisticas y progreso
               </Text>
               <TouchableOpacity
-                style={[styles.emptyCta, { backgroundColor: c.black }]}
+                style={[styles.emptyCta, { backgroundColor: c.accent }]}
                 onPress={openModal}
                 activeOpacity={0.85}
                 accessibilityLabel="Registrar primer workout"
@@ -576,7 +575,7 @@ export default function WorkoutScreen({ navigation }: any) {
 
         {/* Save button */}
         <TouchableOpacity
-          style={[styles.saveBtn, { backgroundColor: c.black }]}
+          style={[styles.saveBtn, { backgroundColor: c.accent }]}
           onPress={saveWorkout}
           activeOpacity={0.85}
           accessibilityLabel="Guardar workout"

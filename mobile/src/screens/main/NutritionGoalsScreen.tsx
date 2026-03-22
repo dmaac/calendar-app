@@ -551,7 +551,7 @@ export default function NutritionGoalsScreen({ navigation }: any) {
       {/* Fixed save button */}
       <View style={[styles.saveBar, { paddingBottom: insets.bottom + spacing.sm, paddingHorizontal: sidePadding, backgroundColor: c.bg, borderTopColor: c.grayLight }]}>
         <TouchableOpacity
-          style={[styles.saveBtn, { backgroundColor: c.black }, saving && { opacity: 0.6 }]}
+          style={[styles.saveBtn, { backgroundColor: c.accent }, saving && { opacity: 0.6 }]}
           onPress={handleSave}
           disabled={saving}
           activeOpacity={0.85}

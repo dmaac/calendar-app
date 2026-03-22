@@ -15,6 +15,7 @@ Calculates:
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import math
 import time as time_mod
@@ -90,7 +91,7 @@ INTERVENTIONS: dict[str, dict] = {
     },
 }
 
-# Cause-specific message templates (Item 36)
+# Cause-specific message templates (Item 36 + Item 37: 5 variants per cause)
 CAUSE_MESSAGES: dict[str, list[dict]] = {
     "no_log": [
         {
@@ -104,6 +105,14 @@ CAUSE_MESSAGES: dict[str, list[dict]] = {
         {
             "push_title": "Aun no registras nada",
             "push_body": "Un registro rapido mantiene tu racha. Animate!",
+        },
+        {
+            "push_title": "Se te olvido registrar?",
+            "push_body": "Un simple escaneo y listo. No pierdas tu racha de hoy.",
+        },
+        {
+            "push_title": "Tu registro te espera",
+            "push_body": "Cada dia cuenta. Registra aunque sea una comida para mantener el habito.",
         },
     ],
     "low_calories": [
@@ -119,6 +128,14 @@ CAUSE_MESSAGES: dict[str, list[dict]] = {
             "push_title": "Tu ingesta esta baja",
             "push_body": "{cal} de {target} kcal. Considera una comida mas completa.",
         },
+        {
+            "push_title": "Necesitas mas energia",
+            "push_body": "Solo {pct}% de tu meta. Tu cuerpo rinde mejor bien alimentado.",
+        },
+        {
+            "push_title": "No te quedes corto",
+            "push_body": "{cal} de {target} kcal. Agrega fruta, frutos secos o un batido.",
+        },
     ],
     "excess": [
         {
@@ -132,6 +149,14 @@ CAUSE_MESSAGES: dict[str, list[dict]] = {
         {
             "push_title": "Exceso calorico",
             "push_body": "Vas en {cal} de {target} kcal. Una caminata corta puede ayudar.",
+        },
+        {
+            "push_title": "Sobre tu meta hoy",
+            "push_body": "Llevas {pct}% de tu objetivo. Toma agua y elige algo ligero.",
+        },
+        {
+            "push_title": "Ajusta tu proxima comida",
+            "push_body": "{cal} kcal registradas. Equilibra con verduras o ensalada.",
         },
     ],
     "bad_quality": [
@@ -147,6 +172,14 @@ CAUSE_MESSAGES: dict[str, list[dict]] = {
             "push_title": "Calidad nutricional baja",
             "push_body": "Diversifica tus comidas para mejorar tu nutricion.",
         },
+        {
+            "push_title": "Elige mejor calidad",
+            "push_body": "Un cambio simple: agrega una porcion de verduras o ensalada.",
+        },
+        {
+            "push_title": "Puedes comer mas saludable",
+            "push_body": "Prueba cambiar un snack procesado por fruta o frutos secos.",
+        },
     ],
     "low_protein": [
         {
@@ -160,6 +193,14 @@ CAUSE_MESSAGES: dict[str, list[dict]] = {
         {
             "push_title": "Sube tu proteina",
             "push_body": "Necesitas mas proteina. Un yogurt griego o frutos secos ayudan.",
+        },
+        {
+            "push_title": "Tu musculo necesita proteina",
+            "push_body": "Solo {protein_pct}% de tu meta. Agrega atun, queso cottage o tofu.",
+        },
+        {
+            "push_title": "Refuerza tu proteina",
+            "push_body": "Agrega una porcion de proteina: huevo duro, pollo o legumbres.",
         },
     ],
     "macro_imbalance": [
@@ -175,7 +216,137 @@ CAUSE_MESSAGES: dict[str, list[dict]] = {
             "push_title": "Macros desbalanceados",
             "push_body": "Diversifica para un mejor equilibrio nutricional.",
         },
+        {
+            "push_title": "Equilibra tus nutrientes",
+            "push_body": "Tu dieta esta inclinada a un solo macro. Agrega variedad.",
+        },
+        {
+            "push_title": "Variedad en tu plato",
+            "push_body": "Combina proteina, carbos complejos y grasas buenas en cada comida.",
+        },
     ],
+}
+
+# Time-of-day aware message overrides (Item 37)
+# Morning (6-12), Afternoon (12-18), Evening (18-6)
+TIME_AWARE_MESSAGES: dict[str, dict[str, dict]] = {
+    "no_log": {
+        "morning": {
+            "push_title": "Empieza el dia bien",
+            "push_body": "Registra tu desayuno y arranca con energia.",
+        },
+        "afternoon": {
+            "push_title": "Aun no registras hoy",
+            "push_body": "La mitad del dia paso. Registra tu almuerzo ahora.",
+        },
+        "evening": {
+            "push_title": "Aun puedes mejorar hoy",
+            "push_body": "Registra tu cena antes de dormir. Cada registro cuenta.",
+        },
+    },
+    "low_calories": {
+        "morning": {
+            "push_title": "Tu dia empezo bajo",
+            "push_body": "Llevas {cal} de {target} kcal. Un buen almuerzo te pondra al dia.",
+        },
+        "afternoon": {
+            "push_title": "Calorias bajas a media tarde",
+            "push_body": "{cal} de {target} kcal. Agrega un snack y una cena completa.",
+        },
+        "evening": {
+            "push_title": "Dia bajo en calorias",
+            "push_body": "Solo {cal} de {target} kcal. Una cena nutritiva puede ayudar.",
+        },
+    },
+    "excess": {
+        "morning": {
+            "push_title": "Cuidado con el exceso temprano",
+            "push_body": "Ya llevas {cal} kcal. Modera el resto del dia.",
+        },
+        "afternoon": {
+            "push_title": "Exceso a media tarde",
+            "push_body": "{cal} kcal — {pct}% de tu meta. Elige una cena ligera.",
+        },
+        "evening": {
+            "push_title": "Te pasaste hoy",
+            "push_body": "{cal} kcal registradas. Manana es un nuevo dia para equilibrar.",
+        },
+    },
+    "bad_quality": {
+        "morning": {
+            "push_title": "Mejora la calidad hoy",
+            "push_body": "Empieza con un almuerzo balanceado: proteina, verduras y carbos.",
+        },
+        "afternoon": {
+            "push_title": "Aun puedes mejorar tu dieta",
+            "push_body": "Elige una cena con verduras frescas y proteina magra.",
+        },
+        "evening": {
+            "push_title": "Calidad baja hoy",
+            "push_body": "Manana intenta incluir mas alimentos frescos e integrales.",
+        },
+    },
+    "low_protein": {
+        "morning": {
+            "push_title": "Sube tu proteina hoy",
+            "push_body": "Planea un almuerzo rico en proteina: pollo, pescado o legumbres.",
+        },
+        "afternoon": {
+            "push_title": "Proteina baja a esta hora",
+            "push_body": "Agrega un snack proteico: yogurt griego, huevo duro o atun.",
+        },
+        "evening": {
+            "push_title": "Proteina insuficiente hoy",
+            "push_body": "Incluye proteina en tu cena: pollo, tofu o legumbres.",
+        },
+    },
+    "macro_imbalance": {
+        "morning": {
+            "push_title": "Equilibra tus macros hoy",
+            "push_body": "Planea comidas variadas: proteina, carbos complejos y grasas buenas.",
+        },
+        "afternoon": {
+            "push_title": "Desbalance de macros",
+            "push_body": "En tu proxima comida, equilibra proteina, carbos y grasas.",
+        },
+        "evening": {
+            "push_title": "Macros desbalanceados hoy",
+            "push_body": "Manana intenta distribuir mejor tus macronutrientes.",
+        },
+    },
+}
+
+
+# Intervention priority order (Item 47)
+INTERVENTION_PRIORITY: list[str] = [
+    "critical", "no_log", "excess", "low_calories",
+    "low_protein", "bad_quality", "macro_imbalance",
+]
+
+
+# Rescue sequence for abandonment (Item 41)
+RESCUE_SEQUENCE: dict[int, dict] = {
+    1: {
+        "push_title": "Te echamos de menos!",
+        "push_body": "Un registro rapido mantiene tu racha.",
+        "in_app_banner": "Llevas 1 dia sin registrar. Un escaneo rapido y listo!",
+        "cta_action": "/scan",
+        "cta_label": "Registro rapido",
+    },
+    3: {
+        "push_title": "Llevas 3 dias sin registrar",
+        "push_body": "Tu plan te espera. Registra algo simple.",
+        "in_app_banner": "3 dias sin registro. Tu plan necesita atencion. Vuelve con algo simple.",
+        "cta_action": "/api/risk/copy-yesterday",
+        "cta_label": "Copiar dia anterior",
+    },
+    7: {
+        "push_title": "Ha pasado una semana",
+        "push_body": "Empecemos de nuevo con un desayuno simple.",
+        "in_app_banner": "Llevas una semana sin registrar. Empecemos de cero con algo facil.",
+        "cta_action": "/api/risk/quick-add-protein",
+        "cta_label": "Agregar snack proteico",
+    },
 }
 
 # In-memory cooldown tracker (per-process; sufficient for single-instance deployments)
@@ -801,7 +972,125 @@ def _record_intervention(user_id: int, severity: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Cause-specific message selection (Item 36)
+# Time-of-day awareness (Item 37)
+# ---------------------------------------------------------------------------
+
+def _get_time_period() -> str:
+    """Return 'morning', 'afternoon', or 'evening' based on current UTC hour."""
+    hour = datetime.utcnow().hour
+    if 6 <= hour < 12:
+        return "morning"
+    elif 12 <= hour < 18:
+        return "afternoon"
+    return "evening"
+
+
+def _get_time_aware_message(
+    primary_reason: str,
+    cal_logged: int,
+    cal_target: int,
+    protein_logged: int,
+    protein_target: int,
+    consecutive_days: int,
+) -> Optional[dict]:
+    """
+    Return a time-of-day specific message override for the given cause (Item 37).
+    Returns None if no time-aware message is available for this reason.
+    """
+    period = _get_time_period()
+    reason_messages = TIME_AWARE_MESSAGES.get(primary_reason)
+    if not reason_messages:
+        return None
+    template_data = reason_messages.get(period)
+    if not template_data:
+        return None
+
+    template = dict(template_data)
+
+    # Interpolate placeholders
+    pct = int((cal_logged / cal_target * 100)) if cal_target > 0 else 0
+    protein_pct = int((protein_logged / protein_target * 100)) if protein_target > 0 else 0
+
+    for key in ("push_title", "push_body"):
+        if key in template and isinstance(template[key], str):
+            template[key] = template[key].format(
+                days=consecutive_days,
+                pct=pct,
+                cal=cal_logged,
+                target=cal_target,
+                protein_pct=protein_pct,
+            )
+
+    return template
+
+
+# ---------------------------------------------------------------------------
+# Rescue sequence for abandonment (Item 41)
+# ---------------------------------------------------------------------------
+
+def _get_rescue_sequence(consecutive_no_log_days: int) -> Optional[dict]:
+    """
+    Return a rescue intervention for users who stopped logging.
+    Day 1: gentle reminder
+    Day 3: urgency
+    Day 7+: re-engagement
+    """
+    if consecutive_no_log_days >= 7:
+        return dict(RESCUE_SEQUENCE[7])
+    elif consecutive_no_log_days >= 3:
+        return dict(RESCUE_SEQUENCE[3])
+    elif consecutive_no_log_days >= 1:
+        return dict(RESCUE_SEQUENCE[1])
+    return None
+
+
+# ---------------------------------------------------------------------------
+# User correction detection (Item 38)
+# ---------------------------------------------------------------------------
+
+async def _user_corrected_today(
+    user_id: int,
+    session: AsyncSession,
+) -> bool:
+    """
+    Check if the user's calories_ratio improved from < 0.5 to > 0.7 today.
+    Looks at the existing adherence record vs current food log totals.
+    """
+    today = date.today()
+    result = await session.exec(
+        select(DailyNutritionAdherence).where(
+            DailyNutritionAdherence.user_id == user_id,
+            DailyNutritionAdherence.date == today,
+        )
+    )
+    existing = result.first()
+    if existing is None:
+        return False
+
+    # The existing record had low ratio, check if current totals show improvement
+    old_ratio = existing.calories_ratio
+    if old_ratio >= 0.5:
+        return False
+
+    # Get current totals
+    totals = await _get_day_totals(user_id, today, session)
+    goals = await _get_goals(user_id, session)
+    cal_target = goals["calories"]
+    current_ratio = totals["calories"] / cal_target if cal_target > 0 else 0.0
+
+    return current_ratio > 0.7
+
+
+POSITIVE_CORRECTION_MESSAGE: dict = {
+    "push_title": "Excelente! Corregiste tu registro",
+    "push_body": "Sigue asi. Tu constancia es clave para cumplir tu meta.",
+    "color": "#22C55E",
+    "home_banner": False,
+}
+
+
+# ---------------------------------------------------------------------------
+# Cause-specific message selection (Item 36 + Item 37 time awareness)
 # ---------------------------------------------------------------------------
 
 def _select_intervention_message(
@@ -814,8 +1103,16 @@ def _select_intervention_message(
 ) -> dict:
     """
     Pick a cause-specific message template based on the primary risk reason.
+    Item 37: Prefers time-of-day aware message when available.
     Rotates among variants using a simple hash of the current date to avoid repetition.
     """
+    # Item 37: Try time-aware message first
+    time_msg = _get_time_aware_message(
+        primary_reason, cal_logged, cal_target, protein_logged, protein_target, consecutive_days,
+    )
+    if time_msg:
+        return time_msg
+
     templates = CAUSE_MESSAGES.get(primary_reason)
     if not templates:
         return {}
@@ -850,14 +1147,44 @@ async def calculate_daily_adherence(
     user_id: int,
     target_date: date,
     session: AsyncSession,
+    *,
+    day_type: Optional[str] = None,
 ) -> DailyNutritionAdherence:
     """
     Calculate (or update) the adherence record for user_id on target_date.
     Persists the result in daily_nutrition_adherence and returns it.
+
+    Args:
+        day_type: Optional day type (rest/training/refeed) to adjust targets
+                  using variable_plan_service multipliers (Item 7).
     """
     _t0 = time_mod.perf_counter()
 
-    goals = await _get_goals(user_id, session)
+    # Item 18: Check onboarding completion status early (reused for grace period below)
+    onboarding_result = await session.exec(
+        select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
+    )
+    onboarding = onboarding_result.first()
+    onboarding_complete = onboarding is not None and onboarding.completed_at is not None
+
+    # Item 18: Use generous defaults if onboarding not completed
+    if not onboarding_complete:
+        goals = _validate_goals({"calories": 2000, "protein_g": 150, "fat_g": 65, "carbs_g": 250})
+    else:
+        goals = await _get_goals(user_id, session)
+
+    # Item 7: Apply variable plan multipliers if day_type is provided
+    if day_type is not None:
+        from .variable_plan_service import DAY_TYPES
+        if day_type in DAY_TYPES:
+            dt_cfg = DAY_TYPES[day_type]
+            goals = {
+                "calories": int(round(goals["calories"] * dt_cfg["calorie_multiplier"])),
+                "protein_g": int(round(goals["protein_g"] * dt_cfg["protein_multiplier"])),
+                "carbs_g": int(round(goals["carbs_g"] * dt_cfg["carb_multiplier"])),
+                "fat_g": int(round(goals["fat_g"] * dt_cfg["fat_multiplier"])),
+            }
+
     totals = await _get_day_totals(user_id, target_date, session)
     distinct_meals = await _get_distinct_meals_count(user_id, target_date, session)
     meal_hours = await _get_meal_hours(user_id, target_date, session)
@@ -927,15 +1254,27 @@ async def calculate_daily_adherence(
 
     # Item 19: Grace period — reduce risk score by 50% in first 3 days after onboarding
     grace_period = False
-    onboarding_result = await session.exec(
-        select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
-    )
-    onboarding = onboarding_result.first()
     if onboarding and onboarding.completed_at:
         days_since = (datetime.combine(target_date, dt_time.min) - onboarding.completed_at).days
         if 0 <= days_since <= 3:
             grace_period = True
             nutrition_risk_score = max(0, int(nutrition_risk_score * 0.50))
+
+    # Item 18: Reduce risk score by 30% for incomplete onboarding users
+    if not onboarding_complete:
+        nutrition_risk_score = max(0, int(nutrition_risk_score * 0.70))
+
+    # Item 7: Build plan_snapshot JSON with day_type and onboarding info
+    plan_snapshot_dict = {
+        "calories": calories_target,
+        "protein_g": protein_target,
+        "carbs_g": carbs_target,
+        "fat_g": fats_target,
+        "onboarding_complete": onboarding_complete,
+    }
+    if day_type is not None:
+        plan_snapshot_dict["day_type"] = day_type
+    plan_snapshot_str = json.dumps(plan_snapshot_dict)
 
     # Upsert: check for existing record
     result = await session.exec(
@@ -976,6 +1315,7 @@ async def calculate_daily_adherence(
         existing.adherence_status = adherence_status
         existing.nutrition_risk_score = nutrition_risk_score
         existing.no_log_flag = no_log_flag
+        existing.plan_snapshot = plan_snapshot_str
         session.add(existing)
         await session.commit()
         await session.refresh(existing)
@@ -1003,6 +1343,7 @@ async def calculate_daily_adherence(
         adherence_status=adherence_status,
         nutrition_risk_score=nutrition_risk_score,
         no_log_flag=no_log_flag,
+        plan_snapshot=plan_snapshot_str,
     )
     session.add(adherence)
     await session.commit()
@@ -1179,17 +1520,80 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
         elif current_status == "high_risk":
             display_status = "low_adherence"
 
-    intervention = _get_intervention(
-        display_status,
-        consecutive,
-        today_adherence.calories_logged,
-        today_adherence.calories_target,
-        user_id=user_id,
-        calories_ratio=today_adherence.calories_ratio,
-        primary_reason=primary_reason,
-        protein_logged=today_adherence.protein_logged,
-        protein_target=today_adherence.protein_target,
+    # Item 38: Check if user corrected today (ratio improved from < 0.5 to > 0.7)
+    corrected_today = await _user_corrected_today(user_id, session)
+    if corrected_today:
+        intervention = dict(POSITIVE_CORRECTION_MESSAGE)
+        intervention["triggered"] = True
+        intervention["suppressed_by_cooldown"] = False
+        intervention["last_intervention_at"] = None
+        intervention["last_intervention_type"] = None
+        intervention["cta_action"] = "/scan"
+        intervention["cta_label"] = "Seguir registrando"
+        # Track correction event
+        try:
+            from .risk_analytics_service import track_risk_event
+            await track_risk_event(
+                user_id=user_id,
+                event_type="correction_after_intervention",
+                metadata={"status": "corrected", "source": "auto_detect"},
+                session=session,
+            )
+        except Exception:
+            logger.debug("Failed to track correction event for user %d", user_id)
+    else:
+        # Item 47: Prioritize single dominant intervention per day
+        suppressed_interventions: list[str] = []
+        # Build candidate list from all identified risk reasons
+        all_reasons = [primary_reason]
+        if secondary_reason:
+            all_reasons.append(secondary_reason)
+        # If multiple interventions would fire, pick highest priority
+        dominant_reason = primary_reason
+        for priority_reason in INTERVENTION_PRIORITY:
+            if priority_reason in all_reasons:
+                dominant_reason = priority_reason
+                break
+        # Suppress non-dominant reasons
+        for reason in all_reasons:
+            if reason != dominant_reason:
+                suppressed_interventions.append(reason)
+
+        intervention = _get_intervention(
+            display_status,
+            consecutive,
+            today_adherence.calories_logged,
+            today_adherence.calories_target,
+            user_id=user_id,
+            calories_ratio=today_adherence.calories_ratio,
+            primary_reason=dominant_reason,
+            protein_logged=today_adherence.protein_logged,
+            protein_target=today_adherence.protein_target,
+        )
+        intervention["suppressed_interventions"] = suppressed_interventions
+
+    # Item 8: Protein minimum check — read user weight and activity level
+    protein_check = None
+    onboarding_result = await session.exec(
+        select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
+    onboarding_profile = onboarding_result.first()
+    if onboarding_profile and onboarding_profile.weight_kg and onboarding_profile.weight_kg > 0:
+        # Determine activity level from nutrition profile
+        np_result = await session.exec(
+            select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
+        )
+        np = np_result.first()
+        activity_lvl = "moderate"
+        if np and np.activity_level:
+            lvl_str = np.activity_level.value if hasattr(np.activity_level, "value") else str(np.activity_level)
+            if lvl_str == "sedentary":
+                activity_lvl = "sedentary"
+        protein_check = _check_protein_minimum(
+            today_adherence.protein_logged,
+            onboarding_profile.weight_kg,
+            activity_lvl,
+        )
 
     summary = {
         "avg_risk_score": avg_risk,
@@ -1207,6 +1611,7 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
         "secondary_risk_reason": secondary_reason,
         "consistency_score_7d": consistency_score_7d,
         "recovery": recovery,
+        "protein_check": protein_check,
     }
 
     # Item 71: Cache the result
@@ -1249,18 +1654,43 @@ def _get_intervention(
                 target=cal_target,
             )
 
-    # Item 36: overlay cause-specific message if available
-    cause_msg = _select_intervention_message(
-        primary_reason=primary_reason,
-        consecutive_days=consecutive_days,
-        cal_logged=cal_logged,
-        cal_target=cal_target,
-        protein_logged=protein_logged,
-        protein_target=protein_target,
-    )
-    if cause_msg:
-        intervention["push_title"] = cause_msg.get("push_title", intervention.get("push_title", ""))
-        intervention["push_body"] = cause_msg.get("push_body", intervention.get("push_body", ""))
+    # Item 41: Rescue sequence overrides for no-log abandonment
+    if primary_reason == "no_log" and consecutive_days >= 1:
+        rescue = _get_rescue_sequence(consecutive_days)
+        if rescue:
+            intervention["push_title"] = rescue["push_title"]
+            intervention["push_body"] = rescue["push_body"]
+            intervention["in_app_banner"] = rescue["in_app_banner"]
+            intervention["cta_action"] = rescue["cta_action"]
+            intervention["cta_label"] = rescue["cta_label"]
+    else:
+        # Item 36: overlay cause-specific message if available
+        cause_msg = _select_intervention_message(
+            primary_reason=primary_reason,
+            consecutive_days=consecutive_days,
+            cal_logged=cal_logged,
+            cal_target=cal_target,
+            protein_logged=protein_logged,
+            protein_target=protein_target,
+        )
+        if cause_msg:
+            intervention["push_title"] = cause_msg.get("push_title", intervention.get("push_title", ""))
+            intervention["push_body"] = cause_msg.get("push_body", intervention.get("push_body", ""))
+
+    # Items 42-44: Add Quick CTA actions based on primary reason
+    if "cta_action" not in intervention:
+        if primary_reason == "no_log":
+            intervention["cta_action"] = "/scan"
+            intervention["cta_label"] = "Registro rapido"
+        elif primary_reason == "low_calories":
+            intervention["cta_action"] = "/api/risk/copy-yesterday"
+            intervention["cta_label"] = "Copiar dia anterior"
+        elif primary_reason == "low_protein":
+            intervention["cta_action"] = "/api/risk/quick-add-protein"
+            intervention["cta_label"] = "Agregar snack proteico"
+        elif primary_reason in ("excess", "bad_quality", "macro_imbalance"):
+            intervention["cta_action"] = "/scan"
+            intervention["cta_label"] = "Registro rapido"
 
     # Item 20: cooldown check
     should_send, last_at, last_type = _should_send_intervention(user_id, status)
@@ -1324,16 +1754,9 @@ async def detect_weekend_pattern(user_id: int, session: AsyncSession) -> dict:
     """
     Compare avg calories/risk for weekdays vs weekends over the last 4 weeks.
 
-    Returns:
-        {
-            "weekend_avg_calories": float,
-            "weekday_avg_calories": float,
-            "weekend_avg_risk": float,
-            "weekday_avg_risk": float,
-            "weekend_risk_higher": bool,
-            "pattern_detected": bool,
-            "pct_difference": float,
-        }
+    Item 16 enhancements:
+    - TIME patterns: detect if first meal on weekends is >2h later than weekday average
+    - QUALITY patterns: detect if weekends have lower diet quality scores
 
     Pattern is detected if weekend avg calories are >20% higher than weekday avg.
     """
@@ -1354,16 +1777,18 @@ async def detect_weekend_pattern(user_id: int, session: AsyncSession) -> dict:
     weekday_calories: list[int] = []
     weekend_risk: list[int] = []
     weekday_risk: list[int] = []
+    weekend_quality: list[int] = []
+    weekday_quality: list[int] = []
 
     for r in records:
-        # Python: weekday() returns 0=Monday ... 6=Sunday
-        # Weekend = Saturday(5) or Sunday(6)
         if r.date.weekday() >= 5:
             weekend_calories.append(r.calories_logged)
             weekend_risk.append(r.nutrition_risk_score)
+            weekend_quality.append(r.diet_quality_score)
         else:
             weekday_calories.append(r.calories_logged)
             weekday_risk.append(r.nutrition_risk_score)
+            weekday_quality.append(r.diet_quality_score)
 
     weekend_avg_cal = round(sum(weekend_calories) / len(weekend_calories)) if weekend_calories else 0
     weekday_avg_cal = round(sum(weekday_calories) / len(weekday_calories)) if weekday_calories else 0
@@ -1376,11 +1801,49 @@ async def detect_weekend_pattern(user_id: int, session: AsyncSession) -> dict:
     else:
         pct_difference = 0.0
 
-    # Pattern detected if weekend avg is >20% higher than weekday
     pattern_detected = pct_difference > 20.0
-
-    # Weekend risk is higher if weekend avg risk score is higher
     weekend_risk_higher = weekend_avg_risk > weekday_avg_risk
+
+    # --- Item 16: TIME pattern — first meal timing ---
+    fl_start = datetime.combine(four_weeks_ago, dt_time.min)
+    fl_end = datetime.combine(today, dt_time.max)
+
+    food_log_result = await session.execute(
+        select(AIFoodLog.logged_at).where(
+            AIFoodLog.user_id == user_id,
+            AIFoodLog.logged_at >= fl_start,
+            AIFoodLog.logged_at <= fl_end,
+        ).order_by(AIFoodLog.logged_at)
+    )
+    food_log_rows = food_log_result.all()
+
+    first_meal_by_date: dict[date, int] = {}
+    for row in food_log_rows:
+        log_date = row[0].date()
+        if log_date not in first_meal_by_date:
+            first_meal_by_date[log_date] = row[0].hour
+
+    weekend_first_hours: list[int] = []
+    weekday_first_hours: list[int] = []
+    for d, hour in first_meal_by_date.items():
+        if d.weekday() >= 5:
+            weekend_first_hours.append(hour)
+        else:
+            weekday_first_hours.append(hour)
+
+    weekend_avg_first_meal_hour = round(sum(weekend_first_hours) / len(weekend_first_hours), 1) if weekend_first_hours else None
+    weekday_avg_first_meal_hour = round(sum(weekday_first_hours) / len(weekday_first_hours), 1) if weekday_first_hours else None
+
+    late_weekend_meals = False
+    first_meal_diff_hours = 0.0
+    if weekend_avg_first_meal_hour is not None and weekday_avg_first_meal_hour is not None:
+        first_meal_diff_hours = round(weekend_avg_first_meal_hour - weekday_avg_first_meal_hour, 1)
+        late_weekend_meals = first_meal_diff_hours > 2.0
+
+    # --- Item 16: QUALITY pattern — diet quality difference ---
+    weekend_avg_quality = round(sum(weekend_quality) / len(weekend_quality)) if weekend_quality else 0
+    weekday_avg_quality = round(sum(weekday_quality) / len(weekday_quality)) if weekday_quality else 0
+    quality_drop_weekend = weekday_avg_quality - weekend_avg_quality if weekday_avg_quality > 0 else 0
 
     return {
         "weekend_avg_calories": weekend_avg_cal,
@@ -1393,4 +1856,124 @@ async def detect_weekend_pattern(user_id: int, session: AsyncSession) -> dict:
         "data_days": len(records),
         "weekend_days": len(weekend_calories),
         "weekday_days": len(weekday_calories),
+        # Item 16: TIME patterns
+        "weekend_avg_first_meal_hour": weekend_avg_first_meal_hour,
+        "weekday_avg_first_meal_hour": weekday_avg_first_meal_hour,
+        "first_meal_diff_hours": first_meal_diff_hours,
+        "late_weekend_meals": late_weekend_meals,
+        # Item 16: QUALITY patterns
+        "weekend_avg_quality": weekend_avg_quality,
+        "weekday_avg_quality": weekday_avg_quality,
+        "quality_drop_weekend": quality_drop_weekend,
+        "worse_quality_weekends": quality_drop_weekend > 10,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Chronic under-reporting detection (Item 9)
+# ---------------------------------------------------------------------------
+
+async def detect_chronic_underreporting(user_id: int, session: AsyncSession) -> dict:
+    """
+    Compare last 14 days of logged calories vs target.
+    If average logged < 60% of target for >= 10 of 14 days -> chronic underreporting.
+    Also check if meals_logged is consistently low (< 2 per day average).
+
+    Returns:
+        {
+            "chronic_underreporting": bool,
+            "avg_logged_pct": float,
+            "days_analyzed": int,
+            "days_under": int,
+            "likely_not_logging": bool,
+            "suggestion": str,
+        }
+    """
+    today = date.today()
+    start = today - timedelta(days=13)
+
+    result = await session.exec(
+        select(DailyNutritionAdherence).where(
+            DailyNutritionAdherence.user_id == user_id,
+            DailyNutritionAdherence.date >= start,
+            DailyNutritionAdherence.date <= today,
+        )
+    )
+    records = list(result.all())
+
+    if not records:
+        return {
+            "chronic_underreporting": False,
+            "avg_logged_pct": 0.0,
+            "days_analyzed": 0,
+            "days_under": 0,
+            "likely_not_logging": True,
+            "suggestion": "No hay datos suficientes. Comienza a registrar tus comidas.",
+        }
+
+    days_under = 0
+    total_pct = 0.0
+    total_meals = 0
+
+    for r in records:
+        pct = (r.calories_logged / r.calories_target) if r.calories_target > 0 else 0.0
+        total_pct += pct
+        total_meals += r.meals_logged
+        if pct < 0.60:
+            days_under += 1
+
+    days_analyzed = len(records)
+    avg_logged_pct = round((total_pct / days_analyzed) * 100, 1) if days_analyzed > 0 else 0.0
+    avg_meals_per_day = total_meals / days_analyzed if days_analyzed > 0 else 0.0
+
+    chronic = days_under >= 10 and days_analyzed >= 10
+    likely_not_logging = avg_meals_per_day < 2.0
+
+    if chronic:
+        suggestion = "Parece que no estas registrando todo. Intenta el registro rapido despues de cada comida."
+    elif likely_not_logging:
+        suggestion = "Registras pocas comidas al dia. Intenta registrar al menos desayuno, almuerzo y cena."
+    else:
+        suggestion = "Tu registro esta dentro de lo esperado. Sigue asi!"
+
+    return {
+        "chronic_underreporting": chronic,
+        "avg_logged_pct": avg_logged_pct,
+        "days_analyzed": days_analyzed,
+        "days_under": days_under,
+        "likely_not_logging": likely_not_logging,
+        "suggestion": suggestion,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Protein minimum check (Item 8)
+# ---------------------------------------------------------------------------
+
+def _check_protein_minimum(protein_logged: int, weight_kg: float, activity_level: str = "moderate") -> dict:
+    """
+    Check if user meets minimum protein requirement.
+    - Minimum protein = 1.2g per kg bodyweight (or 0.8g for sedentary).
+
+    Returns:
+        {
+            "meets_minimum": bool,
+            "protein_logged": int,
+            "minimum_g": int,
+            "deficit_g": int,
+        }
+    """
+    if activity_level == "sedentary":
+        min_per_kg = 0.8
+    else:
+        min_per_kg = 1.2
+
+    minimum_g = int(round(min_per_kg * weight_kg))
+    deficit_g = max(0, minimum_g - protein_logged)
+
+    return {
+        "meets_minimum": protein_logged >= minimum_g,
+        "protein_logged": protein_logged,
+        "minimum_g": minimum_g,
+        "deficit_g": deficit_g,
     }

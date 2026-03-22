@@ -680,9 +680,15 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
             </View>
           ) : riskScore > 60 ? (
-            <View style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}>
+            <TouchableOpacity
+              style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}
+              onPress={() => { haptics.light(); navigation.navigate('RiskDetail' as any); }}
+              activeOpacity={0.8}
+              accessibilityLabel="Ver detalle de riesgo nutricional"
+              accessibilityRole="button"
+            >
               <NutritionSemaphore riskScore={riskScore} status={riskStatus} size={100} trend={riskTrend} />
-            </View>
+            </TouchableOpacity>
           ) : null}
 
           {/* Re-engagement banner — user hasn't logged in 3+ days */}

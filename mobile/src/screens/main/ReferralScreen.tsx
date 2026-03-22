@@ -206,7 +206,7 @@ Tu cuerpo te lo va a agradecer!`;
         </View>
 
         {/* Share general */}
-        <TouchableOpacity style={[styles.shareBtn, { backgroundColor: c.black }]} onPress={handleShare} activeOpacity={0.85}>
+        <TouchableOpacity style={[styles.shareBtn, { backgroundColor: c.accent }]} onPress={handleShare} activeOpacity={0.85}>
           <Ionicons name="share-outline" size={20} color={c.white} />
           <Text style={[styles.shareBtnText, { color: c.white }]}>Mas opciones de compartir</Text>
         </TouchableOpacity>

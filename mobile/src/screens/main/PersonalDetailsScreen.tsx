@@ -1,7 +1,7 @@
 /**
  * PersonalDetailsScreen — Cal AI style with Goal Weight card + field list with checkmarks
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,10 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography, spacing, radius, useThemeColors } from '../../theme';
@@ -40,6 +43,8 @@ export default function PersonalDetailsScreen({ navigation }: any) {
   const [profile, setProfile] = useState<OnboardingProfileRead | null>(null);
   const [loading, setLoading] = useState(true);
   const [stepGoal, setStepGoal] = useState(10000);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date(1990, 0, 1));
 
   const handleUpdateField = async (field: string, value: any) => {
     haptics.success();
@@ -90,10 +95,8 @@ export default function PersonalDetailsScreen({ navigation }: any) {
       value: birthDateFormatted,
       hasValue: !!profile?.birth_date,
       onPress: () => {
-        Alert.alert('Fecha de nacimiento', 'Selecciona tu fecha de nacimiento:', [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Ir a Editar Perfil', onPress: () => navigation.navigate('EditProfile', { profile }) },
-        ]);
+        setTempDate(profile?.birth_date ? new Date(profile.birth_date) : new Date(1990, 0, 1));
+        setShowDateModal(true);
       },
     },
     {
@@ -196,11 +199,43 @@ export default function PersonalDetailsScreen({ navigation }: any) {
                 </TouchableOpacity>
               ))}
             </View>
+
           </>
         )}
 
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
+
+      {/* Date picker modal with scroll day/month/year */}
+      <Modal visible={showDateModal} transparent animationType="slide">
+        <View style={styles.dateModalOverlay}>
+          <View style={[styles.dateModalContent, { backgroundColor: c.surface }]}>
+            <View style={styles.dateModalHeader}>
+              <TouchableOpacity onPress={() => setShowDateModal(false)}>
+                <Text style={[styles.dateModalBtn, { color: c.gray }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <Text style={[styles.dateModalTitle, { color: c.black }]}>Fecha de nacimiento</Text>
+              <TouchableOpacity onPress={() => {
+                const iso = tempDate.toISOString().split('T')[0];
+                handleUpdateField('birth_date', iso);
+                setShowDateModal(false);
+              }}>
+                <Text style={[styles.dateModalBtn, { color: c.accent }]}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display="spinner"
+              maximumDate={new Date()}
+              minimumDate={new Date(1920, 0, 1)}
+              onChange={(_, date) => { if (date) setTempDate(date); }}
+              themeVariant="dark"
+              style={{ height: 200 }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -290,7 +325,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#34A853', // overridden inline with c.success
+    backgroundColor: '#34A853',
     alignItems: 'center',
     justifyContent: 'center',
   },

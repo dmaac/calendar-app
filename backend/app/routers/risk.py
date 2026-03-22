@@ -38,13 +38,17 @@ except ImportError:
 
 _rl = lambda limit_str: (_limiter.limit(limit_str) if _rate_limit_enabled else lambda f: f)
 
+from sqlalchemy import func as sa_func
+
 from ..core.database import get_session
+from ..models.ai_food_log import AIFoodLog
 from ..models.nutrition_adherence import DailyNutritionAdherence
 from ..models.onboarding_profile import OnboardingProfile
 from ..models.user import User
 from ..services.integrated_health_service import calculate_integrated_health_score
-from ..services.nutrition_risk_service import calculate_daily_adherence, detect_weekend_pattern, get_user_risk_summary, recalculate_on_food_log
+from ..services.nutrition_risk_service import calculate_daily_adherence, detect_chronic_underreporting, detect_weekend_pattern, get_user_risk_summary, recalculate_on_food_log
 from ..services.recovery_plan_service import generate_24h_recovery_plan, generate_3day_recovery_plan
+from ..services.variable_plan_service import get_adjusted_goals
 from ..services.risk_analytics_service import (
     get_admin_risk_dashboard,
     get_intervention_variant,
@@ -465,6 +469,16 @@ class WeekendPatternResponse(BaseModel):
     data_days: int
     weekend_days: int
     weekday_days: int
+    # Item 16: TIME patterns
+    weekend_avg_first_meal_hour: Optional[float] = None
+    weekday_avg_first_meal_hour: Optional[float] = None
+    first_meal_diff_hours: float = 0.0
+    late_weekend_meals: bool = False
+    # Item 16: QUALITY patterns
+    weekend_avg_quality: int = 0
+    weekday_avg_quality: int = 0
+    quality_drop_weekend: int = 0
+    worse_quality_weekends: bool = False
 
 
 @router.get("/recovery-plan")
@@ -493,6 +507,49 @@ async def get_patterns(
     """Return detected nutrition patterns (weekend vs weekday) for the authenticated user."""
     data = await detect_weekend_pattern(current_user.id, session)
     return WeekendPatternResponse(**data)
+
+
+class AdjustedGoalsResponse(BaseModel):
+    calories: int
+    protein_g: int
+    carbs_g: int
+    fat_g: int
+    day_type: str
+    label: str
+
+
+class ChronicUnderreportingResponse(BaseModel):
+    chronic_underreporting: bool
+    avg_logged_pct: float
+    days_analyzed: int
+    days_under: int
+    likely_not_logging: bool
+    suggestion: str
+
+
+@router.get("/adjusted-goals", response_model=AdjustedGoalsResponse)
+@_rl("30/minute")
+async def get_adjusted_goals_endpoint(
+    request: Request,
+    day_type: str = Query(default="training", regex="^(rest|training|refeed)$"),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return adjusted nutrition goals based on day type (rest/training/refeed)."""
+    data = await get_adjusted_goals(current_user.id, day_type, session)
+    return AdjustedGoalsResponse(**data)
+
+
+@router.get("/chronic-underreporting", response_model=ChronicUnderreportingResponse)
+@_rl("30/minute")
+async def get_chronic_underreporting(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Detect chronic under-reporting over the last 14 days."""
+    data = await detect_chronic_underreporting(current_user.id, session)
+    return ChronicUnderreportingResponse(**data)
 
 
 @router.get("/admin/dashboard", response_model=AdminRiskDashboardResponse)
