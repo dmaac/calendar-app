@@ -58,16 +58,31 @@ function buildShareText(props: ShareableCardProps): string {
         'La constancia es la clave!',
         '#FitsiIA #Racha',
       ].join('\n');
-    case 'weekly':
+    case 'weekly': {
+      const adh = props.data.adherence;
+      const emoji = adh >= 80 ? '\u{1F525}' : adh >= 60 ? '\u{1F4AA}' : '\u{1F331}';
+      const motivacion = adh >= 80
+        ? 'Semana increible! Mi nutricion esta on fire'
+        : adh >= 60
+        ? 'Avanzando paso a paso hacia mis metas'
+        : 'Cada dia es una nueva oportunidad para mejorar';
       return [
-        '\u{1F4CA} Mi semana en Fitsi IA',
+        `${emoji} Mi resumen semanal en Fitsi IA`,
         '',
-        `Calorias promedio: ${props.data.avgCalories} kcal`,
-        `Proteina promedio: ${props.data.avgProtein}g`,
-        `Adherencia: ${props.data.adherence}%`,
+        `\u{1F4CA} Calorias promedio: ${Math.round(props.data.avgCalories)} kcal/dia`,
+        `\u{1F4AA} Proteina promedio: ${Math.round(props.data.avgProtein)}g/dia`,
+        `\u{1F3AF} Adherencia a mi plan: ${adh}%`,
         '',
-        '#FitsiIA #MiSemana',
+        `\u{2728} ${motivacion}`,
+        '',
+        '\u{1F34E} La nutricion inteligente cambia vidas.',
+        'Fitsi IA escanea tu comida y te da los macros al instante.',
+        '',
+        '\u{1F449} Descarga gratis: https://fitsi.app',
+        '',
+        '#FitsiIA #NutricionInteligente #MiSemana #HealthyLifestyle #MacroTracking',
       ].join('\n');
+    }
   }
 }
 
