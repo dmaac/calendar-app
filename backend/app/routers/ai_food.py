@@ -33,6 +33,8 @@ from ..services.ai_scan_service import (
 )
 from ..core.cache import cache_get, cache_set, cache_delete, daily_summary_key, CACHE_TTL
 from ..services.nutrition_risk_service import invalidate_risk_cache
+from ..services.celebration_engine import process_post_meal_events
+from ..services.mission_engine import update_mission_progress
 from pydantic import BaseModel, Field
 
 
@@ -195,6 +197,25 @@ async def scan_food(
 
     invalidate_risk_cache(current_user.id)
 
+    # Process post-meal celebrations and mission progress
+    celebrations = []
+    try:
+        celebrations = await process_post_meal_events(current_user.id, session)
+        completed_missions = await update_mission_progress(current_user.id, session)
+        for mission in completed_missions:
+            celebrations.append({
+                "trigger": "mission_completed",
+                "message": f"Mision completada: {mission['name']}! +{mission['xp_reward']} XP",
+                "emoji": "\u2705",
+                "intensity": "subtle",
+                "data": mission,
+            })
+        await session.commit()
+    except Exception as exc:
+        logger.debug("Celebration processing failed (non-blocking): %s", exc)
+
+    if isinstance(result, dict):
+        result["celebrations"] = celebrations
     return result
 
 
@@ -242,6 +263,23 @@ async def manual_food_log(
 
     invalidate_risk_cache(current_user.id)
 
+    # Process post-meal celebrations and mission progress
+    celebrations = []
+    try:
+        celebrations = await process_post_meal_events(current_user.id, session)
+        completed_missions = await update_mission_progress(current_user.id, session)
+        for mission in completed_missions:
+            celebrations.append({
+                "trigger": "mission_completed",
+                "message": f"Mision completada: {mission['name']}! +{mission['xp_reward']} XP",
+                "emoji": "\u2705",
+                "intensity": "subtle",
+                "data": mission,
+            })
+        await session.commit()
+    except Exception as exc:
+        logger.debug("Celebration processing failed (non-blocking): %s", exc)
+
     return {
         "id": log.id,
         "food_name": log.food_name,
@@ -254,6 +292,7 @@ async def manual_food_log(
         "logged_at": log.logged_at.isoformat(),
         "was_edited": log.was_edited,
         "cache_hit": False,
+        "celebrations": celebrations,
     }
 
 

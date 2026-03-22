@@ -25,6 +25,18 @@ from .corporate import (
 )
 from .nutrition_adherence import DailyNutritionAdherence
 from .risk_analytics_event import RiskAnalyticsEvent
+from .progress import (
+    UserProgressProfile,
+    AchievementDefinition,
+    UserAchievement,
+    DailyMission,
+    UserDailyMissionStatus,
+    WeeklyChallenge,
+    UserWeeklyChallengeStatus,
+    ProgressEvent,
+    RewardCatalog,
+    UserRewardRedemption,
+)
 
 __all__ = [
     "User",
@@ -55,4 +67,14 @@ __all__ = [
     "FamilyMembership",
     "DailyNutritionAdherence",
     "RiskAnalyticsEvent",
+    "UserProgressProfile",
+    "AchievementDefinition",
+    "UserAchievement",
+    "DailyMission",
+    "UserDailyMissionStatus",
+    "WeeklyChallenge",
+    "UserWeeklyChallengeStatus",
+    "ProgressEvent",
+    "RewardCatalog",
+    "UserRewardRedemption",
 ]

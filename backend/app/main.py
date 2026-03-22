@@ -23,7 +23,7 @@ from .core.validation import RequestValidationMiddleware
 from .core.performance import PerformanceMiddleware, performance_stats
 from .models.user import User
 from .routers.admin import require_admin
-from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router, webhooks_router, corporate_router, family_router, favorites_router, alerts_router, risk_router, ai_usage_router
+from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router, webhooks_router, corporate_router, family_router, favorites_router, alerts_router, risk_router, ai_usage_router, progress_router
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger("fitsi.requests")
@@ -172,6 +172,10 @@ openapi_tags = [
     {
         "name": "ai-usage",
         "description": "AI token usage tracking: weekly budget, consumption, and tier information.",
+    },
+    {
+        "name": "progress",
+        "description": "Progress system: celebrations, daily missions, weekly summaries, XP, and gamification.",
     },
     {
         "name": "root",
@@ -544,6 +548,7 @@ app.include_router(favorites_router)
 app.include_router(alerts_router)
 app.include_router(risk_router)
 app.include_router(ai_usage_router)
+app.include_router(progress_router)
 
 
 @app.get("/", tags=["root"])
