@@ -66,9 +66,13 @@ RETRY_BASE_DELAY = 1.0  # seconds — exponential backoff: 1s, 2s, 4s
 
 async def _call_claude_vision_once(b64_image: str, mime_type: str) -> dict:
     """Single attempt to call Claude Vision API via httpx. Returns parsed response dict."""
+    # SEC: System prompt is isolated in the top-level "system" parameter,
+    # separate from user content. The user message contains ONLY the image,
+    # so any adversarial text embedded in the image cannot override instructions.
     payload = {
         "model": "claude-sonnet-4-20250514",
         "max_tokens": 500,
+        "system": CLAUDE_FOOD_SCAN_PROMPT,
         "messages": [
             {
                 "role": "user",
@@ -80,10 +84,6 @@ async def _call_claude_vision_once(b64_image: str, mime_type: str) -> dict:
                             "media_type": mime_type,
                             "data": b64_image,
                         },
-                    },
-                    {
-                        "type": "text",
-                        "text": CLAUDE_FOOD_SCAN_PROMPT,
                     },
                 ],
             }
