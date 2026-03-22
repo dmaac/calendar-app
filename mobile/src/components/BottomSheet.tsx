@@ -133,7 +133,7 @@ export default function BottomSheet({
       <PanGestureHandler
         onGestureEvent={handleGestureEvent}
         onHandlerStateChange={handleStateChange}
-        activeOffsetY={[10, 10]}
+        activeOffsetY={[-10, 10]}
       >
         <Animated.View
           style={[
