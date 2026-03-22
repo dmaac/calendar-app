@@ -17,7 +17,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  Platform,
   Animated,
   InteractionManager,
 } from 'react-native';
@@ -766,157 +765,151 @@ export default function HomeScreen({ navigation }: any) {
                 </View>
               </View>
 
-              {/* NutriScore */}
-              {hasMeals && (
-                <NutriScore
-                  calories={consumed}
-                  protein={protein}
-                  carbs={carbs}
-                  fat={fats}
-                  fiber={nutriScoreData.totalFiber}
-                  water={summary?.water_ml ?? 0}
-                  foodVariety={nutriScoreData.foodVariety}
-                  goals={{
-                    target_calories: target,
-                    target_protein_g: proteinTarget,
-                    target_carbs_g: carbsTarget,
-                    target_fats_g: fatsTarget,
-                  }}
-                />
+              {/* ── Below-the-fold: deferred render after 500ms to speed up initial paint ── */}
+              {belowFoldReady && (
+                <Suspense fallback={null}>
+                  {/* Sleep Tracker */}
+                  <SleepTracker initiallyCollapsed />
+
+                  {/* Mood + Energy Tracker */}
+                  <MoodTracker initiallyCollapsed nutriScore={nutriScoreValue} />
+
+                  {/* NutriScore */}
+                  {hasMeals && (
+                    <NutriScore
+                      calories={consumed}
+                      protein={protein}
+                      carbs={carbs}
+                      fat={fats}
+                      fiber={nutriScoreData.totalFiber}
+                      water={waterMl}
+                      foodVariety={nutriScoreData.foodVariety}
+                      goals={nutriScoreGoals}
+                    />
+                  )}
+
+                  {/* Exercise Balance Card */}
+                  {hasMeals && (
+                    <ExerciseBalanceCard
+                      consumed={consumed}
+                      exerciseBurned={exerciseBurned}
+                      target={target}
+                    />
+                  )}
+
+                  {/* Adaptive Calorie Banner */}
+                  <AdaptiveCalorieBanner
+                    recentDailyCalories={adaptiveRecentCalories}
+                    currentTarget={target}
+                    onAdjust={onAdaptiveAdjust}
+                    onDismiss={onAdaptiveDismiss}
+                  />
+
+                  {/* Today's Tip */}
+                  <View style={[styles.tipCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
+                    <View style={styles.tipHeader}>
+                      <FitsiMascot expression="cool" size="small" animation="idle" />
+                      <Text style={[styles.tipTitle, { color: c.black }]}>{t('home.today')} Tip</Text>
+                    </View>
+                    <Text style={[styles.tipText, { color: c.gray }]}>
+                      {dailyTip}
+                    </Text>
+                  </View>
+
+                  {/* Best Day Banner */}
+                  {summary && (summary.meals_logged ?? 0) > 0 && (
+                    <TouchableOpacity
+                      style={styles.bestDayBanner}
+                      onPress={onQuickReports}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Tu mejor dia esta semana: Viernes, 125 gramos de proteinas"
+                      accessibilityRole="button"
+                    >
+                      <Ionicons name="trophy" size={18} color="#F59E0B" />
+                      <Text style={styles.bestDayText}>
+                        <Text style={styles.bestDayBold}>Tu mejor dia esta semana: </Text>
+                        Viernes — 125g proteinas
+                      </Text>
+                      <Ionicons name="chevron-forward" size={14} color="#92400E" />
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Daily Challenges */}
+                  {summary && (
+                    <DailyChallenges
+                      mealsLogged={summary.meals_logged ?? 0}
+                      waterMl={summary.water_ml ?? 0}
+                      proteinG={summary.total_protein_g ?? 0}
+                    />
+                  )}
+
+                  {/* Quick Actions */}
+                  <View style={styles.quickActionsRow}>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onQuickScan}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
+                        <Ionicons name="camera" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Scan Food</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onQuickWater}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
+                        <Ionicons name="water" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Add Water</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onQuickRecipes}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: c.success }]}>
+                        <Ionicons name="book" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Recipes</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onQuickCoach}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: '#EC4899' }]}>
+                        <Ionicons name="sparkles" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>AI Coach</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      onPress={onQuickFavorites}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.quickActionIcon, { backgroundColor: '#EF4444' }]}>
+                        <Ionicons name="heart" size={18} color={c.white} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Favoritos</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Profile completion progress */}
+                  <OnboardingProgress
+                    data={onboardingData}
+                    navigation={navigation}
+                  />
+                </Suspense>
               )}
 
-              {/* Exercise Balance Card — below NutriScore */}
-              {hasMeals && (
-                <ExerciseBalanceCard
-                  consumed={consumed}
-                  exerciseBurned={exerciseBurned}
-                  target={target}
-                />
-              )}
-
-              {/* Adaptive Calorie Banner — suggests goal adjustments */}
-              <AdaptiveCalorieBanner
-                recentDailyCalories={adaptiveRecentCalories}
-                currentTarget={target}
-                onAdjust={(newTarget) => {
-                  // TODO: Persist new calorie target to backend
-                  haptics.success();
-                  track('adaptive_calories_adjusted', { from: target, to: newTarget });
-                }}
-                onDismiss={() => {
-                  track('adaptive_calories_dismissed');
-                }}
-              />
-
-              {/* Today's Tip */}
-              <View style={[styles.tipCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
-                <View style={styles.tipHeader}>
-                  <FitsiMascot expression="cool" size="small" animation="idle" />
-                  <Text style={[styles.tipTitle, { color: c.black }]}>{t('home.today')} Tip</Text>
-                </View>
-                <Text style={[styles.tipText, { color: c.gray }]}>
-                  {DAILY_TIPS[new Date().getDate() - 1] ?? DAILY_TIPS[0]}
-                </Text>
-              </View>
-
-              {/* Best Day Banner */}
-              {summary && (summary.meals_logged ?? 0) > 0 && (
-                <TouchableOpacity
-                  style={styles.bestDayBanner}
-                  onPress={() => { haptics.light(); navigation.navigate('Reports'); }}
-                  activeOpacity={0.8}
-                  accessibilityLabel="Tu mejor dia esta semana: Viernes, 125 gramos de proteinas"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="trophy" size={18} color="#F59E0B" />
-                  <Text style={styles.bestDayText}>
-                    <Text style={styles.bestDayBold}>Tu mejor dia esta semana: </Text>
-                    Viernes — 125g proteinas
-                  </Text>
-                  <Ionicons name="chevron-forward" size={14} color="#92400E" />
-                </TouchableOpacity>
-              )}
-
-              {/* Daily Challenges */}
-              {summary && (
-                <DailyChallenges
-                  mealsLogged={summary.meals_logged ?? 0}
-                  waterMl={summary.water_ml ?? 0}
-                  proteinG={summary.total_protein_g ?? 0}
-                />
-              )}
-
-              {/* Quick Actions */}
-              <View style={styles.quickActionsRow}>
-                <TouchableOpacity
-                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={() => { haptics.light(); navigation.navigate('Scan'); }}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: c.black }]}>
-                    <Ionicons name="camera" size={18} color={c.white} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Scan Food</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={() => { haptics.light(); navigation.navigate('Registro'); }}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
-                    <Ionicons name="water" size={18} color={c.white} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Add Water</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={() => { haptics.light(); navigation.navigate('Recipes'); }}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: c.success }]}>
-                    <Ionicons name="book" size={18} color={c.white} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Recipes</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={() => { haptics.light(); navigation.navigate('Coach'); }}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: '#EC4899' }]}>
-                    <Ionicons name="sparkles" size={18} color={c.white} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: c.black }]}>AI Coach</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                  onPress={() => { haptics.light(); navigation.navigate('Favorites'); }}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: '#EF4444' }]}>
-                    <Ionicons name="heart" size={18} color={c.white} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: c.black }]}>Favoritos</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Profile completion progress */}
-              <OnboardingProgress
-                data={{
-                  hasProfilePhoto: false,
-                  mealsLogged: logs.length,
-                  hasLoggedWeight: (summary?.streak_days ?? 0) > 0,
-                  hasConfiguredGoals: (summary?.target_calories ?? 0) > 0,
-                  notificationsEnabled: true,
-                }}
-                navigation={navigation}
-              />
-
-              {/* Today's meals */}
+              {/* Today's meals — always visible (core content) */}
               <Text style={[styles.sectionTitle, { color: c.black }]} accessibilityRole="header">{t('home.today')}</Text>
               {hasMeals ? (
                 <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
-                  {mealOrder.map((mt) => (
+                  {MEAL_ORDER.map((mt) => (
                     <MealSection key={mt} mealType={mt} logs={logsByMeal[mt]} colors={c} />
                   ))}
                 </View>
@@ -927,11 +920,7 @@ export default function HomeScreen({ navigation }: any) {
                   <Text style={[styles.emptyHint, { color: c.gray }]}>{t('home.scanYourFood')}</Text>
                   <TouchableOpacity
                     style={[styles.scanCta, { backgroundColor: c.black }]}
-                    onPress={() => {
-                      haptics.light();
-                      track('scan_button_pressed', { source: 'empty_state' });
-                      navigation.navigate('Scan');
-                    }}
+                    onPress={onScanFromEmpty}
                     accessibilityLabel="Escanear ahora"
                     accessibilityRole="button"
                     accessibilityHint="Abre la camara para escanear tu primer alimento del dia"
@@ -945,10 +934,7 @@ export default function HomeScreen({ navigation }: any) {
               {/* Report CTA */}
               <TouchableOpacity
                 style={[styles.reportBtn, { backgroundColor: c.surface, borderColor: c.grayLight }]}
-                onPress={() => {
-                  haptics.light();
-                  navigation.navigate('Reports');
-                }}
+                onPress={onQuickReports}
                 activeOpacity={0.85}
                 accessibilityLabel="Ver reporte semanal y mensual"
                 accessibilityRole="button"
@@ -967,10 +953,7 @@ export default function HomeScreen({ navigation }: any) {
       {/* Floating AI Coach button */}
       <TouchableOpacity
         style={[styles.coachFab, { backgroundColor: c.accent }]}
-        onPress={() => {
-          haptics.light();
-          navigation.navigate('Coach');
-        }}
+        onPress={onNavigateToCoach}
         activeOpacity={0.85}
         accessibilityLabel="Abrir AI Coach"
         accessibilityRole="button"
@@ -983,7 +966,7 @@ export default function HomeScreen({ navigation }: any) {
       {/* Notification Center bottom sheet */}
       <NotificationCenter
         visible={notifSheetVisible}
-        onClose={() => setNotifSheetVisible(false)}
+        onClose={onCloseNotifications}
         notifications={notifications}
         onMarkAsRead={markAsRead}
         onMarkAllAsRead={markAllAsRead}

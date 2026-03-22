@@ -30,6 +30,21 @@ import useHealthKit from '../../hooks/useHealthKit';
 
 const APP_VERSION = '1.0.0';
 
+const LOCALE_LABELS: Record<string, string> = {
+  en: 'English',
+  es: 'Espanol',
+  pt: 'Portugues',
+  fr: 'Francais',
+  de: 'Deutsch',
+  it: 'Italiano',
+  zh: 'Chinese',
+  hi: 'Hindi',
+  ru: 'Russian',
+  ro: 'Romana',
+  az: 'Azerbaycanca',
+  nl: 'Nederlands',
+};
+
 // AsyncStorage keys for Cal AI toggles
 const TOGGLE_KEYS = {
   badgeCelebrations: '@fitsi_badge_celebrations',
@@ -322,7 +337,7 @@ export default function SettingsScreen({ navigation }: any) {
   const { logout } = useAuth();
   const { isDark, mode: themeMode, setMode, warmth, setWarmth } = useAppTheme();
   const c = useThemeColors();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { track } = useAnalytics('Settings');
   const healthKit = useHealthKit();
 
@@ -627,6 +642,7 @@ export default function SettingsScreen({ navigation }: any) {
             icon="language-outline"
             iconColor="#6366F1"
             label={t('settings.language')}
+            value={LOCALE_LABELS[locale] ?? locale.toUpperCase()}
             onPress={() => { track('language_changed'); navigation.navigate('Language'); }}
             isLast
             c={c}

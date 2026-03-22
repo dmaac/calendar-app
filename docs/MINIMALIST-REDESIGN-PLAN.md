@@ -76,10 +76,10 @@ a traves de 6-8 cards antes de ver sus comidas del dia.
 ```
 
 ### Principios de diseno
-- **Fondo oscuro** por defecto (dark mode first, como Cal AI)
+- **Paleta intacta** — los mismos colores de siempre (light y dark mode ya existentes)
 - **Sin bordes** en cards — usar sombras sutiles y separacion por espacio
 - **Tipografia grande** para los numeros principales (32-40px)
-- **Un solo color de acento** para destacar progreso
+- **Menos es mas** — reducir de 18 secciones a ~5
 - **Fotos de comida** como elemento visual principal (no listas de texto)
 
 ---
@@ -126,11 +126,12 @@ Props:
 
 Visual:
   - Arco de 180 grados (semicirculo superior)
-  - Track: color neutro sutil
-  - Fill: gradiente del color de acento
+  - Track: c.surface (existing theme token)
+  - Fill: c.black (light) / c.accent (dark) — existing palette
   - Centro: numero grande (32px bold) + "kcal" pequeno
-  - Debajo del arco: "860 remaining" en texto gris
+  - Debajo del arco: "860 remaining" en c.accent
   - Animacion spring al cargar
+  - Colores: usa useThemeColors() como todo el proyecto
 ```
 
 #### 2b. Macro Bars -> Macro Pills horizontales
@@ -148,10 +149,12 @@ Visual por pill:
   Borde: color del macro con 20% opacidad
   Texto: color del macro bold
 
-  Protein: rojo  | 82g
-  Carbs:   amarillo | 130g
-  Fat:     azul  | 38g
-  Water:   cyan  | 6/8  (vasos, no ml)
+  Protein: c.protein (#EA4335) | 82g
+  Carbs:   c.carbs (#FBBC04)   | 130g
+  Fat:     c.fats (#4285F4)    | 38g
+  Water:   c.primary (#4285F4) | 6/8  (vasos, no ml)
+
+  NOTA: Todos los colores vienen de useThemeColors(), no hardcoded.
 ```
 
 #### 2c. Today's Meals -> "Recently Uploaded" con fotos
@@ -218,9 +221,10 @@ Backdrop: overlay semi-transparente que cierra al tocar
 
 ```
 Ubicacion: reemplaza parte del header actual
-Visual: dos tabs pill, seleccionado = fondo solido, no seleccionado = transparente
+Visual: dos tabs pill, seleccionado = bg c.black / texto c.white, no seleccionado = c.surface
 Funcionalidad: cambia los datos mostrados (calorias, meals, macros)
 Al swipe left: va a yesterday. Swipe right: vuelve a today.
+Colores: usa c.black, c.surface, c.white del tema existente
 ```
 
 ---
@@ -242,10 +246,10 @@ Al swipe left: va a yesterday. Swipe right: vuelve a today.
 10. Quitar Coach FAB dedicado
 
 ### Fase 3 — Polish
-11. Ajustar dark mode para que sea el look default (colores Cal AI)
-12. Transiciones y animaciones (spring, stagger)
-13. Verificar que ProgressScreen/ProfileScreen reciban los componentes movidos
-14. QA visual en iOS y Android
+11. Transiciones y animaciones (spring, stagger)
+12. Verificar que ProgressScreen/ProfileScreen reciban los componentes movidos
+13. QA visual en iOS y Android (light + dark mode)
+14. Verificar que TODOS los colores siguen usando useThemeColors() (sin hardcoded nuevos)
 
 ---
 
@@ -263,7 +267,6 @@ Al swipe left: va a yesterday. Swipe right: vuelve a today.
 - `mobile/src/screens/main/ProfileScreen.tsx` — recibir OnboardingProgress, FastingTimer, SleepTracker
 
 ### Archivos a EDITAR LEVE
-- `mobile/src/theme/index.ts` — nuevos tokens para Cal AI dark palette
 - `mobile/src/navigation/MainNavigator.tsx` — sin cambios de rutas, solo imports si se mueven componentes
 
 ### Archivos que NO se tocan
@@ -271,28 +274,25 @@ Al swipe left: va a yesterday. Swipe right: vuelve a today.
 - Servicios (food.service.ts, favorites.service.ts, etc.)
 - Onboarding screens
 - Other main screens (Log, Scan, Recipes, Coach, etc.)
+- **`mobile/src/theme/index.ts` — NO se modifica. Paleta intacta.**
 
 ---
 
-## Referencia Visual — Cal AI Style Tokens
+## Recordatorio: Paleta de Colores INTACTA
 
-```typescript
-// Cal AI inspired dark palette (para fase 3)
-const calAIDark = {
-  bg:         '#0A0A0F',   // casi negro
-  surface:    '#14141F',   // cards
-  surfaceAlt: '#1E1E2E',   // elevado
-  text:       '#FFFFFF',   // primario
-  textMuted:  '#6B6B80',   // secundario
-  accent:     '#7C5CFC',   // morado (o mantener #4285F4 azul Fitsi)
-  accentGlow: '#7C5CFC20', // glow sutil
-  success:    '#34D399',   // verde
-  warning:    '#FBBF24',   // amarillo
-  danger:     '#F87171',   // rojo
-  ring:       '#7C5CFC',   // arco de progreso
-  ringTrack:  '#1E1E2E',   // fondo del arco
-};
+NO se cambia ningun color. La paleta existente en `theme/index.ts` se mantiene al 100%:
+
 ```
+Light:  bg #FFFFFF, surface #F5F5F5, black #1A1A2E, accent #4285F4
+Dark:   bg #0D0D1A, surface #1A1A2E, accent #5B9CF6
+
+Macros: protein #EA4335, carbs #FBBC04, fats #4285F4, success #34A853
+```
+
+Todos los componentes nuevos (CalorieArc, MacroPills, RecentlyUploaded, QuickActionFAB)
+deben usar `useThemeColors()` para obtener colores. Cero colores hardcoded nuevos.
+
+El rediseno es puramente de LAYOUT y ESTRUCTURA: menos cards, menos secciones, menos ruido.
 
 ---
 

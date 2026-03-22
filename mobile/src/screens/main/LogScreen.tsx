@@ -652,13 +652,25 @@ export default function LogScreen({ navigation }: any) {
       >
         {/* Fitsi contextual expression */}
         {logs.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+          <View style={styles.globalEmptyState}>
             <FitsiMascot
               expression="hungry"
               size="medium"
               animation="sad"
-              message="Tengo hambre! Registra algo"
+              message={isToday(selectedDate) ? 'Aun no has registrado nada hoy' : 'Sin registros este dia'}
             />
+            {isToday(selectedDate) && (
+              <TouchableOpacity
+                style={[styles.globalEmptyCta, { backgroundColor: c.accent }]}
+                onPress={() => openAddModal('breakfast')}
+                activeOpacity={0.8}
+                accessibilityLabel="Registrar tu primera comida"
+                accessibilityRole="button"
+              >
+                <Ionicons name="camera" size={18} color={c.white} />
+                <Text style={[styles.globalEmptyCtaText, { color: c.white }]}>Registrar comida</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <View style={{ alignItems: 'center', paddingVertical: spacing.xs }}>
@@ -949,4 +961,21 @@ const styles = StyleSheet.create({
   },
   emptyMealText: { ...typography.caption, fontWeight: '600' },
   emptyMealHint: { ...typography.caption, fontSize: 11, marginTop: 1 },
+  globalEmptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+  },
+  globalEmptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.full,
+  },
+  globalEmptyCtaText: {
+    ...typography.label,
+    fontWeight: '700',
+  },
 });
