@@ -240,17 +240,24 @@ export default function LogScreen({ navigation }: any) {
         style: 'destructive',
         onPress: async () => {
           try {
+            // Demo/offline data (negative IDs) — just remove locally
+            if (log.id < 0) {
+              setLogs((prev) => prev.filter((l) => l.id !== log.id));
+              haptics.success();
+              return;
+            }
             await foodService.deleteFoodLog(log.id);
             haptics.success();
             setLogs((prev) => prev.filter((l) => l.id !== log.id));
           } catch {
-            haptics.error();
-            Alert.alert('Error', 'No se pudo eliminar el registro.');
+            // Fallback: remove locally even if API fails
+            setLogs((prev) => prev.filter((l) => l.id !== log.id));
+            haptics.success();
           }
         },
       },
     ]);
-  }, [navigation]);
+  }, []);
 
   const handleAddWater = useCallback(async (ml: number) => {
     const prev = waterMl;
