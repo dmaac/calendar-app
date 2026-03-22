@@ -212,7 +212,7 @@ const CalorieRing = React.memo(function CalorieRing({
           strokeLinecap="round"
         />
       </Svg>
-      <AnimatedNumber value={consumed} style={[styles.ringCalories, { color: c.black }]} />
+      <AnimatedNumber value={Math.round(consumed)} style={[styles.ringCalories, { color: c.black }]} />
       <Text style={[styles.ringUnit, { color: c.gray }]}>kcal</Text>
       <Text style={[styles.ringRemaining, { color: c.accent }]}>
         {remaining > 0 ? remainingLabel : goalReachedLabel}
@@ -269,7 +269,7 @@ const MacroBar = React.memo(function MacroBar({
       <View style={styles.macroHeader}>
         <Text style={[styles.macroLabel, { color: c.gray }]}>{label}</Text>
         <Text style={[styles.macroValue, { color: c.black }]}>
-          <AnimatedNumber value={value} style={[styles.macroValue, { color: c.black }]} />
+          <AnimatedNumber value={Math.round(value)} style={[styles.macroValue, { color: c.black }]} />
           <Text style={[styles.macroTarget, { color: c.gray }]}>/{Math.round(target)}{unit}</Text>
         </Text>
       </View>
