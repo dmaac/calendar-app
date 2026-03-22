@@ -14,7 +14,7 @@ from starlette.responses import RedirectResponse
 from .core.database import create_db_and_tables
 from .core.config import settings
 from .core.versioning import APIVersionMiddleware
-from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router
+from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger("fitsi.requests")
@@ -91,6 +91,10 @@ openapi_tags = [
     {
         "name": "feedback",
         "description": "In-app feedback system: submit bugs, feature requests, complaints, and praise.",
+    },
+    {
+        "name": "export",
+        "description": "GDPR data portability: export all user data as JSON or food logs as CSV.",
     },
     {
         "name": "root",
@@ -374,6 +378,7 @@ app.include_router(subscriptions_router)
 app.include_router(notifications_router)
 app.include_router(feedback_router)
 app.include_router(admin_router)
+app.include_router(export_router)
 
 
 @app.get("/", tags=["root"])

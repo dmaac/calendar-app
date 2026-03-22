@@ -9,6 +9,7 @@ from .subscriptions import router as subscriptions_router
 from .notifications import router as notifications_router
 from .feedback import router as feedback_router
 from .admin import router as admin_router
+from .export import router as export_router
 
 __all__ = [
     "auth_router",
@@ -22,4 +23,5 @@ __all__ = [
     "notifications_router",
     "feedback_router",
     "admin_router",
+    "export_router",
 ]

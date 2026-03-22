@@ -13,6 +13,7 @@ import { MealType, Food, MealLogCreate } from '../types';
 import ApiService from '../services/api';
 import CircularProgress from '../components/CircularProgress';
 import { theme } from '../theme';
+import { showNotification } from '../components/InAppNotification';
 
 interface MealLogScreenProps {
   navigation: any;
@@ -58,9 +59,12 @@ const MealLogScreen: React.FC<MealLogScreenProps> = ({ navigation, route }) => {
       };
 
       await ApiService.logMeal(mealData);
-      Alert.alert('Success', 'Meal logged successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      showNotification({
+        message: 'Comida registrada!',
+        type: 'success',
+        icon: 'checkmark-circle',
+      });
+      navigation.goBack();
     } catch (error: any) {
       console.error('Error logging meal:', error);
       const errorMessage = error?.response?.data?.detail || 'Failed to log meal';

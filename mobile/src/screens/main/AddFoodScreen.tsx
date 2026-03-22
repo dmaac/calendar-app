@@ -24,6 +24,7 @@ import { MealType, FoodSuggestion, searchFoodHistory } from '../../services/food
 import { haptics } from '../../hooks/useHaptics';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { enqueueAction } from '../../services/offlineStore';
+import { showNotification } from '../../components/InAppNotification';
 
 const MEAL_OPTIONS = (Object.entries(mealColors) as [MealType, typeof mealColors[string]][]).map(
   ([key, v]) => ({ key, ...v })
@@ -169,12 +170,22 @@ export default function AddFoodScreen({ navigation, route }: any) {
         await enqueueAction('log_food', payload);
       }
       haptics.success();
+      showNotification({
+        message: 'Comida registrada!',
+        type: 'success',
+        icon: 'checkmark-circle',
+      });
       navigation.goBack();
     } catch {
       // Network failed despite thinking we were online — queue it
       try {
         await enqueueAction('log_food', payload);
         haptics.success();
+        showNotification({
+          message: 'Comida guardada localmente!',
+          type: 'info',
+          icon: 'cloud-upload-outline',
+        });
         navigation.goBack();
       } catch {
         haptics.error();

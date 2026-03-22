@@ -8,6 +8,7 @@ import OnboardingNavigator from '../screens/onboarding/OnboardingNavigator';
 import { OnboardingProvider } from '../context/OnboardingContext';
 import MainNavigator from './MainNavigator';
 import { startOfflineSyncWatcher, stopOfflineSyncWatcher } from '../services/offlineSync';
+import { InAppNotificationHost } from '../components/InAppNotification';
 
 const Stack = createStackNavigator();
 
@@ -46,6 +47,7 @@ const AppContent = () => {
 const AppNavigator = () => (
   <NavigationContainer>
     <AppContent />
+    <InAppNotificationHost />
   </NavigationContainer>
 );
 

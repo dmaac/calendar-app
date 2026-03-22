@@ -34,6 +34,7 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 import AnimatedNumber from '../../components/AnimatedNumber';
 import StreakBadge from '../../components/StreakBadge';
 import FitsiMascot from '../../components/FitsiMascot';
+import OnboardingProgress from '../../components/OnboardingProgress';
 import useFadeIn from '../../hooks/useFadeIn';
 import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
@@ -477,6 +478,18 @@ export default function HomeScreen({ navigation }: any) {
                   </View>
                 </View>
               </View>
+
+              {/* Profile completion progress */}
+              <OnboardingProgress
+                data={{
+                  hasProfilePhoto: false,
+                  mealsLogged: logs.length,
+                  hasLoggedWeight: (summary?.streak_days ?? 0) > 0,
+                  hasConfiguredGoals: (summary?.target_calories ?? 0) > 0,
+                  notificationsEnabled: true,
+                }}
+                navigation={navigation}
+              />
 
               {/* Today's meals */}
               <Text style={[styles.sectionTitle, { color: c.black }]} accessibilityRole="header">{t('home.today')}</Text>

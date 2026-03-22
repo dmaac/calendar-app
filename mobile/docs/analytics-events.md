@@ -20,6 +20,7 @@
 |-------|-------------|------------|
 | `screen_viewed` | Home screen loaded | `screen_name: "Home"` |
 | `scan_button_pressed` | User taps scan button | `source: "header" \| "empty_state"` |
+| `profile_completion_pressed` | User taps "Completar perfil" button | `percentage: number, next_step: string` |
 
 ---
 

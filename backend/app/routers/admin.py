@@ -20,6 +20,7 @@ from ..models.user import User
 from ..models.ai_food_log import AIFoodLog
 from ..models.subscription import Subscription
 from ..models.onboarding_profile import OnboardingProfile
+from ..models.feedback import Feedback, FeedbackType, FeedbackStatus
 from ..routers.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -519,4 +520,247 @@ async def export_users_csv(
         iter([output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ─── GET /api/admin/feedback/summary ───────────────────────────────────────
+
+class FeedbackSummaryItem(BaseModel):
+    id: int
+    user_id: int
+    type: str
+    status: str
+    message: str
+    created_at: str
+
+
+class FeedbackSummary(BaseModel):
+    total: int
+    by_type: dict[str, int]
+    by_status: dict[str, int]
+    latest: list[FeedbackSummaryItem]
+
+
+@router.get("/feedback/summary", response_model=FeedbackSummary)
+async def get_feedback_summary(
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    """Feedback overview: count by type, count by status, last 5 entries."""
+
+    # Total
+    total_result = await session.execute(select(func.count(Feedback.id)))
+    total = total_result.scalar() or 0
+
+    # Count by type
+    type_result = await session.execute(
+        select(Feedback.type, func.count(Feedback.id))
+        .group_by(Feedback.type)
+    )
+    by_type: dict[str, int] = {}
+    for fb_type in FeedbackType:
+        by_type[fb_type.value] = 0
+    for row in type_result.all():
+        by_type[row[0]] = row[1]
+
+    # Count by status
+    status_result = await session.execute(
+        select(Feedback.status, func.count(Feedback.id))
+        .group_by(Feedback.status)
+    )
+    by_status: dict[str, int] = {}
+    for fb_status in FeedbackStatus:
+        by_status[fb_status.value] = 0
+    for row in status_result.all():
+        by_status[row[0]] = row[1]
+
+    # Latest 5
+    latest_result = await session.execute(
+        select(Feedback)
+        .order_by(Feedback.created_at.desc())
+        .limit(5)
+    )
+    latest_items = latest_result.scalars().all()
+    latest = [
+        FeedbackSummaryItem(
+            id=fb.id,
+            user_id=fb.user_id,
+            type=fb.type,
+            status=fb.status,
+            message=fb.message[:200] if fb.message else "",
+            created_at=fb.created_at.isoformat(),
+        )
+        for fb in latest_items
+    ]
+
+    return FeedbackSummary(
+        total=total,
+        by_type=by_type,
+        by_status=by_status,
+        latest=latest,
+    )
+
+
+# ─── POST /api/admin/broadcast-notification ─────────────────────────────────
+
+class BroadcastNotificationRequest(BaseModel):
+    title: str
+    body: str
+
+
+@router.post("/broadcast-notification")
+async def broadcast_notification(
+    body: BroadcastNotificationRequest,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(require_admin),
+):
+    """Send a push notification to all premium users via NotificationService."""
+    if not body.title.strip() or not body.body.strip():
+        raise HTTPException(status_code=400, detail="Title and body must not be empty")
+
+    # Get all premium user IDs
+    result = await session.execute(
+        select(User.id).where(User.is_premium == True, User.is_active == True)
+    )
+    premium_user_ids = [row[0] for row in result.all()]
+
+    if not premium_user_ids:
+        return {
+            "detail": "No premium users to notify",
+            "sent_to": 0,
+        }
+
+    from ..services.notification_service import NotificationService
+    notification_service = NotificationService(session)
+
+    sent_count = 0
+    failed_count = 0
+    for uid in premium_user_ids:
+        try:
+            tickets = await notification_service.send_push(
+                user_id=uid,
+                title=body.title,
+                body=body.body,
+                data={"type": "admin_broadcast"},
+            )
+            if tickets:
+                sent_count += 1
+        except Exception as exc:
+            logger.warning(
+                "ADMIN: broadcast notification failed for user %s: %s", uid, exc,
+            )
+            failed_count += 1
+
+    logger.info(
+        "ADMIN: user %s broadcast notification to %d premium users (sent=%d, failed=%d): %r",
+        admin.id, len(premium_user_ids), sent_count, failed_count, body.title,
+    )
+
+    return {
+        "detail": "Broadcast sent",
+        "total_premium_users": len(premium_user_ids),
+        "sent_to": sent_count,
+        "failed": failed_count,
+        "title": body.title,
+    }
+
+
+# ─── GET /api/admin/revenue ────────────────────────────────────────────────
+
+# Reference price map for estimating revenue from subscription counts.
+# These are the prices shown in the paywall — actual price_paid may differ
+# (discounts, gift subs, etc.), so we compute both estimated and actual.
+_PLAN_PRICES = {
+    "monthly": 9.99,
+    "yearly": 59.99,
+    "lifetime": 149.99,
+    "gift": 0.0,
+    "free": 0.0,
+}
+
+
+class RevenuePlanBreakdown(BaseModel):
+    plan: str
+    count: int
+    active_count: int
+    unit_price: float
+    estimated_revenue: float
+    actual_revenue: float
+
+
+class RevenueResponse(BaseModel):
+    total_subscriptions: int
+    active_subscriptions: int
+    estimated_monthly_revenue: float
+    actual_revenue_total: float
+    actual_revenue_this_month: float
+    plans: list[RevenuePlanBreakdown]
+
+
+@router.get("/revenue", response_model=RevenueResponse)
+async def get_revenue(
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    """Revenue breakdown: subscription counts * price per type, actual vs estimated."""
+    today = date.today()
+    month_start = datetime.combine(today.replace(day=1), dt_time.min)
+
+    # All subscriptions grouped by plan
+    plan_stats_result = await session.execute(
+        select(
+            Subscription.plan,
+            func.count(Subscription.id),
+            func.count(Subscription.id).filter(Subscription.status == "active"),
+            func.coalesce(func.sum(Subscription.price_paid), 0.0),
+        ).group_by(Subscription.plan)
+    )
+    plan_rows = plan_stats_result.all()
+
+    plans: list[RevenuePlanBreakdown] = []
+    total_subs = 0
+    active_subs = 0
+    estimated_monthly = 0.0
+    actual_total = 0.0
+
+    for plan_name, count, active_count, actual_rev in plan_rows:
+        unit_price = _PLAN_PRICES.get(plan_name, 0.0)
+
+        # For estimated monthly revenue: yearly is divided by 12, lifetime is one-time
+        if plan_name == "yearly":
+            monthly_estimate = active_count * (unit_price / 12)
+        elif plan_name == "lifetime":
+            monthly_estimate = 0.0  # one-time, not recurring
+        else:
+            monthly_estimate = active_count * unit_price
+
+        plans.append(RevenuePlanBreakdown(
+            plan=plan_name,
+            count=count,
+            active_count=active_count,
+            unit_price=unit_price,
+            estimated_revenue=round(monthly_estimate, 2),
+            actual_revenue=round(float(actual_rev), 2),
+        ))
+
+        total_subs += count
+        active_subs += active_count
+        estimated_monthly += monthly_estimate
+        actual_total += float(actual_rev)
+
+    # Actual revenue this month
+    month_rev_result = await session.execute(
+        select(func.coalesce(func.sum(Subscription.price_paid), 0.0)).where(
+            Subscription.created_at >= month_start,
+        )
+    )
+    actual_this_month = float(month_rev_result.scalar() or 0.0)
+
+    return RevenueResponse(
+        total_subscriptions=total_subs,
+        active_subscriptions=active_subs,
+        estimated_monthly_revenue=round(estimated_monthly, 2),
+        actual_revenue_total=round(actual_total, 2),
+        actual_revenue_this_month=round(actual_this_month, 2),
+        plans=plans,
     )

@@ -560,6 +560,19 @@ export default function SettingsScreen({ navigation }: any) {
           />
         </Card>
 
+        {/* SUPPORT */}
+        <SectionHeader title="Soporte" c={c} />
+        <Card c={c}>
+          <SettingsRow
+            icon="help-circle-outline"
+            iconColor="#4285F4"
+            label="Ayuda y FAQ"
+            onPress={() => navigation.navigate('Help')}
+            isLast
+            c={c}
+          />
+        </Card>
+
         {/* LEGAL */}
         <SectionHeader title={t('settings.legal')} c={c} />
         <Card c={c}>
