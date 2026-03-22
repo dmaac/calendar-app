@@ -559,60 +559,112 @@
                     simulation.force("y", d3.forceY(d=>d.ty||h/2).strength(d=>d.isTeam?0.15:0.03));
                     simulation.alpha(0.5).restart();
                 } else if (viewId === "btn-view-pyramid") {
-                    // Pyramid: 7-Layer Fitsia Hierarchy (L0→L6)
-                    // L0: Orchestrator, L1: Demons, L2: Board, L3: C-Suite, L4: VPs, L5: Coordinators, L6: Specialists
-                    const hierarchy = {
-                        0: ["fitsia-orchestrator"],
-                        1: ["demon-decision","demon-performance","demon-intelligence","demon-security","demon-data","demon-growth","demon-experimentation","demon-operations","demon-evolution","demon-crisis"],
-                        2: ["board-chairman","board-advisor-growth","board-advisor-finance","board-advisor-people","board-advisor-tech"],
-                        3: ["ceo-fitsi","coo-fitsi","chief-technology-officer","cpo-fitsi","cfo-fitsi","cdao-fitsi","cgo-fitsi","ciso-fitsi","chro-fitsi"],
-                        4: ["vp-of-engineering","vp-of-mobile-engineering","chief-software-architect","vp-of-platform","vp-of-ai-systems","vp-of-product","head-of-ux-research","head-of-marketing","head-of-growth-engineering","head-of-operations","head-of-partnerships","head-of-revenue","head-of-compliance","head-of-talent"],
-                        5: ["fitsia-feature-coordinator","fitsia-frontend-coordinator","fitsia-backend-coordinator","fitsia-ai-coordinator","fitsia-science-coordinator","fitsia-devops-coordinator","fitsia-qa-coordinator","fitsia-marketing-coordinator","fitsia-content-coordinator","fitsia-equipment-coordinator"],
+                    // ═══════════════════════════════════════════════════════
+                    // CORPORATE PYRAMID — TOP TO BOTTOM
+                    // Orchestrator at TOP CENTER, specialists at BOTTOM
+                    // Each tier = horizontal band, wider as you go down
+                    // ═══════════════════════════════════════════════════════
+
+                    // Map DB team names → vertical tier (0=top, 8=bottom)
+                    const teamToTier = {
+                        "Supreme Orchestrator": 0,   // 1 agent — tip of pyramid
+                        "Control Demons": 1,          // 10 agents
+                        "Board of Directors": 2,      // 5 agents
+                        "C-Suite": 3,                 // 9+9 agents
+                        "Vice Presidents": 4,         // 14+ agents
+                        "Coordinators": 4.5,          // 10 agents
+                        "NoC Evolution": 4.5,         // 8 agents
+                        "Directors": 5,               // 10 agents
+                        "Tech Leads": 5.5,            // 35 agents
+                        "Eng Managers": 5.5,          // 35 agents
+                        "Platform Leadership": 6,     // 35 agents
+                        "AI Leadership": 6,           // 35 agents
+                        "Growth Leadership": 6,       // 34 agents
                     };
+                    const MAX_TIER = 8;
+
+                    // Build lookup: agent name → {tier, idx within tier, total in tier}
                     const nameToLevel = {};
-                    _pyramidLevels = {}; // Reset pyramid sizing
-                    for (const [level, names] of Object.entries(hierarchy)) {
-                        names.forEach((n,i) => {
-                            nameToLevel[n] = {level: parseInt(level), idx: i, total: names.length};
-                            _pyramidLevels[n] = parseInt(level);
+                    _pyramidLevels = {};
+                    const tierBuckets = {};
+                    agents.forEach(a => {
+                        if (a.isTeam) return;
+                        const tier = teamToTier[a.team];
+                        if (tier !== undefined) {
+                            if (!tierBuckets[tier]) tierBuckets[tier] = [];
+                            tierBuckets[tier].push(a.name);
+                        }
+                    });
+                    for (const [tier, names] of Object.entries(tierBuckets)) {
+                        const t = parseFloat(tier);
+                        names.forEach((n, i) => {
+                            nameToLevel[n] = { level: t, idx: i, total: names.length };
+                            _pyramidLevels[n] = Math.floor(t);
                         });
                     }
-                    // L6 = everything else (specialists), distributed by category below
-                    const totalLayers = 8; // 0-5 hierarchy + gap + L6 zone
-                    const levelHeight = h / totalLayers;
 
-                    simulation.force("charge").strength(d => {
+                    // Specialists = everything not in a named tier
+                    const specAgents = agents.filter(a => !a.isTeam && !nameToLevel[a.name]);
+                    const specTeams = [...new Set(specAgents.map(a => a.team))].sort();
+
+                    // ── Y FORCE: strict vertical bands ──
+                    // Top 60% = hierarchy tiers (0-6), bottom 40% = specialist mass
+                    const hierZone = h * 0.55;  // hierarchy uses top 55%
+                    const specTop = h * 0.62;   // specialists start at 62%
+                    const tierH = hierZone / (MAX_TIER + 1);
+
+                    simulation.force("y", d3.forceY(d => {
+                        if (d.isTeam) return -300; // hide team nodes
                         const info = nameToLevel[d.name||d.id];
-                        if (info) return info.level <= 1 ? -500 : -250; // +10% separation for hierarchy nodes
-                        return -12; // L6 specialists: tighter packing for contrast
-                    });
+                        if (info) return tierH * (info.level + 0.5);
+                        // Specialists: distribute in rows by team
+                        const ti = specTeams.indexOf(d.team);
+                        const cols = Math.min(specTeams.length, 12);
+                        const row = Math.floor(ti / cols);
+                        return specTop + row * (h * 0.065);
+                    }).strength(d => {
+                        if (d.isTeam) return 1;
+                        const info = nameToLevel[d.name||d.id];
+                        if (info) return info.level <= 3 ? 1.0 : 0.9; // leadership: LOCKED to Y band
+                        return 0.15; // specialists: gentle
+                    }));
+
+                    // ── X FORCE: pyramid shape (narrow top, wide bottom) ──
                     simulation.force("x", d3.forceX(d => {
+                        if (d.isTeam) return -300;
                         const info = nameToLevel[d.name||d.id];
                         if (info) {
-                            // Pyramid spread: narrower at top, wider at bottom (+10% more pronounced)
-                            const spread = w * (0.15 + info.level * 0.14); // was 0.3 + 0.1 — now steeper pyramid
+                            // Pyramid width: tier 0 = 3% of width, tier 6 = 80% of width
+                            const minPct = 0.03, maxPct = 0.80;
+                            const pct = minPct + (info.level / MAX_TIER) * (maxPct - minPct);
+                            const spread = w * pct;
                             const startX = (w - spread) / 2;
-                            return startX + (info.idx + 0.5) * (spread / info.total);
+                            return startX + (info.idx + 0.5) * (spread / Math.max(info.total, 1));
                         }
-                        // L6 specialists: distribute by team in columns (wider base)
-                        if (d.isTeam) return -200;
-                        const teams=[...new Set(agents.filter(a=>!nameToLevel[a.name]).map(a=>a.team))].sort();
-                        const idx=teams.indexOf(d.team);
-                        const cols=Math.min(teams.length, 8);
-                        return ((idx%cols)+0.5)*(w/cols);
-                    }).strength(d => nameToLevel[d.name||d.id] ? 0.95 : 0.10)); // +10% stronger pull for hierarchy
-                    simulation.force("y", d3.forceY(d => {
+                        // Specialists: fill full width in team columns
+                        const ti = specTeams.indexOf(d.team);
+                        const cols = Math.min(specTeams.length, 12);
+                        return ((ti % cols) + 0.5) * (w / cols);
+                    }).strength(d => {
+                        if (d.isTeam) return 1;
                         const info = nameToLevel[d.name||d.id];
-                        if (info) return levelHeight * (info.level + 0.5) * 0.92; // compress top layers 8% for sharper pyramid
-                        // L6: fill remaining vertical space — pushed lower for more separation
-                        if (d.isTeam) return -200;
-                        const teams=[...new Set(agents.filter(a=>!nameToLevel[a.name]).map(a=>a.team))].sort();
-                        const idx=teams.indexOf(d.team);
-                        const cols=Math.min(teams.length, 8);
-                        const row=Math.floor(idx/cols);
-                        return h*0.82 + row*(h*0.07); // was 0.78/0.08 — more gap between hierarchy and specialists
-                    }).strength(d => nameToLevel[d.name||d.id] ? 0.95 : 0.10)); // +10% stronger Y pull
-                    simulation.alpha(1).restart();
+                        if (info) return info.level <= 3 ? 1.0 : 0.85;
+                        return 0.12;
+                    }));
+
+                    // ── CHARGE: separation between nodes ──
+                    simulation.force("charge").strength(d => {
+                        if (d.isTeam) return 0;
+                        const info = nameToLevel[d.name||d.id];
+                        if (!info) return -6;        // specialists: packed tight
+                        if (info.level === 0) return -800;  // orchestrator: huge space
+                        if (info.level <= 2) return -400;   // demons+board: big
+                        if (info.level <= 4) return -200;   // c-suite+vps+coords: medium
+                        return -40;                          // directors/leads: modest
+                    });
+
+                    // Force nodes to re-layout cleanly
+                    simulation.alpha(1.5).alphaDecay(0.015).restart();
                 } else if (viewId === "btn-view-team") {
                     simulation.force("charge").strength(-40);
                     simulation.force("x", d3.forceX(d => {
@@ -656,13 +708,13 @@
                         "noc":"cdao-fitsi",
                     };
                     const teamToDept = {
-                        "L0 — Supreme Orchestrator":"fitsia-orchestrator",
-                        "L1 — Control Demons":"fitsia-orchestrator",
-                        "L2 — Board of Directors":"ceo-fitsi",
-                        "L3 — C-Suite":"ceo-fitsi",
-                        "L4 — Vice Presidents":"ceo-fitsi",
-                        "L5 — Coordinators":"ceo-fitsi",
-                        "L6 — NoC Evolution":"cdao-fitsi",
+                        "Supreme Orchestrator":"fitsia-orchestrator",
+                        "Control Demons":"fitsia-orchestrator",
+                        "Board of Directors":"ceo-fitsi",
+                        "C-Suite":"ceo-fitsi",
+                        "Vice Presidents":"ceo-fitsi",
+                        "Coordinators":"ceo-fitsi",
+                        "NoC Evolution":"cdao-fitsi",
                         "Backend Engineering":"chief-technology-officer",
                         "Engineering":"chief-technology-officer",
                         "Architecture":"chief-technology-officer",
@@ -1658,22 +1710,23 @@
     }
 
     const DEPT_CENTERS = new Set([
-        // L0 Orchestrator
+        // Supreme Orchestrator
         "fitsia-orchestrator",
-        // L1 Demons
+        // Control Demons
         "demon-decision","demon-performance","demon-intelligence","demon-security","demon-data",
         "demon-growth","demon-experimentation","demon-operations","demon-evolution","demon-crisis",
-        // L2 Board
+        // Board of Directors
         "board-chairman","board-advisor-growth","board-advisor-finance","board-advisor-people","board-advisor-tech",
-        // L3 C-Suite
+        // C-Suite
         "ceo-fitsi","coo-fitsi","chief-technology-officer","cpo-fitsi","cfo-fitsi",
         "cdao-fitsi","cgo-fitsi","ciso-fitsi","chro-fitsi",
-        // L4 VPs
+        // Vice Presidents & Heads
         "vp-of-engineering","vp-of-mobile-engineering","chief-software-architect","vp-of-platform",
         "vp-of-ai-systems","vp-of-product","head-of-ux-research","head-of-marketing",
         "head-of-growth-engineering","head-of-operations","head-of-partnerships","head-of-revenue",
-        "head-of-compliance","head-of-talent",
-        // L5 Coordinators
+        "head-of-compliance","head-of-talent","vp-of-finance","head-of-financial-planning",
+        "head-of-culture","head-of-design","head-of-product-analytics",
+        // Coordinators
         "fitsia-feature-coordinator","fitsia-frontend-coordinator","fitsia-backend-coordinator",
         "fitsia-ai-coordinator","fitsia-science-coordinator","fitsia-devops-coordinator",
         "fitsia-qa-coordinator","fitsia-marketing-coordinator","fitsia-content-coordinator",
@@ -1686,11 +1739,12 @@
     function nodeR(d) {
         if (d.isTeam) return 20;
         if (DEPT_CENTERS.has(d.name||d.id)) return 14;
-        // Pyramid view: scale node size by hierarchy layer (+10% more pronounced)
-        const pyramidInfo = _pyramidLevels[d.name||d.id];
-        if (pyramidInfo !== undefined) {
-            const layerSizes = {0: 22, 1: 14, 2: 13, 3: 12, 4: 10, 5: 9}; // L0=biggest → L5=medium
-            return layerSizes[pyramidInfo] || 7;
+        // Pyramid view: scale node size by hierarchy tier (bigger at top)
+        const pyramidTier = _pyramidLevels[d.name||d.id];
+        if (pyramidTier !== undefined) {
+            // Tier 0=24px (orchestrator) down to tier 5=9px (leads), default 6px for specialists
+            const tierSizes = {0: 24, 1: 15, 2: 14, 3: 13, 4: 11, 5: 9};
+            return tierSizes[pyramidTier] || 6;
         }
         const base=7, log=Math.log2(1+(d.total_invocations||0))*3.5, active=isWorking(d.status)?5:0;
         return base+log+active;
@@ -1758,15 +1812,27 @@
 
         // Build inter-team links based on organizational hierarchy
         const teamRelations = [
-            // Hierarchy layers (L0→L5)
-            ["L0 — Supreme Orchestrator","L1 — Control Demons"],
-            ["L0 — Supreme Orchestrator","L2 — Board of Directors"],
-            ["L2 — Board of Directors","L3 — C-Suite"],
-            ["L3 — C-Suite","L4 — Vice Presidents"],
-            ["L4 — Vice Presidents","L5 — Coordinators"],
-            // C-Suite → teams
-            ["L3 — C-Suite","Engineering"],["L3 — C-Suite","AI Engineering"],
-            ["L3 — C-Suite","Fitsia Core"],["L3 — C-Suite","Growth Leadership"],
+            // Corporate chain of command
+            ["Supreme Orchestrator","Control Demons"],
+            ["Supreme Orchestrator","Board of Directors"],
+            ["Board of Directors","C-Suite"],
+            ["C-Suite","Vice Presidents"],
+            ["Vice Presidents","Coordinators"],
+            ["Vice Presidents","Directors"],
+            ["Directors","Tech Leads"],
+            ["Directors","Eng Managers"],
+            // C-Suite → operational divisions
+            ["C-Suite","Engineering"],["C-Suite","AI Engineering"],
+            ["C-Suite","Infrastructure"],["C-Suite","Security"],
+            // VPs → teams
+            ["Vice Presidents","Backend Engineering"],["Vice Presidents","Mobile Core"],
+            ["Vice Presidents","AI Leadership"],["Vice Presidents","Platform Leadership"],
+            ["Vice Presidents","Growth Leadership"],
+            // Coordinators → execution teams
+            ["Coordinators","Engineering"],["Coordinators","Backend Engineering"],
+            ["Coordinators","Mobile Core"],["Coordinators","AI Engineering"],
+            ["Coordinators","Data Engineering"],["Coordinators","QA Testing"],
+            ["Coordinators","Product Engineering"],
             // Cross-functional
             ["Backend Engineering","Engineering"],["Mobile Core","Engineering"],
             ["AI Engineering","AI Leadership"],["AI Engineering","Data Engineering"],
@@ -1777,10 +1843,14 @@
             // Fitsia Core connections
             ["Fitsia Core","Mobile Core"],["Fitsia Core","Backend Engineering"],
             ["Fitsia Core","AI Engineering"],
-            // Evolution
-            ["L6 — NoC Evolution","AI Engineering"],
-            ["L6 — NoC Evolution","Teoria de Sistemas"],
+            // Evolution & Systems Theory
+            ["NoC Evolution","AI Engineering"],
+            ["NoC Evolution","Teoria de Sistemas"],
             ["Teoria de Sistemas","Architecture"],
+            // Management hierarchy
+            ["Eng Managers","Backend Engineering"],["Eng Managers","Mobile Core"],
+            ["Eng Managers","Infrastructure"],
+            ["Tech Leads","Engineering"],["Tech Leads","AI Engineering"],
         ];
         const existingTeams = new Set(teams);
         for (const [from, to] of teamRelations) {
