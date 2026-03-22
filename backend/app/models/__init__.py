@@ -37,6 +37,7 @@ from .progress import (
     RewardCatalog,
     UserRewardRedemption,
 )
+from .food_recommendation import MealTemplate, MealIngredient, UserMealRecommendation
 
 __all__ = [
     "User",
@@ -77,4 +78,7 @@ __all__ = [
     "ProgressEvent",
     "RewardCatalog",
     "UserRewardRedemption",
+    "MealTemplate",
+    "MealIngredient",
+    "UserMealRecommendation",
 ]

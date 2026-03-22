@@ -28,6 +28,7 @@ from .alerts import router as alerts_router
 from .risk import router as risk_router
 from .ai_usage import router as ai_usage_router
 from .progress import router as progress_router
+from .recommendations import router as recommendations_router
 
 __all__ = [
     "auth_router",
@@ -60,4 +61,5 @@ __all__ = [
     "risk_router",
     "ai_usage_router",
     "progress_router",
+    "recommendations_router",
 ]

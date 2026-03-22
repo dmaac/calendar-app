@@ -52,6 +52,8 @@ import { apiClient } from '../../services/apiClient';
 import ProgressWidget from '../../components/ProgressWidget';
 import DailyMissionsCard from '../../components/DailyMissionsCard';
 import useProgress from '../../hooks/useProgress';
+import MealRecommendationsSection from '../../components/MealRecommendationsSection';
+import type { RecommendedMeal } from '../../hooks/useRecommendations';
 
 // ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
 const DAILY_TIPS = [
@@ -594,6 +596,17 @@ export default function HomeScreen({ navigation }: any) {
     navigation.navigate('Scan');
   }, [track, navigation]);
 
+  const onRegisterMeal = useCallback((meal: RecommendedMeal) => {
+    haptics.medium();
+    track('recommendation_register_pressed', { meal_name: meal.name });
+    navigation.navigate('Scan');
+  }, [track, navigation]);
+
+  const onViewAllMeals = useCallback(() => {
+    haptics.light();
+    navigation.navigate('MealBrowser');
+  }, [navigation]);
+
   const onProgressPress = useCallback(() => {
     haptics.light();
     navigation.navigate('AchievementShowcase');
@@ -878,6 +891,23 @@ export default function HomeScreen({ navigation }: any) {
                 )}
               </View>
 
+              {/* Meal recommendations — only shown when user still needs to eat */}
+              {consumed < target && (
+                <View>
+                  <MealRecommendationsSection onRegisterMeal={onRegisterMeal} />
+                  <TouchableOpacity
+                    onPress={onViewAllMeals}
+                    style={styles.viewAllLink}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Ver todas las comidas"
+                    accessibilityRole="link"
+                  >
+                    <Text style={[styles.viewAllText, { color: c.accent }]}>Ver todas</Text>
+                    <Ionicons name="chevron-forward" size={14} color={c.accent} />
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Motivational banner — no meals logged and it's past 2pm */}
               {!hasMeals && new Date().getHours() >= 14 && (
                 <View
@@ -1149,6 +1179,18 @@ const styles = StyleSheet.create({
   },
   bestDayBold: {
     fontWeight: '700',
+  },
+  viewAllLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 2,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
+  viewAllText: {
+    ...typography.caption,
+    fontWeight: '600',
   },
   quickActionsRow: {
     flexDirection: 'row',

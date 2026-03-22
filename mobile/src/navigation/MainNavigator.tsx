@@ -59,6 +59,7 @@ import RiskDetailScreen     from '../screens/main/RiskDetailScreen';
 import ShoppingListScreen  from '../screens/main/ShoppingListScreen';
 import AchievementShowcaseScreen from '../screens/main/AchievementShowcaseScreen';
 import RewardsShopScreen   from '../screens/main/RewardsShopScreen';
+import MealBrowserScreen   from '../screens/main/MealBrowserScreen';
 import PrivacyPolicy        from '../screens/legal/PrivacyPolicy';
 import TermsOfService       from '../screens/legal/TermsOfService';
 
@@ -197,6 +198,7 @@ const HomeStack = () => (
     <Stack.Screen name="ShoppingList"  component={ShoppingListScreen} />
     <Stack.Screen name="AchievementShowcase" component={AchievementShowcaseScreen} />
     <Stack.Screen name="RewardsShop"  component={RewardsShopScreen} />
+    <Stack.Screen name="MealBrowser" component={MealBrowserScreen} />
   </Stack.Navigator>
 );
 
