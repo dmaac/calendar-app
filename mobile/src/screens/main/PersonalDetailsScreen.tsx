@@ -329,4 +329,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dateModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  dateModalContent: {
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingBottom: spacing.xl,
+  },
+  dateModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  dateModalTitle: {
+    ...typography.bodyMd,
+    fontWeight: '600',
+  },
+  dateModalBtn: {
+    ...typography.bodyMd,
+    fontWeight: '600',
+  },
 });

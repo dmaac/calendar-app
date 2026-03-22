@@ -26,6 +26,7 @@ from .family import router as family_router
 from .favorites import router as favorites_router
 from .alerts import router as alerts_router
 from .risk import router as risk_router
+from .ai_usage import router as ai_usage_router
 
 __all__ = [
     "auth_router",
@@ -56,4 +57,5 @@ __all__ = [
     "favorites_router",
     "alerts_router",
     "risk_router",
+    "ai_usage_router",
 ]

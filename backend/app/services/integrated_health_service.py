@@ -2,6 +2,10 @@
 Integrated Health Score -- Combines nutrition, activity, and consistency
 into a single 0-100 score for the user's overall health adherence.
 
+AI TOKEN COST: ZERO. This entire module is 100% rule-based.
+No LLM / AI API calls are made anywhere in this file.
+All scoring uses deterministic SQL aggregations and weighted arithmetic.
+
 Components:
 - 40% Nutrition adherence (from nutrition_risk_service)
 - 20% Activity/exercise consistency
@@ -233,4 +237,56 @@ async def calculate_integrated_health_score(
         "hydration_score": hydration_score,
         "trend": trend,
         "top_improvement": top_improvement,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Workout context (Item 140)
+# ---------------------------------------------------------------------------
+
+async def get_workout_context(user_id: int, session: AsyncSession) -> dict:
+    """Return workout adherence context for the user.
+
+    - days_since_workout: days since last logged workout
+    - workouts_this_week: count in current week (Mon-Sun)
+    - target: 3 per week
+    - on_track: workouts_this_week >= 3
+    """
+    today = date.today()
+
+    # Last workout date
+    last_result = await session.execute(
+        select(WorkoutLog.created_at)
+        .where(WorkoutLog.user_id == user_id)
+        .order_by(WorkoutLog.created_at.desc())
+        .limit(1)
+    )
+    last_row = last_result.first()
+
+    if last_row is not None:
+        last_workout_date = last_row[0].date() if hasattr(last_row[0], "date") else last_row[0]
+        days_since = (today - last_workout_date).days
+    else:
+        days_since = -1  # never worked out
+
+    # Workouts this week (Monday = 0)
+    week_start = today - timedelta(days=today.weekday())
+    week_start_dt = datetime.combine(week_start, dt_time.min)
+    week_end_dt = datetime.combine(today, dt_time.max)
+
+    count_result = await session.execute(
+        select(func.count(WorkoutLog.id)).where(
+            WorkoutLog.user_id == user_id,
+            WorkoutLog.created_at >= week_start_dt,
+            WorkoutLog.created_at <= week_end_dt,
+        )
+    )
+    workouts_this_week = count_result.scalar() or 0
+
+    target = 3
+    return {
+        "days_since_workout": days_since,
+        "workouts_this_week": workouts_this_week,
+        "target": target,
+        "on_track": workouts_this_week >= target,
     }

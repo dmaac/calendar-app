@@ -1,9 +1,12 @@
 """
 Recovery Plan Service — rule-based 24h and 3-day recovery plans.
 
+AI TOKEN COST: ZERO. This entire module is 100% rule-based.
+No LLM / AI API calls are made anywhere in this file.
+
 Generates meal suggestions to help users close their macro gaps.
 All suggestions are in Spanish (target audience: LATAM).
-No AI API calls — pure rule-based logic with pre-defined meal templates.
+Uses pre-defined meal templates and deterministic selection logic.
 """
 
 from __future__ import annotations
@@ -67,6 +70,16 @@ CALORIE_DENSE_MEALS: list[dict] = [
     {"meal_type": "snack", "description": "Smoothie de platano, avena, leche y mantequilla de mani", "est_calories": 400, "est_protein_g": 16, "est_carbs_g": 50, "est_fats_g": 14},
     {"meal_type": "lunch", "description": "Arroz con pollo, platano maduro y ensalada", "est_calories": 600, "est_protein_g": 38, "est_carbs_g": 65, "est_fats_g": 16},
     {"meal_type": "dinner", "description": "Carne asada con papas fritas y guacamole", "est_calories": 700, "est_protein_g": 40, "est_carbs_g": 50, "est_fats_g": 32},
+]
+
+HIGH_FIBER_MEALS: list[dict] = [
+    {"meal_type": "lunch", "description": "Ensalada de lentejas con espinaca y tomate", "est_calories": 320, "est_protein_g": 18, "est_carbs_g": 40, "est_fats_g": 8, "est_fiber_g": 12},
+    {"meal_type": "snack", "description": "Manzana con mantequilla de almendra y semillas de chia", "est_calories": 220, "est_protein_g": 6, "est_carbs_g": 28, "est_fats_g": 10, "est_fiber_g": 8},
+    {"meal_type": "dinner", "description": "Bowl de quinoa con brocoli, garbanzos y aguacate", "est_calories": 450, "est_protein_g": 18, "est_carbs_g": 50, "est_fats_g": 16, "est_fiber_g": 14},
+    {"meal_type": "breakfast", "description": "Avena con frutas del bosque y semillas de linaza", "est_calories": 300, "est_protein_g": 10, "est_carbs_g": 48, "est_fats_g": 8, "est_fiber_g": 10},
+    {"meal_type": "snack", "description": "Hummus con palitos de zanahoria y apio", "est_calories": 180, "est_protein_g": 6, "est_carbs_g": 20, "est_fats_g": 8, "est_fiber_g": 7},
+    {"meal_type": "lunch", "description": "Sopa de frijoles negros con arroz integral", "est_calories": 380, "est_protein_g": 16, "est_carbs_g": 55, "est_fats_g": 6, "est_fiber_g": 15},
+    {"meal_type": "dinner", "description": "Vegetales asados con camote y tahini", "est_calories": 350, "est_protein_g": 10, "est_carbs_g": 45, "est_fats_g": 14, "est_fiber_g": 11},
 ]
 
 
@@ -437,3 +450,92 @@ async def generate_3day_recovery_plan(user_id: int, session: AsyncSession) -> di
         result["water_recommendation"] = water_rec
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# All meal pools export (for shopping list service)
+# ---------------------------------------------------------------------------
+
+ALL_MEAL_POOLS: list[list[dict]] = [
+    HIGH_PROTEIN_MEALS, BALANCED_MEALS, LIGHT_MEALS, CALORIE_DENSE_MEALS, HIGH_FIBER_MEALS,
+]
+
+
+# ---------------------------------------------------------------------------
+# Smart meal suggestion (Item 136)
+# ---------------------------------------------------------------------------
+
+async def get_smart_meal_suggestion(user_id: int, session: AsyncSession) -> dict:
+    """Analyze today's logged meals and remaining macros, return a single best-fit meal."""
+    goals = await _get_goals(user_id, session)
+    today = date.today()
+    totals = await _get_day_totals(user_id, today, session)
+
+    target_cal = goals["calories"]
+    target_protein = goals["protein_g"]
+    target_fiber = 25  # general daily recommendation
+
+    logged_cal = int(totals["calories"])
+    logged_protein = int(totals["protein_g"])
+
+    remaining_cal = max(0, target_cal - logged_cal)
+    remaining_protein = max(0, target_protein - logged_protein)
+
+    # Estimate logged fiber from today's food logs
+    day_start = datetime.combine(today, dt_time.min)
+    day_end = datetime.combine(today, dt_time.max)
+    fiber_result = await session.execute(
+        select(
+            func.coalesce(func.sum(AIFoodLog.fiber_g), 0.0).label("fiber_g"),
+        ).where(
+            AIFoodLog.user_id == user_id,
+            AIFoodLog.logged_at >= day_start,
+            AIFoodLog.logged_at <= day_end,
+        )
+    )
+    logged_fiber = float(fiber_result.one().fiber_g)
+    remaining_fiber = max(0, target_fiber - logged_fiber)
+
+    # Determine which gap is largest proportionally
+    protein_gap_pct = remaining_protein / target_protein if target_protein > 0 else 0
+    cal_gap_pct = remaining_cal / target_cal if target_cal > 0 else 0
+    fiber_gap_pct = remaining_fiber / target_fiber if target_fiber > 0 else 0
+
+    if protein_gap_pct >= cal_gap_pct and protein_gap_pct >= fiber_gap_pct:
+        pool = HIGH_PROTEIN_MEALS
+        reason = "Te falta proteina. Esta comida te ayuda a llegar a tu meta."
+    elif cal_gap_pct >= fiber_gap_pct:
+        pool = CALORIE_DENSE_MEALS
+        reason = "Necesitas mas calorias hoy. Esta opcion te acerca a tu objetivo."
+    else:
+        pool = HIGH_FIBER_MEALS
+        reason = "Te falta fibra. Esta opcion es rica en vegetales y fibra."
+
+    # Pick the single meal that best fits remaining calories
+    best_meal = pool[0]
+    best_diff = float("inf")
+    for meal in pool:
+        diff = abs(meal["est_calories"] - remaining_cal) if remaining_cal > 0 else meal["est_calories"]
+        if diff < best_diff:
+            best_diff = diff
+            best_meal = meal
+
+    return {
+        "suggestion": {
+            "meal_type": best_meal["meal_type"],
+            "description": best_meal["description"],
+            "est_calories": best_meal["est_calories"],
+            "est_protein_g": best_meal["est_protein_g"],
+        },
+        "reason": reason,
+        "remaining": {
+            "calories": remaining_cal,
+            "protein_g": remaining_protein,
+            "fiber_g": round(remaining_fiber, 1),
+        },
+        "logged_today": {
+            "calories": logged_cal,
+            "protein_g": logged_protein,
+            "fiber_g": round(logged_fiber, 1),
+        },
+    }

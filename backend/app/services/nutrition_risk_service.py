@@ -1,7 +1,9 @@
 """
 Nutrition Risk Engine v2 — Rule-based adherence and risk scoring.
 
-All logic is pure Python/SQL. No AI API calls.
+AI TOKEN COST: ZERO. This entire module is 100% rule-based.
+All scoring, classification, and interventions use deterministic Python logic
+and SQL aggregations. No LLM / AI API calls are made anywhere in this file.
 
 Calculates:
 - Daily adherence (calories, macros, meals) against the user's plan
@@ -1595,6 +1597,25 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
             activity_lvl,
         )
 
+    # Item 138: Water adherence
+    water_ml_today = await _get_water_ml(user_id, today, session)
+    water_target = 2500
+    water_pct = round((water_ml_today / water_target) * 100) if water_target > 0 else 0
+    water_pct = max(0, min(100, water_pct))
+    glasses_remaining = max(0, round((water_target - water_ml_today) / 250))
+    # on_track = consumed >= 60% of proportional target by current hour
+    now_hour = datetime.now().hour
+    expected_pct = (now_hour / 24.0) * 100 if now_hour > 0 else 0
+    water_on_track = water_pct >= (expected_pct * 0.6)
+
+    water_adherence = {
+        "today_ml": round(water_ml_today),
+        "target_ml": water_target,
+        "pct": water_pct,
+        "glasses_remaining": glasses_remaining,
+        "on_track": water_on_track,
+    }
+
     summary = {
         "avg_risk_score": avg_risk,
         "avg_quality_score": avg_quality,
@@ -1612,6 +1633,7 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
         "consistency_score_7d": consistency_score_7d,
         "recovery": recovery,
         "protein_check": protein_check,
+        "water_adherence": water_adherence,
     }
 
     # Item 71: Cache the result
@@ -1977,3 +1999,126 @@ def _check_protein_minimum(protein_logged: int, weight_kg: float, activity_level
         "minimum_g": minimum_g,
         "deficit_g": deficit_g,
     }
+
+
+# ---------------------------------------------------------------------------
+# Weight risk context (Item 139)
+# ---------------------------------------------------------------------------
+
+async def get_weight_risk_context(user_id: int, session: AsyncSession) -> dict:
+    """Return weight progress context from OnboardingProfile.
+
+    Since there is no dedicated weight-tracking table, we use the onboarding
+    profile's weight_kg (current at signup) and target_weight_kg. Weekly change
+    is estimated from the configured weekly_speed_kg and goal direction.
+    """
+    result = await session.exec(
+        select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
+    )
+    profile = result.first()
+
+    if not profile or not profile.weight_kg:
+        return {
+            "current_kg": None,
+            "target_kg": None,
+            "delta_kg": None,
+            "on_track": False,
+            "weekly_change_kg": 0.0,
+        }
+
+    current_kg = profile.weight_kg
+    target_kg = profile.target_weight_kg or current_kg
+    delta_kg = round(current_kg - target_kg, 1)
+    goal = (profile.goal or "maintain").lower()
+    weekly_speed = profile.weekly_speed_kg or 0.0
+
+    if goal == "lose":
+        on_track = current_kg >= target_kg  # still above target = still working
+        weekly_change_kg = -abs(weekly_speed) if weekly_speed else -0.5
+    elif goal == "gain":
+        on_track = current_kg <= target_kg  # still below target = still working
+        weekly_change_kg = abs(weekly_speed) if weekly_speed else 0.5
+    else:
+        on_track = abs(delta_kg) <= 2.0  # maintain: within 2 kg
+        weekly_change_kg = 0.0
+
+    return {
+        "current_kg": round(current_kg, 1),
+        "target_kg": round(target_kg, 1),
+        "delta_kg": delta_kg,
+        "on_track": on_track,
+        "weekly_change_kg": round(weekly_change_kg, 2),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Intervention coverage stats (Item 152)
+# ---------------------------------------------------------------------------
+
+def get_intervention_coverage_stats() -> dict:
+    """Return stats about intervention template coverage.
+
+    All interventions are served by CAUSE_MESSAGES and INTERVENTIONS dicts.
+    No AI is required for any intervention type.
+    """
+    # Count distinct intervention severity levels
+    severity_types = set(INTERVENTIONS.keys())
+    # Count distinct cause-based message types
+    cause_types = set(CAUSE_MESSAGES.keys())
+    # Count time-aware overrides
+    time_aware_types = set(TIME_AWARE_MESSAGES.keys())
+    # Count rescue sequence steps
+    rescue_steps = set(RESCUE_SEQUENCE.keys())
+
+    all_types = severity_types | cause_types | time_aware_types | {f"rescue_day_{d}" for d in rescue_steps}
+    total = len(all_types)
+
+    return {
+        "total_intervention_types": total,
+        "template_covered": total,
+        "ai_required": 0,
+        "coverage_pct": 100.0,
+        "breakdown": {
+            "severity_levels": sorted(severity_types),
+            "cause_messages": sorted(cause_types),
+            "time_aware_overrides": sorted(time_aware_types),
+            "rescue_sequence_days": sorted(rescue_steps),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Personalized message cache (Item 153)
+# ---------------------------------------------------------------------------
+
+# In-memory cache for personalized messages per risk window
+# Key: "{user_id}:{risk_level}:{primary_reason}" -> (timestamp_seconds, message_str)
+_message_cache: dict[str, tuple[float, str]] = {}
+_MESSAGE_CACHE_TTL = 3600  # 1 hour
+
+
+def get_cached_message(user_id: int, risk_level: str, primary_reason: str) -> str | None:
+    """Return a cached personalized message if fresh, else None."""
+    key = f"{user_id}:{risk_level}:{primary_reason}"
+    entry = _message_cache.get(key)
+    if entry is None:
+        return None
+    cached_at, message = entry
+    if (time_mod.time() - cached_at) > _MESSAGE_CACHE_TTL:
+        _message_cache.pop(key, None)
+        return None
+    return message
+
+
+def set_cached_message(user_id: int, risk_level: str, primary_reason: str, message: str) -> None:
+    """Cache a personalized message for the given risk window."""
+    key = f"{user_id}:{risk_level}:{primary_reason}"
+    _message_cache[key] = (time_mod.time(), message)
+
+
+def invalidate_message_cache(user_id: int) -> None:
+    """Remove all cached messages for a user."""
+    prefix = f"{user_id}:"
+    keys_to_remove = [k for k in _message_cache if k.startswith(prefix)]
+    for k in keys_to_remove:
+        del _message_cache[k]

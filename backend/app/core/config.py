@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     # AI provider selection: "claude", "openai", "auto" (Claude -> OpenAI -> mock)
     ai_provider: str = "auto"
 
+    # AI cost kill switch (Item 158): when False, all AI requests route to
+    # template/haiku only (no sonnet/opus). Toggle via AI_EXPENSIVE_ENABLED=false.
+    ai_expensive_enabled: bool = True
+
     # Supabase
     supabase_url: str = ""
     supabase_anon_key: str = ""

@@ -17,13 +17,23 @@ import { useThemeColors, typography, spacing } from '../theme';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+interface Intervention {
+  color?: string;
+  home_banner?: boolean;
+}
+
 interface NutritionSemaphoreProps {
   riskScore: number;
   status: string;
   size?: number;
   primaryReason?: string;
   trend?: 'improving' | 'worsening' | 'stable';
+  intervention?: Intervention | null;
+  lastUpdated?: string;
 }
+
+const STALE_COLOR = '#9CA3AF';
+const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const REASON_LABELS: Record<string, string> = {
   no_log: 'Registra tu primera comida',
@@ -87,6 +97,8 @@ const NutritionSemaphore = React.memo(function NutritionSemaphore({
   size = 120,
   primaryReason,
   trend,
+  intervention,
+  lastUpdated,
 }: NutritionSemaphoreProps) {
   const c = useThemeColors();
   let isDark = false;
@@ -96,9 +108,22 @@ const NutritionSemaphore = React.memo(function NutritionSemaphore({
   } catch {
     isDark = useColorScheme() === 'dark';
   }
+
+  // Stale data detection
+  const isStale = lastUpdated != null
+    ? (Date.now() - new Date(lastUpdated).getTime()) > STALE_THRESHOLD_MS
+    : false;
+
   const clampedScore = Math.max(0, Math.min(100, Math.round(riskScore)));
   const zone = getRiskZone(clampedScore, isDark);
   const action = getActionText(clampedScore);
+
+  // Override colors when stale
+  const displayColor = isStale ? STALE_COLOR : zone.color;
+
+  // Intervention dot logic
+  const showInterventionDot = intervention?.home_banner === true;
+  const interventionDotColor = status === 'critical' ? '#DC2626' : '#F97316';
 
   const strokeWidth = 10;
   const r = (size - strokeWidth) / 2;
@@ -134,6 +159,25 @@ const NutritionSemaphore = React.memo(function NutritionSemaphore({
 
     return () => pulse.stop();
   }, [shouldPulse, pulseAnim]);
+
+  // Intervention dot pulse animation
+  const interventionPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!showInterventionDot) {
+      interventionPulse.setValue(1);
+      return;
+    }
+
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(interventionPulse, { toValue: 1.4, duration: 600, useNativeDriver: true }),
+        Animated.timing(interventionPulse, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ]),
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [showInterventionDot, interventionPulse]);
 
   // Mejorando badge — scale entrance animation
   const badgeScale = useRef(new Animated.Value(0)).current;
@@ -176,9 +220,9 @@ const NutritionSemaphore = React.memo(function NutritionSemaphore({
         styles.container,
         { transform: [{ scale: pulseAnim }] },
       ]}
-      accessibilityLabel={`Puntaje de riesgo nutricional: ${clampedScore} de 100. Estado: ${zone.label}`}
+      accessibilityLabel={`Puntaje de riesgo nutricional: ${clampedScore} de 100. Estado: ${isStale ? 'Datos desactualizados' : zone.label}${showInterventionDot ? '. Intervencion activa' : ''}`}
       accessibilityRole="adjustable"
-      accessibilityValue={{ min: 0, max: 100, now: clampedScore, text: `${clampedScore} de 100 — ${zone.label}` }}
+      accessibilityValue={{ min: 0, max: 100, now: clampedScore, text: `${clampedScore} de 100 — ${isStale ? 'Datos desactualizados' : zone.label}` }}
     >
       <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
         <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
@@ -196,7 +240,7 @@ const NutritionSemaphore = React.memo(function NutritionSemaphore({
             cx={size / 2}
             cy={size / 2}
             r={r}
-            stroke={zone.color}
+            stroke={displayColor}
             strokeWidth={strokeWidth}
             fill="none"
             strokeDasharray={`${dashLen} ${circ - dashLen}`}
@@ -204,18 +248,38 @@ const NutritionSemaphore = React.memo(function NutritionSemaphore({
             strokeLinecap="round"
           />
         </Svg>
-        <Text style={[styles.scoreText, { color: zone.color }]}>{clampedScore}</Text>
+        <Text style={[styles.scoreText, { color: displayColor }]}>{clampedScore}</Text>
+
+        {/* Intervention dot — pulsing at top-right of circle */}
+        {showInterventionDot && (
+          <Animated.View
+            style={[
+              styles.interventionDot,
+              {
+                backgroundColor: interventionDotColor,
+                top: strokeWidth / 2,
+                right: strokeWidth / 2,
+                transform: [{ scale: interventionPulse }],
+              },
+            ]}
+            accessibilityLabel="Intervencion activa"
+          />
+        )}
       </View>
-      <Text style={[styles.label, { color: zone.color }]}>{zone.label}</Text>
-      {primaryReason != null && REASON_LABELS[primaryReason] != null && (
-        <Text style={[styles.reasonText, { color: zone.color }]}>
+      <Text style={[styles.label, { color: displayColor }]}>
+        {isStale ? 'Datos desactualizados' : zone.label}
+      </Text>
+      {!isStale && primaryReason != null && REASON_LABELS[primaryReason] != null && (
+        <Text style={[styles.reasonText, { color: displayColor }]}>
           {REASON_LABELS[primaryReason]}
         </Text>
       )}
       {/* Actionable "what to do today" line */}
-      <Text style={[styles.actionText, { color: zone.color }]}>
-        {action.text}
-      </Text>
+      {!isStale && (
+        <Text style={[styles.actionText, { color: displayColor }]}>
+          {action.text}
+        </Text>
+      )}
       {trend === 'improving' && (
         <View style={styles.improvingRow}>
           <Animated.View style={[styles.improvingBadge, { transform: [{ scale: badgeScale }] }]}>
@@ -281,5 +345,13 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 2.5,
     backgroundColor: '#22C55E',
+  },
+  interventionDot: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
 });

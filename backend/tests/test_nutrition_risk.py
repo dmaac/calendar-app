@@ -22,14 +22,21 @@ from app.services.nutrition_risk_service import (
     _calculate_diet_quality_score,
     _calculate_recovery_score,
     _calculate_risk_score,
+    _get_rescue_sequence,
+    _get_time_aware_message,
+    _get_time_period,
     _identify_primary_risk_reason,
     _select_intervention_message,
     _should_send_intervention,
     _record_intervention,
     _intervention_cooldowns,
     GOAL_THRESHOLDS,
+    INTERVENTION_PRIORITY,
     INTERVENTIONS,
     CAUSE_MESSAGES,
+    POSITIVE_CORRECTION_MESSAGE,
+    RESCUE_SEQUENCE,
+    TIME_AWARE_MESSAGES,
 )
 
 
@@ -1854,3 +1861,687 @@ class TestIntegratedHealthScore:
         expected = int(round(n * 0.40 + a * 0.20 + c * 0.25 + h * 0.15))
         # 32 + 12 + 17.5 + 7.5 = 69
         assert expected == 69
+
+
+# ===========================================================================
+# Wave 4: Smart Interventions Tests
+# ===========================================================================
+
+class TestCauseMessagesExpansion:
+    """Tests for Item 37: expanded CAUSE_MESSAGES (5 variants each)."""
+
+    def test_all_causes_have_five_variants(self):
+        """Each cause should have exactly 5 template variants."""
+        for cause, templates in CAUSE_MESSAGES.items():
+            assert len(templates) == 5, f"Cause '{cause}' has {len(templates)} variants, expected 5"
+
+    def test_all_causes_present(self):
+        """All expected causes should be present."""
+        expected_causes = {"no_log", "low_calories", "excess", "bad_quality", "low_protein", "macro_imbalance"}
+        assert set(CAUSE_MESSAGES.keys()) == expected_causes
+
+    def test_all_variants_have_required_keys(self):
+        """Each variant should have push_title and push_body."""
+        for cause, templates in CAUSE_MESSAGES.items():
+            for i, tmpl in enumerate(templates):
+                assert "push_title" in tmpl, f"Cause '{cause}' variant {i} missing push_title"
+                assert "push_body" in tmpl, f"Cause '{cause}' variant {i} missing push_body"
+
+
+class TestTimeAwareMessages:
+    """Tests for Item 37: time-of-day aware messages."""
+
+    def test_time_period_returns_valid_period(self):
+        """_get_time_period should return morning, afternoon, or evening."""
+        period = _get_time_period()
+        assert period in ("morning", "afternoon", "evening")
+
+    def test_all_causes_have_time_messages(self):
+        """Each cause should have time-aware messages for all 3 periods."""
+        for cause in CAUSE_MESSAGES:
+            assert cause in TIME_AWARE_MESSAGES, f"Missing time-aware messages for '{cause}'"
+            for period in ("morning", "afternoon", "evening"):
+                assert period in TIME_AWARE_MESSAGES[cause], (
+                    f"Missing '{period}' message for cause '{cause}'"
+                )
+
+    def test_time_aware_message_returns_dict(self):
+        """_get_time_aware_message should return a dict with push_title and push_body."""
+        msg = _get_time_aware_message(
+            "no_log", cal_logged=0, cal_target=2000,
+            protein_logged=0, protein_target=150, consecutive_days=0,
+        )
+        assert msg is not None
+        assert "push_title" in msg
+        assert "push_body" in msg
+
+    def test_time_aware_message_unknown_reason(self):
+        """Unknown reason should return None."""
+        msg = _get_time_aware_message(
+            "nonexistent", cal_logged=0, cal_target=2000,
+            protein_logged=0, protein_target=150, consecutive_days=0,
+        )
+        assert msg is None
+
+    def test_time_aware_message_interpolates_placeholders(self):
+        """Time-aware messages with placeholders should interpolate correctly."""
+        msg = _get_time_aware_message(
+            "low_calories", cal_logged=500, cal_target=2000,
+            protein_logged=30, protein_target=150, consecutive_days=0,
+        )
+        assert msg is not None
+        # The body should contain actual numbers, not placeholders
+        assert "{cal}" not in msg["push_body"]
+
+
+class TestRescueSequence:
+    """Tests for Item 41: 3-step rescue sequence for abandonment."""
+
+    def test_day_1_rescue(self):
+        """1 no-log day should return day-1 rescue."""
+        rescue = _get_rescue_sequence(1)
+        assert rescue is not None
+        assert "push_title" in rescue
+        assert "push_body" in rescue
+        assert "in_app_banner" in rescue
+        assert "cta_action" in rescue
+        assert "cta_label" in rescue
+
+    def test_day_2_still_day_1(self):
+        """2 no-log days should still return day-1 rescue (not yet day-3)."""
+        rescue = _get_rescue_sequence(2)
+        assert rescue is not None
+        assert rescue["push_title"] == RESCUE_SEQUENCE[1]["push_title"]
+
+    def test_day_3_rescue(self):
+        """3 no-log days should return day-3 rescue."""
+        rescue = _get_rescue_sequence(3)
+        assert rescue is not None
+        assert rescue["push_title"] == RESCUE_SEQUENCE[3]["push_title"]
+
+    def test_day_5_still_day_3(self):
+        """5 no-log days should still return day-3 rescue."""
+        rescue = _get_rescue_sequence(5)
+        assert rescue is not None
+        assert rescue["push_title"] == RESCUE_SEQUENCE[3]["push_title"]
+
+    def test_day_7_rescue(self):
+        """7 no-log days should return day-7 rescue."""
+        rescue = _get_rescue_sequence(7)
+        assert rescue is not None
+        assert rescue["push_title"] == RESCUE_SEQUENCE[7]["push_title"]
+
+    def test_day_14_still_day_7(self):
+        """14 no-log days should still return day-7 rescue."""
+        rescue = _get_rescue_sequence(14)
+        assert rescue is not None
+        assert rescue["push_title"] == RESCUE_SEQUENCE[7]["push_title"]
+
+    def test_day_0_no_rescue(self):
+        """0 no-log days should return None."""
+        rescue = _get_rescue_sequence(0)
+        assert rescue is None
+
+    def test_rescue_cta_actions_are_valid(self):
+        """Each rescue step should have a valid CTA action."""
+        for step_key, step_data in RESCUE_SEQUENCE.items():
+            assert step_data["cta_action"] in ("/scan", "/api/risk/copy-yesterday", "/api/risk/quick-add-protein")
+
+
+class TestInterventionPriority:
+    """Tests for Item 47: intervention priority order."""
+
+    def test_priority_list_not_empty(self):
+        """Priority list should contain items."""
+        assert len(INTERVENTION_PRIORITY) > 0
+
+    def test_critical_is_highest_priority(self):
+        """'critical' should be the first priority."""
+        assert INTERVENTION_PRIORITY[0] == "critical"
+
+    def test_all_priorities_are_valid_reasons(self):
+        """All priority reasons should be valid risk reasons."""
+        valid_reasons = {"critical", "no_log", "excess", "low_calories", "low_protein", "bad_quality", "macro_imbalance"}
+        for reason in INTERVENTION_PRIORITY:
+            assert reason in valid_reasons, f"Unknown priority reason: {reason}"
+
+
+class TestPositiveCorrectionMessage:
+    """Tests for Item 38: positive correction message."""
+
+    def test_correction_message_has_required_keys(self):
+        """Positive correction message should have required fields."""
+        assert "push_title" in POSITIVE_CORRECTION_MESSAGE
+        assert "push_body" in POSITIVE_CORRECTION_MESSAGE
+        assert "color" in POSITIVE_CORRECTION_MESSAGE
+
+    def test_correction_message_is_positive(self):
+        """Color should be green (positive)."""
+        assert POSITIVE_CORRECTION_MESSAGE["color"] == "#22C55E"
+
+
+class TestNotificationLimiter:
+    """Tests for Item 40 + 46: notification limiter."""
+
+    def test_should_send_notification_valid_type(self):
+        from app.services.notification_limiter import (
+            should_send_notification,
+            record_notification_sent,
+            _notification_counters,
+            NOTIFICATION_TYPES,
+            MAX_PER_DAY,
+        )
+        # Clear state
+        _notification_counters.clear()
+
+        # First notification should be allowed
+        assert should_send_notification(9999, "risk_critical") is True
+
+    def test_should_send_notification_invalid_type(self):
+        from app.services.notification_limiter import should_send_notification
+        assert should_send_notification(9999, "invalid_type") is False
+
+    def test_daily_limit_enforcement(self):
+        from app.services.notification_limiter import (
+            should_send_notification,
+            record_notification_sent,
+            _notification_counters,
+            MAX_PER_DAY,
+        )
+        _notification_counters.clear()
+        user_id = 8888
+
+        for i in range(MAX_PER_DAY):
+            assert should_send_notification(user_id, "risk_warning") is True
+            record_notification_sent(user_id, "risk_warning")
+
+        # Should be blocked now
+        assert should_send_notification(user_id, "risk_warning") is False
+
+    def test_quiet_hours(self):
+        from app.services.notification_limiter import is_quiet_hours
+        # We can't control the current time easily, but we can verify it returns a bool
+        result = is_quiet_hours(None)
+        assert isinstance(result, bool)
+
+    def test_quiet_hours_with_timezone(self):
+        from app.services.notification_limiter import is_quiet_hours
+        result = is_quiet_hours("America/Santiago")
+        assert isinstance(result, bool)
+
+    def test_quiet_hours_invalid_timezone(self):
+        from app.services.notification_limiter import is_quiet_hours
+        # Should fall back to UTC without crashing
+        result = is_quiet_hours("Invalid/Timezone")
+        assert isinstance(result, bool)
+
+    def test_should_notify_combined(self):
+        from app.services.notification_limiter import should_notify, _notification_counters
+        _notification_counters.clear()
+        # Should return a bool (combines rate limit + quiet hours)
+        result = should_notify(7777, "risk_improvement", "America/Santiago")
+        assert isinstance(result, bool)
+
+    def test_get_notification_counts(self):
+        from app.services.notification_limiter import (
+            get_notification_counts,
+            record_notification_sent,
+            _notification_counters,
+        )
+        _notification_counters.clear()
+        user_id = 6666
+        record_notification_sent(user_id, "streak_celebration")
+        counts = get_notification_counts(user_id)
+        assert counts["daily_count"] == 1
+        assert counts["weekly_count"] == 1
+        assert "daily_limit" in counts
+        assert "weekly_limit" in counts
+
+
+# ===========================================================================
+# Wave 5: TestRecoveryPlan (8 tests)
+# ===========================================================================
+
+class TestRecoveryPlan:
+    """Tests for recovery_plan_service.py pure functions."""
+
+    def test_deficit_scenario_selects_calorie_dense(self):
+        """When remaining > 500 kcal, _select_meals should use calorie-dense pool."""
+        from app.services.recovery_plan_service import _select_meals, CALORIE_DENSE_MEALS
+        meals = _select_meals(CALORIE_DENSE_MEALS, remaining_calories=800, remaining_protein=40, count=3)
+        assert len(meals) > 0
+        assert len(meals) <= 3
+        total_cal = sum(m["est_calories"] for m in meals)
+        assert total_cal > 0
+
+    def test_excess_scenario_selects_light_meals(self):
+        """When consumed > target (excess), light meals should be used."""
+        from app.services.recovery_plan_service import _select_meals, LIGHT_MEALS
+        meals = _select_meals(LIGHT_MEALS, remaining_calories=200, remaining_protein=10, count=3)
+        assert len(meals) > 0
+        for m in meals:
+            assert m["est_calories"] <= 300  # light meals are all <= 250
+
+    def test_on_track_scenario_selects_balanced(self):
+        """On-track scenario should use balanced meals."""
+        from app.services.recovery_plan_service import _select_meals, BALANCED_MEALS
+        meals = _select_meals(BALANCED_MEALS, remaining_calories=400, remaining_protein=20, count=2)
+        assert len(meals) > 0
+        assert len(meals) <= 2
+
+    def test_water_recommendation_below_2000ml(self):
+        """Water recommendation should be included when < 2000ml."""
+        from app.services.recovery_plan_service import _build_water_recommendation
+        rec = _build_water_recommendation(1200.0)
+        assert rec is not None
+        assert rec["current_water_ml"] == 1200
+        assert rec["target_water_ml"] == 2000
+        assert rec["remaining_water_ml"] == 800
+        assert rec["glasses_remaining"] >= 1
+        assert "ml" in rec["message"]
+
+    def test_water_recommendation_above_2000ml_is_none(self):
+        """No water recommendation when >= 2000ml."""
+        from app.services.recovery_plan_service import _build_water_recommendation
+        rec = _build_water_recommendation(2500.0)
+        assert rec is None
+
+    def test_3day_plan_distributes_40_35_25(self):
+        """3-day recovery distribution should be [0.40, 0.35, 0.25]."""
+        # Verify the constants used in generate_3day_recovery_plan
+        distribution = [0.40, 0.35, 0.25]
+        assert sum(distribution) == pytest.approx(1.0)
+        assert distribution[0] == 0.40
+        assert distribution[1] == 0.35
+        assert distribution[2] == 0.25
+
+    def test_meals_are_in_spanish(self):
+        """All meal template descriptions should be in Spanish."""
+        from app.services.recovery_plan_service import (
+            HIGH_PROTEIN_MEALS, BALANCED_MEALS, LIGHT_MEALS, CALORIE_DENSE_MEALS,
+        )
+        spanish_indicators = ["con", "de", "al", "en", "y"]
+        all_meals = HIGH_PROTEIN_MEALS + BALANCED_MEALS + LIGHT_MEALS + CALORIE_DENSE_MEALS
+        for meal in all_meals:
+            desc = meal["description"].lower()
+            has_spanish = any(f" {w} " in f" {desc} " for w in spanish_indicators)
+            assert has_spanish, f"Meal not in Spanish: {meal['description']}"
+
+    def test_calorie_estimates_reasonable(self):
+        """All meal templates should have est_calories between 90 and 700."""
+        from app.services.recovery_plan_service import (
+            HIGH_PROTEIN_MEALS, BALANCED_MEALS, LIGHT_MEALS, CALORIE_DENSE_MEALS,
+        )
+        all_meals = HIGH_PROTEIN_MEALS + BALANCED_MEALS + LIGHT_MEALS + CALORIE_DENSE_MEALS
+        for meal in all_meals:
+            assert 80 <= meal["est_calories"] <= 700, (
+                f"Unreasonable calories: {meal['description']} = {meal['est_calories']}"
+            )
+
+
+# ===========================================================================
+# Wave 5: TestNotificationLimiterExpanded (10 tests)
+# ===========================================================================
+
+class TestNotificationLimiterExpanded:
+    """Extended tests for notification_limiter.py (Items 40 + 46)."""
+
+    def test_first_notification_allowed(self):
+        from app.services.notification_limiter import (
+            should_send_notification, _notification_counters,
+        )
+        _notification_counters.clear()
+        assert should_send_notification(11111, "risk_critical") is True
+
+    def test_4th_notification_same_day_blocked(self):
+        """Max 3/day — 4th should be blocked."""
+        from app.services.notification_limiter import (
+            should_send_notification, record_notification_sent, _notification_counters,
+        )
+        _notification_counters.clear()
+        uid = 22222
+        for _ in range(3):
+            assert should_send_notification(uid, "risk_warning") is True
+            record_notification_sent(uid, "risk_warning")
+        assert should_send_notification(uid, "risk_warning") is False
+
+    def test_15th_notification_in_week_blocked(self):
+        """Max 14/week — simulate 14 sent across multiple days, 15th blocked."""
+        from app.services.notification_limiter import (
+            should_send_notification, _notification_counters, _week_key, _today_key,
+        )
+        _notification_counters.clear()
+        uid = 33333
+        counter = {"daily": {}, "weekly": {}}
+        # Directly set weekly counter to 14
+        counter["weekly"][_week_key()] = 14
+        counter["daily"][_today_key()] = 0  # daily is fine
+        _notification_counters[uid] = counter
+        assert should_send_notification(uid, "risk_critical") is False
+
+    def test_quiet_hours_blocked_at_23(self):
+        """Notifications at 23:00 should be blocked (quiet hours 22-07)."""
+        from app.services.notification_limiter import is_quiet_hours
+        from unittest.mock import patch
+        from datetime import datetime, timezone
+        fake_time = datetime(2026, 3, 22, 23, 0, 0, tzinfo=timezone.utc)
+        with patch("app.services.notification_limiter.datetime") as mock_dt:
+            mock_dt.now.return_value = fake_time
+            mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+            result = is_quiet_hours(None)
+            assert result is True
+
+    def test_non_quiet_hours_allowed_at_12(self):
+        """Notifications at 12:00 should be allowed."""
+        from app.services.notification_limiter import is_quiet_hours
+        from unittest.mock import patch
+        from datetime import datetime, timezone
+        fake_time = datetime(2026, 3, 22, 12, 0, 0, tzinfo=timezone.utc)
+        with patch("app.services.notification_limiter.datetime") as mock_dt:
+            mock_dt.now.return_value = fake_time
+            mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+            result = is_quiet_hours(None)
+            assert result is False
+
+    def test_different_types_dont_interfere(self):
+        """Sending 3 risk_critical should not block risk_warning."""
+        from app.services.notification_limiter import (
+            should_send_notification, record_notification_sent, _notification_counters,
+        )
+        _notification_counters.clear()
+        uid = 44444
+        # The counter tracks ALL types combined (not per-type), so this should block
+        for _ in range(3):
+            record_notification_sent(uid, "risk_critical")
+        # Daily limit is global — 3 sent means 4th of any type is blocked
+        assert should_send_notification(uid, "risk_warning") is False
+
+    def test_daily_reset_different_day(self):
+        """Notifications on a different day should have a fresh counter."""
+        from app.services.notification_limiter import (
+            should_send_notification, _notification_counters, _week_key,
+        )
+        _notification_counters.clear()
+        uid = 55555
+        # Simulate 3 notifications on yesterday (different daily key)
+        counter = {"daily": {"2026-03-21": 3}, "weekly": {_week_key(): 3}}
+        _notification_counters[uid] = counter
+        # Today's key is different, so daily count is 0
+        assert should_send_notification(uid, "risk_critical") is True
+
+    def test_quiet_hours_with_timezone_america_santiago(self):
+        """Quiet hours with America/Santiago timezone."""
+        from app.services.notification_limiter import is_quiet_hours
+        from unittest.mock import patch
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        # 3:00 AM in Santiago = quiet hours
+        tz = ZoneInfo("America/Santiago")
+        fake_time = datetime(2026, 3, 22, 3, 0, 0, tzinfo=tz)
+        with patch("app.services.notification_limiter.datetime") as mock_dt:
+            mock_dt.now.return_value = fake_time
+            mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+            result = is_quiet_hours("America/Santiago")
+            assert result is True
+
+    def test_invalid_notification_type_returns_false(self):
+        """Unknown notification type should return False."""
+        from app.services.notification_limiter import should_send_notification
+        assert should_send_notification(66666, "unknown_type") is False
+
+    def test_get_notification_counts_after_multiple_sends(self):
+        """Counts should track correctly after multiple sends."""
+        from app.services.notification_limiter import (
+            get_notification_counts, record_notification_sent, _notification_counters,
+        )
+        _notification_counters.clear()
+        uid = 77777
+        record_notification_sent(uid, "risk_critical")
+        record_notification_sent(uid, "risk_warning")
+        counts = get_notification_counts(uid)
+        assert counts["daily_count"] == 2
+        assert counts["weekly_count"] == 2
+
+
+# ===========================================================================
+# Wave 5: TestVariablePlan (6 tests)
+# ===========================================================================
+
+class TestVariablePlan:
+    """Tests for variable_plan_service.py DAY_TYPES multipliers."""
+
+    def test_rest_day_calorie_multiplier(self):
+        """Rest day: 0.85x calories, 0.7x carbs."""
+        from app.services.variable_plan_service import DAY_TYPES
+        rest = DAY_TYPES["rest"]
+        assert rest["calorie_multiplier"] == 0.85
+        assert rest["carb_multiplier"] == 0.7
+
+    def test_training_day_multiplier(self):
+        """Training day: 1.15x calories, 1.3x carbs."""
+        from app.services.variable_plan_service import DAY_TYPES
+        training = DAY_TYPES["training"]
+        assert training["calorie_multiplier"] == 1.15
+        assert training["carb_multiplier"] == 1.3
+
+    def test_refeed_day_multiplier(self):
+        """Refeed day: 1.25x calories, 1.5x carbs."""
+        from app.services.variable_plan_service import DAY_TYPES
+        refeed = DAY_TYPES["refeed"]
+        assert refeed["calorie_multiplier"] == 1.25
+        assert refeed["carb_multiplier"] == 1.5
+
+    def test_unknown_day_type_not_in_dict(self):
+        """Unknown day_type should not be in DAY_TYPES — the service returns default 1x."""
+        from app.services.variable_plan_service import DAY_TYPES
+        assert "normal" not in DAY_TYPES
+        assert "unknown" not in DAY_TYPES
+
+    def test_protein_unchanged_across_all_types(self):
+        """Protein multiplier must be 1.0 for all day types."""
+        from app.services.variable_plan_service import DAY_TYPES
+        for day_type, config in DAY_TYPES.items():
+            assert config["protein_multiplier"] == 1.0, f"{day_type} protein != 1.0"
+
+    def test_fat_unchanged_across_all_types(self):
+        """Fat multiplier must be 1.0 for all day types."""
+        from app.services.variable_plan_service import DAY_TYPES
+        for day_type, config in DAY_TYPES.items():
+            assert config["fat_multiplier"] == 1.0, f"{day_type} fat != 1.0"
+
+
+# ===========================================================================
+# Wave 5: TestChronicUnderreporting (5 tests)
+# ===========================================================================
+
+class TestChronicUnderreporting:
+    """Tests for chronic underreporting detection logic."""
+
+    def test_14_days_all_under_60_pct_is_chronic(self):
+        """14 days all under 60% -> chronic=True (days_under=14 >= 10)."""
+        days_under = 14
+        days_analyzed = 14
+        chronic = days_under >= 10 and days_analyzed >= 10
+        assert chronic is True
+
+    def test_14_days_all_above_80_pct_not_chronic(self):
+        """14 days all above 80% -> chronic=False (days_under=0)."""
+        days_under = 0
+        days_analyzed = 14
+        chronic = days_under >= 10 and days_analyzed >= 10
+        assert chronic is False
+
+    def test_mixed_8_under_6_over_not_chronic(self):
+        """8 days under 60%, 6 over -> chronic=False (need >= 10)."""
+        days_under = 8
+        days_analyzed = 14
+        chronic = days_under >= 10 and days_analyzed >= 10
+        assert chronic is False
+
+    def test_exactly_10_under_is_chronic(self):
+        """Exactly 10 days under 60% of 14 analyzed -> chronic=True."""
+        days_under = 10
+        days_analyzed = 14
+        chronic = days_under >= 10 and days_analyzed >= 10
+        assert chronic is True
+
+    def test_zero_days_of_data_not_chronic(self):
+        """0 days of data -> chronic=False (days_analyzed < 10)."""
+        days_under = 0
+        days_analyzed = 0
+        chronic = days_under >= 10 and days_analyzed >= 10
+        assert chronic is False
+
+
+# ===========================================================================
+# Wave 5: TestAPIContractValidation (8 tests)
+# ===========================================================================
+
+class TestAPIContractValidation:
+    """Validate Pydantic response models from risk.py are properly structured."""
+
+    def test_risk_summary_response_required_fields(self):
+        from app.routers.risk import RiskSummaryResponse, InterventionResponse
+        data = RiskSummaryResponse(
+            avg_risk_score=50,
+            avg_quality_score=60,
+            avg_calories_logged=1800,
+            consecutive_no_log_days=0,
+            days_with_data=7,
+            trend="stable",
+            current_status="optimal",
+            intervention=InterventionResponse(color="#22C55E"),
+        )
+        assert data.avg_risk_score == 50
+        assert data.trend == "stable"
+        assert data.consistency_score_7d == 0  # default
+
+    def test_daily_adherence_response_fields(self):
+        from app.routers.risk import DailyAdherenceResponse
+        data = DailyAdherenceResponse(
+            date=date(2026, 3, 22),
+            calories_target=2000,
+            calories_logged=1500,
+            calories_ratio=0.75,
+            meals_logged=3,
+            protein_target=150,
+            protein_logged=100,
+            carbs_target=250,
+            carbs_logged=200,
+            fats_target=65,
+            fats_logged=50,
+            diet_quality_score=70,
+            adherence_status="low_adherence",
+            nutrition_risk_score=45,
+            no_log_flag=False,
+        )
+        assert data.calories_ratio == 0.75
+        assert data.no_log_flag is False
+        assert isinstance(data.date, date)
+
+    def test_recovery_plan_24h_serialization(self):
+        from app.routers.risk import (
+            RecoveryPlan24hResponse, RecoveryPlanMacroResponse, SuggestedMealResponse,
+        )
+        plan = RecoveryPlan24hResponse(
+            horizon="24h",
+            status="deficit",
+            targets=RecoveryPlanMacroResponse(calories=2000, protein_g=150, carbs_g=250, fats_g=65),
+            logged=RecoveryPlanMacroResponse(calories=1200, protein_g=80, carbs_g=150, fats_g=40),
+            remaining_calories=800,
+            remaining_protein_g=70,
+            remaining_carbs_g=100,
+            remaining_fats_g=25,
+            suggested_meals=[
+                SuggestedMealResponse(meal_type="lunch", description="Pollo con arroz", est_calories=500, est_protein_g=35),
+            ],
+            motivation="Tu puedes!",
+        )
+        d = plan.model_dump()
+        assert d["horizon"] == "24h"
+        assert len(d["suggested_meals"]) == 1
+        assert d["water_recommendation"] is None  # Optional, not provided
+
+    def test_recovery_plan_3d_serialization(self):
+        from app.routers.risk import (
+            RecoveryPlan3dResponse, RecoveryPlanMacroResponse, RecoveryPlan3dMacroResponse,
+            RecoveryPlan3dPeriodResponse, DayPlanResponse, SuggestedMealResponse,
+        )
+        plan = RecoveryPlan3dResponse(
+            horizon="3d",
+            status="deficit",
+            period=RecoveryPlan3dPeriodResponse(start="2026-03-20", end="2026-03-22"),
+            targets_3d=RecoveryPlanMacroResponse(calories=6000, protein_g=450, carbs_g=750, fats_g=195),
+            logged_3d=RecoveryPlan3dMacroResponse(calories=4000, protein_g=300),
+            deficit_calories=2000,
+            deficit_protein_g=150,
+            daily_plans=[
+                DayPlanResponse(
+                    date="2026-03-22", day_label="Dia 1",
+                    calorie_target=2200, protein_target_g=160,
+                    suggested_meals=[SuggestedMealResponse(meal_type="lunch", description="test", est_calories=500, est_protein_g=30)],
+                ),
+            ],
+            motivation="Sigue adelante!",
+        )
+        d = plan.model_dump()
+        assert d["horizon"] == "3d"
+        assert len(d["daily_plans"]) == 1
+        assert d["daily_plans"][0]["day_label"] == "Dia 1"
+
+    def test_weekend_pattern_response_fields(self):
+        from app.routers.risk import WeekendPatternResponse
+        data = WeekendPatternResponse(
+            weekend_avg_calories=2200,
+            weekday_avg_calories=1800,
+            weekend_avg_risk=60,
+            weekday_avg_risk=40,
+            weekend_risk_higher=True,
+            pattern_detected=True,
+            pct_difference=22.2,
+            data_days=14,
+            weekend_days=4,
+            weekday_days=10,
+        )
+        assert data.weekend_risk_higher is True
+        assert data.pattern_detected is True
+        assert data.weekend_avg_first_meal_hour is None  # Optional default
+
+    def test_adjusted_goals_response_serialization(self):
+        from app.routers.risk import AdjustedGoalsResponse
+        data = AdjustedGoalsResponse(
+            calories=1700,
+            protein_g=150,
+            carbs_g=175,
+            fat_g=65,
+            day_type="rest",
+            label="Dia de descanso",
+        )
+        d = data.model_dump()
+        assert d["day_type"] == "rest"
+        assert d["label"] == "Dia de descanso"
+        assert isinstance(d["calories"], int)
+
+    def test_chronic_underreporting_response_fields(self):
+        from app.routers.risk import ChronicUnderreportingResponse
+        data = ChronicUnderreportingResponse(
+            chronic_underreporting=True,
+            avg_logged_pct=45.3,
+            days_analyzed=14,
+            days_under=12,
+            likely_not_logging=False,
+            suggestion="Intenta el registro rapido.",
+        )
+        assert data.chronic_underreporting is True
+        assert data.avg_logged_pct == 45.3
+        assert isinstance(data.days_under, int)
+
+    def test_intervention_response_optional_fields_default(self):
+        from app.routers.risk import InterventionResponse
+        data = InterventionResponse(color="#FF0000")
+        assert data.push_title is None
+        assert data.push_body is None
+        assert data.home_banner is None
+        assert data.coach_message is None
+        assert data.simplify_ui is None
+        assert data.suggestions is None

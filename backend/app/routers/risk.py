@@ -552,6 +552,141 @@ async def get_chronic_underreporting(
     return ChronicUnderreportingResponse(**data)
 
 
+# --- Quick CTA endpoints (Items 42-44) ---
+
+
+class CopyYesterdayResponse(BaseModel):
+    copied_entries: int
+    total_calories: int
+    total_protein_g: int
+    message: str
+
+
+class QuickAddProteinResponse(BaseModel):
+    food_name: str
+    calories: int
+    protein_g: int
+    carbs_g: int
+    fats_g: int
+    message: str
+
+
+@router.post("/copy-yesterday", response_model=CopyYesterdayResponse, status_code=status.HTTP_201_CREATED)
+@_rl("10/minute")
+async def copy_yesterday(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Copy yesterday's food logs to today (Item 43 CTA).
+
+    Creates new AIFoodLog entries with today's date based on yesterday's logs.
+    """
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    yesterday_start = datetime.combine(yesterday, datetime.min.time())
+    yesterday_end = datetime.combine(yesterday, datetime.max.time())
+
+    # Fetch yesterday's food logs
+    result = await session.exec(
+        select(AIFoodLog).where(
+            AIFoodLog.user_id == current_user.id,
+            AIFoodLog.logged_at >= yesterday_start,
+            AIFoodLog.logged_at <= yesterday_end,
+        )
+    )
+    yesterday_logs = list(result.all())
+
+    if not yesterday_logs:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No food logs found for yesterday.",
+        )
+
+    total_calories = 0
+    total_protein = 0
+    now = datetime.utcnow()
+
+    for log in yesterday_logs:
+        new_log = AIFoodLog(
+            user_id=current_user.id,
+            logged_at=now,
+            meal_type=log.meal_type,
+            food_name=log.food_name,
+            calories=log.calories,
+            carbs_g=log.carbs_g,
+            protein_g=log.protein_g,
+            fats_g=log.fats_g,
+            fiber_g=log.fiber_g,
+            sugar_g=log.sugar_g,
+            sodium_mg=log.sodium_mg,
+            serving_size=log.serving_size,
+            ai_provider="copy_yesterday",
+            ai_confidence=1.0,
+            notes=f"Copied from {yesterday.isoformat()}",
+        )
+        session.add(new_log)
+        total_calories += int(log.calories)
+        total_protein += int(log.protein_g)
+
+    await session.commit()
+
+    # Trigger recalculation
+    await recalculate_on_food_log(current_user.id, session)
+
+    return CopyYesterdayResponse(
+        copied_entries=len(yesterday_logs),
+        total_calories=total_calories,
+        total_protein_g=total_protein,
+        message=f"Se copiaron {len(yesterday_logs)} registros de ayer.",
+    )
+
+
+@router.post("/quick-add-protein", response_model=QuickAddProteinResponse, status_code=status.HTTP_201_CREATED)
+@_rl("10/minute")
+async def quick_add_protein(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Add a default high-protein snack (Item 44 CTA).
+
+    Adds a Greek yogurt entry: 180 kcal, 20g protein, 8g carbs, 5g fats.
+    """
+    now = datetime.utcnow()
+
+    new_log = AIFoodLog(
+        user_id=current_user.id,
+        logged_at=now,
+        meal_type="snack",
+        food_name="Yogurt griego natural",
+        calories=180.0,
+        carbs_g=8.0,
+        protein_g=20.0,
+        fats_g=5.0,
+        fiber_g=0.0,
+        sugar_g=4.0,
+        serving_size="170g",
+        ai_provider="quick_add",
+        ai_confidence=1.0,
+        notes="Quick add: snack proteico",
+    )
+    session.add(new_log)
+    await session.commit()
+
+    # Trigger recalculation
+    await recalculate_on_food_log(current_user.id, session)
+
+    return QuickAddProteinResponse(
+        food_name="Yogurt griego natural",
+        calories=180,
+        protein_g=20,
+        carbs_g=8,
+        fats_g=5,
+        message="Snack proteico agregado: Yogurt griego natural (180 kcal, 20g proteina).",
+    )
+
+
 @router.get("/admin/dashboard", response_model=AdminRiskDashboardResponse)
 @_rl("30/minute")
 async def admin_risk_dashboard(

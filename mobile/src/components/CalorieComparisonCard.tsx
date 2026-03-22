@@ -16,11 +16,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors, typography, spacing, radius } from '../theme';
 import useHaptics from '../hooks/useHaptics';
 
+interface HistoryDot {
+  date: string;
+  ratio: number;
+}
+
 interface CalorieComparisonCardProps {
   logged: number;
   target: number;
   status: string;
   weekAvg?: number;
+  history?: HistoryDot[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -43,11 +49,19 @@ const ZONE_EXPLANATIONS: Record<string, string> = {
   high_excess: 'Exceso significativo. Considera una comida ligera para equilibrar.',
 };
 
+function getDotColor(ratio: number): string {
+  if (ratio < 0.5) return '#DC2626';
+  if (ratio < 0.85) return '#F59E0B';
+  if (ratio <= 1.15) return '#22C55E';
+  if (ratio <= 1.3) return '#F59E0B';
+  return '#DC2626';
+}
+
 // Zone bar colors per theme
 const ZONE_LIGHT = { red: '#FEE2E2', orange: '#FEF3C7', green: '#D1FAE5' };
 const ZONE_DARK  = { red: '#DC2626', orange: '#D97706', green: '#16A34A' };
 
-function CalorieComparisonCard({ logged, target, status, weekAvg }: CalorieComparisonCardProps) {
+function CalorieComparisonCard({ logged, target, status, weekAvg, history }: CalorieComparisonCardProps) {
   const c = useThemeColors();
   const haptics = useHaptics();
   const [tooltipOpen, setTooltipOpen] = useState(false);
@@ -160,6 +174,19 @@ function CalorieComparisonCard({ logged, target, status, weekAvg }: CalorieCompa
         {/* Red excess: 81.25-100% (130-160% of target) */}
         <View style={[styles.zone, { flex: 18.75, backgroundColor: z.red }]} />
       </View>
+
+      {/* Mini-history dots */}
+      {history != null && history.length > 0 && (
+        <View style={styles.historyRow} accessibilityLabel={`Historial de ${history.length} dias`}>
+          {history.map((h) => (
+            <View
+              key={h.date}
+              style={[styles.historyDot, { backgroundColor: getDotColor(h.ratio) }]}
+              accessibilityLabel={`${h.date}: ${Math.round(h.ratio * 100)}%`}
+            />
+          ))}
+        </View>
+      )}
 
       {/* Animated Marker */}
       <View style={styles.markerRow}>
@@ -283,5 +310,17 @@ const styles = StyleSheet.create({
   },
   weekAvgText: {
     ...typography.caption,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingTop: 2,
+  },
+  historyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });
