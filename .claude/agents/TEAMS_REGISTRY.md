@@ -1,16 +1,86 @@
-# Fitsi IA — Agent Teams Registry v4.0
+# Fitsi IA — Agent Teams Registry v5.0
 
-> Registro maestro de los 12 equipos, 10 coordinadores y ~125 agentes del proyecto Fitsi IA.
-> Arquitectura de 3 capas: Coordinadores → Core Agents → Sub-especialistas.
+> Registro maestro de 13 equipos, 11 coordinadores y 115 archivos de agentes del proyecto Fitsi IA.
+> Arquitectura de 4 capas: **CAPA SUPREMA** → Coordinadores → Core Agents → Sub-especialistas.
 
 ---
 
-## Capa de Coordinacion (10 agentes)
+## ⚡ CAPA SUPREMA — Orquestación, Evolución y Seguridad
+
+> Estos agentes están POR ENCIMA de todos los demás. Son los primeros en ejecutarse,
+> los últimos en terminar, y tienen autoridad sobre cualquier otro agente del sistema.
+> Sin ellos, nada funciona correctamente.
+
+### Pilar 1: ORQUESTACIÓN Y SISTEMAS
+| Agente | Rol | Autoridad |
+|--------|-----|-----------|
+| `fitsia-orchestrator` | Recibe TODA tarea, clasifica, asigna budget, delega | Control total de 115 agentes |
+| `fitsia-feature-coordinator` | Descompone features cross-team en fases | Coordina entre equipos |
+| `token-monitor` | Vigila consumo de tokens, presupuesto global | Puede DETENER cualquier agente |
+
+### Pilar 2: SEGURIDAD (SIEMPRE ACTIVO)
+| Agente | Rol | Autoridad |
+|--------|-----|-----------|
+| `security-engineer` | Audita código, credenciales, vulnerabilidades | VETO sobre cualquier deploy |
+| `fullstack-inspector` | Inspección pre-deploy del proyecto completo | GATE obligatorio antes de producción |
+
+### Pilar 3: EVOLUCIÓN Y SIMULACIÓN (Nature of Code)
+| Agente | Rol | Autoridad |
+|--------|-----|-----------|
+| `fitsia-nature-of-code-master` | Arquitecto de simulación, delega a 7 sub-agentes NoC | Diseña CÓMO se mueve y comporta todo |
+| `fitsia-noc-randomness` | Aleatoriedad orgánica: Perlin noise, Gaussian, Monte Carlo | Controla que nada se sienta robótico |
+| `fitsia-noc-physics` | Vectores, fuerzas, Newton, gravedad, fricción, drag | Motor físico de toda animación |
+| `fitsia-noc-oscillation` | Oscilación, springs, péndulos, ondas, sin/cos | Pulsos, respiración, elastic UI |
+| `fitsia-noc-particles` | Sistemas de partículas, emitters, lifespan, blending | Celebraciones, feedback visual, efectos |
+| `fitsia-noc-agents` | Agentes autónomos, steering, seek/arrive/flee, flocking | Criaturas inteligentes, flow fields |
+| `fitsia-noc-patterns` | Autómatas celulares, Game of Life, fractales, L-systems | Texturas procedurales, patrones generativos |
+| `fitsia-noc-evolution` | GAs, DNA, fitness, crossover, mutación, NN, neuroevolución | Sistemas que APRENDEN y EVOLUCIONAN solos |
+
+### Jerarquía de Ejecución
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CAPA SUPREMA                              │
+│                                                              │
+│  ORQUESTACIÓN          SEGURIDAD          EVOLUCIÓN          │
+│  fitsia-orchestrator   security-engineer   noc-master         │
+│  feature-coordinator   fullstack-inspector noc-randomness     │
+│  token-monitor                             noc-physics        │
+│                                            noc-oscillation    │
+│                                            noc-particles      │
+│                                            noc-agents         │
+│                                            noc-patterns       │
+│                                            noc-evolution      │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+              ┌────────────┼────────────────┐
+              ▼            ▼                ▼
+     COORDINADORES    COORDINADORES    COORDINADORES
+     de BUILD:        de SOPORTE:      de MARKETING:
+     ├─ frontend      ├─ science       ├─ marketing
+     ├─ backend       ├─ content       └─ (growth+
+     ├─ ai            └─ equipment        organic+paid)
+     ├─ devops
+     └─ qa (GATE)
+              │
+              ▼
+     AGENTES ESPECIALIZADOS (core + sub-especialistas)
+     115 agentes ejecutando tareas específicas
+```
+
+### Reglas de la Capa Suprema
+1. **Orquestación** decide QUÉ se hace y asigna TOKEN BUDGET
+2. **Seguridad** corre en BACKGROUND en TODA ejecución de código
+3. **Evolución (NoC)** define CÓMO se mueven, animan y comportan las cosas
+4. Ningún coordinador puede lanzar trabajo sin pasar por el orchestrator
+5. Ningún deploy puede salir sin aprobación de security-engineer
+6. Toda animación debe consultar los principios NoC antes de implementarse
+
+---
+
+## Capa de Coordinación (9 coordinadores de equipo)
 
 | Coordinador | Scope | Equipos | Agentes Bajo Control | Token Control |
 |-------------|-------|---------|---------------------|---------------|
-| `fitsia-orchestrator` | MASTER — todo el proyecto | 12 | 125+ | Budget global |
-| `fitsia-feature-coordinator` | Features cross-team | Variable | Variable | Budget por feature |
 | `fitsia-frontend-coordinator` | Team 3 | 1 | 22 | Budget FE |
 | `fitsia-backend-coordinator` | Team 4 | 1 | 13 | Budget BE |
 | `fitsia-ai-coordinator` | Team 5 | 1 | 7 | Budget AI + cost $ |
@@ -21,36 +91,23 @@
 | `fitsia-content-coordinator` | Team 11 | 1 | 8 | Budget contenido |
 | `fitsia-equipment-coordinator` | Team 12 | 1 | 9 | Budget fitness |
 
-### Jerarquia de Token Control
-```
-fitsia-orchestrator (budget global: 200K tokens)
-    │
-    ├── fitsia-feature-coordinator (budget por feature)
-    │   ├── fitsia-frontend-coordinator (% asignado)
-    │   ├── fitsia-backend-coordinator (% asignado)
-    │   ├── fitsia-qa-coordinator (% asignado)
-    │   └── ... (otros coordinadores segun feature)
-    │
-    ├── fitsia-science-coordinator (validaciones)
-    ├── fitsia-marketing-coordinator (estrategia)
-    ├── fitsia-content-coordinator (contenido)
-    └── fitsia-equipment-coordinator (fitness)
-
 Cada coordinador:
-  → Recibe TOKEN BUDGET del nivel superior
+  → Recibe TOKEN BUDGET de fitsia-orchestrator (capa suprema)
   → Asigna TOKEN BUDGET a cada agente que lanza
   → Termina agentes que excedan su budget
-  → Reporta tokens usados al nivel superior
-```
+  → Reporta tokens usados al orchestrator
+  → Consulta fitsia-nature-of-code-master para animaciones/simulaciones
+  → Es auditado por security-engineer en background
 
 ---
 
-## Resumen Ejecutivo — Agentes Especializados
+## Resumen Ejecutivo — Todos los Agentes
 
 | # | Equipo | Coordinador | Lead | Core | Sub-Esp. | Total |
 |---|--------|-------------|------|------|----------|-------|
+| ⚡ | CAPA SUPREMA | — | — | 13 | 0 | **13** |
 | 1 | fitsia-leadership | fitsia-orchestrator | tech-lead | 4 | 0 | 4 |
-| 2 | fitsia-science | fitsia-science-coordinator | nutrition-science-advisor | 6 | 6+8 NoC | 20 |
+| 2 | fitsia-science | fitsia-science-coordinator | nutrition-science-advisor | 6 | 6 | 12 |
 | 3 | fitsia-frontend | fitsia-frontend-coordinator | ui-engineer | 14 | 8 | 22 |
 | 4 | fitsia-backend | fitsia-backend-coordinator | python-backend-engineer | 6 | 7 | 13 |
 | 5 | fitsia-ai | fitsia-ai-coordinator | ai-vision-expert | 3 | 4 | 7 |
@@ -61,8 +118,7 @@ Cada coordinador:
 | 10 | fitsia-paid | fitsia-marketing-coordinator | meta-ads-specialist | 8 | 3 | 11 |
 | 11 | fitsia-content | fitsia-content-coordinator | nutrition-content-creator | 4 | 4 | 8 |
 | 12 | fitsia-equipment | fitsia-equipment-coordinator | free-weights-expert | 5 | 4 | 9 |
-| 13 | fitsia-noc | fitsia-nature-of-code-master | fitsia-noc-master | 1 | 7 | 8 |
-| | **TOTAL** | **11 coordinadores** | | **64** | **59** | **123 + 11 = 134** |
+| | **TOTAL** | **9 coord + 3 supremos** | | **76** | **52** | **115 archivos** |
 
 ---
 
@@ -408,7 +464,7 @@ Agent(subagent_type="fitsia-frontend-coordinator", prompt="
 
 ---
 
-*Actualizado: 2026-03-22 | Version: 5.0 | Equipos: 13 | Coordinadores: 11 | Agentes totales: 134*
-*Arquitectura: 11 coordinadores + 59 sub-especialistas + 64 core + 8 Nature of Code = 114 archivos*
-*TEAM 13 (Nature of Code): 8 agentes con conocimiento completo de simulacion, fisica, particulas, steering, CA, fractales, GA, NN*
+*Actualizado: 2026-03-22 | Version: 5.0 | Archivos: 115 | Equipos: 12 + Capa Suprema*
+*Arquitectura de 4 capas: CAPA SUPREMA (13 agentes) → Coordinadores (9) → Core → Sub-especialistas*
+*Capa Suprema = Orquestación (3) + Seguridad (2) + Evolución/NoC (8) — SIEMPRE ACTIVOS, MÁXIMA AUTORIDAD*
 *Coordinadores tienen: Token Budget Management, Agent Selection, Delegation Format, Quality Gates*

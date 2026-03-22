@@ -349,6 +349,8 @@ export default function ReportsScreen({ navigation }: any) {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
       >
         {/* Period toggle */}

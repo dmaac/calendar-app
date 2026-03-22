@@ -364,6 +364,8 @@ export default function WeightTrackingScreen({ navigation }: any) {
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
+          bounces={true}
+          overScrollMode="never"
           contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
           keyboardShouldPersistTaps="handled"
         >

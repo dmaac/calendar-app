@@ -389,6 +389,8 @@ export default function LogScreen({ navigation }: any) {
       ) : (
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >

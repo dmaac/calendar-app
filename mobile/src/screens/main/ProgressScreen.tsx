@@ -402,6 +402,8 @@ export default function ProgressScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
         contentContainerStyle={[s.scroll, { paddingHorizontal: sidePadding }]}
       >
         {/* ── Streak + Badges ── */}

@@ -230,6 +230,8 @@ export default function ProfileScreen({ navigation }: any) {
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
       >
         {/* Avatar + info */}

@@ -43,7 +43,8 @@ function localDateStr(d = new Date()): string {
 export const getFoodLogs = async (date?: string): Promise<AIFoodLog[]> => {
   const d = date ?? localDateStr();
   const res = await api.get(`/api/food/logs?date=${d}`);
-  return res.data;
+  // Handle both paginated response {items: [...]} and plain array formats
+  return Array.isArray(res.data) ? res.data : (res.data.items ?? []);
 };
 
 /** Elimina un log de comida. */

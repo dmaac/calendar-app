@@ -132,6 +132,8 @@ export default function GroupsScreen() {
         ref={scrollRef}
         contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
       >
         {/* Your Groups */}
         <Text style={[s.sectionTitle, { color: c.black }]}>Your Groups</Text>

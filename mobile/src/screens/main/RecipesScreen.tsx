@@ -238,6 +238,10 @@ export default function RecipesScreen({ navigation }: any) {
         renderItem={renderRecipeItem}
         contentContainerStyle={{ paddingHorizontal: sidePadding, paddingBottom: spacing.xl }}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        scrollEventThrottle={16}
+        bounces={true}
+        overScrollMode="never"
         ListEmptyComponent={
           <View style={styles.empty}>
             <FitsiMascot expression="thinking" size="medium" animation="thinking" />

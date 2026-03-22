@@ -305,6 +305,8 @@ export default function AchievementsScreen({ navigation }: any) {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
         contentContainerStyle={[styles.grid, { paddingHorizontal: sidePadding }]}
       >
         {ACHIEVEMENTS.map((achievement, index) => {

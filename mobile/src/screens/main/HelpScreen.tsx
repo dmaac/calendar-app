@@ -160,6 +160,8 @@ export default function HelpScreen({ navigation }: any) {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
       >
         {/* Fitsi greeting */}

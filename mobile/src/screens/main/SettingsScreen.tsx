@@ -372,6 +372,8 @@ export default function SettingsScreen({ navigation }: any) {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
         contentContainerStyle={styles.scroll}
       >
         {/* APPEARANCE — Cal AI 3-button selector */}

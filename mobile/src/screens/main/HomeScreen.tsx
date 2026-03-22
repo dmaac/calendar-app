@@ -451,6 +451,8 @@ export default function HomeScreen({ navigation }: any) {
 
           <ScrollView
             showsVerticalScrollIndicator={false}
+            bounces={true}
+            overScrollMode="never"
             contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
             refreshControl={
               <RefreshControl

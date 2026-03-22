@@ -114,6 +114,8 @@ export default function PersonalDetailsScreen({ navigation }: any) {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
         contentContainerStyle={styles.scroll}
       >
         {loading ? (

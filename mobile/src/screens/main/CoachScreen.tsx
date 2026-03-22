@@ -269,6 +269,10 @@ export default function CoachScreen({ navigation }: any) {
           { paddingHorizontal: sidePadding },
         ]}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        scrollEventThrottle={16}
+        bounces={true}
+        overScrollMode="never"
         ListFooterComponent={isTyping ? <TypingIndicator c={c} /> : null}
         onContentSizeChange={() =>
           flatListRef.current?.scrollToEnd({ animated: true })
