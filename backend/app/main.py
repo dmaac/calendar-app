@@ -215,22 +215,34 @@ class AppVersionMiddleware(BaseHTTPMiddleware):
 # ─── Request logging middleware ──────────────────────────────────────────────
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """Logs each request in structured JSON: endpoint, method, status, duration, user_id, request_id."""
+    """Logs each request in structured JSON: endpoint, method, status, duration, user_id, request_id.
+    Also feeds Prometheus-compatible metrics counters."""
 
     # Skip logging for noisy health/docs endpoints
-    _SKIP_PATHS = {"/health", "/api/health", "/docs", "/redoc", "/openapi.json"}
+    _SKIP_PATHS = {"/health", "/api/health", "/docs", "/redoc", "/openapi.json", "/metrics"}
 
     async def dispatch(self, request: Request, call_next):
         global _inflight_requests
         _inflight_requests += 1
 
+        from .core.metrics import REQUEST_COUNT, REQUEST_DURATION, ACTIVE_CONNECTIONS
+        ACTIVE_CONNECTIONS.inc()
+
         start = time.perf_counter()
         response: Response = await call_next(request)
-        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        duration_s = time.perf_counter() - start
+        duration_ms = round(duration_s * 1000, 2)
 
         _inflight_requests -= 1
+        ACTIVE_CONNECTIONS.dec()
 
         path = request.url.path
+        method = request.method
+
+        # Track metrics for all paths (cheap operation)
+        REQUEST_COUNT.inc(method=method, endpoint=path, status=str(response.status_code))
+        REQUEST_DURATION.observe(duration_s, method=method, endpoint=path)
+
         if path in self._SKIP_PATHS:
             return response
 
@@ -249,7 +261,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         log_data = {
             "endpoint": path,
-            "method": request.method,
+            "method": method,
             "status_code": response.status_code,
             "duration_ms": duration_ms,
             "user_id": user_id,
@@ -283,6 +295,31 @@ async def _graceful_shutdown() -> None:
         logger.info("All in-flight requests completed. Shutting down cleanly.")
 
 
+def _print_startup_banner(db_ok: bool, redis_ok: bool) -> None:
+    """Print a startup banner with server info to the console."""
+    import multiprocessing
+    import os
+
+    workers = os.environ.get("WEB_CONCURRENCY", "1")
+    uptime_str = "just started"
+
+    banner = f"""
+================================================================================
+  FITSI IA API  v{APP_VERSION}
+================================================================================
+  Environment : {settings.env}
+  Host        : {settings.server_host}:{settings.server_port}
+  Workers     : {workers}
+  DB Status   : {"CONNECTED" if db_ok else "UNAVAILABLE"}
+  Redis Status: {"CONNECTED" if redis_ok else "UNAVAILABLE"}
+  Docs        : {"disabled (production)" if settings.is_production else f"http://{settings.server_host}:{settings.server_port}/docs"}
+  Uptime      : {uptime_str}
+================================================================================
+"""
+    logger.info(banner)
+    print(banner, flush=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _start_time
@@ -290,15 +327,21 @@ async def lifespan(app: FastAPI):
 
     # Startup
     await create_db_and_tables()
+    db_ok = True
 
     # Warm Redis connection pool + cache
     from .core.token_store import get_redis
     from .core.cache import warm_cache
+    redis_ok = False
     try:
         get_redis()
         await warm_cache()
+        redis_ok = True
     except Exception:
         pass  # Redis unavailable at startup — will degrade gracefully per request
+
+    # Print startup banner
+    _print_startup_banner(db_ok=db_ok, redis_ok=redis_ok)
 
     # Start periodic background cleanup
     from .core.background_tasks import start_periodic_cleanup

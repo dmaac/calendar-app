@@ -86,6 +86,7 @@ function StatCard({
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(12)).current;
+  const pressScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -104,18 +105,38 @@ function StatCard({
     ]).start();
   }, []);
 
+  const onPressIn = () => {
+    Animated.spring(pressScale, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const onPressOut = () => {
+    Animated.spring(pressScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
   return (
-    <Animated.View
-      style={[
-        styles.statCard,
-        { backgroundColor: c.surface, opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-      accessibilityLabel={`${label}: ${value}`}
-    >
-      <Ionicons name={icon as any} size={20} color={color ?? c.black} />
-      <AnimatedStatValue value={value} color={c.black} />
-      <Text style={[styles.statLabel, { color: c.gray }]}>{label}</Text>
-    </Animated.View>
+    <Pressable onPressIn={onPressIn} onPressOut={onPressOut}>
+      <Animated.View
+        style={[
+          styles.statCard,
+          { backgroundColor: c.surface, opacity: fadeAnim, transform: [{ translateY: slideAnim }, { scale: pressScale }] },
+        ]}
+        accessibilityLabel={`${label}: ${value}`}
+      >
+        <Ionicons name={icon as any} size={20} color={color ?? c.black} />
+        <AnimatedStatValue value={value} color={c.black} />
+        <Text style={[styles.statLabel, { color: c.gray }]}>{label}</Text>
+      </Animated.View>
+    </Pressable>
   );
 }
 

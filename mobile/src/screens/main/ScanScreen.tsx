@@ -542,6 +542,16 @@ export default function ScanScreen({ navigation }: any) {
         )}
         <View style={styles.scanningOverlay}>
           <ScanningAnimation shimmerOpacity={scanShimmer} />
+          {/* Shimmer skeleton preview of result card */}
+          <Animated.View style={[styles.shimmerCard, { opacity: scanShimmer }]}>
+            <View style={styles.shimmerLine} />
+            <View style={[styles.shimmerLine, { width: '60%' }]} />
+            <View style={styles.shimmerMacroRow}>
+              <View style={styles.shimmerPill} />
+              <View style={styles.shimmerPill} />
+              <View style={styles.shimmerPill} />
+            </View>
+          </Animated.View>
         </View>
       </View>
     );
@@ -904,6 +914,33 @@ const styles = StyleSheet.create({
     width: '100%', justifyContent: 'center', minHeight: 48,
   },
   manualFallbackText: { ...typography.label },
+
+  // Shimmer skeleton
+  shimmerCard: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    padding: 20,
+    width: '80%',
+    gap: 12,
+    marginTop: spacing.md,
+  },
+  shimmerLine: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: '85%',
+  },
+  shimmerMacroRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  shimmerPill: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
 
   // Success
   successIcon: {

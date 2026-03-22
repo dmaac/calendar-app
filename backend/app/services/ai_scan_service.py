@@ -13,6 +13,7 @@ SEC: OpenAI errors are sanitized before reaching the client
 SEC: Numeric fields validated before database insert
 """
 
+import asyncio
 import hashlib
 import json
 import base64
@@ -85,19 +86,31 @@ def _sanitize_string(value, max_length: int = 500) -> str:
     return value[:max_length]
 
 
-async def _call_gpt4o_vision(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
-    """Call GPT-4o Vision API and parse the nutrition JSON response."""
-    if not settings.openai_api_key:
-        raise ValueError("AI scanning is currently unavailable")
+GENERIC_FALLBACK_RESPONSE = {
+    "food_name": "Comida no identificada",
+    "calories": 250,
+    "carbs_g": 30,
+    "protein_g": 10,
+    "fats_g": 10,
+    "fiber_g": 3,
+    "sugar_g": None,
+    "sodium_mg": None,
+    "serving_size": "1 porcion estimada",
+    "confidence": 0.1,
+    "_raw": '{"fallback": true}',
+    "_is_fallback": True,
+}
 
-    b64_image = base64.b64encode(image_bytes).decode("utf-8")
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 1.0  # seconds — exponential backoff: 1s, 2s, 4s
 
-    # SEC: Prompt injection mitigation — the system prompt is in the 'system' role
-    # and user content contains ONLY the image, no user-supplied text.
+
+async def _call_gpt4o_vision_once(b64_image: str, mime_type: str) -> httpx.Response:
+    """Single attempt to call GPT-4o Vision API. Returns the raw httpx.Response."""
     payload = {
         "model": "gpt-4o",
         "max_tokens": 500,
-        "temperature": 0.1,  # SEC: Low temperature for more deterministic/parseable output
+        "temperature": 0.1,
         "messages": [
             {
                 "role": "system",
@@ -110,7 +123,7 @@ async def _call_gpt4o_vision(image_bytes: bytes, mime_type: str = "image/jpeg") 
                         "type": "image_url",
                         "image_url": {
                             "url": f"data:{mime_type};base64,{b64_image}",
-                            "detail": "low",  # faster + cheaper; "high" for better accuracy
+                            "detail": "low",
                         },
                     },
                 ],
@@ -118,52 +131,104 @@ async def _call_gpt4o_vision(image_bytes: bytes, mime_type: str = "image/jpeg") 
         ],
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-            response.raise_for_status()
-    except httpx.HTTPStatusError as e:
-        # SEC: Do NOT leak the full error (which may contain the API key in headers)
-        status_code = e.response.status_code
-        logger.error(
-            "OpenAI API HTTP error: status=%d",
-            status_code,
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.openai_api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
         )
-        if status_code == 429:
-            raise ValueError("AI service is temporarily overloaded. Please try again later.")
-        elif status_code in (401, 403):
-            raise ValueError("AI service configuration error. Please contact support.")
-        else:
-            raise ValueError("AI scan failed. Please try again.")
-    except httpx.TimeoutException:
-        raise ValueError("AI scan timed out. Please try again with a clearer photo.")
-    except httpx.RequestError as e:
-        logger.error("OpenAI API connection error: %s", type(e).__name__)
-        raise ValueError("Unable to reach AI service. Please try again later.")
+        response.raise_for_status()
+    return response
 
-    data = response.json()
-    raw_content = data["choices"][0]["message"]["content"].strip()
 
-    # Strip markdown code fences if present
-    if raw_content.startswith("```"):
-        lines = raw_content.split("\n")
-        raw_content = "\n".join(lines[1:-1]) if len(lines) > 2 else raw_content
+async def _call_gpt4o_vision(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
+    """
+    Call GPT-4o Vision API with retry logic (3 attempts, exponential backoff).
 
-    try:
-        result = json.loads(raw_content)
-    except json.JSONDecodeError:
-        logger.error("Failed to parse AI JSON response (truncated): %.200s", raw_content)
-        raise ValueError("AI returned an unparseable response. Please try again.")
+    On complete failure after all retries, returns a generic fallback response
+    so the user still gets a food log entry they can manually edit.
+    """
+    if not settings.openai_api_key:
+        raise ValueError("AI scanning is currently unavailable")
 
-    result["_raw"] = raw_content
-    return result
+    b64_image = base64.b64encode(image_bytes).decode("utf-8")
+    last_error: Optional[Exception] = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = await _call_gpt4o_vision_once(b64_image, mime_type)
+
+            data = response.json()
+            raw_content = data["choices"][0]["message"]["content"].strip()
+
+            # Strip markdown code fences if present
+            if raw_content.startswith("```"):
+                lines = raw_content.split("\n")
+                raw_content = "\n".join(lines[1:-1]) if len(lines) > 2 else raw_content
+
+            try:
+                result = json.loads(raw_content)
+            except json.JSONDecodeError:
+                logger.error(
+                    "Failed to parse AI JSON response (attempt %d/%d, truncated): %.200s",
+                    attempt, MAX_RETRIES, raw_content,
+                )
+                if attempt < MAX_RETRIES:
+                    delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                    logger.info("Retrying AI scan in %.1fs (attempt %d/%d)...", delay, attempt + 1, MAX_RETRIES)
+                    await asyncio.sleep(delay)
+                    continue
+                raise ValueError("AI returned an unparseable response. Please try again.")
+
+            result["_raw"] = raw_content
+            return result
+
+        except httpx.HTTPStatusError as e:
+            # SEC: Do NOT leak the full error (which may contain the API key in headers)
+            status_code = e.response.status_code
+            last_error = e
+            logger.error(
+                "OpenAI API HTTP error: status=%d (attempt %d/%d)",
+                status_code, attempt, MAX_RETRIES,
+            )
+
+            # Don't retry auth errors — they won't self-heal
+            if status_code in (401, 403):
+                raise ValueError("AI service configuration error. Please contact support.")
+
+            if attempt < MAX_RETRIES:
+                delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.info("Retrying AI scan in %.1fs (attempt %d/%d)...", delay, attempt + 1, MAX_RETRIES)
+                await asyncio.sleep(delay)
+                continue
+
+        except httpx.TimeoutException as e:
+            last_error = e
+            logger.error("OpenAI API timeout (attempt %d/%d)", attempt, MAX_RETRIES)
+            if attempt < MAX_RETRIES:
+                delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.info("Retrying AI scan in %.1fs (attempt %d/%d)...", delay, attempt + 1, MAX_RETRIES)
+                await asyncio.sleep(delay)
+                continue
+
+        except httpx.RequestError as e:
+            last_error = e
+            logger.error("OpenAI API connection error: %s (attempt %d/%d)", type(e).__name__, attempt, MAX_RETRIES)
+            if attempt < MAX_RETRIES:
+                delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.info("Retrying AI scan in %.1fs (attempt %d/%d)...", delay, attempt + 1, MAX_RETRIES)
+                await asyncio.sleep(delay)
+                continue
+
+    # All retries exhausted — return generic fallback
+    logger.warning(
+        "All %d AI scan attempts failed (last error: %s). Returning fallback response.",
+        MAX_RETRIES, type(last_error).__name__ if last_error else "unknown",
+    )
+    return dict(GENERIC_FALLBACK_RESPONSE)
 
 
 # ─── Cache helpers ────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@
  * Entitlement: "premium"
  * Trial: 7-day free trial
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -58,6 +59,47 @@ const FALLBACK_PLANS = {
     priceId: 'fitsiai_annual',
   },
 };
+
+/** Animated strikethrough line that slides across the price text */
+function StrikethroughPrice({
+  price,
+  active,
+  textStyle,
+}: {
+  price: string;
+  active: boolean;
+  textStyle: any;
+}) {
+  const lineWidth = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(lineWidth, {
+      toValue: active ? 1 : 0,
+      duration: 400,
+      useNativeDriver: false,
+    }).start();
+  }, [active]);
+
+  return (
+    <View style={{ position: 'relative', alignSelf: 'center' }}>
+      <Text style={textStyle}>{price}</Text>
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: '52%',
+          left: 0,
+          height: 2,
+          backgroundColor: '#EF4444',
+          borderRadius: 1,
+          width: lineWidth.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0%', '100%'],
+          }),
+        }}
+      />
+    </View>
+  );
+}
 
 export default function PaywallScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -270,9 +312,17 @@ export default function PaywallScreen({ navigation }: any) {
                   <Text style={[styles.planLabel, { color: c.gray }, isSelected && { color: 'rgba(255,255,255,0.7)' }]}>
                     {plan.label}
                   </Text>
-                  <Text style={[styles.planPrice, { color: c.black }, isSelected && { color: c.white }]}>
-                    {plan.price}
-                  </Text>
+                  {key === 'monthly' && selectedPlan === 'annual' ? (
+                    <StrikethroughPrice
+                      price={plan.price}
+                      active={true}
+                      textStyle={[styles.planPrice, { color: c.black }, isSelected && { color: c.white }]}
+                    />
+                  ) : (
+                    <Text style={[styles.planPrice, { color: c.black }, isSelected && { color: c.white }]}>
+                      {plan.price}
+                    </Text>
+                  )}
                   <Text style={[styles.planPeriod, { color: c.gray }, isSelected && { color: c.white + 'CC' }]}>
                     {plan.period}
                   </Text>

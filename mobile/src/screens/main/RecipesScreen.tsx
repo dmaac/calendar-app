@@ -2,7 +2,7 @@
  * RecipesScreen — Browse recipes with filters by meal type and diet
  * Horizontal filter chips, search bar, recipe cards with macros.
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Animated,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
