@@ -653,8 +653,8 @@ export default function HomeScreen({ navigation }: any) {
               {/* Fasting Timer — collapsible card */}
               <FastingTimer initiallyCollapsed />
 
-              {/* Sleep Tracker — temporarily disabled (hooks order bug) */}
-              {/* <SleepTracker initiallyCollapsed /> */}
+              {/* Sleep Tracker — hooks bug fixed by QA */}
+              <SleepTracker initiallyCollapsed />
 
               {/* Mood + Energy Tracker — collapsible card */}
               <MoodTracker initiallyCollapsed nutriScore={nutriScoreValue} />

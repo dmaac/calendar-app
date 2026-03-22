@@ -21,7 +21,7 @@ from .core.logging_config import setup_logging
 from .core.response_cache import ResponseCacheMiddleware, response_cache_stats
 from .core.validation import RequestValidationMiddleware
 from .core.performance import PerformanceMiddleware, performance_stats
-from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router, webhooks_router, corporate_router, family_router
+from .routers import auth_router, activities_router, foods_router, meals_router, nutrition_profile_router, onboarding_router, ai_food_router, subscriptions_router, notifications_router, feedback_router, admin_router, export_router, workouts_router, insights_router, calories_router, health_alerts_router, smart_notifications_router, coach_router, foods_catalog_router, user_data_router, experiments_router, analytics_router, webhooks_router, corporate_router, family_router, favorites_router
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger("fitsi.requests")
@@ -154,6 +154,10 @@ openapi_tags = [
     {
         "name": "family",
         "description": "Family Plan: create family groups, invite members, view shared nutrition stats and daily summaries.",
+    },
+    {
+        "name": "favorites",
+        "description": "Smart Favorites: save, remove, and quick-log favorite foods with one tap.",
     },
     {
         "name": "root",
@@ -522,6 +526,7 @@ app.include_router(analytics_router)
 app.include_router(webhooks_router)
 app.include_router(corporate_router)
 app.include_router(family_router)
+app.include_router(favorites_router)
 
 
 @app.get("/", tags=["root"])

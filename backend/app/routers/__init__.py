@@ -23,6 +23,7 @@ from .analytics import router as analytics_router
 from .webhooks import router as webhooks_router
 from .corporate import router as corporate_router
 from .family import router as family_router
+from .favorites import router as favorites_router
 
 __all__ = [
     "auth_router",
@@ -50,4 +51,5 @@ __all__ = [
     "webhooks_router",
     "corporate_router",
     "family_router",
+    "favorites_router",
 ]
