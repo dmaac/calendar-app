@@ -323,10 +323,12 @@ export interface DeleteFoodLogResponse {
 
 /**
  * GET /api/food/logs — list endpoint
- * Query params: date? (YYYY-MM-DD), limit? (1-200, default 50), offset? (>=0)
+ * Query params: date?, date_from?, date_to?, meal_type?, sort_by?, order?,
+ *               page? (1-indexed), page_size? (1-200, default 50)
  *
- * IMPORTANT: Returns a flat array, NOT a paginated object.
- * This differs from legacy endpoints which may return { items, total }.
+ * Returns PaginatedResponse when using page-based params (default),
+ * or a flat array when using legacy offset/limit params.
+ * The frontend service handles both formats.
  */
 export interface FoodLogItem {
   id: number;
@@ -336,6 +338,9 @@ export interface FoodLogItem {
   protein_g: number;
   fats_g: number;
   fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  serving_size: string | null;
   meal_type: string;
   logged_at: string;                 // ISO 8601 datetime
   image_url: string | null;
@@ -343,7 +348,7 @@ export interface FoodLogItem {
   was_edited: boolean;
 }
 
-/** Response type for GET /api/food/logs — plain array */
+/** Response type for GET /api/food/logs — plain array (legacy) or paginated */
 export type FoodLogListResponse = FoodLogItem[];
 
 /**

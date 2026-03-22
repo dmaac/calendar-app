@@ -213,6 +213,7 @@ export default function LogScreen({ navigation }: any) {
   const [error, setError] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
   const [userWeightKg, setUserWeightKg] = useState<number | undefined>(undefined);
+  const [comparisonVisible, setComparisonVisible] = useState(false);
   const prevLogCount = useRef(0);
 
   // Load user weight for personalized water goal (30ml/kg)
@@ -489,6 +490,15 @@ export default function LogScreen({ navigation }: any) {
         <View style={styles.headerBtns}>
           <TouchableOpacity
             style={[styles.historyBtn, { backgroundColor: c.surface }]}
+            onPress={() => { haptics.light(); setComparisonVisible(true); }}
+            accessibilityLabel="Comparar alimentos"
+            accessibilityRole="button"
+            accessibilityHint="Abre la pantalla para comparar dos alimentos"
+          >
+            <Ionicons name="git-compare-outline" size={18} color={c.black} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.historyBtn, { backgroundColor: c.surface }]}
             onPress={() => navigation.navigate('History')}
             accessibilityLabel="Ver historial de registros"
             accessibilityRole="button"
@@ -724,6 +734,11 @@ export default function LogScreen({ navigation }: any) {
       />
 
       <ConfettiEffect trigger={confettiTrigger} />
+
+      <FoodComparison
+        visible={comparisonVisible}
+        onClose={() => setComparisonVisible(false)}
+      />
     </View>
   );
 }

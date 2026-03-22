@@ -128,6 +128,7 @@ const en = {
     upgrade: 'Upgrade',
     aiPowered: 'Next-gen AI — Results in seconds',
     saveToLog: 'Save to my log',
+    editMacros: 'Edit macros',
     scanAnother: 'Scan another photo',
     confidence: 'AI Confidence: %{value}%',
     limitReached: 'Daily limit reached',

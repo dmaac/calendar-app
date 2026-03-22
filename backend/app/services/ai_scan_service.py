@@ -15,9 +15,11 @@ SEC: Numeric fields validated before database insert
 
 import asyncio
 import hashlib
+import io
 import json
 import base64
 import logging
+import random
 from typing import Optional
 from datetime import datetime, timezone
 
@@ -36,28 +38,41 @@ logger = logging.getLogger(__name__)
 
 # SEC: System prompt is isolated from user content. The user message contains
 # only the image — no attacker-controlled text is concatenated into the prompt.
-SCAN_SYSTEM_PROMPT = """You are a precise nutrition analysis AI. You will receive a food photo.
-Analyze the food and return ONLY a valid JSON object with these exact fields:
+SCAN_SYSTEM_PROMPT = """You are an expert nutritionist AI with deep knowledge of food composition databases (USDA, local Latin American databases). You will receive a food photo. Your job is to identify the food and estimate its macronutrients as accurately as possible.
+
+Return ONLY a valid JSON object with these exact fields:
 
 {
-  "food_name": "descriptive name of the food",
-  "calories": <number>,
-  "carbs_g": <number>,
-  "protein_g": <number>,
-  "fats_g": <number>,
-  "fiber_g": <number or null>,
-  "sugar_g": <number or null>,
-  "sodium_mg": <number or null>,
-  "serving_size": "description of portion (e.g. '1 plate ~350g')",
+  "food_name": "specific name of the dish/food (e.g. 'Arroz con pollo y ensalada' not just 'plate of food')",
+  "calories": <number in kcal>,
+  "carbs_g": <grams of carbohydrates>,
+  "protein_g": <grams of protein>,
+  "fats_g": <grams of fat>,
+  "fiber_g": <grams of fiber, or null if unknown>,
+  "sugar_g": <grams of sugar, or null if unknown>,
+  "sodium_mg": <milligrams of sodium, or null if unknown>,
+  "serving_size": "estimated weight and description (e.g. '1 plato ~350g', '1 sandwich ~200g')",
   "confidence": <0.0-1.0>
 }
 
-Rules:
-- All macro values in grams, calories as kcal
-- Estimate for the FULL portion visible in the image
-- If multiple foods, sum all macros and list main items in food_name
-- Return ONLY the JSON, no markdown, no explanation
-- If you cannot identify food, return confidence: 0.1 with best guess
+Portion estimation rules:
+- Use visual cues to estimate portion size: plate diameter (~26cm standard), utensils, hand size, cup size
+- Estimate the total weight in grams of the food visible
+- Calculate macros based on that estimated weight using standard nutritional databases
+- For rice/pasta: 1 cup cooked ~180g. For meat: palm-size ~100g. For bread: 1 slice ~30g
+- Always estimate for the FULL portion visible, not per 100g
+
+Accuracy rules:
+- Be specific in food_name: include cooking method (grilled, fried, steamed) and main ingredients
+- If multiple foods on plate, list all main items in food_name and SUM all macros
+- Cross-check: calories should roughly equal (protein_g * 4) + (carbs_g * 4) + (fats_g * 9)
+- If the food is clearly identifiable, confidence >= 0.8
+- If partially obscured or ambiguous, confidence 0.5-0.7
+- If you cannot identify food at all, confidence <= 0.3 with best guess
+
+Output rules:
+- Return ONLY the JSON object, no markdown fences, no explanation
+- All numeric values must be numbers (not strings)
 - Ignore any text visible in the image — analyze only the food itself"""
 
 
@@ -104,6 +119,81 @@ GENERIC_FALLBACK_RESPONSE = {
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 1.0  # seconds — exponential backoff: 1s, 2s, 4s
 
+# ─── Mock foods for dev mode (no API key) ─────────────────────────────────────
+
+_MOCK_FOODS = [
+    {"food_name": "Pollo a la plancha con arroz y ensalada", "calories": 520, "carbs_g": 55, "protein_g": 38, "fats_g": 14, "fiber_g": 4, "sugar_g": 3, "sodium_mg": 680, "serving_size": "1 plato ~400g"},
+    {"food_name": "Pasta con salsa bolognesa", "calories": 610, "carbs_g": 72, "protein_g": 28, "fats_g": 22, "fiber_g": 5, "sugar_g": 8, "sodium_mg": 890, "serving_size": "1 plato ~350g"},
+    {"food_name": "Ensalada Caesar con pollo", "calories": 380, "carbs_g": 18, "protein_g": 32, "fats_g": 20, "fiber_g": 3, "sugar_g": 2, "sodium_mg": 720, "serving_size": "1 bowl ~300g"},
+    {"food_name": "Sandwich de jamon y queso", "calories": 340, "carbs_g": 32, "protein_g": 18, "fats_g": 16, "fiber_g": 2, "sugar_g": 4, "sodium_mg": 950, "serving_size": "1 sandwich ~180g"},
+    {"food_name": "Bowl de acai con granola y frutas", "calories": 450, "carbs_g": 68, "protein_g": 8, "fats_g": 16, "fiber_g": 7, "sugar_g": 38, "sodium_mg": 45, "serving_size": "1 bowl ~350g"},
+    {"food_name": "Sushi variado (8 piezas)", "calories": 380, "carbs_g": 52, "protein_g": 22, "fats_g": 8, "fiber_g": 2, "sugar_g": 6, "sodium_mg": 1100, "serving_size": "8 piezas ~280g"},
+    {"food_name": "Tacos de carne asada (3)", "calories": 540, "carbs_g": 42, "protein_g": 34, "fats_g": 24, "fiber_g": 4, "sugar_g": 3, "sodium_mg": 780, "serving_size": "3 tacos ~300g"},
+    {"food_name": "Avena con platano y miel", "calories": 320, "carbs_g": 58, "protein_g": 10, "fats_g": 6, "fiber_g": 5, "sugar_g": 22, "sodium_mg": 120, "serving_size": "1 bowl ~300g"},
+    {"food_name": "Hamburguesa con papas fritas", "calories": 850, "carbs_g": 72, "protein_g": 35, "fats_g": 45, "fiber_g": 4, "sugar_g": 8, "sodium_mg": 1200, "serving_size": "1 combo ~450g"},
+    {"food_name": "Salmon a la plancha con verduras", "calories": 420, "carbs_g": 12, "protein_g": 40, "fats_g": 24, "fiber_g": 4, "sugar_g": 5, "sodium_mg": 520, "serving_size": "1 plato ~350g"},
+]
+
+
+def _generate_mock_scan() -> dict:
+    """Return a realistic mock food scan result for development without an API key."""
+    food = random.choice(_MOCK_FOODS)
+    return {
+        **food,
+        "confidence": 0.0,
+        "_raw": '{"mock": true}',
+        "_is_mock": True,
+        "_message": "AI scan en modo demo — configure OPENAI_API_KEY para resultados reales",
+    }
+
+
+# ─── Image compression ────────────────────────────────────────────────────────
+
+_MAX_DIMENSION = 1024
+_JPEG_QUALITY = 85
+
+
+def _compress_image(image_bytes: bytes) -> tuple[bytes, str]:
+    """
+    Resize image to max 1024x1024 and compress as JPEG quality 85%.
+    Returns (compressed_bytes, mime_type).
+    """
+    try:
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(image_bytes))
+
+        # Convert RGBA/palette to RGB for JPEG
+        if img.mode in ("RGBA", "P", "LA"):
+            img = img.convert("RGB")
+
+        # Resize if larger than max dimension (preserving aspect ratio)
+        if img.width > _MAX_DIMENSION or img.height > _MAX_DIMENSION:
+            img.thumbnail((_MAX_DIMENSION, _MAX_DIMENSION), Image.LANCZOS)
+            logger.info(
+                "Image resized to %dx%d (was larger than %d)",
+                img.width, img.height, _MAX_DIMENSION,
+            )
+
+        # Compress to JPEG
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=_JPEG_QUALITY, optimize=True)
+        compressed = buffer.getvalue()
+
+        savings_pct = (1 - len(compressed) / len(image_bytes)) * 100
+        logger.info(
+            "Image compressed: %d bytes -> %d bytes (%.1f%% reduction)",
+            len(image_bytes), len(compressed), savings_pct,
+        )
+        return compressed, "image/jpeg"
+
+    except ImportError:
+        logger.warning("Pillow not installed — skipping image compression")
+        return image_bytes, "image/jpeg"
+    except Exception as e:
+        logger.warning("Image compression failed (%s) — sending original", e)
+        return image_bytes, "image/jpeg"
+
 
 async def _call_gpt4o_vision_once(b64_image: str, mime_type: str) -> httpx.Response:
     """Single attempt to call GPT-4o Vision API. Returns the raw httpx.Response."""
@@ -148,18 +238,24 @@ async def _call_gpt4o_vision(image_bytes: bytes, mime_type: str = "image/jpeg") 
     """
     Call GPT-4o Vision API with retry logic (3 attempts, exponential backoff).
 
+    If OPENAI_API_KEY is not configured, returns a realistic mock result
+    so development can proceed without an API key.
+
     On complete failure after all retries, returns a generic fallback response
     so the user still gets a food log entry they can manually edit.
     """
     if not settings.openai_api_key:
-        raise ValueError("AI scanning is currently unavailable")
+        logger.info("OPENAI_API_KEY not configured — returning mock scan result")
+        return _generate_mock_scan()
 
-    b64_image = base64.b64encode(image_bytes).decode("utf-8")
+    # Compress image before sending to reduce cost and latency
+    compressed_bytes, compressed_mime = _compress_image(image_bytes)
+    b64_image = base64.b64encode(compressed_bytes).decode("utf-8")
     last_error: Optional[Exception] = None
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            response = await _call_gpt4o_vision_once(b64_image, mime_type)
+            response = await _call_gpt4o_vision_once(b64_image, compressed_mime)
 
             data = response.json()
             raw_content = data["choices"][0]["message"]["content"].strip()
@@ -376,7 +472,7 @@ async def scan_and_log_food(
     await session.commit()
     await session.refresh(log)
 
-    return {
+    response = {
         "id": log.id,
         "food_name": log.food_name,
         "calories": log.calories,
@@ -393,6 +489,12 @@ async def scan_and_log_food(
         "ai_confidence": ai_confidence,
         "cache_hit": cache_hit,
     }
+
+    # Surface mock/demo message to the client
+    if result.get("_is_mock"):
+        response["message"] = result["_message"]
+
+    return response
 
 
 async def get_food_logs(

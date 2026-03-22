@@ -206,6 +206,9 @@ export interface AIFoodLog {
   protein_g: number;
   fats_g: number;
   fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  serving_size: string | null;
   image_url: string | null;
   ai_confidence: number | null;
   was_edited: boolean;

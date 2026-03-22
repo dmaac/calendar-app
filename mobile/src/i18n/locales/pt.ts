@@ -128,6 +128,7 @@ const pt = {
     upgrade: 'Melhorar',
     aiPowered: 'IA de ultima geracao -- Resultados em segundos',
     saveToLog: 'Salvar no meu registro',
+    editMacros: 'Editar macros',
     scanAnother: 'Escanear outra foto',
     confidence: 'Confianca IA: %{value}%',
     limitReached: 'Limite diario atingido',

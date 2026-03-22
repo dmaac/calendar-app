@@ -14,13 +14,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
   ScrollView,
   Platform,
   Image,
   Animated,
   Easing,
+  TextInput,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,11 +35,12 @@ import { useAnalytics } from '../../hooks/useAnalytics';
 import SuccessCheckmark from '../../components/SuccessCheckmark';
 import HealthScore from '../../components/HealthScore';
 import FitsiMascot from '../../components/FitsiMascot';
+import ErrorFallback from '../../components/ErrorFallback';
 
 const FREE_SCAN_LIMIT = 3;
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-type ScanState = 'idle' | 'scanning' | 'result' | 'logged';
+type ScanState = 'idle' | 'scanning' | 'result' | 'error' | 'logged';
 
 const MEAL_TYPES: { value: MealType; labelKey: string; icon: string; color: string }[] = [
   { value: 'breakfast', labelKey: 'scan.breakfast', icon: 'sunny-outline',      color: '#F59E0B' },
@@ -217,6 +217,15 @@ export default function ScanScreen({ navigation }: any) {
   const [todayScans, setTodayScans] = useState(0);
   const [scansLoading, setScansLoading] = useState(false);
   const [scansError, setScansError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValues, setEditValues] = useState({
+    food_name: '',
+    calories: '',
+    protein_g: '',
+    carbs_g: '',
+    fats_g: '',
+  });
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Scale animation for result card
@@ -317,7 +326,8 @@ export default function ScanScreen({ navigation }: any) {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.85,
+      quality: 0.7,
+      exif: false,
     };
 
     const res =
@@ -337,6 +347,14 @@ export default function ScanScreen({ navigation }: any) {
     try {
       const data = await foodService.scanFood(uri, selectedMeal);
       setResult(data);
+      setIsEditing(false);
+      setEditValues({
+        food_name: data.food_name,
+        calories: String(Math.round(data.calories)),
+        protein_g: String(Math.round(data.protein_g)),
+        carbs_g: String(Math.round(data.carbs_g)),
+        fats_g: String(Math.round(data.fats_g)),
+      });
       setScanState('result');
       track('food_scanned', {
         meal_type: selectedMeal,
@@ -344,33 +362,34 @@ export default function ScanScreen({ navigation }: any) {
         food_name: data.food_name,
       });
     } catch (err: any) {
-      setScanState('idle');
       haptics.error();
-      const msg = err?.response?.data?.detail || 'No pudimos analizar la imagen.';
-      Alert.alert(
-        'Error al escanear',
-        msg,
-        [
-          { text: 'Reintentar', onPress: () => scanImage(uri) },
-          {
-            text: 'Anadir manualmente',
-            onPress: () => navigation.navigate('Registro', {
-              screen: 'AddFood',
-              params: { mealType: selectedMeal },
-            }),
-          },
-          { text: 'Cancelar', style: 'cancel' },
-        ]
-      );
+      const msg = err?.response?.data?.detail || 'No pudimos analizar la imagen. Intenta con otra foto.';
+      setErrorMsg(msg);
+      setScanState('error');
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     haptics.medium();
+    // If user edited macros, persist edits to backend before confirming
+    if (isEditing && result) {
+      try {
+        await foodService.editFoodLog(result.id, {
+          food_name: editValues.food_name,
+          calories: Number(editValues.calories) || 0,
+          protein_g: Number(editValues.protein_g) || 0,
+          carbs_g: Number(editValues.carbs_g) || 0,
+          fats_g: Number(editValues.fats_g) || 0,
+        });
+      } catch {
+        // Best-effort save — log was already created by the backend scan
+      }
+    }
     track('food_logged_from_scan', {
       meal_type: selectedMeal,
-      food_name: result?.food_name,
-      calories: result?.calories,
+      food_name: isEditing ? editValues.food_name : result?.food_name,
+      calories: isEditing ? Number(editValues.calories) : result?.calories,
+      was_edited: isEditing,
     });
     setScanState('logged');
     // Navigate to log after a moment
@@ -378,18 +397,25 @@ export default function ScanScreen({ navigation }: any) {
       setScanState('idle');
       setImageUri(null);
       setResult(null);
+      setIsEditing(false);
       navigation.navigate('Registro');
-    }, 1800);
+    }, 2200);
   };
 
-  const handleEditMacros = () => {
+  const handleToggleEdit = () => {
     if (!result) return;
     haptics.light();
-    track('edit_macros_from_scan', { food_name: result.food_name });
-    navigation.navigate('Registro', {
-      screen: 'EditFood',
-      params: { logId: result.id, fromScan: true },
-    });
+    if (!isEditing) {
+      track('edit_macros_from_scan', { food_name: result.food_name });
+      setEditValues({
+        food_name: result.food_name,
+        calories: String(Math.round(result.calories)),
+        protein_g: String(Math.round(result.protein_g)),
+        carbs_g: String(Math.round(result.carbs_g)),
+        fats_g: String(Math.round(result.fats_g)),
+      });
+    }
+    setIsEditing(!isEditing);
   };
 
   const handleRetry = () => {
@@ -397,27 +423,72 @@ export default function ScanScreen({ navigation }: any) {
     setScanState('idle');
     setImageUri(null);
     setResult(null);
+    setIsEditing(false);
+    setErrorMsg('');
+  };
+
+  const handleRetryFromError = () => {
+    haptics.light();
+    if (imageUri) {
+      scanImage(imageUri);
+    } else {
+      handleRetry();
+    }
   };
 
   // ─── Result view ────────────────────────────────────────────────────────────
   if (scanState === 'result' && result) {
     const confidence = Math.round((result.ai_confidence ?? 0) * 100);
+    const displayName = isEditing ? editValues.food_name : result.food_name;
+    const displayCal = isEditing ? Number(editValues.calories) || 0 : result.calories;
+    const displayProtein = isEditing ? Number(editValues.protein_g) || 0 : result.protein_g;
+    const displayCarbs = isEditing ? Number(editValues.carbs_g) || 0 : result.carbs_g;
+    const displayFats = isEditing ? Number(editValues.fats_g) || 0 : result.fats_g;
+
     return (
       <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Image preview */}
-          {imageUri && (
-            <Image
-              source={{ uri: imageUri }}
-              style={[styles.previewImage, { width: contentWidth - sidePadding * 2 }]}
-              resizeMode="cover"
-              accessibilityLabel="Foto del alimento escaneado"
-              accessibilityRole="image"
-            />
-          )}
+          {/* Image thumbnail + food name row */}
+          <View style={styles.resultTopRow}>
+            {imageUri && (
+              <Image
+                source={{ uri: imageUri }}
+                style={styles.resultThumbnail}
+                resizeMode="cover"
+                accessibilityLabel="Foto del alimento escaneado"
+                accessibilityRole="image"
+              />
+            )}
+            <View style={{ flex: 1 }}>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.editNameInput, { color: c.black, borderColor: c.accent, backgroundColor: c.surface }]}
+                  value={editValues.food_name}
+                  onChangeText={(v) => setEditValues((p) => ({ ...p, food_name: v }))}
+                  accessibilityLabel="Nombre del alimento"
+                  autoFocus
+                />
+              ) : (
+                <Text style={[styles.resultFood, { color: c.black }]}>{result.food_name}</Text>
+              )}
+              <Text style={[styles.resultConfidence, { color: c.gray }]}>
+                {t('scan.confidence', { value: confidence })}
+              </Text>
+            </View>
+            {result.cache_hit && (
+              <View
+                style={[styles.cacheBadge, { backgroundColor: c.badgeBg }]}
+                accessibilityLabel="Resultado obtenido de cache"
+              >
+                <Ionicons name="flash" size={12} color="#F59E0B" />
+                <Text style={[styles.cacheBadgeText, { color: c.badgeText }]}>Cache</Text>
+              </View>
+            )}
+          </View>
 
           {/* Result card — animated scale entrance */}
           <Animated.View
@@ -425,48 +496,69 @@ export default function ScanScreen({ navigation }: any) {
               styles.resultCard,
               { backgroundColor: c.surface, borderColor: c.grayLight, transform: [{ scale: resultScale }], opacity: resultOpacity },
             ]}
-            accessibilityLabel={`Resultado del escaneo: ${result.food_name}, ${Math.round(result.calories)} kilocalorías, proteina ${Math.round(result.protein_g)} gramos, carbohidratos ${Math.round(result.carbs_g)} gramos, grasas ${Math.round(result.fats_g)} gramos, confianza ${confidence} por ciento`}
+            accessibilityLabel={`Resultado: ${displayName}, ${Math.round(displayCal)} kcal`}
             accessibilityLiveRegion="polite"
           >
-            <View style={styles.resultHeader}>
-              <Text style={[styles.resultFood, { color: c.black }]}>{result.food_name}</Text>
-              {result.cache_hit && (
-                <View
-                  style={[styles.cacheBadge, { backgroundColor: c.badgeBg }]}
-                  accessibilityLabel="Resultado obtenido de cache"
-                >
-                  <Ionicons name="flash" size={12} color="#F59E0B" />
-                  <Text style={[styles.cacheBadgeText, { color: c.badgeText }]}>Cache</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.resultConfidence, { color: c.gray }]}>
-              {t('scan.confidence', { value: confidence })}
-            </Text>
-
             {/* Main calories */}
-            <View style={styles.calorieBox}>
-              <Text style={[styles.calorieValue, { color: c.black }]}>{Math.round(result.calories)}</Text>
-              <Text style={[styles.calorieUnit, { color: c.gray }]}>kcal</Text>
-              {result.serving_size && (
-                <Text style={[styles.servingSize, { color: c.gray }]}>por {result.serving_size}</Text>
-              )}
-            </View>
+            {isEditing ? (
+              <View style={styles.editCalorieRow}>
+                <TextInput
+                  style={[styles.editCalorieInput, { color: c.black, borderColor: c.accent, backgroundColor: c.bg }]}
+                  value={editValues.calories}
+                  onChangeText={(v) => setEditValues((p) => ({ ...p, calories: v.replace(/[^0-9]/g, '') }))}
+                  keyboardType="number-pad"
+                  accessibilityLabel="Calorias"
+                />
+                <Text style={[styles.calorieUnit, { color: c.gray }]}>kcal</Text>
+              </View>
+            ) : (
+              <View style={styles.calorieBox}>
+                <Text style={[styles.calorieValue, { color: c.black }]}>{Math.round(result.calories)}</Text>
+                <Text style={[styles.calorieUnit, { color: c.gray }]}>kcal</Text>
+                {result.serving_size && (
+                  <Text style={[styles.servingSize, { color: c.gray }]}>por {result.serving_size}</Text>
+                )}
+              </View>
+            )}
 
-            {/* Macros */}
-            <View style={styles.macroRow}>
-              <MacroPill label="Proteina" value={result.protein_g}  unit="g" color={c.protein} grayColor={c.gray} />
-              <MacroPill label="Carbos"   value={result.carbs_g}    unit="g" color={c.carbs}   grayColor={c.gray} />
-              <MacroPill label="Grasas"   value={result.fats_g}     unit="g" color={c.fats}    grayColor={c.gray} />
-            </View>
+            {/* Macros — editable or display */}
+            {isEditing ? (
+              <View style={styles.macroRow}>
+                {([
+                  { key: 'protein_g' as const, label: 'Proteina', color: c.protein },
+                  { key: 'carbs_g' as const, label: 'Carbos', color: c.carbs },
+                  { key: 'fats_g' as const, label: 'Grasas', color: c.fats },
+                ] as const).map((m) => (
+                  <View
+                    key={m.key}
+                    style={[styles.macroPill, { borderColor: m.color + '40', backgroundColor: m.color + '10' }]}
+                  >
+                    <TextInput
+                      style={[styles.editMacroInput, { color: m.color }]}
+                      value={editValues[m.key]}
+                      onChangeText={(v) => setEditValues((p) => ({ ...p, [m.key]: v.replace(/[^0-9]/g, '') }))}
+                      keyboardType="number-pad"
+                      accessibilityLabel={m.label}
+                    />
+                    <Text style={[styles.macroPillLabel, { color: c.gray }]}>{m.label}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.macroRow}>
+                <MacroPill label="Proteina" value={result.protein_g}  unit="g" color={c.protein} grayColor={c.gray} />
+                <MacroPill label="Carbos"   value={result.carbs_g}    unit="g" color={c.carbs}   grayColor={c.gray} />
+                <MacroPill label="Grasas"   value={result.fats_g}     unit="g" color={c.fats}    grayColor={c.gray} />
+              </View>
+            )}
 
             {/* Health Score */}
             <HealthScore
-              score={computeHealthScore(result.calories, result.protein_g, result.carbs_g, result.fats_g)}
+              score={computeHealthScore(displayCal, displayProtein, displayCarbs, displayFats)}
               size="small"
             />
 
-            {(result.fiber_g != null || result.sodium_mg != null) && (
+            {!isEditing && (result.fiber_g != null || result.sodium_mg != null) && (
               <View style={styles.extraRow}>
                 {result.fiber_g != null && (
                   <Text style={[styles.extraItem, { color: c.gray }]}>Fibra: {result.fiber_g}g</Text>
@@ -497,12 +589,28 @@ export default function ScanScreen({ navigation }: any) {
             style={[styles.confirmBtn, { backgroundColor: c.black }]}
             onPress={handleConfirm}
             activeOpacity={0.85}
-            accessibilityLabel="Guardar en mi registro"
+            accessibilityLabel={isEditing ? 'Guardar cambios' : 'Guardar en mi registro'}
             accessibilityRole="button"
             accessibilityHint="Confirma y guarda este alimento en tu diario"
           >
             <Ionicons name="checkmark-circle" size={20} color={c.white} />
-            <Text style={[styles.confirmBtnText, { color: c.white }]}>{t('scan.saveToLog')}</Text>
+            <Text style={[styles.confirmBtnText, { color: c.white }]}>
+              {isEditing ? 'Guardar cambios' : t('scan.saveToLog')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.editMacrosBtn, { backgroundColor: isEditing ? c.accent + '15' : c.surface, borderColor: c.accent + '30' }]}
+            onPress={handleToggleEdit}
+            activeOpacity={0.7}
+            accessibilityLabel={isEditing ? 'Cancelar edicion' : 'Editar macros'}
+            accessibilityRole="button"
+            accessibilityHint="Corrige las calorias o macros si la IA no fue precisa"
+          >
+            <Ionicons name={isEditing ? 'close-outline' : 'create-outline'} size={18} color={c.accent} />
+            <Text style={[styles.editMacrosBtnText, { color: c.accent }]}>
+              {isEditing ? 'Cancelar edicion' : t('scan.editMacros')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -522,15 +630,16 @@ export default function ScanScreen({ navigation }: any) {
     );
   }
 
-  // ─── Logged confirmation with animated checkmark + particles ────────────
+  // ─── Logged confirmation — Fitsi party + confetti ────────────────────────
   if (scanState === 'logged') {
     return (
       <View
         style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg }]}
-        accessibilityLabel="Alimento registrado exitosamente. Redirigiendo a tu registro."
+        accessibilityLabel="Comida registrada exitosamente. Redirigiendo a tu registro."
       >
-        <SuccessCheckmark size={88} showParticles={true} />
-        <Text style={[styles.successText, { color: c.black }]}>{t('scan.logged')}</Text>
+        <FitsiMascot expression="party" size="large" animation="bounce" />
+        <SuccessCheckmark size={64} showParticles={true} />
+        <Text style={[styles.successText, { color: c.black }]}>Comida registrada!</Text>
         <Text style={[styles.successHint, { color: c.gray }]}>{t('scan.redirecting')}</Text>
       </View>
     );
@@ -541,7 +650,7 @@ export default function ScanScreen({ navigation }: any) {
     return (
       <View
         style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg }]}
-        accessibilityLabel="Analizando imagen con inteligencia artificial. Esto puede tardar hasta 10 segundos."
+        accessibilityLabel="Analizando imagen con inteligencia artificial. Esto puede tardar hasta 60 segundos."
       >
         {imageUri && (
           <Image
@@ -563,6 +672,46 @@ export default function ScanScreen({ navigation }: any) {
             </View>
           </Animated.View>
         </View>
+      </View>
+    );
+  }
+
+  // ─── Error state — Fitsi "sick" + ErrorFallback + retry ─────────────────
+  if (scanState === 'error') {
+    return (
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg }]}
+      >
+        <FitsiMascot expression="sick" size="medium" animation="sad" />
+        <ErrorFallback
+          message={errorMsg || 'No pudimos analizar la imagen'}
+          hint="Intenta con otra foto o agrega manualmente."
+          onRetry={handleRetryFromError}
+          retryLabel="Reintentar"
+        />
+        <TouchableOpacity
+          style={[styles.manualFallbackBtn, { backgroundColor: c.surface, marginTop: spacing.sm }]}
+          onPress={() => {
+            haptics.light();
+            navigation.navigate('Registro', { screen: 'AddFood', params: { mealType: selectedMeal } });
+          }}
+          activeOpacity={0.7}
+          accessibilityLabel="Agregar alimento manualmente"
+          accessibilityRole="button"
+        >
+          <Ionicons name="create-outline" size={16} color={c.black} />
+          <Text style={[styles.manualFallbackText, { color: c.black }]}>Agregar manualmente</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.retryBtn, { backgroundColor: 'transparent', marginTop: spacing.xs }]}
+          onPress={handleRetry}
+          activeOpacity={0.7}
+          accessibilityLabel="Volver al inicio"
+          accessibilityRole="button"
+        >
+          <Ionicons name="arrow-back-outline" size={16} color={c.gray} />
+          <Text style={[styles.retryBtnText, { color: c.gray }]}>Volver</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -884,6 +1033,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm, minHeight: 52,
   },
   confirmBtnText: { ...typography.button },
+  editMacrosBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md, borderRadius: radius.full,
+    marginBottom: spacing.sm, minHeight: 48, borderWidth: 1,
+  },
+  editMacrosBtnText: { ...typography.button },
   retryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: spacing.sm,
