@@ -8,7 +8,7 @@
  * - Full accessibility labels and roles on all interactive elements
  * - Fade-in animation for scanning/result states
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,

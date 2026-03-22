@@ -391,6 +391,32 @@ export default function LogScreen({ navigation }: any) {
     prevLogCount.current = logs.length;
   }, [logs.length]);
 
+  // Smart suggestion: if a food appears 3+ times, suggest adding to favorites
+  useEffect(() => {
+    if (logs.length < 3) return;
+    const counts: Record<string, { count: number; log: AIFoodLog }> = {};
+    for (const log of logs) {
+      const key = log.food_name.toLowerCase();
+      if (!counts[key]) counts[key] = { count: 0, log };
+      counts[key].count += 1;
+    }
+    for (const { count, log } of Object.values(counts)) {
+      if (count >= 3) {
+        favoritesService.shouldSuggestFavorite(log.food_name, count).then((should) => {
+          if (should) {
+            showNotification({
+              message: `Te gusta "${log.food_name}"? Agregalo a favoritos!`,
+              type: 'info',
+              icon: 'heart',
+              duration: 5000,
+            });
+          }
+        }).catch(() => {});
+        break; // Only suggest one at a time
+      }
+    }
+  }, [logs]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await load();

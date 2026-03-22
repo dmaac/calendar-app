@@ -14,6 +14,7 @@ import {
   Platform,
   PanResponder,
   LayoutChangeEvent,
+  DimensionValue,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -277,7 +278,7 @@ function TrueToneSlider({
     trackWidth.current = e.nativeEvent.layout.width;
   };
 
-  const pct = `${value}%`;
+  const pct = `${value}%` as DimensionValue;
 
   return (
     <View

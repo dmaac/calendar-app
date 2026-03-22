@@ -20,9 +20,13 @@ async def get_favorites(
     food_service = FoodService(session)
     favorites = await food_service.get_favorites(current_user.id)
 
+    # Batch-load all foods in a single query instead of N+1 individual queries
+    food_ids = [fav.food_id for fav in favorites]
+    food_map = await food_service.get_foods_by_ids(food_ids)
+
     result = []
     for fav in favorites:
-        food = await food_service.get_food_by_id(fav.food_id)
+        food = food_map.get(fav.food_id)
         result.append(
             UserFoodFavoriteRead(
                 id=fav.id,

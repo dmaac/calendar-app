@@ -249,13 +249,58 @@ async def list_members(
     )
     memberships = list(members_result.all())
 
+    if not memberships:
+        return FamilyMembersResponse(
+            family_id=family.id,
+            family_name=family.name,
+            members=[],
+        )
+
+    # Batch-load all users in a single query instead of N+1 individual gets
+    member_user_ids = [m.user_id for m in memberships]
+    users_result = await session.exec(
+        select(User).where(User.id.in_(member_user_ids))  # type: ignore[attr-defined]
+    )
+    users_map = {u.id: u for u in users_result.all()}
+
+    # Batch-load today's nutrition stats for all members in a single query
+    today = date.today()
+    today_start = datetime.combine(today, dt_time.min)
+    today_end = datetime.combine(today, dt_time.max)
+
+    batch_stats_result = await session.exec(
+        select(
+            AIFoodLog.user_id,
+            func.coalesce(func.sum(AIFoodLog.calories), 0).label("calories"),
+            func.coalesce(func.sum(AIFoodLog.protein_g), 0).label("protein"),
+            func.coalesce(func.sum(AIFoodLog.carbs_g), 0).label("carbs"),
+            func.coalesce(func.sum(AIFoodLog.fats_g), 0).label("fats"),
+            func.count(AIFoodLog.id).label("meals"),
+        ).where(
+            AIFoodLog.user_id.in_(member_user_ids),  # type: ignore[attr-defined]
+            AIFoodLog.logged_at >= today_start,
+            AIFoodLog.logged_at <= today_end,
+        ).group_by(AIFoodLog.user_id)
+    )
+    stats_map = {}
+    for row in batch_stats_result.all():
+        stats_map[row[0]] = {
+            "calories": round(float(row[1]), 1),
+            "protein": round(float(row[2]), 1),
+            "carbs": round(float(row[3]), 1),
+            "fats": round(float(row[4]), 1),
+            "meals": int(row[5]),
+        }
+
     member_stats: List[FamilyMemberStats] = []
     for m in memberships:
-        user = await session.get(User, m.user_id)
+        user = users_map.get(m.user_id)
         if not user:
             continue
 
-        stats = await _get_today_stats(m.user_id, session)
+        stats = stats_map.get(m.user_id, {
+            "calories": 0.0, "protein": 0.0, "carbs": 0.0, "fats": 0.0, "meals": 0,
+        })
         member_stats.append(
             FamilyMemberStats(
                 user_id=m.user_id,

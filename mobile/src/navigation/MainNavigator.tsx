@@ -214,6 +214,7 @@ const LogStack = () => (
     <Stack.Screen name="History"       component={HistoryScreen} />
     <Stack.Screen name="FoodSearch"    component={FoodSearchScreen} />
     <Stack.Screen name="CalendarView"  component={CalendarViewScreen} />
+    <Stack.Screen name="Favorites"     component={FavoritesScreen} />
   </Stack.Navigator>
 );
 

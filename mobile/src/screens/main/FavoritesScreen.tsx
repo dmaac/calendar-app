@@ -238,7 +238,7 @@ export default function FavoritesScreen({ navigation }: any) {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: c.black }]}>Mis Favoritos</Text>
-          <FitsiMascot expression="love" size={28} />
+          <FitsiMascot expression="love" size="small" />
         </View>
         <View style={{ width: 36 }} />
       </View>
@@ -266,7 +266,7 @@ export default function FavoritesScreen({ navigation }: any) {
       {/* Content */}
       {favorites.length === 0 && !loading ? (
         <View style={styles.emptyState}>
-          <FitsiMascot expression="wink" size={80} />
+          <FitsiMascot expression="wink" size="medium" />
           <Text style={[styles.emptyTitle, { color: c.black }]}>
             Agrega tu primera comida favorita!
           </Text>

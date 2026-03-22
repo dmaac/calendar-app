@@ -10,7 +10,7 @@
  * - Full accessibility labels and roles
  * - User-friendly error state with retry
  */
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import {
   RefreshControl,
   Platform,
   Animated,
+  InteractionManager,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,16 +34,10 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 import AnimatedNumber from '../../components/AnimatedNumber';
 import StreakBadge from '../../components/StreakBadge';
 import FitsiMascot from '../../components/FitsiMascot';
-import OnboardingProgress from '../../components/OnboardingProgress';
-import NutriScore from '../../components/NutriScore';
 import HealthAlerts, { generateHealthAlerts } from '../../components/HealthAlerts';
-import ExerciseBalanceCard from '../../components/ExerciseBalanceCard';
-import AdaptiveCalorieBanner from '../../components/AdaptiveCalorieBanner';
 import HealthKitCard from '../../components/HealthKitCard';
 import FastingTimer from '../../components/FastingTimer';
-import SleepTracker from '../../components/SleepTracker';
 import WellnessScore from '../../components/WellnessScore';
-import MoodTracker from '../../components/MoodTracker';
 import useFadeIn from '../../hooks/useFadeIn';
 import useHealthKit from '../../hooks/useHealthKit';
 import usePulse from '../../hooks/usePulse';
@@ -53,8 +48,29 @@ import NotificationCenter, {
   useNotifications,
 } from '../../components/NotificationCenter';
 import { syncWidgetData } from '../../services/widgetData.service';
-import DailyChallenges from '../../components/DailyChallenges';
 import TrialBanner from '../../components/TrialBanner';
+
+// ─── Below-the-fold components: lazy loaded to speed up initial render ────────
+const NutriScore = lazy(() => import('../../components/NutriScore'));
+const ExerciseBalanceCard = lazy(() => import('../../components/ExerciseBalanceCard'));
+const AdaptiveCalorieBanner = lazy(() => import('../../components/AdaptiveCalorieBanner'));
+const SleepTracker = lazy(() => import('../../components/SleepTracker'));
+const MoodTracker = lazy(() => import('../../components/MoodTracker'));
+const DailyChallenges = lazy(() => import('../../components/DailyChallenges'));
+const OnboardingProgress = lazy(() => import('../../components/OnboardingProgress'));
+
+// ─── Custom hook: defer rendering of below-fold content after initial paint ───
+function useDeferredRender(delayMs: number = 500): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const handle = InteractionManager.runAfterInteractions(() => {
+      const timer = setTimeout(() => setReady(true), delayMs);
+      return () => clearTimeout(timer);
+    });
+    return () => handle.cancel();
+  }, [delayMs]);
+  return ready;
+}
 
 // ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
 const DAILY_TIPS = [
