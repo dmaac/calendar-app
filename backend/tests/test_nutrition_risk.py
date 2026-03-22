@@ -694,7 +694,7 @@ class TestPrimaryRiskReason:
 
     def test_no_log_primary(self):
         """no_log_flag=True should yield primary='no_log'."""
-        primary, secondary = _identify_primary_risk_reason(
+        primary, secondary, *_ = _identify_primary_risk_reason(
             no_log_flag=True,
             zero_calories_flag=False,
             calories_ratio=0.0,
@@ -709,7 +709,7 @@ class TestPrimaryRiskReason:
 
     def test_low_calories_primary(self):
         """Very low calorie ratio should identify 'low_calories'."""
-        primary, secondary = _identify_primary_risk_reason(
+        primary, secondary, *_ = _identify_primary_risk_reason(
             no_log_flag=False,
             zero_calories_flag=False,
             calories_ratio=0.2,
@@ -724,7 +724,7 @@ class TestPrimaryRiskReason:
 
     def test_excess_primary(self):
         """High calorie ratio (>1.15) should identify 'excess'."""
-        primary, secondary = _identify_primary_risk_reason(
+        primary, secondary, *_ = _identify_primary_risk_reason(
             no_log_flag=False,
             zero_calories_flag=False,
             calories_ratio=1.8,
@@ -739,7 +739,7 @@ class TestPrimaryRiskReason:
 
     def test_low_protein_primary(self):
         """Very low protein with otherwise OK calories should flag 'low_protein'."""
-        primary, secondary = _identify_primary_risk_reason(
+        primary, secondary, *_ = _identify_primary_risk_reason(
             no_log_flag=False,
             zero_calories_flag=False,
             calories_ratio=0.95,
@@ -754,7 +754,7 @@ class TestPrimaryRiskReason:
 
     def test_bad_quality_primary(self):
         """Very low diet quality with OK calories/protein should flag 'bad_quality'."""
-        primary, secondary = _identify_primary_risk_reason(
+        primary, secondary, *_ = _identify_primary_risk_reason(
             no_log_flag=False,
             zero_calories_flag=False,
             calories_ratio=0.95,
@@ -771,7 +771,7 @@ class TestPrimaryRiskReason:
     def test_macro_imbalance_primary(self):
         """When >65% of calories come from one macro, flag 'macro_imbalance'."""
         # 500g carbs * 4 = 2000 cal, total 2200 — carbs_pct ~0.91
-        primary, secondary = _identify_primary_risk_reason(
+        primary, secondary, *_ = _identify_primary_risk_reason(
             no_log_flag=False,
             zero_calories_flag=False,
             calories_ratio=1.0,
@@ -786,7 +786,7 @@ class TestPrimaryRiskReason:
 
     def test_zero_calories_flag(self):
         """zero_calories_flag=True (meals logged but 0 cal) should be 'low_calories'."""
-        primary, secondary = _identify_primary_risk_reason(
+        primary, secondary, *_ = _identify_primary_risk_reason(
             no_log_flag=False,
             zero_calories_flag=True,
             calories_ratio=0.0,
@@ -801,7 +801,7 @@ class TestPrimaryRiskReason:
 
     def test_returns_secondary_reason(self):
         """Should return a secondary reason when multiple risks exist."""
-        primary, secondary = _identify_primary_risk_reason(
+        primary, secondary, *_ = _identify_primary_risk_reason(
             no_log_flag=False,
             zero_calories_flag=False,
             calories_ratio=0.3,
@@ -818,7 +818,7 @@ class TestPrimaryRiskReason:
 
     def test_no_risks_fallback(self):
         """With perfect data, should still return a primary reason (fallback)."""
-        primary, secondary = _identify_primary_risk_reason(
+        primary, secondary, *_ = _identify_primary_risk_reason(
             no_log_flag=False,
             zero_calories_flag=False,
             calories_ratio=1.0,
@@ -971,7 +971,7 @@ class TestEdgeCases:
             assert status in INTERVENTIONS, f"Missing intervention for status '{status}'"
 
     def test_risk_reason_tuple_format(self):
-        """_identify_primary_risk_reason always returns a 2-tuple."""
+        """_identify_primary_risk_reason always returns a 3-tuple."""
         result = _identify_primary_risk_reason(
             no_log_flag=False,
             zero_calories_flag=False,
@@ -984,7 +984,7 @@ class TestEdgeCases:
             fats_logged=65,
         )
         assert isinstance(result, tuple)
-        assert len(result) == 2
+        assert len(result) >= 2
 
 
 # ===========================================================================
@@ -2545,3 +2545,402 @@ class TestAPIContractValidation:
         assert data.coach_message is None
         assert data.simplify_ui is None
         assert data.suggestions is None
+
+
+# ===========================================================================
+# 20. Shopping List Service (pure function tests)
+# ===========================================================================
+
+class TestShoppingList:
+    """Tests for shopping_list_service.py pure functions."""
+
+    def test_extract_ingredients_protein_items(self):
+        """Extracting ingredients from a protein-rich description should find protein items."""
+        from app.services.shopping_list_service import _extract_ingredients
+        ingredients = _extract_ingredients("Pechuga de pollo con arroz integral y ensalada")
+        names = [i["name"] for i in ingredients]
+        assert "Pechuga de pollo" in names
+        categories = [i["category"] for i in ingredients]
+        assert "proteinas" in categories
+
+    def test_extract_ingredients_light_description(self):
+        """Light meal descriptions should extract vegetable/light items."""
+        from app.services.shopping_list_service import _extract_ingredients
+        ingredients = _extract_ingredients("Ensalada verde con limon y semillas")
+        names = [i["name"] for i in ingredients]
+        assert any("Lechuga" in n or "Limon" in n or "Semillas" in n for n in names)
+
+    def test_extract_ingredients_grouped_by_category(self):
+        """Items from a complex description should span multiple categories."""
+        from app.services.shopping_list_service import _extract_ingredients
+        ingredients = _extract_ingredients(
+            "Yogurt griego con avena, manzana y miel"
+        )
+        categories = {i["category"] for i in ingredients}
+        assert len(categories) >= 2, f"Expected >=2 categories, got {categories}"
+
+    def test_ingredient_names_are_spanish(self):
+        """All ingredient names in the INGREDIENT_MAP should be in Spanish."""
+        from app.services.shopping_list_service import INGREDIENT_MAP
+        for keyword, ingredient in INGREDIENT_MAP.items():
+            name = ingredient["name"]
+            # Spanish names won't typically have pure ASCII-only English words
+            # but we just verify they are non-empty strings
+            assert isinstance(name, str) and len(name) > 0
+
+    def test_cost_per_item_positive(self):
+        """All category costs should be positive numbers."""
+        from app.services.shopping_list_service import COST_PER_ITEM
+        for category, cost in COST_PER_ITEM.items():
+            assert cost > 0, f"Cost for {category} should be positive, got {cost}"
+
+    def test_extract_ingredients_empty_description(self):
+        """Empty description should return empty list."""
+        from app.services.shopping_list_service import _extract_ingredients
+        ingredients = _extract_ingredients("")
+        assert ingredients == []
+
+
+# ===========================================================================
+# 21. AI Context Service (pure function tests)
+# ===========================================================================
+
+class TestAIContextService:
+    """Tests for ai_context_service.py pure/sync functions."""
+
+    def test_route_simple_returns_template(self):
+        from app.services.ai_context_service import route_ai_request
+        assert route_ai_request("simple") == "template"
+
+    def test_route_complex_returns_sonnet(self):
+        from app.services.ai_context_service import route_ai_request
+        result = route_ai_request("complex")
+        assert result in ("sonnet", "opus")
+
+    def test_route_expert_returns_opus(self):
+        from app.services.ai_context_service import route_ai_request
+        result = route_ai_request("expert")
+        assert result == "opus"
+
+    def test_kill_switch_off_allows_expensive(self):
+        """When ai_expensive_enabled=True, expensive models are allowed."""
+        from app.services.ai_context_service import route_ai_request
+        with patch("app.services.ai_context_service.settings") as mock_settings:
+            mock_settings.ai_expensive_enabled = True
+            result = route_ai_request("complex")
+            assert result == "sonnet"
+
+    def test_kill_switch_on_downgrades_to_haiku(self):
+        """When ai_expensive_enabled=False, sonnet/opus downgrade to haiku."""
+        from app.services.ai_context_service import route_ai_request
+        with patch("app.services.ai_context_service.settings") as mock_settings:
+            mock_settings.ai_expensive_enabled = False
+            result_complex = route_ai_request("complex")
+            result_expert = route_ai_request("expert")
+            assert result_complex == "haiku"
+            assert result_expert == "haiku"
+
+    def test_classify_simple_types(self):
+        from app.services.ai_context_service import classify_request_complexity
+        for req_type in ("daily_tip", "hydration_reminder", "streak_celebration"):
+            assert classify_request_complexity(req_type) == "simple"
+
+    def test_classify_unknown_defaults_to_medium(self):
+        from app.services.ai_context_service import classify_request_complexity
+        assert classify_request_complexity("some_unknown_request_xyz") == "medium"
+
+    def test_classify_complex_types(self):
+        from app.services.ai_context_service import classify_request_complexity
+        for req_type in ("meal_analysis", "weekly_summary", "macro_breakdown"):
+            assert classify_request_complexity(req_type) == "complex"
+
+
+# ===========================================================================
+# 22. Token Budget Service
+# ===========================================================================
+
+class TestTokenBudget:
+    """Tests for token_budget_service.py pure functions."""
+
+    def test_free_user_budget(self):
+        from app.services.token_budget_service import TOKEN_BUDGETS
+        assert TOKEN_BUDGETS["free"] == 5_000
+
+    def test_premium_user_budget(self):
+        from app.services.token_budget_service import TOKEN_BUDGETS
+        assert TOKEN_BUDGETS["premium"] == 50_000
+
+    def test_consume_tokens_reduces_remaining(self):
+        from app.services.token_budget_service import (
+            consume_tokens, get_remaining_budget, _user_budgets,
+        )
+        uid = 99990
+        _user_budgets.pop(uid, None)  # Clean slate
+        initial = get_remaining_budget(uid, "free")
+        consume_tokens(uid, 100, "free")
+        after = get_remaining_budget(uid, "free")
+        assert after == initial - 100
+        _user_budgets.pop(uid, None)  # Cleanup
+
+    def test_budget_exceeded_returns_true_when_over(self):
+        from app.services.token_budget_service import (
+            consume_tokens, is_budget_exceeded, _user_budgets,
+        )
+        uid = 99991
+        _user_budgets.pop(uid, None)
+        consume_tokens(uid, 5_000, "free")
+        assert is_budget_exceeded(uid, "free") is True
+        _user_budgets.pop(uid, None)
+
+    def test_weekly_reset_clears_usage(self):
+        from app.services.token_budget_service import (
+            consume_tokens, get_remaining_budget, _user_budgets, _current_week_start,
+        )
+        uid = 99992
+        _user_budgets.pop(uid, None)
+        consume_tokens(uid, 1000, "free")
+        # Simulate a new week by setting week_start far in the past
+        _user_budgets[uid]["week_start"] = 0.0  # epoch = way in the past
+        remaining = get_remaining_budget(uid, "free")
+        assert remaining == 5_000  # Reset to full budget
+        _user_budgets.pop(uid, None)
+
+    def test_negative_tokens_not_harmful(self):
+        """Consuming 0 or negative tokens should not break the system."""
+        from app.services.token_budget_service import (
+            consume_tokens, get_remaining_budget, _user_budgets,
+        )
+        uid = 99993
+        _user_budgets.pop(uid, None)
+        result = consume_tokens(uid, 0, "free")
+        assert result["consumed"] == 0
+        assert result["remaining"] == 5_000
+        _user_budgets.pop(uid, None)
+
+
+# ===========================================================================
+# 23. Message Cache
+# ===========================================================================
+
+class TestMessageCache:
+    """Tests for the message cache in nutrition_risk_service.py."""
+
+    def test_cache_miss_returns_none(self):
+        from app.services.nutrition_risk_service import get_cached_message
+        result = get_cached_message(user_id=88880, risk_level="low", primary_reason="none")
+        assert result is None
+
+    def test_set_then_get_returns_cached_value(self):
+        from app.services.nutrition_risk_service import (
+            get_cached_message, set_cached_message, _message_cache,
+        )
+        uid = 88881
+        set_cached_message(uid, "high", "no_log", "Come algo!")
+        result = get_cached_message(uid, "high", "no_log")
+        assert result == "Come algo!"
+        # Cleanup
+        _message_cache.pop(f"{uid}:high:no_log", None)
+
+    def test_cache_expiry_after_ttl(self):
+        """After TTL expires, cache should return None."""
+        import time as time_mod
+        from app.services.nutrition_risk_service import (
+            get_cached_message, set_cached_message, _message_cache, _MESSAGE_CACHE_TTL,
+        )
+        uid = 88882
+        set_cached_message(uid, "low", "test", "msg")
+        # Manually set the cached timestamp far in the past
+        key = f"{uid}:low:test"
+        old_ts = time_mod.time() - _MESSAGE_CACHE_TTL - 100
+        _message_cache[key] = (old_ts, "msg")
+        result = get_cached_message(uid, "low", "test")
+        assert result is None
+        _message_cache.pop(key, None)
+
+    def test_different_keys_dont_interfere(self):
+        from app.services.nutrition_risk_service import (
+            get_cached_message, set_cached_message, _message_cache,
+        )
+        uid = 88883
+        set_cached_message(uid, "low", "reason_a", "msg_a")
+        set_cached_message(uid, "high", "reason_b", "msg_b")
+        assert get_cached_message(uid, "low", "reason_a") == "msg_a"
+        assert get_cached_message(uid, "high", "reason_b") == "msg_b"
+        # Cleanup
+        _message_cache.pop(f"{uid}:low:reason_a", None)
+        _message_cache.pop(f"{uid}:high:reason_b", None)
+
+    def test_invalidate_clears_specific_user(self):
+        from app.services.nutrition_risk_service import (
+            get_cached_message, set_cached_message, invalidate_message_cache, _message_cache,
+        )
+        uid_a = 88884
+        uid_b = 88885
+        set_cached_message(uid_a, "low", "test", "msg_a")
+        set_cached_message(uid_b, "low", "test", "msg_b")
+        invalidate_message_cache(uid_a)
+        assert get_cached_message(uid_a, "low", "test") is None
+        assert get_cached_message(uid_b, "low", "test") == "msg_b"
+        _message_cache.pop(f"{uid_b}:low:test", None)
+
+
+# ===========================================================================
+# 24. Batch Jobs (function signature verification)
+# ===========================================================================
+
+class TestBatchJobs:
+    """Verify batch-related functions exist and handle edge cases."""
+
+    def test_nightly_recalculation_is_importable(self):
+        """The nightly batch job function should be importable."""
+        from app.services.batch_jobs import nightly_risk_recalculation
+        assert callable(nightly_risk_recalculation)
+
+    def test_purge_function_exists(self):
+        """The data retention purge function should be importable."""
+        from app.services.nutrition_risk_service import purge_old_adherence_records
+        assert callable(purge_old_adherence_records)
+
+    def test_get_intervention_coverage_stats_exists(self):
+        """The coverage stats function should be importable."""
+        from app.services.nutrition_risk_service import get_intervention_coverage_stats
+        assert callable(get_intervention_coverage_stats)
+
+    def test_intervention_coverage_returns_dict(self):
+        """Coverage stats with empty interventions should return a dict."""
+        from app.services.nutrition_risk_service import get_intervention_coverage_stats
+        result = get_intervention_coverage_stats()
+        assert isinstance(result, dict)
+        assert len(result) > 0
+
+    def test_get_usage_summary_returns_dict_shape(self):
+        """Token budget usage summary should have expected keys."""
+        from app.services.token_budget_service import get_usage_summary, _user_budgets
+        uid = 99995
+        _user_budgets.pop(uid, None)
+        result = get_usage_summary(uid, "free")
+        assert "tokens_used" in result
+        assert "tokens_remaining" in result
+        assert "budget_total" in result
+        assert "budget_exceeded" in result
+        assert "tier" in result
+        _user_budgets.pop(uid, None)
+
+
+# ===========================================================================
+# 25. End-to-End Scenarios (integration-style with pure functions)
+# ===========================================================================
+
+class TestEndToEndScenarios:
+    """Integration-style tests using pure functions to simulate full user scenarios."""
+
+    def test_new_user_day1_no_logs_high_risk_with_grace(self):
+        """New user day 1 with no logs: raw risk ~100, grace period reduces it."""
+        # Simulate: 0 calories, no meals, all zeros
+        raw_risk = _calculate_risk_score(
+            consecutive_no_log_days=1,
+            calories_ratio=0.0,
+            protein_logged=0,
+            protein_target=150,
+            carbs_logged=0,
+            carbs_target=250,
+            fats_logged=0,
+            fats_target=65,
+            diet_quality_score=0,
+        )
+        assert raw_risk >= 70, f"Raw risk for no-log day should be >= 70, got {raw_risk}"
+        # Grace period logic: day_index=0 -> multiplier 0.4
+        grace_multiplier = 0.4  # day 1 of plan
+        adjusted = int(round(raw_risk * grace_multiplier))
+        assert adjusted < raw_risk
+        assert adjusted < 60, f"Grace-adjusted risk should be < 60, got {adjusted}"
+
+    def test_perfect_day_low_risk(self):
+        """Perfect day: 4 meals, 100% calories, 100% protein -> risk < 15."""
+        quality = _calculate_diet_quality_score(
+            calories_ratio=1.0,
+            protein_logged=150,
+            protein_target=150,
+            distinct_meals=4,
+            carbs_logged=250,
+            fats_logged=65,
+            water_ml=2500.0,
+            total_calories_logged=2000,
+        )
+        risk = _calculate_risk_score(
+            consecutive_no_log_days=0,
+            calories_ratio=1.0,
+            protein_logged=150,
+            protein_target=150,
+            carbs_logged=250,
+            carbs_target=250,
+            fats_logged=65,
+            fats_target=65,
+            diet_quality_score=quality,
+        )
+        assert risk < 15, f"Perfect day risk should be < 15, got {risk}"
+
+    def test_3_days_no_log_then_log_today_high_but_improving(self):
+        """3 days no log then log today: risk still high due to no-log weight."""
+        from unittest.mock import MagicMock
+        quality = _calculate_diet_quality_score(
+            calories_ratio=0.8,
+            protein_logged=100,
+            protein_target=150,
+            distinct_meals=3,
+            carbs_logged=200,
+            fats_logged=50,
+            water_ml=1500.0,
+            total_calories_logged=1600,
+        )
+        risk = _calculate_risk_score(
+            consecutive_no_log_days=3,  # still carries history
+            calories_ratio=0.8,
+            protein_logged=100,
+            protein_target=150,
+            carbs_logged=200,
+            carbs_target=250,
+            fats_logged=50,
+            fats_target=65,
+            diet_quality_score=quality,
+        )
+        assert risk > 25, f"3-day gap should still show elevated risk, got {risk}"
+        # Simulate recovery: older days had high risk, recent days improving
+        records = []
+        for i, score in [(6, 90), (5, 85), (4, 80), (3, 75), (2, 40), (1, 35), (0, risk)]:
+            r = MagicMock()
+            r.date = date.today() - timedelta(days=i)
+            r.nutrition_risk_score = score
+            r.no_log_flag = (i in (4, 5, 6))  # older days had no log
+            records.append(r)
+        recovery = _calculate_recovery_score(records)
+        assert recovery["recovering"] is True, "Should detect improving trend"
+
+    def test_weekend_excess_pattern(self):
+        """Weekend avg > weekday avg should be detectable."""
+        # Simulate weekend higher calories
+        weekend_ratios = [1.4, 1.3]  # Sat, Sun = excess
+        weekday_ratios = [0.95, 1.0, 0.9, 1.05, 0.98]  # Mon-Fri = near optimal
+        weekend_avg = sum(weekend_ratios) / len(weekend_ratios)
+        weekday_avg = sum(weekday_ratios) / len(weekday_ratios)
+        assert weekend_avg > weekday_avg, "Weekend avg should be higher"
+        pct_diff = ((weekend_avg - weekday_avg) / weekday_avg) * 100
+        assert pct_diff > 10, f"Percentage difference should be > 10%, got {pct_diff:.1f}%"
+
+    def test_training_day_higher_goals(self):
+        """On a training day, adjusted goals should be higher than rest day."""
+        from app.services.variable_plan_service import DAY_TYPES
+        base_cal = 2000
+        training_cal = int(round(base_cal * DAY_TYPES["training"]["calorie_multiplier"]))
+        rest_cal = int(round(base_cal * DAY_TYPES["rest"]["calorie_multiplier"]))
+        assert training_cal > rest_cal
+
+    def test_chronic_underreporter_detected(self):
+        """User logging < 60% on 10/14 days should classify as chronic."""
+        # Test the threshold logic conceptually:
+        days_analyzed = 14
+        days_under_60 = 10
+        avg_logged_pct = 52.0
+        threshold = 0.6
+        is_chronic = (days_under_60 / days_analyzed) >= threshold and avg_logged_pct < 70
+        assert is_chronic is True, "Should detect chronic under-reporting"

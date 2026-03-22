@@ -5,8 +5,8 @@
  *   0-19  Green (#22C55E)      "Estable"
  *   20-39 Yellow (#EAB308)     "Atencion"
  *   40-59 Orange (#F97316)     "Riesgo"
- *   60-79 Red (#EF4444)        "Alto riesgo"
- *   80-100 Dark Red (#DC2626)  "Critico"
+ *   60-79 Red (#EF4444)        "Puedes mejorar"
+ *   80-100 Dark Red (#DC2626)  "Necesitas atencion"
  *
  * Pulse animation activates when score > 60.
  */
@@ -75,8 +75,8 @@ function getRiskZone(score: number, isDark: boolean): RiskZone {
   if (score < 20) return { color: palette.stable, label: 'Estable' };
   if (score < 40) return { color: palette.attention, label: 'Atencion' };
   if (score < 60) return { color: palette.risk, label: 'Riesgo' };
-  if (score < 80) return { color: palette.high, label: 'Alto riesgo' };
-  return { color: palette.critical, label: 'Critico' };
+  if (score < 80) return { color: palette.high, label: 'Puedes mejorar' };
+  return { color: palette.critical, label: 'Necesitas atencion' };
 }
 
 // ─── Actionable text by risk range ──────────────────────────────────────────

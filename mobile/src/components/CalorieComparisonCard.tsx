@@ -27,6 +27,8 @@ interface CalorieComparisonCardProps {
   status: string;
   weekAvg?: number;
   history?: HistoryDot[];
+  trendDirection?: 'improving' | 'stable' | 'worsening';
+  lastLoggedDate?: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -61,7 +63,25 @@ function getDotColor(ratio: number): string {
 const ZONE_LIGHT = { red: '#FEE2E2', orange: '#FEF3C7', green: '#D1FAE5' };
 const ZONE_DARK  = { red: '#DC2626', orange: '#D97706', green: '#16A34A' };
 
-function CalorieComparisonCard({ logged, target, status, weekAvg, history }: CalorieComparisonCardProps) {
+function getTrendIcon(dir: 'improving' | 'stable' | 'worsening'): { name: 'trending-up' | 'trending-down' | 'remove-outline'; color: string } {
+  if (dir === 'improving') return { name: 'trending-up', color: '#22C55E' };
+  if (dir === 'worsening') return { name: 'trending-down', color: '#DC2626' };
+  return { name: 'remove-outline', color: '#9CA3AF' };
+}
+
+function getRelativeDate(isoDate: string): string | null {
+  const now = new Date();
+  const d = new Date(isoDate);
+  const todayStr = now.toISOString().split('T')[0];
+  const dateStr = d.toISOString().split('T')[0];
+  if (dateStr === todayStr) return null;
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 1) return 'Ayer';
+  return `Hace ${diffDays} dias`;
+}
+
+function CalorieComparisonCard({ logged, target, status, weekAvg, history, trendDirection, lastLoggedDate }: CalorieComparisonCardProps) {
   const c = useThemeColors();
   const haptics = useHaptics();
   const [tooltipOpen, setTooltipOpen] = useState(false);
@@ -135,6 +155,14 @@ function CalorieComparisonCard({ logged, target, status, weekAvg, history }: Cal
           <Text style={[styles.pctBadge, { color: statusColor, backgroundColor: statusColor + '18' }]}>
             {pct}%
           </Text>
+          {trendDirection != null && (
+            <Ionicons
+              name={getTrendIcon(trendDirection).name}
+              size={16}
+              color={getTrendIcon(trendDirection).color}
+              accessibilityLabel={`Tendencia: ${trendDirection}`}
+            />
+          )}
           <TouchableOpacity
             onPress={toggleTooltip}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -156,6 +184,12 @@ function CalorieComparisonCard({ logged, target, status, weekAvg, history }: Cal
         <Text style={[styles.loggedValue, { color: c.black }]}>
           {Math.round(logged)} <Text style={[styles.unit, { color: c.gray }]}>kcal</Text>
         </Text>
+        {ratio > 1.15 && (
+          <Text style={[styles.zoneBadge, { color: '#DC2626', backgroundColor: '#DC262618' }]}>EXCESO</Text>
+        )}
+        {ratio < 0.85 && ratio > 0 && (
+          <Text style={[styles.zoneBadge, { color: '#F59E0B', backgroundColor: '#F59E0B18' }]}>DEFICIT</Text>
+        )}
         <Text style={[styles.targetValue, { color: c.gray }]}>
           / {Math.round(target)} kcal
         </Text>
@@ -210,6 +244,13 @@ function CalorieComparisonCard({ logged, target, status, weekAvg, history }: Cal
       <Animated.Text style={[styles.statusText, { color: statusColor, opacity: animatedStatusOpacity }]}>
         {diffText}
       </Animated.Text>
+
+      {/* Last logged date */}
+      {lastLoggedDate != null && getRelativeDate(lastLoggedDate) != null && (
+        <Text style={[styles.lastLoggedText, { color: c.gray }]}>
+          Ultimo registro: {getRelativeDate(lastLoggedDate)}
+        </Text>
+      )}
 
       {/* Weekly average */}
       {weekAvg != null && (
@@ -310,6 +351,19 @@ const styles = StyleSheet.create({
   },
   weekAvgText: {
     ...typography.caption,
+  },
+  zoneBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    overflow: 'hidden',
+    letterSpacing: 0.5,
+  },
+  lastLoggedText: {
+    ...typography.caption,
+    fontStyle: 'italic',
   },
   historyRow: {
     flexDirection: 'row',

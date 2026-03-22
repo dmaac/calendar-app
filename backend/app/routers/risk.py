@@ -92,6 +92,8 @@ class RiskSummaryResponse(BaseModel):
     intervention: InterventionResponse
     consistency_score_7d: int = 0
     recovery: RecoveryResponse = RecoveryResponse(recovering=False, improvement_pct=0)
+    last_meal_logged_at: Optional[str] = None
+    last_risk_calculated_at: Optional[str] = None
 
 
 class DailyAdherenceResponse(BaseModel):
@@ -148,6 +150,14 @@ class RiskReasonCount(BaseModel):
     count: int
 
 
+class RiskDistribution(BaseModel):
+    bracket_0_20: int = 0
+    bracket_20_40: int = 0
+    bracket_40_60: int = 0
+    bracket_60_80: int = 0
+    bracket_80_100: int = 0
+
+
 class AdminRiskDashboardResponse(BaseModel):
     users_at_risk: int
     users_critical: int
@@ -155,6 +165,10 @@ class AdminRiskDashboardResponse(BaseModel):
     avg_quality_score: int
     intervention_effectiveness: float
     top_risk_reasons: List[RiskReasonCount]
+    avg_meals_per_day: float = 0.0
+    users_improving: int = 0
+    users_declining: int = 0
+    risk_distribution: Optional[dict] = None
 
 
 # --- Endpoints ---
@@ -182,6 +196,8 @@ async def get_risk_summary(
         intervention=InterventionResponse(**data["intervention"]),
         consistency_score_7d=data.get("consistency_score_7d", 0),
         recovery=RecoveryResponse(**data.get("recovery", {"recovering": False, "improvement_pct": 0})),
+        last_meal_logged_at=data.get("last_meal_logged_at"),
+        last_risk_calculated_at=data.get("last_risk_calculated_at"),
     )
 
 
@@ -235,24 +251,51 @@ async def get_adherence_history(
     request: Request,
     response: Response,
     days: int = Query(default=7, ge=1, le=90),
+    start_date: Optional[date] = Query(default=None, description="Start date (inclusive)"),
+    end_date: Optional[date] = Query(default=None, description="End date (inclusive)"),
+    severity: Optional[str] = Query(default=None, description="Filter by adherence_status"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Return the last N days of adherence records (single query, no N+1)."""
+    """Return the last N days of adherence records (single query, no N+1).
+
+    Item 67: Optional start_date/end_date override the days param.
+    Item 68: Optional severity filters by adherence_status.
+    """
     _t0 = time_mod.perf_counter()
-    today = date.today()
-    start = today - timedelta(days=days - 1)
+
+    # Item 67: date range takes precedence over days param
+    if start_date is not None and end_date is not None:
+        range_start = start_date
+        range_end = end_date
+    elif start_date is not None:
+        range_start = start_date
+        range_end = date.today()
+    elif end_date is not None:
+        range_start = end_date - timedelta(days=days - 1)
+        range_end = end_date
+    else:
+        today = date.today()
+        range_start = today - timedelta(days=days - 1)
+        range_end = today
 
     # Item 79: Single query with order_by — all fields in one DB round-trip
-    result = await session.exec(
+    query = (
         select(DailyNutritionAdherence)
         .where(
             DailyNutritionAdherence.user_id == current_user.id,
-            DailyNutritionAdherence.date >= start,
-            DailyNutritionAdherence.date <= today,
+            DailyNutritionAdherence.date >= range_start,
+            DailyNutritionAdherence.date <= range_end,
         )
-        .order_by(DailyNutritionAdherence.date.desc())
     )
+
+    # Item 68: severity filter
+    if severity is not None:
+        query = query.where(DailyNutritionAdherence.adherence_status == severity)
+
+    query = query.order_by(DailyNutritionAdherence.date.desc())
+
+    result = await session.exec(query)
     records = list(result.all())
     response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
 
@@ -282,11 +325,14 @@ async def get_adherence_history(
 @_rl("30/minute")
 async def get_health_score(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Return the integrated health score combining nutrition, activity, consistency, and hydration."""
+    _t0 = time_mod.perf_counter()
     data = await calculate_integrated_health_score(current_user.id, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return IntegratedHealthScoreResponse(**data)
 
 
@@ -335,17 +381,20 @@ async def recalculate_today(
 @_rl("10/minute")
 async def backfill_adherence(
     request: Request,
+    response: Response,
     days: int = Query(default=30, ge=1, le=90),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Recalculate adherence records for the last N days (max 90). Returns count of records updated."""
+    _t0 = time_mod.perf_counter()
     today = date.today()
     records_updated = 0
     for i in range(days):
         target_date = today - timedelta(days=i)
         await calculate_daily_adherence(current_user.id, target_date, session)
         records_updated += 1
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return BackfillResponse(records_updated=records_updated, days_processed=days)
 
 
@@ -353,12 +402,15 @@ async def backfill_adherence(
 @_rl("30/minute")
 async def get_risk_analytics(
     request: Request,
+    response: Response,
     days: int = Query(default=7, ge=1, le=90),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Return aggregated risk analytics for the authenticated user."""
+    _t0 = time_mod.perf_counter()
     data = await get_user_risk_analytics(current_user.id, days, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return RiskAnalyticsResponse(**data)
 
 
@@ -366,11 +418,13 @@ async def get_risk_analytics(
 @_rl("10/minute")
 async def post_risk_event(
     request: Request,
+    response: Response,
     body: TrackRiskEventRequest,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Track a risk analytics event (impression, CTA click, intervention, etc.)."""
+    _t0 = time_mod.perf_counter()
     try:
         event = await track_risk_event(
             user_id=current_user.id,
@@ -380,6 +434,7 @@ async def post_risk_event(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return TrackRiskEventResponse(
         id=event.id,
         event_type=event.event_type,
@@ -486,15 +541,18 @@ class WeekendPatternResponse(BaseModel):
 @_rl("30/minute")
 async def get_recovery_plan(
     request: Request,
+    response: Response,
     horizon: str = Query(default="24h", regex="^(24h|3d)$"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Return a recovery plan (24h or 3-day) with meal suggestions and water recommendation."""
+    _t0 = time_mod.perf_counter()
     if horizon == "3d":
         data = await generate_3day_recovery_plan(current_user.id, session)
     else:
         data = await generate_24h_recovery_plan(current_user.id, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return data
 
 
@@ -502,11 +560,14 @@ async def get_recovery_plan(
 @_rl("30/minute")
 async def get_patterns(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Return detected nutrition patterns (weekend vs weekday) for the authenticated user."""
+    _t0 = time_mod.perf_counter()
     data = await detect_weekend_pattern(current_user.id, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return WeekendPatternResponse(**data)
 
 
@@ -532,12 +593,15 @@ class ChronicUnderreportingResponse(BaseModel):
 @_rl("30/minute")
 async def get_adjusted_goals_endpoint(
     request: Request,
+    response: Response,
     day_type: str = Query(default="training", regex="^(rest|training|refeed)$"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Return adjusted nutrition goals based on day type (rest/training/refeed)."""
+    _t0 = time_mod.perf_counter()
     data = await get_adjusted_goals(current_user.id, day_type, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return AdjustedGoalsResponse(**data)
 
 
@@ -545,11 +609,14 @@ async def get_adjusted_goals_endpoint(
 @_rl("30/minute")
 async def get_chronic_underreporting(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Detect chronic under-reporting over the last 14 days."""
+    _t0 = time_mod.perf_counter()
     data = await detect_chronic_underreporting(current_user.id, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return ChronicUnderreportingResponse(**data)
 
 
@@ -576,6 +643,7 @@ class QuickAddProteinResponse(BaseModel):
 @_rl("10/minute")
 async def copy_yesterday(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -583,6 +651,7 @@ async def copy_yesterday(
 
     Creates new AIFoodLog entries with today's date based on yesterday's logs.
     """
+    _t0 = time_mod.perf_counter()
     today = date.today()
     yesterday = today - timedelta(days=1)
     yesterday_start = datetime.combine(yesterday, datetime.min.time())
@@ -635,6 +704,7 @@ async def copy_yesterday(
     # Trigger recalculation
     await recalculate_on_food_log(current_user.id, session)
 
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return CopyYesterdayResponse(
         copied_entries=len(yesterday_logs),
         total_calories=total_calories,
@@ -647,6 +717,7 @@ async def copy_yesterday(
 @_rl("10/minute")
 async def quick_add_protein(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -654,6 +725,7 @@ async def quick_add_protein(
 
     Adds a Greek yogurt entry: 180 kcal, 20g protein, 8g carbs, 5g fats.
     """
+    _t0 = time_mod.perf_counter()
     now = datetime.utcnow()
 
     new_log = AIFoodLog(
@@ -678,6 +750,7 @@ async def quick_add_protein(
     # Trigger recalculation
     await recalculate_on_food_log(current_user.id, session)
 
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return QuickAddProteinResponse(
         food_name="Yogurt griego natural",
         calories=180,
@@ -692,12 +765,15 @@ async def quick_add_protein(
 @_rl("30/minute")
 async def admin_risk_dashboard(
     request: Request,
+    response: Response,
     admin_user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     """Admin-only: aggregated risk stats across all users."""
+    _t0 = time_mod.perf_counter()
     logger.info("Admin dashboard accessed by user_id=%d", admin_user.id)
     data = await get_admin_risk_dashboard(session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return AdminRiskDashboardResponse(**data)
 
 
@@ -708,11 +784,14 @@ async def admin_risk_dashboard(
 @_rl("30/minute")
 async def suggest_meal(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Return a single smart meal suggestion based on today's remaining macros (Item 136)."""
+    _t0 = time_mod.perf_counter()
     data = await get_smart_meal_suggestion(current_user.id, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return data
 
 
@@ -720,12 +799,15 @@ async def suggest_meal(
 @_rl("30/minute")
 async def shopping_list(
     request: Request,
+    response: Response,
     days: int = Query(default=3, ge=1, le=7),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Return a simple shopping list based on recovery plan meals for N days (Item 137)."""
+    _t0 = time_mod.perf_counter()
     data = await generate_simple_shopping_list(current_user.id, days, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return data
 
 
@@ -733,9 +815,12 @@ async def shopping_list(
 @_rl("30/minute")
 async def correlations(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Detect exercise-nutrition correlation patterns (Item 146)."""
+    _t0 = time_mod.perf_counter()
     data = await detect_exercise_nutrition_correlation(current_user.id, session)
+    response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
     return data

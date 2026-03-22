@@ -28,6 +28,7 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ..core.circuit_breaker import get_breaker, CircuitBreakerOpen
 from ..models.ai_food_log import AIFoodLog
 from ..models.daily_nutrition_summary import DailyNutritionSummary
 from ..models.nutrition_adherence import DailyNutritionAdherence
@@ -937,12 +938,24 @@ def _identify_primary_risk_reason(
             scores["macro_imbalance"] = max_pct * 80
 
     if not scores:
-        return ("no_log" if no_log_flag else "low_calories", None)
+        return ("no_log" if no_log_flag else "low_calories", None, [])
 
     sorted_reasons = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     primary = sorted_reasons[0][0]
     secondary = sorted_reasons[1][0] if len(sorted_reasons) > 1 else None
-    return (primary, secondary)
+
+    # Item 70: Build all_risk_factors with scores and pct_contribution
+    total_score = sum(s for _, s in sorted_reasons) or 1.0
+    all_risk_factors = [
+        {
+            "reason": reason,
+            "score": round(score, 1),
+            "pct_contribution": round((score / total_score) * 100, 1),
+        }
+        for reason, score in sorted_reasons
+    ]
+
+    return (primary, secondary, all_risk_factors)
 
 
 # ---------------------------------------------------------------------------
@@ -1406,8 +1419,8 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
     no_log_flag = totals["meal_count"] == 0
     zero_calories_flag = totals["meal_count"] > 0 and int(totals["calories"]) == 0
 
-    # Item 49: identify risk reasons
-    primary_reason, secondary_reason = _identify_primary_risk_reason(
+    # Item 49 + Item 70: identify risk reasons with full factor breakdown
+    primary_reason, secondary_reason, all_risk_factors = _identify_primary_risk_reason(
         no_log_flag=no_log_flag,
         zero_calories_flag=zero_calories_flag,
         calories_ratio=today_adherence.calories_ratio,
@@ -1598,6 +1611,20 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
             activity_lvl,
         )
 
+    # Item 63: last_meal_logged_at and last_risk_calculated_at
+    today_start = datetime.combine(today, dt_time.min)
+    today_end = datetime.combine(today, dt_time.max)
+    last_meal_result = await session.execute(
+        select(func.max(AIFoodLog.logged_at)).where(
+            AIFoodLog.user_id == user_id,
+            AIFoodLog.logged_at >= today_start,
+            AIFoodLog.logged_at <= today_end,
+        )
+    )
+    last_meal_logged_at_val = last_meal_result.scalar()
+    last_meal_logged_at = last_meal_logged_at_val.isoformat() if last_meal_logged_at_val else None
+    last_risk_calculated_at = today_adherence.created_at.isoformat() if today_adherence.created_at else None
+
     # Item 138: Water adherence
     water_ml_today = await _get_water_ml(user_id, today, session)
     water_target = 2500
@@ -1630,11 +1657,15 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
         "intervention_triggered": intervention.get("triggered", False),
         "intervention_type": display_status,
         "primary_risk_reason": primary_reason,
+        "primary_risk_reason_code": primary_reason,
         "secondary_risk_reason": secondary_reason,
+        "all_risk_factors": all_risk_factors,
         "consistency_score_7d": consistency_score_7d,
         "recovery": recovery,
         "protein_check": protein_check,
         "water_adherence": water_adherence,
+        "last_meal_logged_at": last_meal_logged_at,
+        "last_risk_calculated_at": last_risk_calculated_at,
     }
 
     # Item 71: Cache the result
@@ -2210,3 +2241,43 @@ def invalidate_message_cache(user_id: int) -> None:
     keys_to_remove = [k for k in _message_cache if k.startswith(prefix)]
     for k in keys_to_remove:
         del _message_cache[k]
+
+
+# ---------------------------------------------------------------------------
+# Audit trail for plan changes (Item 61)
+# ---------------------------------------------------------------------------
+
+async def log_plan_change(
+    user_id: int,
+    old_goals: dict,
+    new_goals: dict,
+    session: AsyncSession,
+) -> None:
+    """Log when a user's nutrition goals change.
+
+    Stores in risk_analytics_event with event_type='plan_changed' and
+    metadata containing old and new values.
+    """
+    from .risk_analytics_service import track_risk_event
+
+    metadata = {
+        "old_calories": old_goals.get("calories"),
+        "old_protein_g": old_goals.get("protein_g"),
+        "old_carbs_g": old_goals.get("carbs_g"),
+        "old_fat_g": old_goals.get("fat_g"),
+        "new_calories": new_goals.get("calories"),
+        "new_protein_g": new_goals.get("protein_g"),
+        "new_carbs_g": new_goals.get("carbs_g"),
+        "new_fat_g": new_goals.get("fat_g"),
+    }
+
+    try:
+        await track_risk_event(
+            user_id=user_id,
+            event_type="plan_changed",
+            metadata=metadata,
+            session=session,
+        )
+        logger.info("Plan change logged for user_id=%d", user_id)
+    except Exception as exc:
+        logger.error("Failed to log plan change for user_id=%d: %s", user_id, exc)

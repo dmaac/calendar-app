@@ -10,6 +10,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors, typography, spacing, radius } from '../theme';
 import { haptics } from '../hooks/useHaptics';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 interface QuickCorrectionBarProps {
   riskScore: number;
@@ -31,6 +32,7 @@ function QuickCorrectionBar({
   onSnackProteico,
 }: QuickCorrectionBarProps) {
   const c = useThemeColors();
+  const { track } = useAnalytics();
   const slideAnim = useRef(new Animated.Value(60)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -64,8 +66,15 @@ function QuickCorrectionBar({
     snack: onSnackProteico,
   };
 
+  const ACTION_MAP: Record<string, 'scan' | 'copy_yesterday' | 'protein_snack'> = {
+    scan: 'scan',
+    copy: 'copy_yesterday',
+    snack: 'protein_snack',
+  };
+
   const handlePress = (key: 'scan' | 'copy' | 'snack') => {
     haptics.light();
+    track('risk_cta_clicked', { action: ACTION_MAP[key], riskScore });
     handlers[key]();
   };
 

@@ -53,6 +53,7 @@ VALID_EVENT_TYPES = {
     "intervention_opened",
     "correction_after_intervention",
     "risk_improved",
+    "plan_changed",
 }
 
 
@@ -242,6 +243,41 @@ async def get_admin_risk_dashboard(session: AsyncSession) -> dict:
         reverse=True,
     )[:10]
 
+    # Item 69: Additional aggregated stats
+    total_meals = sum(r.meals_logged for r in records)
+    avg_meals_per_day = round(total_meals / len(records), 1) if records else 0.0
+
+    # Users improving: latest risk < 50 and have at least some data
+    users_improving = sum(
+        1 for r in records
+        if r.nutrition_risk_score < 50 and r.calories_logged > 0
+    )
+    # Users declining: latest risk >= 70
+    users_declining = sum(
+        1 for r in records if r.nutrition_risk_score >= 70
+    )
+
+    # Risk distribution: count users in each bracket
+    risk_distribution = {
+        "0_20": 0,
+        "20_40": 0,
+        "40_60": 0,
+        "60_80": 0,
+        "80_100": 0,
+    }
+    for r in records:
+        score = r.nutrition_risk_score
+        if score < 20:
+            risk_distribution["0_20"] += 1
+        elif score < 40:
+            risk_distribution["20_40"] += 1
+        elif score < 60:
+            risk_distribution["40_60"] += 1
+        elif score < 80:
+            risk_distribution["60_80"] += 1
+        else:
+            risk_distribution["80_100"] += 1
+
     return {
         "users_at_risk": users_at_risk,
         "users_critical": users_critical,
@@ -249,4 +285,8 @@ async def get_admin_risk_dashboard(session: AsyncSession) -> dict:
         "avg_quality_score": avg_quality_score,
         "intervention_effectiveness": intervention_effectiveness,
         "top_risk_reasons": top_risk_reasons,
+        "avg_meals_per_day": avg_meals_per_day,
+        "users_improving": users_improving,
+        "users_declining": users_declining,
+        "risk_distribution": risk_distribution,
     }

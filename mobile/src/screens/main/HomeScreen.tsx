@@ -453,6 +453,20 @@ export default function HomeScreen({ navigation }: any) {
     }, [load])
   );
 
+  // Track risk_card_impression once per screen focus
+  const riskImpressionTracked = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      riskImpressionTracked.current = false;
+    }, [])
+  );
+  useEffect(() => {
+    if (!riskLoading && riskScore > 0 && !riskImpressionTracked.current) {
+      riskImpressionTracked.current = true;
+      track('risk_card_impression', { riskScore, status: riskStatus });
+    }
+  }, [riskLoading, riskScore, riskStatus, track]);
+
   // Sync widget data whenever summary or logs update
   useEffect(() => {
     if (!summary) return;
