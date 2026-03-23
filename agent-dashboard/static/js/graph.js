@@ -617,9 +617,9 @@
                     const pad = 20;
                     const usableW = w - pad * 2;
 
-                    // Hierarchy = top 25% of canvas
-                    const hierTop = pad + 10;
-                    const hierBottom = h * 0.24;
+                    // Hierarchy = top 35% of canvas (more room for labels)
+                    const hierTop = pad + 20;
+                    const hierBottom = h * 0.34;
                     const tierSpacing = (hierBottom - hierTop) / Math.max(tierCount - 1, 1);
                     const MAX_PER_ROW = 30;
 
@@ -638,7 +638,7 @@
                             });
                         } else {
                             const rows = Math.ceil(names.length / MAX_PER_ROW);
-                            const rowH = Math.min(tierSpacing * 0.4 / rows, 12);
+                            const rowH = Math.min(tierSpacing * 0.4 / rows, 24);
                             names.forEach((name, ni) => {
                                 const row = Math.floor(ni / MAX_PER_ROW);
                                 const col = ni % MAX_PER_ROW;
@@ -652,7 +652,7 @@
                     // ── Step 4: Compute positions for ALL SPECIALISTS ──
                     // Distribute across FULL canvas width in team blocks
                     const specTeamNames = Object.keys(specByTeam).sort();
-                    const specStartY = h * 0.28;
+                    const specStartY = h * 0.38;
                     const specEndY = h - pad;
                     const specH = specEndY - specStartY;
 
@@ -660,7 +660,7 @@
                     const gridCols = 5;
                     const teamBlockW = usableW / gridCols;
                     const teamBlockH = specH / Math.ceil(specTeamNames.length / gridCols);
-                    const sp = 12; // node spacing within team block
+                    const sp = 28; // node spacing within team block
 
                     specTeamNames.forEach((team, ti) => {
                         const names = specByTeam[team];
@@ -698,8 +698,8 @@
                             // Catch-all: anything without a position (including orphans)
                             const fallbackCol = unpositioned % 20;
                             const fallbackRow = Math.floor(unpositioned / 20);
-                            d.fx = pad + 30 + fallbackCol * 14;
-                            d.fy = specStartY + specH * 0.85 + fallbackRow * 14;
+                            d.fx = pad + 30 + fallbackCol * 28;
+                            d.fy = specStartY + specH * 0.85 + fallbackRow * 28;
                             unpositioned++;
                         }
                     });
@@ -1953,11 +1953,39 @@
                 // Pulse ring for working agents
                 g.filter(d=>isWorking(d.status)&&!d.isTeam).append("circle").attr("class","pulse-ring")
                     .attr("r",d=>nodeR(d)+6).attr("fill","none").attr("stroke",d=>stateColor(d.status)||"#22c55e").attr("stroke-width",1).attr("stroke-opacity",0);
-                // Label
-                g.append("text").attr("dy",d=>nodeR(d)+12).attr("text-anchor","middle")
-                    .attr("fill",d=>d.isTeam?"#555":isWorking(d.status)?"#ddd":"#777")
-                    .attr("font-size",d=>d.isTeam?"10px":"8px").attr("font-weight",d=>d.isTeam||isWorking(d.status)?"700":"500")
-                    .text(d=>d.display_name);
+                // Label — multi-line with tspan word-wrap
+                g.each(function(d) {
+                    const tier = _pyramidLevels[d.name || d.id];
+                    // Font sizing: C-Suite/top tiers get larger text, specialists get smallest
+                    let fontSize = d.isTeam ? 10 : 8;
+                    let maxWordsPerLine = 3;
+                    if (tier !== undefined && !d.isTeam) {
+                        if (tier <= 3) { fontSize = 11; maxWordsPerLine = 2; }       // C-Suite and above
+                        else if (tier <= 8) { fontSize = 9; maxWordsPerLine = 2; }   // Hierarchy
+                        else { fontSize = 7; maxWordsPerLine = 2; }                  // Specialists (tier 9)
+                    }
+                    const fill = d.isTeam ? "#555" : isWorking(d.status) ? "#ddd" : "#777";
+                    const weight = (d.isTeam || isWorking(d.status)) ? "700" : "500";
+                    const textEl = d3.select(this).append("text")
+                        .attr("text-anchor", "middle")
+                        .attr("fill", fill)
+                        .attr("font-size", fontSize + "px")
+                        .attr("font-weight", weight);
+                    // Split display_name into lines of maxWordsPerLine words each
+                    const words = (d.display_name || "").split(/\s+/);
+                    const lines = [];
+                    for (let i = 0; i < words.length; i += maxWordsPerLine) {
+                        lines.push(words.slice(i, i + maxWordsPerLine).join(" "));
+                    }
+                    const baseOffset = nodeR(d) + 10;
+                    const lineH = fontSize + 2;
+                    lines.forEach((line, li) => {
+                        textEl.append("tspan")
+                            .attr("x", 0)
+                            .attr("dy", li === 0 ? baseOffset : lineH)
+                            .text(line);
+                    });
+                });
                 // Agent count label under team nodes
                 g.filter(d=>d.isTeam).append("text").attr("class","team-count-label")
                     .attr("dy",d=>nodeR(d)+22).attr("text-anchor","middle")
