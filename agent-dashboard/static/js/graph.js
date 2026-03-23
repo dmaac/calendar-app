@@ -556,7 +556,7 @@
                 _pyramidLevels = {};
                 allNodesData.forEach(d => { d.fx = null; d.fy = null; });
                 if (nodeGroup) nodeGroup.selectAll("g").attr("visibility", "visible");
-                if (linkGroup) linkGroup.attr("visibility", "visible");
+                if (linkGroup) linkGroup.selectAll("*").attr("visibility", "visible");
                 if (viewId === "btn-view-organic") {
                     simulation.force("charge").strength(-120);
                     simulation.force("x", d3.forceX(d=>d.tx||w/2).strength(d=>d.isTeam?0.15:0.03));
@@ -705,11 +705,14 @@
                     });
 
                     // ── Step 6: Hide team bubble nodes AND links ──
-                    // Team nodes + member links are clutter in pyramid — hide entirely
+                    // Hide team bubble nodes but keep task delegation links visible
                     nodeGroup.selectAll("g").each(function(d) {
                         d3.select(this).attr("visibility", (d && d.isTeam) ? "hidden" : "visible");
                     });
-                    linkGroup.attr("visibility", "hidden"); // hide all links in pyramid
+                    // Hide member links (agent→team) but keep task links visible for arrows
+                    linkGroup.selectAll("line.member-link").attr("visibility", "hidden");
+                    linkGroup.selectAll("line.team-link").attr("visibility", "hidden");
+                    // Task delegation edges (arrows) remain visible via taskLinkGroup
 
                     // ── Step 7: Disable ALL forces (everything is fixed) ──
                     simulation.force("charge").strength(0);
