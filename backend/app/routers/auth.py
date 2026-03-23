@@ -18,7 +18,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # ─── Rate limiting (applied per-endpoint below) ─────────────────────────────
 import os as _os
-_is_testing = _os.getenv("ENV", "").lower() in ("test", "testing", "development")
+_is_testing = _os.getenv("ENV", "").lower() in ("test", "testing")
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address
@@ -97,9 +97,11 @@ async def register_user(
 
     # Check if user already exists
     if await user_service.get_user_by_email(user_create.email):
+        # SEC: Generic message prevents user enumeration — do not reveal
+        # whether the email is already registered.
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Unable to create account. Please try again or use a different email.",
         )
 
     user = await user_service.create_user(user_create)
@@ -244,9 +246,23 @@ async def refresh_token(
 @router.post("/logout")
 async def logout(
     body: RefreshRequest,
+    token: str = Depends(oauth2_scheme),
 ):
     from ..core.security import verify_refresh_token
-    from ..core.token_store import revoke_refresh_token
+    from ..core.token_store import revoke_refresh_token, blacklist_access_token
+
+    # SEC: Blacklist the access token so it cannot be reused after logout
+    try:
+        from jose import jwt as jose_jwt
+        access_payload = jose_jwt.decode(
+            token, settings.secret_key, algorithms=[settings.algorithm]
+        )
+        access_jti = access_payload.get("jti")
+        if access_jti:
+            ttl = settings.access_token_expire_minutes * 60
+            await blacklist_access_token(access_jti, ttl_seconds=ttl)
+    except Exception:
+        pass  # SEC: Best-effort — token may already be expired or Redis unavailable
 
     payload = verify_refresh_token(body.refresh_token)
     if payload:

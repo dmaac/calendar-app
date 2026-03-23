@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .subscription import Subscription
     from .push_token import PushToken
     from .workout import WorkoutLog
+    from .notification_schedule import NotificationSchedule
 
 
 class UserBase(SQLModel):
@@ -48,6 +49,7 @@ class User(UserBase, table=True):
     subscriptions: List["Subscription"] = Relationship(back_populates="user")
     push_tokens: List["PushToken"] = Relationship(back_populates="user")
     workout_logs: List["WorkoutLog"] = Relationship(back_populates="user")
+    notification_schedule: Optional["NotificationSchedule"] = Relationship(back_populates="user")
 
 
 class UserCreate(UserBase):
@@ -58,9 +60,13 @@ class UserRead(UserBase):
     id: int
     provider: str = "email"
     is_premium: bool = False
-    is_admin: bool = False
     created_at: datetime
     updated_at: datetime
+
+
+class UserAdminRead(UserRead):
+    """Extended schema that includes admin flag — only for admin-facing endpoints."""
+    is_admin: bool = False
 
 
 class UserUpdate(SQLModel):

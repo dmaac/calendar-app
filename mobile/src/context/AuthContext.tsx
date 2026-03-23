@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { User } from '../types';
 import * as authService from '../services/auth.service';
@@ -79,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       scopes: ['openid', 'profile', 'email'],
       responseType: AuthSession.ResponseType.IdToken,
       redirectUri: AuthSession.makeRedirectUri(),
-      extraParams: { nonce: 'nonce' },
+      extraParams: { nonce: Crypto.randomUUID() },
     },
     { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' }
   );
@@ -252,8 +253,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const devEmail = 'dev@fitsiai.com';
-    const devPassword = 'DevPass1234';
+    const devEmail = process.env.EXPO_PUBLIC_DEV_EMAIL;
+    const devPassword = process.env.EXPO_PUBLIC_DEV_PASSWORD;
+
+    if (!devEmail || !devPassword) {
+      console.warn('[AuthContext] devBypass: set EXPO_PUBLIC_DEV_EMAIL and EXPO_PUBLIC_DEV_PASSWORD in .env');
+      return;
+    }
 
     try {
       // Try to register (will 400 if already exists — that's fine)

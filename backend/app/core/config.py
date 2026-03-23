@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://user:password@localhost/calendar_db"
     secret_key: str = ""
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 15
 
     # Server configuration
     server_host: str = "localhost"
@@ -128,20 +128,17 @@ class Settings(BaseSettings):
         return v
 
     @validator('database_url', always=True)
-    def warn_unsafe_database_url_in_production(cls, v, values):
+    def reject_unsafe_database_url_in_production(cls, v, values):
         env = values.get('env', 'development')
         if env == 'production':
             _dummy_markers = ['localhost', '127.0.0.1', 'user:password@', 'calendar_db']
             for marker in _dummy_markers:
                 if marker in v:
-                    import logging
-                    logging.getLogger(__name__).critical(
-                        "SECURITY: DATABASE_URL contains '%s' in production. "
-                        "This looks like a development/default value. "
-                        "Set DATABASE_URL to your production database connection string.",
-                        marker,
+                    raise ValueError(
+                        f"SECURITY: DATABASE_URL contains '{marker}' which is not allowed "
+                        f"in production. Set DATABASE_URL to your production database "
+                        f"connection string."
                     )
-                    break
         return v
 
     @validator('database_url_async', always=True, pre=True)

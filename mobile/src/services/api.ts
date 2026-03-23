@@ -47,7 +47,6 @@ const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: 30_000, // SEC: 30s default timeout
   headers: {
-    'Content-Type': 'application/json',
     'Accept': 'application/json',
     'X-App-Version': APP_VERSION,
     'X-Platform': APP_PLATFORM,
@@ -71,13 +70,19 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    // 307 redirect — maintain auth headers
+    // 307 redirect — maintain auth headers, validate same-origin
     if (error.response?.status === 307 && !original._retry) {
       original._retry = true;
       const location = error.response.headers.location;
       if (location) {
-        const token = await authService.getAccessToken();
         const url = location.startsWith('http') ? location : `${BASE_URL}${location}`;
+
+        // SEC: Only follow redirects to our own API origin
+        if (!url.startsWith(BASE_URL)) {
+          return Promise.reject(new Error(`Blocked cross-origin redirect to: ${url}`));
+        }
+
+        const token = await authService.getAccessToken();
         original.url = url;
         if (token) (original.headers as any).Authorization = `Bearer ${token}`;
         return api.request(original);

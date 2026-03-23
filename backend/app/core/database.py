@@ -15,8 +15,6 @@ _db_url = settings.database_url_async
 if "supabase" in _db_url or "pooler.supabase" in _db_url:
     import ssl
     _ssl_ctx = ssl.create_default_context()
-    _ssl_ctx.check_hostname = False
-    _ssl_ctx.verify_mode = ssl.CERT_NONE
     _engine_kwargs["connect_args"] = {
         "ssl": _ssl_ctx,
         "statement_cache_size": 0,  # Required for Supabase pooler (transaction mode)
