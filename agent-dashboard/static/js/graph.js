@@ -552,9 +552,11 @@
     function applyView(viewId) {
         if (!simulation) return;
         const ct=document.getElementById("graph-container"), w=ct.clientWidth, h=ct.clientHeight;
-                // Clear fixed positions from pyramid view when switching away
+                // Clear fixed positions and restore visibility from pyramid view
                 _pyramidLevels = {};
                 allNodesData.forEach(d => { d.fx = null; d.fy = null; });
+                if (nodeGroup) nodeGroup.selectAll("g").attr("visibility", "visible");
+                if (linkGroup) linkGroup.attr("visibility", "visible");
                 if (viewId === "btn-view-organic") {
                     simulation.force("charge").strength(-120);
                     simulation.force("x", d3.forceX(d=>d.tx||w/2).strength(d=>d.isTeam?0.15:0.03));
@@ -685,20 +687,15 @@
                     });
 
                     // ── Step 5: LOCK ALL nodes with fx/fy ──
-                    // EVERY node must get a position. Nothing floats free.
+                    // EVERY node gets a position. Nothing floats.
                     let unpositioned = 0;
                     allNodesData.forEach(d => {
                         const pos = fixedPos[d.name || d.id];
                         if (pos) {
                             d.fx = pos.x;
                             d.fy = pos.y;
-                        } else if (d.isTeam) {
-                            // Hide team bubble nodes off-screen
-                            d.fx = -9999;
-                            d.fy = -9999;
                         } else {
-                            // Catch-all: any agent without a position goes to the bottom grid
-                            // This prevents orphan blobs in the top-left
+                            // Catch-all: anything without a position (including orphans)
                             const fallbackCol = unpositioned % 20;
                             const fallbackRow = Math.floor(unpositioned / 20);
                             d.fx = pad + 30 + fallbackCol * 14;
@@ -706,9 +703,15 @@
                             unpositioned++;
                         }
                     });
-                    if (unpositioned > 0) console.log(`Pyramid: ${unpositioned} agents had no team match, placed in fallback grid`);
 
-                    // ── Step 6: Disable ALL forces (everything is fixed) ──
+                    // ── Step 6: Hide team bubble nodes AND links ──
+                    // Team nodes + member links are clutter in pyramid — hide entirely
+                    nodeGroup.selectAll("g").each(function(d) {
+                        d3.select(this).attr("visibility", (d && d.isTeam) ? "hidden" : "visible");
+                    });
+                    linkGroup.attr("visibility", "hidden"); // hide all links in pyramid
+
+                    // ── Step 7: Disable ALL forces (everything is fixed) ──
                     simulation.force("charge").strength(0);
                     simulation.force("x", d3.forceX(0).strength(0));
                     simulation.force("y", d3.forceY(0).strength(0));
