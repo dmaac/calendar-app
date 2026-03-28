@@ -501,7 +501,7 @@ export default function ProfileScreen({ navigation }: any) {
             </View>
             <TouchableOpacity
               style={[styles.viewAllBtn, { borderTopColor: c.grayLight + '50' }]}
-              onPress={() => { haptics.light(); track('achievements_viewed'); navigation.navigate('Achievements'); }}
+              onPress={() => { haptics.light(); track('achievements_viewed'); navigation.navigate('Inicio', { screen: 'Achievements' }); }}
               activeOpacity={0.7}
               accessibilityLabel="View all achievements"
               accessibilityRole="button"

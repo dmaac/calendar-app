@@ -767,7 +767,14 @@ async def scan_and_log_food(
 
         # 3. Cache the result (only if not a fallback or mock)
         if not result.get("_is_fallback") and not result.get("_is_mock"):
-            await _save_scan_cache(image_hash, result, session)
+            try:
+                await _save_scan_cache(image_hash, result, session)
+            except Exception as cache_err:
+                logger.warning("Cache save failed (%s) — continuing without cache", cache_err)
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass
 
     # Determine which provider produced this result
     ai_provider_name = result.get("ai_provider", "mock")
@@ -790,38 +797,11 @@ async def scan_and_log_food(
         ai_provider=ai_provider_name,
         ai_confidence=ai_confidence,
         ai_raw_response=raw_response if not cache_hit else None,
-        logged_at=datetime.now(timezone.utc),
+        logged_at=datetime.utcnow(),
     )
     session.add(log)
-    try:
-        await session.commit()
-        await session.refresh(log)
-    except Exception as commit_err:
-        # ── RESILIENT FALLBACK: save a placeholder so the image is not lost ──
-        # The image is already in Supabase Storage; save a minimal record
-        # so the user can recover via POST /api/food/recover-scan/{id}
-        await session.rollback()
-        logger.error("Scan commit failed (%s) — saving placeholder for recovery", commit_err)
-        placeholder = AIFoodLog(
-            user_id=user_id,
-            meal_type=meal_type,
-            image_hash=image_hash,
-            image_url=image_url,
-            food_name="Analyzing...",
-            calories=0.0, carbs_g=0.0, protein_g=0.0, fats_g=0.0,
-            ai_provider="pending",
-            ai_confidence=0.0,
-            logged_at=datetime.now(timezone.utc),
-        )
-        session.add(placeholder)
-        try:
-            await session.commit()
-            await session.refresh(placeholder)
-            log = placeholder
-            logger.info("Placeholder saved id=%s for recovery", placeholder.id)
-        except Exception:
-            await session.rollback()
-            raise commit_err  # both attempts failed — bubble up original error
+    await session.commit()
+    await session.refresh(log)
 
     scan_latency_s = _time.monotonic() - scan_start
     scan_latency_ms = int(scan_latency_s * 1000)
@@ -1028,15 +1008,15 @@ async def get_daily_summary(
     profile_result = await session.execute(profile_stmt)
     water_result = await session.execute(water_stmt)
 
-    row = logs_result.one()
-    profile_row = profile_result.first()
-    water_row = water_result.first()
+    row = logs_result.mappings().one()
+    profile_row = profile_result.mappings().first()
+    water_row = water_result.scalar()
 
-    target_calories = (profile_row.daily_calories if profile_row and profile_row.daily_calories else 2000)
-    target_protein_g = (profile_row.daily_protein_g if profile_row and profile_row.daily_protein_g else 150)
-    target_carbs_g = (profile_row.daily_carbs_g if profile_row and profile_row.daily_carbs_g else 200)
-    target_fats_g = (profile_row.daily_fats_g if profile_row and profile_row.daily_fats_g else 65)
-    water_ml = float(water_row.water_ml or 0) if water_row else 0.0
+    target_calories = (profile_row["daily_calories"] if profile_row and profile_row["daily_calories"] else 2000)
+    target_protein_g = (profile_row["daily_protein_g"] if profile_row and profile_row["daily_protein_g"] else 150)
+    target_carbs_g = (profile_row["daily_carbs_g"] if profile_row and profile_row["daily_carbs_g"] else 200)
+    target_fats_g = (profile_row["daily_fats_g"] if profile_row and profile_row["daily_fats_g"] else 65)
+    water_ml = float(water_row or 0)
 
     streak = await _calculate_streak(user_id=user_id, today=date_obj, session=session)
 
@@ -1045,8 +1025,8 @@ async def get_daily_summary(
     from ..services.workout_service import estimate_calories as met_estimate
     from datetime import time as dt_time
 
-    day_start = datetime.combine(date_obj, dt_time.min)
-    day_end = datetime.combine(date_obj, dt_time.max)
+    day_start = datetime.combine(date_obj, dt_time.min, tzinfo=timezone.utc)
+    day_end = datetime.combine(date_obj, dt_time.max, tzinfo=timezone.utc)
 
     workout_stmt = select(WorkoutLog).where(
         WorkoutLog.user_id == user_id,
@@ -1054,7 +1034,7 @@ async def get_daily_summary(
         WorkoutLog.created_at <= day_end,
     )
     workout_result = await session.execute(workout_stmt)
-    workouts = list(workout_result.all())
+    workouts = list(workout_result.scalars().all())
 
     # Get user weight for MET estimation (OnboardingProfile already imported above)
     user_weight_kg: float = 70.0  # safe default

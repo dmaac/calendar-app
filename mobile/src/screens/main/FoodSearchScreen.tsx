@@ -59,7 +59,7 @@ export default function FoodSearchScreen({ navigation, route }: any) {
 
   const handleBarcodeScan = useCallback(() => {
     haptics.light();
-    navigation.navigate('Barcode', { mealType: selectedMeal });
+    navigation.navigate('Inicio', { screen: 'Barcode' });
   }, [navigation, selectedMeal]);
 
   return (

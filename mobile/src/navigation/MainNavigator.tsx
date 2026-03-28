@@ -17,6 +17,7 @@ import {
   createStackNavigator,
   TransitionPresets,
 } from '@react-navigation/stack';
+import { StackActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '../theme';
@@ -267,11 +268,27 @@ export default function MainNavigator() {
 
   return (
     <Tab.Navigator
-      screenListeners={{
-        tabPress: () => {
+      screenListeners={({ navigation, route }) => ({
+        tabPress: (e) => {
           haptics.light();
+
+          // If the tab is already focused, pop its inner stack to the root.
+          // This prevents the "stuck" feeling where tapping a tab keeps you
+          // on a deep nested screen instead of returning to the tab root.
+          const isFocused = navigation.isFocused();
+          if (isFocused) {
+            // The tab is already active -- reset the inner stack to its
+            // first route by dispatching popToTop. We catch because tabs
+            // without a nested stack (Progress, Groups, Community) will
+            // throw since there is nothing to pop.
+            try {
+              navigation.dispatch(StackActions.popToTop());
+            } catch {
+              // No nested stack -- nothing to pop, which is expected.
+            }
+          }
         },
-      }}
+      })}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {

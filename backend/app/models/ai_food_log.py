@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, ForeignKey, Index, Integer, text
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, text
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone
 
@@ -34,7 +34,7 @@ class AIFoodLog(SoftDeleteMixin, SQLModel, table=True):
         ),
     )
 
-    logged_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    logged_at: datetime = Field(default_factory=lambda: datetime.utcnow())
     meal_type: str = Field()  # breakfast / lunch / dinner / snack
 
     # Image
@@ -60,7 +60,7 @@ class AIFoodLog(SoftDeleteMixin, SQLModel, table=True):
     was_edited: bool = Field(default=False)
     notes: Optional[str] = Field(default=None)
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship(back_populates="ai_food_logs")
 

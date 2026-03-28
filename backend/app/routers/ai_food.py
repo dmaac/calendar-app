@@ -182,8 +182,9 @@ async def scan_food(
     # ── Server-side free-tier scan quota ────────────────────────────────────
     # Premium users have unlimited scans.  Free users are capped per day.
     if not current_user.is_premium:
-        today_start = datetime.combine(date_type.today(), time.min)
-        today_end = datetime.combine(date_type.today(), time.max)
+        from datetime import timezone as _tz
+        today_start = datetime.combine(date_type.today(), time.min, tzinfo=_tz.utc)
+        today_end = datetime.combine(date_type.today(), time.max, tzinfo=_tz.utc)
         scan_count_result = await session.execute(
             select(func.count(AIFoodLog.id)).where(
                 AIFoodLog.user_id == current_user.id,

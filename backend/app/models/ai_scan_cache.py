@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, DateTime
 from typing import Optional
 from datetime import datetime, timezone
 
@@ -33,7 +34,7 @@ class AIScanCache(SQLModel, table=True):
     ai_response: Optional[str] = Field(default=None)  # JSON string
 
     hit_count: int = Field(default=1)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return f"<AIScanCache id={self.id} food={self.food_name!r} hits={self.hit_count}>"
