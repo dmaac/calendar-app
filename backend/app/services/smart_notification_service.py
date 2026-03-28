@@ -239,7 +239,7 @@ class SmartNotificationService:
             NotificationSchedule.user_id == user_id
         )
         result = await self.session.execute(stmt)
-        schedule = result.first()
+        schedule = result.scalars().first()
 
         if schedule is None:
             schedule = NotificationSchedule(user_id=user_id)
@@ -548,7 +548,7 @@ class SmartNotificationService:
             .distinct()
         )
         result = await self.session.execute(stmt)
-        logged_meals = set(result.all())
+        logged_meals = set(result.scalars().all())
 
         intents: List[NotificationIntent] = []
         templates = NOTIFICATION_TEMPLATES["meal_reminder"]
@@ -1219,7 +1219,7 @@ class SmartNotificationService:
             NotificationSchedule.user_id == user_id
         )
         result = await self.session.execute(stmt)
-        schedule_enabled = result.first()
+        schedule_enabled = result.scalar()
         if schedule_enabled is not None:
             return bool(schedule_enabled)
 
@@ -1228,7 +1228,7 @@ class SmartNotificationService:
             OnboardingProfile.user_id == user_id
         )
         result2 = await self.session.execute(stmt2)
-        enabled = result2.first()
+        enabled = result2.scalar()
         return bool(enabled) if enabled is not None else False
 
     # ------------------------------------------------------------------

@@ -151,7 +151,7 @@ async def _get_or_create_profile(
     result = await session.execute(
         select(UserProgressProfile).where(UserProgressProfile.user_id == user_id)
     )
-    profile = result.first()
+    profile = result.scalars().first()
     if profile is None:
         profile = UserProgressProfile(user_id=user_id)
         session.add(profile)
@@ -395,7 +395,7 @@ async def _check_exit_red_zone(
                     DailyNutritionAdherence.nutrition_risk_score >= 70,
                 )
             )
-            high_risk_records = list(result.all())
+            high_risk_records = list(result.scalars().all())
             if high_risk_records:
                 return await check_and_celebrate(user_id, "exit_red_zone", session)
     except Exception as exc:
@@ -424,7 +424,7 @@ async def _check_protein_streak(
             )
             .order_by(DailyNutritionAdherence.date.desc())
         )
-        records = list(result.all())
+        records = list(result.scalars().all())
 
         if len(records) >= 3:
             all_hit = all(
@@ -666,7 +666,7 @@ async def generate_weekly_summary(
             UserWeeklyChallengeStatus.week_start >= week_start,
         )
     )
-    challenges = list(result.all())
+    challenges = list(result.scalars().all())
     challenge_status = {
         "total": len(challenges),
         "completed": sum(1 for c in challenges if c.completed),

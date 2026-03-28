@@ -89,7 +89,7 @@ class AdaptiveCalorieService:
             WeightLog.date == entry_date,
         )
         result = await self.session.execute(stmt)
-        existing = result.first()
+        existing = result.scalars().first()
 
         if existing:
             existing.weight_kg = data.weight_kg
@@ -127,7 +127,7 @@ class AdaptiveCalorieService:
             .order_by(WeightLog.date.asc())
         )
         result = await self.session.execute(stmt)
-        return list(result.all())
+        return list(result.scalars().all())
 
     async def get_latest_weight(self, user_id: int) -> Optional[WeightLog]:
         """Most recent weight entry for a user."""
@@ -138,7 +138,7 @@ class AdaptiveCalorieService:
             .limit(1)
         )
         result = await self.session.execute(stmt)
-        return result.first()
+        return result.scalars().first()
 
     # -----------------------------------------------------------------------
     # BMR / TDEE helpers
@@ -280,14 +280,14 @@ class AdaptiveCalorieService:
             UserNutritionProfile.user_id == user_id
         )
         result = await self.session.execute(stmt)
-        profile = result.first()
+        profile = result.scalars().first()
 
         # Also get onboarding for target_weight
         ob_stmt = select(OnboardingProfile).where(
             OnboardingProfile.user_id == user_id
         )
         ob_result = await self.session.execute(ob_stmt)
-        onboarding = ob_result.first()
+        onboarding = ob_result.scalars().first()
 
         # Get latest weight from weight log if available
         latest_weight_entry = await self.get_latest_weight(user_id)
@@ -856,7 +856,7 @@ class AdaptiveCalorieService:
             UserNutritionProfile.user_id == user_id
         )
         result = await self.session.execute(stmt)
-        profile = result.first()
+        profile = result.scalars().first()
 
         if profile:
             old_target = int(profile.target_calories)
@@ -916,7 +916,7 @@ class AdaptiveCalorieService:
             .limit(limit)
         )
         result = await self.session.execute(stmt)
-        return list(result.all())
+        return list(result.scalars().all())
 
     # -----------------------------------------------------------------------
     # Internal helpers
@@ -937,7 +937,7 @@ class AdaptiveCalorieService:
             .limit(1)
         )
         result = await self.session.execute(stmt)
-        return result.first()
+        return result.scalars().first()
 
     async def _store_adjustment(
         self,
@@ -960,7 +960,7 @@ class AdaptiveCalorieService:
             CalorieAdjustment.week_start == week_start,
         )
         result = await self.session.execute(stmt)
-        existing = result.first()
+        existing = result.scalars().first()
 
         if existing:
             # Update existing record
@@ -1003,7 +1003,7 @@ class AdaptiveCalorieService:
             UserNutritionProfile.user_id == user_id
         )
         result = await self.session.execute(stmt)
-        profile = result.first()
+        profile = result.scalars().first()
 
         if profile:
             profile.weight_kg = weight_kg

@@ -390,7 +390,7 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
     result = await session.execute(
         select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
     )
-    profile = result.first()
+    profile = result.scalars().first()
     if profile is not None:
         return _validate_goals({
             "calories": int(profile.target_calories),
@@ -402,7 +402,7 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
     result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
-    onboarding = result.first()
+    onboarding = result.scalars().first()
     if onboarding is not None and onboarding.daily_calories is not None:
         return _validate_goals({
             "calories": int(onboarding.daily_calories),
@@ -479,14 +479,14 @@ async def _get_user_goal(user_id: int, session: AsyncSession) -> str:
     result = await session.execute(
         select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
     )
-    profile = result.first()
+    profile = result.scalars().first()
     if profile is not None and profile.goal:
         return profile.goal.value if hasattr(profile.goal, "value") else str(profile.goal)
 
     result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
-    onboarding = result.first()
+    onboarding = result.scalars().first()
     if onboarding is not None and onboarding.goal:
         return str(onboarding.goal)
 
@@ -567,7 +567,7 @@ async def _get_water_ml(user_id: int, target_date: date, session: AsyncSession) 
             DailyNutritionSummary.date == target_date,
         )
     )
-    water = result.first()
+    water = result.scalar()
     return float(water) if water is not None else 0.0
 
 
@@ -1093,7 +1093,7 @@ async def _user_corrected_today(
             DailyNutritionAdherence.date == today,
         )
     )
-    existing = result.first()
+    existing = result.scalars().first()
     if existing is None:
         return False
 
@@ -1203,7 +1203,7 @@ async def calculate_daily_adherence(
                 DailyNutritionAdherence.date == target_date,
             )
         )
-        existing_cached = existing_result.first()
+        existing_cached = existing_result.scalars().first()
         if existing_cached:
             return existing_cached
         # No cached record — return a new default
@@ -1242,7 +1242,7 @@ async def _calculate_daily_adherence_inner(
     onboarding_result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
-    onboarding = onboarding_result.first()
+    onboarding = onboarding_result.scalars().first()
     onboarding_complete = onboarding is not None and onboarding.completed_at is not None
 
     # Item 18: Use generous defaults if onboarding not completed
@@ -1361,7 +1361,7 @@ async def _calculate_daily_adherence_inner(
             DailyNutritionAdherence.date == target_date,
         )
     )
-    existing = result.first()
+    existing = result.scalars().first()
 
     if existing:
         # Item 82 + Item 85: Idempotent recalculation — skip DB write if nothing changed
@@ -1473,7 +1473,7 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
             DailyNutritionAdherence.date <= today,
         )
     )
-    records = list(result.all())
+    records = list(result.scalars().all())
 
     # Fetch today's totals for risk reason analysis
     totals = await _get_day_totals(user_id, today, session)
@@ -1657,13 +1657,13 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
     onboarding_result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
-    onboarding_profile = onboarding_result.first()
+    onboarding_profile = onboarding_result.scalars().first()
     if onboarding_profile and onboarding_profile.weight_kg and onboarding_profile.weight_kg > 0:
         # Determine activity level from nutrition profile
         np_result = await session.execute(
             select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
         )
-        np = np_result.first()
+        np = np_result.scalars().first()
         activity_lvl = "moderate"
         if np and np.activity_level:
             lvl_str = np.activity_level.value if hasattr(np.activity_level, "value") else str(np.activity_level)
@@ -1890,7 +1890,7 @@ async def detect_weekend_pattern(user_id: int, session: AsyncSession) -> dict:
             DailyNutritionAdherence.date <= today,
         )
     )
-    records = list(result.all())
+    records = list(result.scalars().all())
 
     weekend_calories: list[int] = []
     weekday_calories: list[int] = []
@@ -2019,7 +2019,7 @@ async def detect_chronic_underreporting(user_id: int, session: AsyncSession) -> 
             DailyNutritionAdherence.date <= today,
         )
     )
-    records = list(result.all())
+    records = list(result.scalars().all())
 
     if not records:
         return {
@@ -2113,7 +2113,7 @@ async def get_weight_risk_context(user_id: int, session: AsyncSession) -> dict:
     result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
-    profile = result.first()
+    profile = result.scalars().first()
 
     if not profile or not profile.weight_kg:
         return {
@@ -2188,7 +2188,7 @@ async def detect_exercise_nutrition_correlation(
             DailyNutritionAdherence.date <= today,
         )
     )
-    records = list(adh_result.all())
+    records = list(adh_result.scalars().all())
 
     if not records:
         return {

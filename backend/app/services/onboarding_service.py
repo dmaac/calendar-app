@@ -20,7 +20,7 @@ class OnboardingService:
             OnboardingProfile.user_id == user_id
         )
         result = await self.session.execute(statement)
-        return result.first()
+        return result.scalars().first()
 
     async def save_or_update_profile(
         self, user_id: int, data: OnboardingStepSave

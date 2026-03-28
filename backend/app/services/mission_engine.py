@@ -384,7 +384,7 @@ async def assign_daily_missions(
         result = await session.execute(
             select(DailyMission).where(DailyMission.code == mission_data["code"])
         )
-        mission = result.first()
+        mission = result.scalars().first()
 
         if not mission:
             mission = DailyMission(

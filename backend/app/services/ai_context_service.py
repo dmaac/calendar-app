@@ -76,12 +76,12 @@ async def _get_user_profile_summary(user_id: int, session: AsyncSession) -> str:
     result = await session.execute(
         select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
     )
-    nprofile = result.first()
+    nprofile = result.scalars().first()
 
     result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
-    onboarding = result.first()
+    onboarding = result.scalars().first()
 
     gender = "?"
     age = "?"

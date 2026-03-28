@@ -74,7 +74,7 @@ async def _get_user_goals(user_id: int, session: AsyncSession) -> dict:
     result = await session.execute(
         select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
     )
-    profile = result.first()
+    profile = result.scalars().first()
     if profile is not None:
         return {
             "calories": int(profile.target_calories),
@@ -86,7 +86,7 @@ async def _get_user_goals(user_id: int, session: AsyncSession) -> dict:
     result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
-    onboarding = result.first()
+    onboarding = result.scalars().first()
     if onboarding is not None:
         return {
             "calories": int(onboarding.daily_calories or 2000),
@@ -455,7 +455,7 @@ async def get_meal_recommendations(
         )
     )
     result = await session.execute(stmt)
-    candidates = result.all()
+    candidates = result.scalars().all()
 
     if not candidates:
         # Fallback: loosen calorie filter
@@ -469,7 +469,7 @@ async def get_meal_recommendations(
             .limit(limit * 2)
         )
         result = await session.execute(stmt)
-        candidates = result.all()
+        candidates = result.scalars().all()
 
     if not candidates:
         # Second fallback: try any meal type
@@ -480,7 +480,7 @@ async def get_meal_recommendations(
             .limit(limit * 3)
         )
         result = await session.execute(stmt)
-        candidates = result.all()
+        candidates = result.scalars().all()
 
     if not candidates:
         return {
@@ -522,7 +522,7 @@ async def get_meal_recommendations(
         ing_result = await session.execute(
             select(MealIngredient).where(MealIngredient.meal_id == meal.id)
         )
-        ingredients = ing_result.all()
+        ingredients = ing_result.scalars().all()
 
         recommendations.append({
             "meal_id": meal.id,
@@ -619,7 +619,7 @@ async def get_macro_focused_suggestions(
         .limit(limit * 3)
     )
     result = await session.execute(stmt)
-    candidates = result.all()
+    candidates = result.scalars().all()
 
     # Filter by diet and pick top matches
     if diet_type:
@@ -733,7 +733,7 @@ async def get_time_based_suggestions(
         .limit(limit * 3)
     )
     result = await session.execute(stmt)
-    candidates = result.all()
+    candidates = result.scalars().all()
 
     # Fallback if too few results
     if len(candidates) < limit:
@@ -748,7 +748,7 @@ async def get_time_based_suggestions(
         )
         fallback_result = await session.execute(fallback_stmt)
         seen_ids = {c.id for c in candidates}
-        for m in fallback_result.all():
+        for m in fallback_result.scalars().all():
             if m.id not in seen_ids:
                 candidates.append(m)
                 seen_ids.add(m.id)
@@ -830,7 +830,7 @@ async def browse_meals(
     offset = (page - 1) * limit
     stmt = stmt.order_by(MealTemplate.name).offset(offset).limit(limit)
     result = await session.execute(stmt)
-    meals = result.all()
+    meals = result.scalars().all()
 
     return {
         "total": total,
@@ -871,7 +871,7 @@ async def log_recommendation_choice(
     result = await session.execute(
         select(MealTemplate).where(MealTemplate.id == meal_id)
     )
-    meal = result.first()
+    meal = result.scalars().first()
     if not meal:
         return {"error": "Comida no encontrada"}
 

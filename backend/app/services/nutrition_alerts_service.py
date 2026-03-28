@@ -69,7 +69,7 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
             UserNutritionProfile.user_id == user_id,
         )
     )
-    profile = result.first()
+    profile = result.scalars().first()
     if profile is not None:
         return {
             "calories": float(profile.target_calories),
@@ -162,7 +162,7 @@ async def _today_water_ml(user_id: int, session: AsyncSession) -> float:
             DailyNutritionSummary.date == date.today(),
         )
     )
-    water = result.first()
+    water = result.scalar()
     return float(water) if water is not None else 0.0
 
 

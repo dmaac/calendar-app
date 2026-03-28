@@ -219,7 +219,7 @@ class FoodService:
             fuzzy_stmt = fuzzy_stmt.where(*extra_conditions)
         fuzzy_stmt = fuzzy_stmt.limit(2000)
         fuzzy_result = await self.session.execute(fuzzy_stmt)
-        candidates = list(fuzzy_result.all())
+        candidates = list(fuzzy_result.scalars().all())
 
         scored_candidates = []
         for food in candidates:
@@ -259,7 +259,7 @@ class FoodService:
             .where(*conditions, *extra_conditions)
         )
         total_result = await self.session.execute(count_stmt)
-        total = total_result.one()
+        total = total_result.scalar()
 
         if total == 0:
             return [], 0
@@ -272,7 +272,7 @@ class FoodService:
             .limit(limit)
         )
         result = await self.session.execute(statement)
-        return list(result.all()), total
+        return list(result.scalars().all()), total
 
     def _score_and_sort(self, foods: List[Food], query: str) -> List[dict]:
         """Score a list of foods against a query and return sorted dicts."""
@@ -445,7 +445,7 @@ class FoodService:
 
         foods_stmt = select(Food).where(col(Food.id).in_(food_ids))  # type: ignore
         foods_result = await self.session.execute(foods_stmt)
-        food_map = {f.id: f for f in foods_result.all()}
+        food_map = {f.id: f for f in foods_result.scalars().all()}
 
         items = []
         for fid in food_ids:
@@ -522,7 +522,7 @@ class FoodService:
 
         foods_stmt = select(Food).where(col(Food.id).in_(food_ids))  # type: ignore
         foods_result = await self.session.execute(foods_stmt)
-        food_map = {f.id: f for f in foods_result.all()}
+        food_map = {f.id: f for f in foods_result.scalars().all()}
 
         items = []
         for fid in food_ids:
@@ -680,7 +680,7 @@ class FoodService:
             Food.created_by == user_id,
         )
         dup_result = await self.session.execute(dup_stmt)
-        if dup_result.first() is not None:
+        if dup_result.scalars().first() is not None:
             errors.append(f"Ya tienes un alimento con el nombre '{name}'.")
 
         if errors:
@@ -866,7 +866,7 @@ class FoodService:
 
         dup_stmt = select(Food).where(*dup_conditions).limit(1)
         dup_result = await self.session.execute(dup_stmt)
-        existing = dup_result.first()
+        existing = dup_result.scalars().first()
         if existing:
             return existing
 
@@ -915,14 +915,14 @@ class FoodService:
         if extra_conditions:
             count_stmt = count_stmt.where(*extra_conditions)
         total_result = await self.session.execute(count_stmt)
-        total = total_result.one()
+        total = total_result.scalar()
 
         order_clause = self._sort_clause(sort_by)
         statement = select(Food).order_by(order_clause).offset(offset).limit(limit)
         if extra_conditions:
             statement = select(Food).where(*extra_conditions).order_by(order_clause).offset(offset).limit(limit)
         result = await self.session.execute(statement)
-        items = list(result.all())
+        items = list(result.scalars().all())
         return items, total
 
     # -----------------------------------------------------------------------
@@ -1038,7 +1038,7 @@ class FoodService:
             .order_by(Food.category)  # type: ignore
         )
         result = await self.session.execute(statement)
-        categories = [row for row in result.all() if row]
+        categories = [row for row in result.scalars().all() if row]
 
         try:
             await cache_set(cache_key, categories, CACHE_TTL["food_categories"])

@@ -49,7 +49,7 @@ async def get_active_experiments(session: AsyncSession) -> List[Experiment]:
     result = await session.execute(
         select(Experiment).where(Experiment.is_active == True)
     )
-    return list(result.all())
+    return list(result.scalars().all())
 
 
 async def get_experiment_by_id(
@@ -80,7 +80,7 @@ async def assign_variant(
             ExperimentAssignment.experiment_id == experiment_id,
         )
     )
-    existing = result.first()
+    existing = result.scalars().first()
     if existing:
         return existing.variant
 
@@ -128,7 +128,7 @@ async def record_conversion(
             ExperimentAssignment.experiment_id == experiment_id,
         )
     )
-    assignment = result.first()
+    assignment = result.scalars().first()
     if not assignment:
         raise ValueError(
             f"User {user_id} is not assigned to experiment {experiment_id}"

@@ -15,7 +15,7 @@ class ActivityService:
     async def get_user_activities(self, user_id: int) -> List[Activity]:
         statement = select(Activity).where(Activity.user_id == user_id)
         result = await self.session.execute(statement)
-        return list(result.all())
+        return list(result.scalars().all())
 
     async def get_user_activities_by_date_range(
         self, user_id: int, start_date: datetime, end_date: datetime
@@ -26,7 +26,7 @@ class ActivityService:
             Activity.end_time <= end_date
         )
         result = await self.session.execute(statement)
-        return list(result.all())
+        return list(result.scalars().all())
 
     async def check_duplicate_title(self, user_id: int, title: str, exclude_activity_id: Optional[int] = None) -> bool:
         """Check if a user already has an activity with the same title"""
@@ -39,7 +39,7 @@ class ActivityService:
             statement = statement.where(Activity.id != exclude_activity_id)
 
         result = await self.session.execute(statement)
-        existing_activity = result.first()
+        existing_activity = result.scalars().first()
         return existing_activity is not None
 
     async def create_activity(self, activity_create: ActivityCreate, user_id: int) -> Activity:
