@@ -275,17 +275,13 @@ export default function MainNavigator() {
           // If the tab is already focused, pop its inner stack to the root.
           // This prevents the "stuck" feeling where tapping a tab keeps you
           // on a deep nested screen instead of returning to the tab root.
+          // Only pop-to-top for tabs that have a nested stack navigator.
+          // Tabs like Groups, Community, Progress render a single screen
+          // and dispatching popToTop on them triggers a dev warning.
+          const TABS_WITH_STACK = ['Inicio', 'Registro', 'Perfil'];
           const isFocused = navigation.isFocused();
-          if (isFocused) {
-            // The tab is already active -- reset the inner stack to its
-            // first route by dispatching popToTop. We catch because tabs
-            // without a nested stack (Progress, Groups, Community) will
-            // throw since there is nothing to pop.
-            try {
-              navigation.dispatch(StackActions.popToTop());
-            } catch {
-              // No nested stack -- nothing to pop, which is expected.
-            }
+          if (isFocused && TABS_WITH_STACK.includes(route.name)) {
+            navigation.dispatch(StackActions.popToTop());
           }
         },
       })}

@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, text
+from sqlalchemy import Column, ForeignKey, Index, Integer, text
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone
 

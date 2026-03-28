@@ -39,7 +39,6 @@ if "supabase" in _db_url or "pooler.supabase" in _db_url:
     _engine_kwargs["connect_args"] = {
         "ssl": _ssl_ctx,
         "statement_cache_size": 0,  # Required for Supabase pooler (transaction mode)
-        "server_settings": {"timezone": "UTC"},
     }
 
 if not _is_sqlite:

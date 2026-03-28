@@ -1,7 +1,6 @@
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, DateTime
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 class AIScanCache(SQLModel, table=True):

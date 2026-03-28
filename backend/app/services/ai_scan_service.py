@@ -1025,8 +1025,8 @@ async def get_daily_summary(
     from ..services.workout_service import estimate_calories as met_estimate
     from datetime import time as dt_time
 
-    day_start = datetime.combine(date_obj, dt_time.min, tzinfo=timezone.utc)
-    day_end = datetime.combine(date_obj, dt_time.max, tzinfo=timezone.utc)
+    day_start = datetime.combine(date_obj, dt_time.min)
+    day_end = datetime.combine(date_obj, dt_time.max)
 
     workout_stmt = select(WorkoutLog).where(
         WorkoutLog.user_id == user_id,
