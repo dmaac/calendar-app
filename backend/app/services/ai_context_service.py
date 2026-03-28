@@ -73,12 +73,12 @@ async def build_compact_context(user_id: int, session: AsyncSession) -> str:
 async def _get_user_profile_summary(user_id: int, session: AsyncSession) -> str:
     """Build 'User: ...' line from profile data."""
     # Try nutrition profile first, then onboarding
-    result = await session.exec(
+    result = await session.execute(
         select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
     )
     nprofile = result.first()
 
-    result = await session.exec(
+    result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
     onboarding = result.first()
@@ -143,6 +143,7 @@ async def _get_7d_nutrition_summary(user_id: int, session: AsyncSession) -> str:
                 AIFoodLog.user_id == user_id,
                 AIFoodLog.logged_at >= day_start,
                 AIFoodLog.logged_at <= day_end,
+                AIFoodLog.deleted_at.is_(None),
             )
         )
         row = result.one()

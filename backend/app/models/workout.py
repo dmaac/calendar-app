@@ -1,6 +1,7 @@
-from sqlmodel import SQLModel, Field, Relationship, Index
+from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, ForeignKey, Index, Integer
 from typing import Optional, List, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -17,9 +18,9 @@ class WorkoutType(str, Enum):
 
 class WorkoutLogBase(SQLModel):
     workout_type: WorkoutType
-    duration_min: int = Field(ge=1)
-    calories_burned: Optional[int] = Field(default=None, ge=0)
-    notes: Optional[str] = None
+    duration_min: int = Field(ge=1, le=1440, description="Duration in minutes, 1-1440 (max 24h)")
+    calories_burned: Optional[int] = Field(default=None, ge=0, le=20000, description="Calories burned, 0-20000")
+    notes: Optional[str] = Field(default=None, max_length=1000, description="Optional notes, max 1000 chars")
 
 
 class WorkoutLog(WorkoutLogBase, table=True):
@@ -29,10 +30,23 @@ class WorkoutLog(WorkoutLogBase, table=True):
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     user: "User" = Relationship(back_populates="workout_logs")
+
+    def __repr__(self) -> str:
+        return (
+            f"<WorkoutLog id={self.id} user={self.user_id} "
+            f"type={self.workout_type} dur={self.duration_min}m>"
+        )
 
 
 class WorkoutLogCreate(WorkoutLogBase):

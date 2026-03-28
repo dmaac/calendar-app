@@ -8,6 +8,10 @@ PUT   /api/smart-notifications/preferences   -- Update preferences
 POST  /api/smart-notifications/send-test     -- Send a test notification
 POST  /api/smart-notifications/dispatch      -- Evaluate + send push notifications
 POST  /api/smart-notifications/dispatch-all  -- Batch dispatch for all users (admin)
+GET   /api/smart-notifications/stats         -- Notification analytics for current user
+GET   /api/smart-notifications/history       -- Notification history for current user
+POST  /api/smart-notifications/opened        -- Mark notification as opened
+POST  /api/smart-notifications/dismissed     -- Mark notification as dismissed
 """
 
 from __future__ import annotations
@@ -15,7 +19,7 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -42,6 +46,8 @@ class NotificationIntentResponse(BaseModel):
     scheduled_for: Optional[str] = None
     data: dict = {}
     priority: int
+    idempotency_key: Optional[str] = None
+    category: str = "engagement"
 
 
 class EvaluateResponse(BaseModel):
@@ -61,6 +67,12 @@ class PredictedMealTimesResponse(BaseModel):
 
 class NotificationPreferencesResponse(BaseModel):
     notifications_enabled: bool
+    # Quiet hours
+    quiet_hours_enabled: bool
+    quiet_hours_start: int
+    quiet_hours_end: int
+    timezone_offset_minutes: int
+    # Meal reminders
     meal_reminders_enabled: bool
     breakfast_reminder_hour: int
     breakfast_reminder_minute: int
@@ -72,21 +84,38 @@ class NotificationPreferencesResponse(BaseModel):
     snack_reminder_minute: int
     use_predicted_times: bool
     reminder_lead_minutes: int
+    # Evening summary
     evening_summary_enabled: bool
     evening_summary_hour: int
     evening_summary_minute: int
+    # Weekly summary
+    weekly_summary_enabled: bool
+    weekly_summary_day: int
+    weekly_summary_hour: int
+    weekly_summary_minute: int
+    # Goal milestones
+    goal_milestones_enabled: bool
+    # Achievement notifications
+    achievement_notifications_enabled: bool
+    # Streak alerts
     streak_alerts_enabled: bool
     streak_risk_hour: int
     streak_risk_minute: int
     streak_celebrations_enabled: bool
+    # Inactivity
     inactivity_nudge_enabled: bool
     inactivity_days_threshold: int
+    # Water
     water_reminders_enabled: bool
     water_reminder_interval_hours: int
 
 
 class UpdatePreferencesRequest(BaseModel):
     notifications_enabled: Optional[bool] = None
+    quiet_hours_enabled: Optional[bool] = None
+    quiet_hours_start: Optional[int] = Field(default=None, ge=0, le=23)
+    quiet_hours_end: Optional[int] = Field(default=None, ge=0, le=23)
+    timezone_offset_minutes: Optional[int] = Field(default=None, ge=-720, le=840)
     meal_reminders_enabled: Optional[bool] = None
     breakfast_reminder_hour: Optional[int] = Field(default=None, ge=0, le=23)
     breakfast_reminder_minute: Optional[int] = Field(default=None, ge=0, le=59)
@@ -101,6 +130,12 @@ class UpdatePreferencesRequest(BaseModel):
     evening_summary_enabled: Optional[bool] = None
     evening_summary_hour: Optional[int] = Field(default=None, ge=0, le=23)
     evening_summary_minute: Optional[int] = Field(default=None, ge=0, le=59)
+    weekly_summary_enabled: Optional[bool] = None
+    weekly_summary_day: Optional[int] = Field(default=None, ge=0, le=6)
+    weekly_summary_hour: Optional[int] = Field(default=None, ge=0, le=23)
+    weekly_summary_minute: Optional[int] = Field(default=None, ge=0, le=59)
+    goal_milestones_enabled: Optional[bool] = None
+    achievement_notifications_enabled: Optional[bool] = None
     streak_alerts_enabled: Optional[bool] = None
     streak_risk_hour: Optional[int] = Field(default=None, ge=0, le=23)
     streak_risk_minute: Optional[int] = Field(default=None, ge=0, le=59)
@@ -127,6 +162,76 @@ class BatchDispatchResponse(BaseModel):
     users_evaluated: int
     notifications_sent: int
     errors: int
+
+
+class NotificationStatsResponse(BaseModel):
+    period_days: int
+    total_sent: int
+    total_delivered: int
+    total_opened: int
+    total_dismissed: int
+    total_failed: int
+    open_rate_percent: float
+    by_type: dict
+
+
+class NotificationHistoryItem(BaseModel):
+    id: int
+    notification_type: str
+    category: str
+    title: str
+    body: str
+    channel: str
+    delivery_status: str
+    sent_at: Optional[str] = None
+    opened_at: Optional[str] = None
+    dismissed_at: Optional[str] = None
+
+
+class NotificationActionRequest(BaseModel):
+    notification_id: int
+
+
+# ---------------------------------------------------------------------------
+# Helper to build preferences response from model
+# ---------------------------------------------------------------------------
+
+def _prefs_to_response(prefs) -> NotificationPreferencesResponse:
+    return NotificationPreferencesResponse(
+        notifications_enabled=prefs.notifications_enabled,
+        quiet_hours_enabled=prefs.quiet_hours_enabled,
+        quiet_hours_start=prefs.quiet_hours_start,
+        quiet_hours_end=prefs.quiet_hours_end,
+        timezone_offset_minutes=prefs.timezone_offset_minutes,
+        meal_reminders_enabled=prefs.meal_reminders_enabled,
+        breakfast_reminder_hour=prefs.breakfast_reminder_hour,
+        breakfast_reminder_minute=prefs.breakfast_reminder_minute,
+        lunch_reminder_hour=prefs.lunch_reminder_hour,
+        lunch_reminder_minute=prefs.lunch_reminder_minute,
+        dinner_reminder_hour=prefs.dinner_reminder_hour,
+        dinner_reminder_minute=prefs.dinner_reminder_minute,
+        snack_reminder_hour=prefs.snack_reminder_hour,
+        snack_reminder_minute=prefs.snack_reminder_minute,
+        use_predicted_times=prefs.use_predicted_times,
+        reminder_lead_minutes=prefs.reminder_lead_minutes,
+        evening_summary_enabled=prefs.evening_summary_enabled,
+        evening_summary_hour=prefs.evening_summary_hour,
+        evening_summary_minute=prefs.evening_summary_minute,
+        weekly_summary_enabled=prefs.weekly_summary_enabled,
+        weekly_summary_day=prefs.weekly_summary_day,
+        weekly_summary_hour=prefs.weekly_summary_hour,
+        weekly_summary_minute=prefs.weekly_summary_minute,
+        goal_milestones_enabled=prefs.goal_milestones_enabled,
+        achievement_notifications_enabled=prefs.achievement_notifications_enabled,
+        streak_alerts_enabled=prefs.streak_alerts_enabled,
+        streak_risk_hour=prefs.streak_risk_hour,
+        streak_risk_minute=prefs.streak_risk_minute,
+        streak_celebrations_enabled=prefs.streak_celebrations_enabled,
+        inactivity_nudge_enabled=prefs.inactivity_nudge_enabled,
+        inactivity_days_threshold=prefs.inactivity_days_threshold,
+        water_reminders_enabled=prefs.water_reminders_enabled,
+        water_reminder_interval_hours=prefs.water_reminder_interval_hours,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +263,8 @@ async def evaluate_smart_notifications(
                 scheduled_for=intent.scheduled_for.isoformat() if intent.scheduled_for else None,
                 data=intent.data,
                 priority=intent.priority,
+                idempotency_key=intent.idempotency_key,
+                category=intent.category,
             )
             for intent in intents
         ],
@@ -202,32 +309,7 @@ async def get_notification_preferences(
     user_id: int = current_user.id  # type: ignore[assignment]
     service = SmartNotificationService(session)
     prefs = await service.get_preferences(user_id)
-
-    return NotificationPreferencesResponse(
-        notifications_enabled=prefs.notifications_enabled,
-        meal_reminders_enabled=prefs.meal_reminders_enabled,
-        breakfast_reminder_hour=prefs.breakfast_reminder_hour,
-        breakfast_reminder_minute=prefs.breakfast_reminder_minute,
-        lunch_reminder_hour=prefs.lunch_reminder_hour,
-        lunch_reminder_minute=prefs.lunch_reminder_minute,
-        dinner_reminder_hour=prefs.dinner_reminder_hour,
-        dinner_reminder_minute=prefs.dinner_reminder_minute,
-        snack_reminder_hour=prefs.snack_reminder_hour,
-        snack_reminder_minute=prefs.snack_reminder_minute,
-        use_predicted_times=prefs.use_predicted_times,
-        reminder_lead_minutes=prefs.reminder_lead_minutes,
-        evening_summary_enabled=prefs.evening_summary_enabled,
-        evening_summary_hour=prefs.evening_summary_hour,
-        evening_summary_minute=prefs.evening_summary_minute,
-        streak_alerts_enabled=prefs.streak_alerts_enabled,
-        streak_risk_hour=prefs.streak_risk_hour,
-        streak_risk_minute=prefs.streak_risk_minute,
-        streak_celebrations_enabled=prefs.streak_celebrations_enabled,
-        inactivity_nudge_enabled=prefs.inactivity_nudge_enabled,
-        inactivity_days_threshold=prefs.inactivity_days_threshold,
-        water_reminders_enabled=prefs.water_reminders_enabled,
-        water_reminder_interval_hours=prefs.water_reminder_interval_hours,
-    )
+    return _prefs_to_response(prefs)
 
 
 @router.put("/preferences", response_model=NotificationPreferencesResponse)
@@ -253,32 +335,7 @@ async def update_notification_preferences(
         )
 
     prefs = await service.update_preferences(user_id, updates)
-
-    return NotificationPreferencesResponse(
-        notifications_enabled=prefs.notifications_enabled,
-        meal_reminders_enabled=prefs.meal_reminders_enabled,
-        breakfast_reminder_hour=prefs.breakfast_reminder_hour,
-        breakfast_reminder_minute=prefs.breakfast_reminder_minute,
-        lunch_reminder_hour=prefs.lunch_reminder_hour,
-        lunch_reminder_minute=prefs.lunch_reminder_minute,
-        dinner_reminder_hour=prefs.dinner_reminder_hour,
-        dinner_reminder_minute=prefs.dinner_reminder_minute,
-        snack_reminder_hour=prefs.snack_reminder_hour,
-        snack_reminder_minute=prefs.snack_reminder_minute,
-        use_predicted_times=prefs.use_predicted_times,
-        reminder_lead_minutes=prefs.reminder_lead_minutes,
-        evening_summary_enabled=prefs.evening_summary_enabled,
-        evening_summary_hour=prefs.evening_summary_hour,
-        evening_summary_minute=prefs.evening_summary_minute,
-        streak_alerts_enabled=prefs.streak_alerts_enabled,
-        streak_risk_hour=prefs.streak_risk_hour,
-        streak_risk_minute=prefs.streak_risk_minute,
-        streak_celebrations_enabled=prefs.streak_celebrations_enabled,
-        inactivity_nudge_enabled=prefs.inactivity_nudge_enabled,
-        inactivity_days_threshold=prefs.inactivity_days_threshold,
-        water_reminders_enabled=prefs.water_reminders_enabled,
-        water_reminder_interval_hours=prefs.water_reminder_interval_hours,
-    )
+    return _prefs_to_response(prefs)
 
 
 @router.post("/send-test")
@@ -303,6 +360,9 @@ async def send_test_notification(
                 "type": body.notification_type,
                 "screen": "HomeMain",
             },
+            notification_type="test",
+            category="transactional",
+            respect_quiet_hours=False,
         )
     except Exception as exc:
         logger.error("Failed to send test notification: %s", exc)
@@ -360,3 +420,87 @@ async def dispatch_all_notifications(
         notifications_sent=stats["notifications_sent"],
         errors=stats["errors"],
     )
+
+
+# ---------------------------------------------------------------------------
+# Analytics endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/stats", response_model=NotificationStatsResponse)
+async def get_notification_stats(
+    days: int = Query(default=30, ge=1, le=365),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Return notification analytics for the current user over the last N days.
+    Includes total sent, opened, dismissed, failed counts and open rate.
+    """
+    user_id: int = current_user.id  # type: ignore[assignment]
+    push_service = NotificationService(session)
+    stats = await push_service.get_notification_stats(user_id, days=days)
+
+    return NotificationStatsResponse(**stats)
+
+
+@router.get("/history", response_model=List[NotificationHistoryItem])
+async def get_notification_history(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Return recent notification history for the current user.
+    """
+    user_id: int = current_user.id  # type: ignore[assignment]
+    push_service = NotificationService(session)
+    history = await push_service.get_notification_history(user_id, limit=limit, offset=offset)
+
+    return [NotificationHistoryItem(**item) for item in history]
+
+
+@router.post("/opened")
+async def mark_notification_opened(
+    body: NotificationActionRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Mark a notification as opened by the user.
+    Called by the mobile app when the user taps a notification.
+    """
+    user_id: int = current_user.id  # type: ignore[assignment]
+    push_service = NotificationService(session)
+    success = await push_service.mark_notification_opened(body.notification_id, user_id)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found",
+        )
+
+    return {"detail": "Notification marked as opened"}
+
+
+@router.post("/dismissed")
+async def mark_notification_dismissed(
+    body: NotificationActionRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Mark a notification as dismissed by the user.
+    Called by the mobile app when the user swipes away a notification.
+    """
+    user_id: int = current_user.id  # type: ignore[assignment]
+    push_service = NotificationService(session)
+    success = await push_service.mark_notification_dismissed(body.notification_id, user_id)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found",
+        )
+
+    return {"detail": "Notification marked as dismissed"}

@@ -352,10 +352,10 @@ export default function WaterTracker({ waterMl, onAdd, goal: goalProp, weightKg 
   return (
     <Animated.View style={[s.card, { backgroundColor: c.bg, borderColor: c.grayLight, transform: [{ scale: bounceAnim }] }]}>
       {/* Header */}
-      <View style={s.header}>
+      <View style={s.header} accessible={true} accessibilityRole="header">
         <View style={s.headerLeft}>
           <Ionicons name="water" size={18} color={WATER_BLUE} />
-          <Text style={[s.title, { color: c.black }]}>Agua</Text>
+          <Text style={[s.title, { color: c.black }]} allowFontScaling>Agua</Text>
           {goalLabel && (
             <Text style={[s.goalHint, { color: c.gray }]}>{goalLabel}</Text>
           )}
@@ -411,16 +411,16 @@ export default function WaterTracker({ waterMl, onAdd, goal: goalProp, weightKg 
             />
           </Svg>
           {/* Center label */}
-          <View style={s.ringCenter}>
+          <View style={s.ringCenter} importantForAccessibility="no-hide-descendants">
             <Ionicons
               name={waterMl >= goal ? 'checkmark-circle' : 'water'}
               size={20}
               color={waterMl >= goal ? WATER_BLUE_DARK : WATER_BLUE}
             />
-            <Text style={[s.ringValue, { color: waterMl >= goal ? WATER_BLUE_DARK : WATER_BLUE }]}>
+            <Text style={[s.ringValue, { color: waterMl >= goal ? WATER_BLUE_DARK : WATER_BLUE }]} allowFontScaling>
               {waterMl}
             </Text>
-            <Text style={[s.ringUnit, { color: c.gray }]}>/ {goal} ml</Text>
+            <Text style={[s.ringUnit, { color: c.gray }]} allowFontScaling>/ {goal} ml</Text>
           </View>
         </View>
 

@@ -13,17 +13,72 @@
  */
 import { Platform } from 'react-native';
 
+// ─── RevenueCat type stubs (library is optional, loaded at runtime) ──────────
+// These minimal interfaces describe only the surface area we use. When the
+// real react-native-purchases package is installed, its own types take over.
+
+/** Minimal entitlements shape from RevenueCat CustomerInfo. */
+interface RCEntitlements {
+  active: Record<string, unknown>;
+}
+
+/** Minimal CustomerInfo from RevenueCat. */
+interface RCCustomerInfo {
+  entitlements: RCEntitlements;
+}
+
+/** Minimal package from RevenueCat offerings. */
+interface RCPackage {
+  identifier: string;
+  product: { priceString: string; [key: string]: unknown };
+}
+
+/** Minimal offerings from RevenueCat. */
+interface RCOfferings {
+  current?: {
+    monthly?: RCPackage | null;
+    annual?: RCPackage | null;
+  } | null;
+}
+
+/** RevenueCat error shape. */
+interface RCError {
+  code: number | string;
+  message?: string;
+}
+
+/** RevenueCat SDK surface area we use. */
+interface RCPurchasesStatic {
+  setLogLevel(level: unknown): void;
+  configure(config: { apiKey: string }): void;
+  logIn(userId: string): Promise<{ customerInfo: RCCustomerInfo }>;
+  logOut(): Promise<void>;
+  getOfferings(): Promise<RCOfferings>;
+  purchasePackage(pkg: RCPackage): Promise<{ customerInfo: RCCustomerInfo }>;
+  restorePurchases(): Promise<RCCustomerInfo>;
+  getCustomerInfo(): Promise<RCCustomerInfo>;
+  addCustomerInfoUpdateListener(callback: (info: RCCustomerInfo) => void): void;
+  removeCustomerInfoUpdateListener(callback: (info: RCCustomerInfo) => void): void;
+}
+
+// Re-export the stub types for consumers
+type PurchasesOfferings = RCOfferings;
+type PurchasesPackage = RCPackage;
+type CustomerInfo = RCCustomerInfo;
+type PurchasesError = RCError;
+
 // ─── Safe RevenueCat import (crashes in Expo Go where native module is missing)
-let Purchases: any = null;
-let LOG_LEVEL: any = null;
-let PURCHASES_ERROR_CODE: any = null;
-type PurchasesOfferings = any;
-type PurchasesPackage = any;
-type CustomerInfo = any;
-type PurchasesError = any;
+let Purchases: RCPurchasesStatic | null = null;
+let LOG_LEVEL: { DEBUG: unknown } | null = null;
+let PURCHASES_ERROR_CODE: Record<string, number | string> | null = null;
 
 try {
-  const rc = require('react-native-purchases');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const rc = require('react-native-purchases') as {
+    default: RCPurchasesStatic;
+    LOG_LEVEL: { DEBUG: unknown };
+    PURCHASES_ERROR_CODE: Record<string, number | string>;
+  };
   Purchases = rc.default;
   LOG_LEVEL = rc.LOG_LEVEL;
   PURCHASES_ERROR_CODE = rc.PURCHASES_ERROR_CODE;
@@ -79,7 +134,7 @@ export async function initializePurchases(userId?: string): Promise<void> {
   }
 
   try {
-    if (__DEV__) {
+    if (__DEV__ && LOG_LEVEL) {
       Purchases.setLogLevel(LOG_LEVEL.DEBUG);
     }
 
@@ -91,8 +146,8 @@ export async function initializePurchases(userId?: string): Promise<void> {
     }
 
     _initialized = true;
-  } catch {
-    // RevenueCat initialization failed
+  } catch (err) {
+    console.error('[PurchaseService] RevenueCat initialization failed:', err);
   }
 }
 
@@ -105,8 +160,8 @@ export async function identifyUser(userId: string): Promise<void> {
 
   try {
     await Purchases.logIn(userId);
-  } catch {
-    // Failed to identify user
+  } catch (err) {
+    console.error('[PurchaseService] Failed to identify user:', err);
   }
 }
 
@@ -118,8 +173,8 @@ export async function logOutPurchases(): Promise<void> {
 
   try {
     await Purchases.logOut();
-  } catch {
-    // Failed to logout from RevenueCat
+  } catch (err) {
+    console.error('[PurchaseService] Failed to logout from RevenueCat:', err);
   }
 }
 
@@ -135,7 +190,8 @@ export async function getOfferings(): Promise<PurchasesOfferings | null> {
   try {
     const offerings = await Purchases.getOfferings();
     return offerings;
-  } catch {
+  } catch (err) {
+    console.error('[PurchaseService] Failed to fetch offerings:', err);
     return null;
   }
 }
@@ -278,7 +334,8 @@ export async function restorePurchases(): Promise<PurchaseResult> {
       isPremium,
       customerInfo,
     };
-  } catch {
+  } catch (err) {
+    console.error('[PurchaseService] Failed to restore purchases:', err);
     return {
       success: false,
       isPremium: false,
@@ -300,7 +357,8 @@ export async function checkSubscriptionStatus(): Promise<boolean> {
   try {
     const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
-  } catch {
+  } catch (err) {
+    console.error('[PurchaseService] Failed to check subscription status:', err);
     return false;
   }
 }
@@ -314,7 +372,8 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
 
   try {
     return await Purchases.getCustomerInfo();
-  } catch {
+  } catch (err) {
+    console.error('[PurchaseService] Failed to get customer info:', err);
     return null;
   }
 }

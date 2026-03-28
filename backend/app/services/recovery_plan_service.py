@@ -320,6 +320,7 @@ async def _get_multi_day_totals(
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= day_start,
             AIFoodLog.logged_at <= day_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     row = result.one()
@@ -491,6 +492,7 @@ async def get_smart_meal_suggestion(user_id: int, session: AsyncSession) -> dict
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= day_start,
             AIFoodLog.logged_at <= day_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     logged_fiber = float(fiber_result.one().fiber_g)

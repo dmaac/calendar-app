@@ -6,7 +6,7 @@ Passwords: User1pass1, User2pass2, ... (meets policy: uppercase + lowercase + di
 """
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -67,7 +67,7 @@ def seed():
     conn = psycopg2.connect(DB_URL)
     conn.autocommit = False
     cur = conn.cursor()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     print("=" * 60)
     print("  SEED: 20 usuarios + 25 alimentos")

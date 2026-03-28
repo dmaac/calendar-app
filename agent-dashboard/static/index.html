@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitsi IA — Agent Dashboard v2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <span class="logo">Fitsi<span class="logo-dim">Agents</span><span class="logo-ver">v2</span></span>
+            <div class="conn" id="conn">
+                <span class="conn-dot" id="conn-dot"></span>
+                <span class="conn-text" id="conn-text">Connecting</span>
+            </div>
+        </div>
+        <nav class="view-nav" id="view-nav">
+            <button class="view-btn active" data-view="overview">Overview</button>
+            <button class="view-btn" data-view="ascii">ASCII</button>
+            <button class="view-btn" data-view="galaxy">Galaxy</button>
+            <button class="view-btn" data-view="matrix">Matrix</button>
+            <button class="view-btn" data-view="hierarchy">Hierarchy</button>
+            <button class="view-btn" data-view="timeline">Timeline</button>
+        </nav>
+        <div class="topbar-metrics">
+            <div class="tm"><span class="tm-val mono" id="m-total">0</span><span class="tm-lbl">Agents</span></div>
+            <div class="tm"><span class="tm-val mono green" id="m-active">0</span><span class="tm-lbl">Active</span></div>
+            <div class="tm"><span class="tm-val mono" id="m-events">0</span><span class="tm-lbl">Events</span></div>
+            <div class="tm"><span class="tm-val mono" id="m-tokens">0</span><span class="tm-lbl">Tokens</span></div>
+            <div class="tm"><span class="tm-val mono" id="m-tasks">0</span><span class="tm-lbl">Tasks</span></div>
+        </div>
+        <div class="topbar-right">
+            <a href="/v1" class="v1-link" title="Classic ASCII View">Classic</a>
+            <span class="clock mono" id="clock">00:00:00</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main" id="main">
+        <!-- Overview View -->
+        <section class="view active" id="view-overview">
+            <div class="ov-grid">
+                <div class="ov-cards" id="ov-cards"></div>
+                <div class="ov-panels">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <span class="panel-title">Teams</span>
+                            <span class="panel-count" id="team-count"></span>
+                        </div>
+                        <div class="panel-body scroll" id="team-bars"></div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-head">
+                            <span class="panel-title">Top Agents</span>
+                        </div>
+                        <div class="panel-body scroll" id="top-agents"></div>
+                    </div>
+                    <div class="panel panel-wide">
+                        <div class="panel-head">
+                            <span class="panel-title">Live Activity</span>
+                            <span class="panel-badge green" id="feed-count">0</span>
+                        </div>
+                        <div class="panel-body scroll" id="feed-list"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ASCII Art View -->
+        <section class="view" id="view-ascii">
+            <div class="ascii-wrap">
+                <div class="ascii-hud" id="ascii-hud"></div>
+                <div class="ascii-grid" id="ascii-grid"></div>
+                <div class="ascii-legend">
+                    <span class="ascii-leg-item" style="color:#3f3f56;font-weight:700;margin-right:4px">MATURITY:</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#0c0c18;font-size:8px">.</span> embryo</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#161630">&#9617;</span> infant</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#1e2848">&#9618;</span> child</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#2a3460">&#9619;</span> adolescent</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#384878">&#9608;</span> adult</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#fbbf24">&#9733;</span> sage</span>
+                    <span class="ascii-leg-item" style="color:#3f3f56;font-weight:700;margin-left:12px;margin-right:4px">STATUS:</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#22c55e">&#9608;</span> active</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#8b5cf6">&#9619;</span> think</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#f97316">&#9618;</span> deleg</span>
+                    <span class="ascii-leg-item"><span class="ac" style="color:#ef4444">&#9608;</span> error</span>
+                    <span class="ascii-leg-item" style="margin-left:auto;color:#2a2a3e">poll:2s</span>
+                </div>
+            </div>
+            <div class="ascii-scanline" id="ascii-scanline"></div>
+        </section>
+
+        <!-- Galaxy View (Classic Graph via iframe) -->
+        <section class="view" id="view-galaxy">
+            <div class="galaxy-placeholder" id="galaxy-placeholder">
+                <span class="galaxy-hint">Loading classic agent visualization...</span>
+            </div>
+            <iframe id="galaxy-frame" class="galaxy-frame" src="" frameborder="0"></iframe>
+        </section>
+
+        <!-- Matrix View -->
+        <section class="view" id="view-matrix">
+            <div class="mx-toolbar">
+                <input type="text" id="mx-search" class="mx-search" placeholder="Filter agents by name, team, or category..." />
+                <span class="mx-info" id="mx-info"></span>
+            </div>
+            <div class="mx-wrap">
+                <table class="mx-table">
+                    <thead>
+                        <tr>
+                            <th data-col="status" class="mx-th sortable" style="width:80px">Status</th>
+                            <th data-col="display_name" class="mx-th sortable sorted-asc">Agent</th>
+                            <th data-col="team" class="mx-th sortable">Team</th>
+                            <th data-col="category" class="mx-th sortable">Category</th>
+                            <th data-col="total_invocations" class="mx-th sortable num">Invocations</th>
+                            <th data-col="total_tokens" class="mx-th sortable num">Tokens</th>
+                            <th data-col="last_active" class="mx-th sortable">Last Active</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mx-body"></tbody>
+                </table>
+            </div>
+            <div class="mx-pager" id="mx-pager"></div>
+        </section>
+
+        <!-- Hierarchy View -->
+        <section class="view" id="view-hierarchy">
+            <div class="hi-toolbar">
+                <input type="text" id="hi-search" class="mx-search" placeholder="Search hierarchy..." />
+                <button class="hi-btn" id="hi-expand-all">Expand All</button>
+                <button class="hi-btn" id="hi-collapse-all">Collapse All</button>
+            </div>
+            <div class="hi-tree" id="hi-tree"></div>
+        </section>
+
+        <!-- Timeline View -->
+        <section class="view" id="view-timeline">
+            <div class="tl-toolbar" id="tl-filters">
+                <button class="tl-filter active" data-type="all">All</button>
+                <button class="tl-filter" data-type="active">Active</button>
+                <button class="tl-filter" data-type="thinking">Thinking</button>
+                <button class="tl-filter" data-type="delegating">Delegating</button>
+                <button class="tl-filter" data-type="completed">Completed</button>
+                <button class="tl-filter" data-type="error">Error</button>
+            </div>
+            <div class="tl-list" id="tl-list"></div>
+        </section>
+    </main>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

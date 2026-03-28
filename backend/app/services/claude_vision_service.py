@@ -3,6 +3,9 @@ Claude Vision Food Scan Service
 ---------------------------------
 Calls Anthropic's Claude API with a food image to estimate macronutrients.
 
+Uses the shared httpx.AsyncClient from ai_scan_service for connection pooling.
+Includes cost tracking (token usage) and structured logging.
+
 SEC: Prompt injection mitigated — user content is image-only, no attacker text
 SEC: Anthropic errors are sanitized before reaching the client
 SEC: Numeric fields validated via shared _sanitize_numeric in ai_scan_service
@@ -12,6 +15,7 @@ import asyncio
 import base64
 import json
 import logging
+import time as _time
 from typing import Optional
 
 import httpx
@@ -64,8 +68,32 @@ MAX_RETRIES = 3
 RETRY_BASE_DELAY = 1.0  # seconds — exponential backoff: 1s, 2s, 4s
 
 
-async def _call_claude_vision_once(b64_image: str, mime_type: str) -> dict:
-    """Single attempt to call Claude Vision API via httpx. Returns parsed response dict."""
+_http_client: httpx.AsyncClient | None = None
+
+
+def _get_http_client() -> httpx.AsyncClient:
+    """Return a module-level shared httpx.AsyncClient, creating it if needed."""
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(timeout=30.0)
+    return _http_client
+
+
+async def close_http_client() -> None:
+    """Close the shared HTTP client. Call this during app shutdown."""
+    global _http_client
+    if _http_client is not None and not _http_client.is_closed:
+        await _http_client.aclose()
+        _http_client = None
+
+
+async def _call_claude_vision_once(b64_image: str, mime_type: str) -> tuple[str, dict]:
+    """
+    Single attempt to call Claude Vision API via httpx.
+
+    Returns (raw_text_content, usage_dict) where usage_dict has
+    input_tokens and output_tokens for cost tracking.
+    """
     # SEC: System prompt is isolated in the top-level "system" parameter,
     # separate from user content. The user message contains ONLY the image,
     # so any adversarial text embedded in the image cannot override instructions.
@@ -90,36 +118,52 @@ async def _call_claude_vision_once(b64_image: str, mime_type: str) -> dict:
         ],
     }
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": settings.anthropic_api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json=payload,
-        )
-        response.raise_for_status()
+    client = _get_http_client()
+    response = await client.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={
+            "x-api-key": settings.anthropic_api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        json=payload,
+    )
+    response.raise_for_status()
 
     data = response.json()
     raw_content = data["content"][0]["text"].strip()
-    return raw_content
+    usage = data.get("usage", {})
+    return raw_content, usage
 
 
 async def scan_with_claude(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
     """
     Call Claude Vision API with retry logic (3 attempts, exponential backoff).
 
-    Returns a dict with food_name, calories, macros, confidence, etc.
+    Returns a dict with food_name, calories, macros, confidence, cost info, etc.
     On failure raises ValueError with a sanitized message.
     """
     b64_image = base64.b64encode(image_bytes).decode("utf-8")
     last_error: Optional[Exception] = None
+    start_time = _time.monotonic()
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            raw_content = await _call_claude_vision_once(b64_image, mime_type)
+            raw_content, usage = await _call_claude_vision_once(b64_image, mime_type)
+
+            # Extract token usage for cost tracking
+            input_tokens = usage.get("input_tokens", 0)
+            output_tokens = usage.get("output_tokens", 0)
+            # Approximate cost: Claude Sonnet pricing
+            cost_per_input = 3.00 / 1_000_000
+            cost_per_output = 15.00 / 1_000_000
+            estimated_cost = (input_tokens * cost_per_input) + (output_tokens * cost_per_output)
+            latency_ms = int((_time.monotonic() - start_time) * 1000)
+
+            logger.info(
+                "Claude scan cost: tokens_in=%d tokens_out=%d cost=$%.6f latency=%dms retries=%d",
+                input_tokens, output_tokens, estimated_cost, latency_ms, attempt - 1,
+            )
 
             # Strip markdown code fences if present
             if raw_content.startswith("```"):
@@ -141,6 +185,13 @@ async def scan_with_claude(image_bytes: bytes, mime_type: str = "image/jpeg") ->
 
             result["_raw"] = raw_content
             result["ai_provider"] = "claude"
+            result["_cost"] = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "estimated_cost_usd": estimated_cost,
+                "latency_ms": latency_ms,
+                "retries_used": attempt - 1,
+            }
             return result
 
         except httpx.HTTPStatusError as e:
@@ -156,8 +207,14 @@ async def scan_with_claude(image_bytes: bytes, mime_type: str = "image/jpeg") ->
             if status_code in (401, 403):
                 raise ValueError("AI service configuration error. Please contact support.")
 
-            if attempt < MAX_RETRIES:
+            # Rate limit — use longer backoff
+            if status_code == 429:
+                delay = RETRY_BASE_DELAY * (2 ** attempt)  # 2s, 4s, 8s for rate limits
+                logger.warning("Anthropic rate limited — waiting %.1fs before retry", delay)
+            else:
                 delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+
+            if attempt < MAX_RETRIES:
                 await asyncio.sleep(delay)
                 continue
 
@@ -178,7 +235,9 @@ async def scan_with_claude(image_bytes: bytes, mime_type: str = "image/jpeg") ->
                 continue
 
     # All retries exhausted — raise so caller can fallback
+    latency_ms = int((_time.monotonic() - start_time) * 1000)
     raise ValueError(
         f"Claude Vision failed after {MAX_RETRIES} attempts "
-        f"(last error: {type(last_error).__name__ if last_error else 'unknown'})"
+        f"(last error: {type(last_error).__name__ if last_error else 'unknown'}, "
+        f"total latency: {latency_ms}ms)"
     )

@@ -194,8 +194,8 @@ function ReferralCard({ onViewDetails }: ReferralCardProps) {
           <Ionicons name="gift" size={20} color={accentColor} />
         </View>
         <View style={styles.headerText}>
-          <Text style={[styles.title, { color: c.black }]}>Invita amigos</Text>
-          <Text style={[styles.subtitle, { color: c.gray }]}>
+          <Text style={[styles.title, { color: c.black }]} allowFontScaling>Invita amigos</Text>
+          <Text style={[styles.subtitle, { color: c.gray }]} allowFontScaling>
             {isGoalReached
               ? '1 mes premium desbloqueado'
               : `Invita ${GOAL - friendsCount} amigo${GOAL - friendsCount !== 1 ? 's' : ''} mas para 1 mes premium gratis`}
@@ -204,7 +204,13 @@ function ReferralCard({ onViewDetails }: ReferralCardProps) {
       </View>
 
       {/* Progress toward reward */}
-      <View style={styles.progressSection}>
+      <View
+        style={styles.progressSection}
+        accessible={true}
+        accessibilityRole="progressbar"
+        accessibilityLabel={`Progreso de referidos: ${friendsCount} de ${GOAL} amigos${isGoalReached ? '. Premium gratis desbloqueado' : ''}`}
+        accessibilityValue={{ min: 0, max: GOAL, now: friendsCount }}
+      >
         <View style={styles.progressLabels}>
           <Text style={[styles.progressCount, { color: c.black }]}>
             {friendsCount}/{GOAL} amigos

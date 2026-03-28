@@ -43,7 +43,15 @@ function getCurrentMealType(): string {
   return 'dinner';
 }
 
-export default function useRecommendations() {
+interface UseRecommendationsReturn {
+  meals: RecommendedMeal[];
+  remaining: RemainingMacros;
+  loading: boolean;
+  error: boolean;
+  refetch: () => Promise<void>;
+}
+
+export default function useRecommendations(): UseRecommendationsReturn {
   const [meals, setMeals] = useState<RecommendedMeal[]>([]);
   const [remaining, setRemaining] = useState<RemainingMacros>({
     calories: 0,

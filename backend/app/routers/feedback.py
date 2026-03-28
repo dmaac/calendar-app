@@ -8,7 +8,7 @@ PATCH /api/feedback/{id} — Update feedback status/notes (admin)
 """
 
 import logging
-from datetime import datetime, time, date as date_type
+from datetime import datetime, time, date as date_type, timezone
 from typing import Optional
 from enum import Enum
 
@@ -232,7 +232,7 @@ async def update_feedback(
     if body.admin_notes is not None:
         feedback.admin_notes = body.admin_notes
 
-    feedback.updated_at = datetime.utcnow()
+    feedback.updated_at = datetime.now(timezone.utc)
     session.add(feedback)
     await session.commit()
     await session.refresh(feedback)

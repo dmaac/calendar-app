@@ -115,7 +115,21 @@ export async function clearScanHistory(): Promise<void> {
 
 // ─── Open Food Facts lookup ─────────────────────────────────────────────────
 
-function parseOpenFoodFactsResponse(json: any, barcode: string): BarcodeProduct | null {
+/** Partial shape of the Open Food Facts v2 API product response. */
+interface OpenFoodFactsResponse {
+  status: number;
+  product?: {
+    product_name?: string;
+    product_name_en?: string;
+    brands?: string;
+    serving_size?: string;
+    image_front_small_url?: string;
+    image_front_url?: string;
+    nutriments?: Record<string, number | string | undefined>;
+  };
+}
+
+function parseOpenFoodFactsResponse(json: OpenFoodFactsResponse, barcode: string): BarcodeProduct | null {
   if (json.status !== 1 || !json.product) return null;
 
   const p = json.product;
@@ -153,7 +167,7 @@ async function fetchFromOpenFoodFacts(code: string): Promise<BarcodeProduct | nu
     });
 
     if (!res.ok) return null;
-    const json = await res.json();
+    const json = (await res.json()) as OpenFoodFactsResponse;
     return parseOpenFoodFactsResponse(json, code);
   } catch {
     return null;

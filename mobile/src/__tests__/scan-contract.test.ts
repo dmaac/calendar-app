@@ -208,6 +208,13 @@ describe('GET /api/dashboard/today — contract', () => {
       water_ml: 1500,
       meals_logged: 3,
       streak_days: 7,
+      calories_burned_exercise: 350,
+      calories_remaining: 1150,
+      net_calories: 850,
+      exercises_today: [
+        { name: 'Cardio', duration: 30, calories: 280, workout_type: 'cardio' },
+        { name: 'Strength', duration: 20, calories: 70, workout_type: 'strength' },
+      ],
     };
 
     const frontendSummary: DailySummary = backendResponse;
@@ -216,6 +223,9 @@ describe('GET /api/dashboard/today — contract', () => {
     expect(frontendSummary.target_fats_g).toBe(65);
     expect(frontendSummary.water_ml).toBe(1500);
     expect(frontendSummary.streak_days).toBe(7);
+    expect(frontendSummary.calories_burned_exercise).toBe(350);
+    expect(frontendSummary.net_calories).toBe(850);
+    expect(frontendSummary.exercises_today).toHaveLength(2);
   });
 });
 

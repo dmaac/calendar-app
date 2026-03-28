@@ -215,5 +215,34 @@ Leyenda: ⬜ PENDIENTE | 🔄 EN PROGRESO | ✅ COMPLETO | ❌ CON ERRORES
 
 ---
 
-*Última actualización: 2026-03-17*
+---
+
+## TOON Protocol — Inter-Agent Communication
+
+**ALL inter-agent communication MUST use TOON format** (Token-Oriented Object Notation).
+TOON reduces prompt tokens by ~40-60% vs JSON. It is the MANDATORY protocol for all 1,299 agents.
+
+### Format
+```
+key:value|key:value|nested:{k:v|k:v}|list:[a,b,c]
+Booleans: T/F | Null: _ | Numbers: bare
+```
+
+### Agent Message Standard
+```
+from:{agent}|to:{agent}|type:{msg_type}|pri:{priority}|tid:{task_id}|p:{payload}
+```
+
+### Message Types
+`task_assign` `task_result` `delegate` `escalate` `feedback` `status` `query` `response` `alert`
+
+### Implementation
+- Encoder/Decoder: `agent-dashboard/toon.py`
+- Skill: `/toon` (always available)
+- API: `POST /api/toon/encode`, `POST /api/toon/decode`, `POST /api/toon/message`
+- Protocol spec: `GET /api/toon/protocol`
+
+---
+
+*Última actualización: 2026-03-22*
 *Próximo paso: ver TASKS.md*

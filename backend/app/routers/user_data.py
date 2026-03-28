@@ -8,13 +8,15 @@ DELETE /api/user/data  — Erase ALL user data (GDPR right to erasure, Art. 17)
 import io
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy import delete, select
 
+from fastapi.security import OAuth2PasswordBearer
+from ..core.cache import invalidate_user_caches
 from ..core.database import get_session
 from ..models.user import User
 from ..models.onboarding_profile import OnboardingProfile
@@ -28,6 +30,18 @@ from ..models.feedback import Feedback
 from ..models.workout import WorkoutLog
 from ..models.push_token import PushToken
 from ..models.user_food_favorite import UserFoodFavorite
+from ..models.progress import (
+    UserProgressProfile,
+    UserAchievement,
+    UserDailyMissionStatus,
+    UserWeeklyChallengeStatus,
+    ProgressEvent,
+    UserRewardRedemption,
+)
+from ..models.calorie_adjustment import CalorieAdjustment, WeightLog
+from ..models.notification_schedule import NotificationSchedule
+from ..models.nutrition_adherence import DailyNutritionAdherence
+from ..schemas.api_responses import GDPRDeletionResponse
 from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -46,7 +60,22 @@ def _dt(val) -> str | None:
 
 # ─── GET /api/user/data — Full data export (GDPR Art. 20) ───────────────────
 
-@router.get("/data")
+@router.get(
+    "/data",
+    summary="Export all user data (GDPR Art. 20)",
+    description=(
+        "Download ALL user data as a JSON file (GDPR right to data portability, Article 20). "
+        "Returns a comprehensive JSON document containing every piece of data the system holds "
+        "about the authenticated user."
+    ),
+    responses={
+        200: {
+            "description": "JSON file download with all user data",
+            "content": {"application/json": {}},
+        },
+        500: {"description": "Failed to compile data export"},
+    },
+)
 async def get_user_data(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -61,6 +90,20 @@ async def get_user_data(
     """
     user_id = current_user.id
 
+    try:
+        return await _collect_and_export_user_data(current_user, user_id, session)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("GDPR data export failed: user_id=%s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to compile data export. Please try again later.",
+        )
+
+
+async def _collect_and_export_user_data(current_user, user_id, session):
+    """Internal helper to collect all user data for GDPR export."""
     # ── User profile ──
     profile_data = {
         "id": current_user.id,
@@ -133,7 +176,7 @@ async def get_user_data(
 
     # ── AI food logs ──
     fl_result = await session.execute(
-        select(AIFoodLog).where(AIFoodLog.user_id == user_id).order_by(AIFoodLog.logged_at.desc())
+        select(AIFoodLog).where(AIFoodLog.user_id == user_id, AIFoodLog.deleted_at.is_(None)).order_by(AIFoodLog.logged_at.desc())
     )
     food_logs = [
         {
@@ -297,39 +340,204 @@ async def get_user_data(
         for f in fb_result.scalars().all()
     ]
 
-    try:
-        export = {
-            "export_version": "1.1",
-            "exported_at": datetime.utcnow().isoformat(),
-            "gdpr_article": "Article 20 - Right to data portability",
-            "user": profile_data,
-            "onboarding_profile": onboarding_data,
-            "nutrition_profile": nutrition_data,
-            "food_logs": food_logs,
-            "meal_logs": meal_logs,
-            "daily_summaries": daily_summaries,
-            "activities": activities,
-            "workouts": workouts,
-            "subscriptions": subscriptions,
-            "push_tokens": push_tokens,
-            "food_favorites": favorites,
-            "feedback": feedback_list,
+    # ── Progress profile ──
+    pp_result = await session.execute(
+        select(UserProgressProfile).where(UserProgressProfile.user_id == user_id)
+    )
+    pp_obj = pp_result.scalar_one_or_none()
+    progress_profile_data = None
+    if pp_obj:
+        progress_profile_data = {
+            "id": pp_obj.id,
+            "nutrition_xp_total": pp_obj.nutrition_xp_total,
+            "nutrition_level": pp_obj.nutrition_level,
+            "current_streak_days": pp_obj.current_streak_days,
+            "best_streak_days": pp_obj.best_streak_days,
+            "streak_freezes_available": pp_obj.streak_freezes_available,
+            "fitsia_coins_balance": pp_obj.fitsia_coins_balance,
+            "last_progress_event_at": _dt(pp_obj.last_progress_event_at),
+            "motivation_state": pp_obj.motivation_state,
+            "created_at": _dt(pp_obj.created_at),
         }
 
-        json_bytes = json.dumps(export, indent=2, ensure_ascii=False).encode("utf-8")
-    except Exception as e:
-        logger.exception("GDPR data export failed: user_id=%s", user_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to compile data export. Please try again later.",
-        )
+    # ── User achievements ──
+    ua_result = await session.execute(
+        select(UserAchievement).where(UserAchievement.user_id == user_id)
+    )
+    user_achievements = [
+        {
+            "id": ua.id,
+            "achievement_id": ua.achievement_id,
+            "unlocked_at": _dt(ua.unlocked_at),
+        }
+        for ua in ua_result.scalars().all()
+    ]
+
+    # ── Daily mission statuses ──
+    dms_result = await session.execute(
+        select(UserDailyMissionStatus).where(UserDailyMissionStatus.user_id == user_id)
+    )
+    daily_mission_statuses = [
+        {
+            "id": dms.id,
+            "mission_id": dms.mission_id,
+            "date": _dt(dms.date),
+            "completed": dms.completed,
+            "completed_at": _dt(dms.completed_at),
+            "progress_value": dms.progress_value,
+        }
+        for dms in dms_result.scalars().all()
+    ]
+
+    # ── Weekly challenge statuses ──
+    wcs_result = await session.execute(
+        select(UserWeeklyChallengeStatus).where(UserWeeklyChallengeStatus.user_id == user_id)
+    )
+    weekly_challenge_statuses = [
+        {
+            "id": wcs.id,
+            "challenge_id": wcs.challenge_id,
+            "week_start": _dt(wcs.week_start),
+            "completed": wcs.completed,
+            "progress_value": wcs.progress_value,
+        }
+        for wcs in wcs_result.scalars().all()
+    ]
+
+    # ── Calorie adjustments ──
+    ca_result = await session.execute(
+        select(CalorieAdjustment).where(CalorieAdjustment.user_id == user_id).order_by(CalorieAdjustment.created_at.desc())
+    )
+    calorie_adjustments = [
+        {
+            "id": ca.id,
+            "week_start": _dt(ca.week_start),
+            "week_end": _dt(ca.week_end),
+            "predicted_weight": ca.predicted_weight,
+            "actual_weight": ca.actual_weight,
+            "weight_delta": ca.weight_delta,
+            "previous_target": ca.previous_target,
+            "new_target": ca.new_target,
+            "adjustment_kcal": ca.adjustment_kcal,
+            "adjustment_reason": ca.adjustment_reason,
+            "trend": ca.trend,
+            "applied": ca.applied,
+            "applied_at": _dt(ca.applied_at),
+            "dismissed": ca.dismissed,
+            "created_at": _dt(ca.created_at),
+        }
+        for ca in ca_result.scalars().all()
+    ]
+
+    # ── Weight logs ──
+    wl_result = await session.execute(
+        select(WeightLog).where(WeightLog.user_id == user_id).order_by(WeightLog.created_at.desc())
+    )
+    weight_logs = [
+        {
+            "id": wl.id,
+            "date": _dt(wl.date),
+            "weight_kg": wl.weight_kg,
+            "source": wl.source,
+            "notes": wl.notes,
+            "created_at": _dt(wl.created_at),
+        }
+        for wl in wl_result.scalars().all()
+    ]
+
+    # ── Notification schedule ──
+    ns_result = await session.execute(
+        select(NotificationSchedule).where(NotificationSchedule.user_id == user_id)
+    )
+    ns_obj = ns_result.scalar_one_or_none()
+    notification_schedule_data = None
+    if ns_obj:
+        notification_schedule_data = {
+            "id": ns_obj.id,
+            "notifications_enabled": ns_obj.notifications_enabled,
+            "quiet_hours_enabled": ns_obj.quiet_hours_enabled,
+            "quiet_hours_start": ns_obj.quiet_hours_start,
+            "quiet_hours_end": ns_obj.quiet_hours_end,
+            "timezone_offset_minutes": ns_obj.timezone_offset_minutes,
+            "meal_reminders_enabled": ns_obj.meal_reminders_enabled,
+            "breakfast_reminder_hour": ns_obj.breakfast_reminder_hour,
+            "lunch_reminder_hour": ns_obj.lunch_reminder_hour,
+            "dinner_reminder_hour": ns_obj.dinner_reminder_hour,
+            "snack_reminder_hour": ns_obj.snack_reminder_hour,
+            "use_predicted_times": ns_obj.use_predicted_times,
+            "reminder_lead_minutes": ns_obj.reminder_lead_minutes,
+            "evening_summary_enabled": ns_obj.evening_summary_enabled,
+            "weekly_summary_enabled": ns_obj.weekly_summary_enabled,
+            "goal_milestones_enabled": ns_obj.goal_milestones_enabled,
+            "achievement_notifications_enabled": ns_obj.achievement_notifications_enabled,
+            "streak_alerts_enabled": ns_obj.streak_alerts_enabled,
+            "streak_celebrations_enabled": ns_obj.streak_celebrations_enabled,
+            "inactivity_nudge_enabled": ns_obj.inactivity_nudge_enabled,
+            "water_reminders_enabled": ns_obj.water_reminders_enabled,
+            "created_at": _dt(ns_obj.created_at),
+            "updated_at": _dt(ns_obj.updated_at),
+        }
+
+    # ── Daily nutrition adherence ──
+    dna_result = await session.execute(
+        select(DailyNutritionAdherence).where(DailyNutritionAdherence.user_id == user_id)
+    )
+    daily_nutrition_adherence = [
+        {
+            "id": dna.id,
+            "date": _dt(dna.date),
+            "calories_target": dna.calories_target,
+            "calories_logged": dna.calories_logged,
+            "calories_ratio": dna.calories_ratio,
+            "meals_logged": dna.meals_logged,
+            "protein_target": dna.protein_target,
+            "protein_logged": dna.protein_logged,
+            "carbs_target": dna.carbs_target,
+            "carbs_logged": dna.carbs_logged,
+            "fats_target": dna.fats_target,
+            "fats_logged": dna.fats_logged,
+            "diet_quality_score": dna.diet_quality_score,
+            "adherence_status": dna.adherence_status,
+            "nutrition_risk_score": dna.nutrition_risk_score,
+            "created_at": _dt(dna.created_at),
+        }
+        for dna in dna_result.scalars().all()
+    ]
+
+    export = {
+        "export_version": "1.2",
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "gdpr_article": "Article 20 - Right to data portability",
+        "user": profile_data,
+        "onboarding_profile": onboarding_data,
+        "nutrition_profile": nutrition_data,
+        "food_logs": food_logs,
+        "meal_logs": meal_logs,
+        "daily_summaries": daily_summaries,
+        "activities": activities,
+        "workouts": workouts,
+        "subscriptions": subscriptions,
+        "push_tokens": push_tokens,
+        "food_favorites": favorites,
+        "feedback": feedback_list,
+        "progress_profile": progress_profile_data,
+        "user_achievements": user_achievements,
+        "daily_mission_statuses": daily_mission_statuses,
+        "weekly_challenge_statuses": weekly_challenge_statuses,
+        "calorie_adjustments": calorie_adjustments,
+        "weight_logs": weight_logs,
+        "notification_schedule": notification_schedule_data,
+        "daily_nutrition_adherence": daily_nutrition_adherence,
+    }
+
+    json_bytes = json.dumps(export, indent=2, ensure_ascii=False).encode("utf-8")
 
     logger.info(
         "GDPR data portability export: user_id=%s email=%s sections=%d",
         user_id, current_user.email, len(export) - 3,
     )
 
-    filename = f"fitsi_all_data_{user_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = f"fitsi_all_data_{user_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
 
     return StreamingResponse(
         io.BytesIO(json_bytes),
@@ -352,14 +560,41 @@ _CHILD_TABLES = [
     (PushToken, "push_token"),
     (UserFoodFavorite, "userfoodfavorite"),
     (Feedback, "feedback"),
+    (DailyNutritionAdherence, "daily_nutrition_adherence"),
+    (CalorieAdjustment, "calorie_adjustment"),
+    (WeightLog, "weight_log"),
+    (NotificationSchedule, "notification_schedule"),
+    (ProgressEvent, "progress_event"),
+    (UserRewardRedemption, "user_reward_redemption"),
+    (UserDailyMissionStatus, "user_daily_mission_status"),
+    (UserWeeklyChallengeStatus, "user_weekly_challenge_status"),
+    (UserAchievement, "user_achievement"),
+    (UserProgressProfile, "user_progress_profile"),
     (UserNutritionProfile, "nutrition_profile"),
     (OnboardingProfile, "onboarding_profile"),
 ]
 
 
-@router.delete("/data", status_code=status.HTTP_200_OK)
+_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+@router.delete(
+    "/data",
+    response_model=GDPRDeletionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Delete all user data (GDPR Art. 17)",
+    description=(
+        "Permanently delete ALL data belonging to the authenticated user "
+        "(GDPR right to erasure, Article 17). This is irreversible. "
+        "Deletes food logs, meal logs, profiles, subscriptions, and the user account itself."
+    ),
+    responses={
+        200: {"description": "All data deleted, with per-table deletion counts"},
+        500: {"description": "Data deletion failed"},
+    },
+)
 async def delete_user_data(
     current_user: User = Depends(get_current_user),
+    token: str = Depends(_oauth2_scheme),
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -376,6 +611,13 @@ async def delete_user_data(
     - Push notification tokens
     - Food favorites
     - Feedback submissions
+    - Daily nutrition adherence records
+    - Calorie adjustments
+    - Weight logs
+    - Notification schedule
+    - Progress events, reward redemptions, mission and challenge statuses
+    - User achievements
+    - User progress profile
     - Nutrition profile
     - Onboarding profile
     - The user account itself
@@ -422,18 +664,46 @@ async def delete_user_data(
             detail="Data deletion failed. Please contact support.",
         )
 
-    # Best-effort: blacklist the current access token so it cannot be reused
+    # Invalidate all cached data for this user
     try:
-        from jose import jwt
-        from ..core.config import settings
-        from ..core.token_store import blacklist_access_token
-        # We don't have the raw token here, but we can attempt to invalidate
-        # via the token store if there's a mechanism for it. The user record
-        # is already deleted, so any future token validation will fail anyway
-        # because get_current_user queries the DB for the user.
-        logger.info("GDPR erasure: user record deleted, token will fail on next use")
+        await invalidate_user_caches(user_id)
+        logger.info("GDPR erasure: all caches invalidated for user_id=%s", user_id)
     except Exception:
         pass
+
+    # SEC: Revoke ALL tokens for this user — both refresh tokens and the
+    # current access token. Even though the user record is deleted (so
+    # get_current_user will fail on DB lookup), we must still explicitly
+    # invalidate tokens to prevent any window where a cached auth decision
+    # could grant access.
+    try:
+        from ..core.token_store import revoke_all_user_tokens, blacklist_access_token
+        from ..core.config import settings
+
+        # Revoke all refresh tokens for this user
+        await revoke_all_user_tokens(user_id)
+
+        # Blacklist the current access token for its remaining lifetime
+        try:
+            from jose import jwt as jose_jwt
+            access_payload = jose_jwt.decode(
+                token, settings.secret_key, algorithms=[settings.algorithm]
+            )
+            access_jti = access_payload.get("jti")
+            if access_jti:
+                ttl = settings.access_token_expire_minutes * 60
+                await blacklist_access_token(access_jti, ttl_seconds=ttl)
+        except Exception:
+            pass  # Token may already be expired — refresh tokens are still revoked
+
+        logger.info(
+            "GDPR erasure: all tokens revoked for user_id=%s", user_id
+        )
+    except Exception:
+        logger.warning(
+            "GDPR erasure: could not revoke tokens for user_id=%s (Redis may be unavailable)",
+            user_id,
+        )
 
     total_deleted = sum(deleted_counts.values())
 
@@ -449,7 +719,7 @@ async def delete_user_data(
             "GDPR Article 17 (Right to Erasure). This action is irreversible."
         ),
         "user_id": user_id,
-        "deleted_at": datetime.utcnow().isoformat(),
+        "deleted_at": datetime.now(timezone.utc).isoformat(),
         "deleted_counts": deleted_counts,
         "total_records_deleted": total_deleted,
     }

@@ -260,7 +260,7 @@ async def test_record_error_appears_in_log(
     """Recorded errors appear in the error log endpoint."""
     from app.routers.admin import record_error
 
-    record_error(ValueError("test error for admin"), context="test_context")
+    await record_error(ValueError("test error for admin"), context="test_context")
 
     headers, _ = await create_admin_and_get_headers(
         client, async_session, email="recerr_admin@test.com"
@@ -268,8 +268,10 @@ async def test_record_error_appears_in_log(
     resp = await client.get("/api/admin/errors", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) >= 1
-    found = any(e["message"] == "test error for admin" for e in data)
+    # The response is now paginated
+    items = data.get("items", data) if isinstance(data, dict) else data
+    assert len(items) >= 1
+    found = any(e["message"] == "test error for admin" for e in items)
     assert found, "Recorded error should appear in error log"
 
 

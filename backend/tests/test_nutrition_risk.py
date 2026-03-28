@@ -12,7 +12,7 @@ Tests pure functions directly — no DB or async session needed:
 """
 
 import pytest
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch
 
 from app.services.nutrition_risk_service import (
@@ -859,7 +859,7 @@ class TestShouldSendIntervention:
 
     def test_after_24h_allowed(self):
         """Same severity after 24h should be allowed again."""
-        _intervention_cooldowns["1:critical"] = datetime.utcnow() - timedelta(hours=25)
+        _intervention_cooldowns["1:critical"] = datetime.now(timezone.utc) - timedelta(hours=25)
         should_send, last_at, sev = _should_send_intervention(user_id=1, severity="critical")
         assert should_send is True
 
@@ -883,7 +883,7 @@ class TestShouldSendIntervention:
 
     def test_exactly_24h_boundary(self):
         """At exactly 24h, should still be blocked (< check, not <=)."""
-        _intervention_cooldowns["1:risk"] = datetime.utcnow() - timedelta(hours=24)
+        _intervention_cooldowns["1:risk"] = datetime.now(timezone.utc) - timedelta(hours=24)
         should_send, _, _ = _should_send_intervention(user_id=1, severity="risk")
         # timedelta(hours=24) == timedelta(hours=24), so (now - last) < 24h is False
         # This means it SHOULD be allowed at exactly 24h
@@ -1526,7 +1526,7 @@ class TestRecoveryScore:
         record.date = date.today() - timedelta(days=day_offset)
         record.nutrition_risk_score = risk_score
         record.no_log_flag = False
-        record.created_at = datetime.utcnow()
+        record.created_at = datetime.now(timezone.utc)
         return record
 
     def test_improving_trend(self):
@@ -1619,7 +1619,7 @@ class TestCooldownWithMockTime:
         _intervention_cooldowns["1:critical"] = fixed_now - timedelta(hours=24)
 
         with patch("app.services.nutrition_risk_service.datetime") as mock_dt:
-            mock_dt.utcnow.return_value = fixed_now
+            mock_dt.now.return_value = fixed_now
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             should_send, _, _ = _should_send_intervention(user_id=1, severity="critical")
             assert should_send is True
@@ -1630,7 +1630,7 @@ class TestCooldownWithMockTime:
         _intervention_cooldowns["1:critical"] = fixed_now - timedelta(hours=23, minutes=59)
 
         with patch("app.services.nutrition_risk_service.datetime") as mock_dt:
-            mock_dt.utcnow.return_value = fixed_now
+            mock_dt.now.return_value = fixed_now
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             should_send, _, _ = _should_send_intervention(user_id=1, severity="critical")
             assert should_send is False
@@ -1642,7 +1642,7 @@ class TestCooldownWithMockTime:
         _intervention_cooldowns["1:risk"] = fixed_now - timedelta(hours=25)
 
         with patch("app.services.nutrition_risk_service.datetime") as mock_dt:
-            mock_dt.utcnow.return_value = fixed_now
+            mock_dt.now.return_value = fixed_now
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             should_critical, _, _ = _should_send_intervention(user_id=1, severity="critical")
             should_risk, _, _ = _should_send_intervention(user_id=1, severity="risk")
@@ -1657,7 +1657,7 @@ class TestCooldownWithMockTime:
         _intervention_cooldowns["1:high_risk"] = fixed_before
 
         with patch("app.services.nutrition_risk_service.datetime") as mock_dt:
-            mock_dt.utcnow.return_value = fixed_after
+            mock_dt.now.return_value = fixed_after
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             should_send, _, _ = _should_send_intervention(user_id=1, severity="high_risk")
             assert should_send is True
@@ -1666,7 +1666,7 @@ class TestCooldownWithMockTime:
         """Record intervention then immediately check — should be blocked."""
         fixed_now = datetime(2026, 3, 22, 12, 0, 0)
         with patch("app.services.nutrition_risk_service.datetime") as mock_dt:
-            mock_dt.utcnow.return_value = fixed_now
+            mock_dt.now.return_value = fixed_now
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             _record_intervention(user_id=5, severity="risk")
             should_send, _, _ = _should_send_intervention(user_id=5, severity="risk")

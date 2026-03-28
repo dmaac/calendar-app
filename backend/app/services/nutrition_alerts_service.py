@@ -64,7 +64,7 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
     Priority: UserNutritionProfile > OnboardingProfile > sensible defaults.
     Returns dict with keys: calories, protein_g, fat_g, carbs_g.
     """
-    result = await session.exec(
+    result = await session.execute(
         select(UserNutritionProfile).where(
             UserNutritionProfile.user_id == user_id,
         )
@@ -78,7 +78,7 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
             "carbs_g": float(profile.target_carbs_g),
         }
 
-    result = await session.exec(
+    result = await session.execute(
         select(OnboardingProfile).where(
             OnboardingProfile.user_id == user_id,
         )
@@ -102,7 +102,7 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
 async def _days_since_last_log(user_id: int, session: AsyncSession) -> Optional[int]:
     """Return number of days since the user's most recent food log, or None if never logged."""
     result = await session.execute(
-        select(func.max(AIFoodLog.logged_at)).where(AIFoodLog.user_id == user_id)
+        select(func.max(AIFoodLog.logged_at)).where(AIFoodLog.user_id == user_id, AIFoodLog.deleted_at.is_(None))
     )
     last_logged_at = result.scalar()
     if last_logged_at is None:
@@ -119,6 +119,7 @@ async def _has_logged_today(user_id: int, session: AsyncSession) -> bool:
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     return (result.scalar() or 0) > 0
@@ -140,6 +141,7 @@ async def _today_totals(user_id: int, session: AsyncSession) -> dict:
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     row = result.one()
@@ -154,7 +156,7 @@ async def _today_totals(user_id: int, session: AsyncSession) -> dict:
 
 async def _today_water_ml(user_id: int, session: AsyncSession) -> float:
     """Return today's water intake in ml from DailyNutritionSummary."""
-    result = await session.exec(
+    result = await session.execute(
         select(DailyNutritionSummary.water_ml).where(
             DailyNutritionSummary.user_id == user_id,
             DailyNutritionSummary.date == date.today(),
@@ -177,6 +179,7 @@ async def _current_streak(user_id: int, session: AsyncSession) -> int:
                 AIFoodLog.user_id == user_id,
                 AIFoodLog.logged_at >= start,
                 AIFoodLog.logged_at <= end,
+                AIFoodLog.deleted_at.is_(None),
             )
         )
         if (result.scalar() or 0) == 0:

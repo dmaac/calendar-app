@@ -1,21 +1,24 @@
 """
-PDF Export Service
--------------------
-Generates nutrition report PDFs server-side using ReportLab.
+Export Service
+--------------
+Generates nutrition report PDFs and provides data-query helpers for export endpoints.
 
-Produces a visually formatted PDF with:
+PDF reports are produced using ReportLab with:
 - User profile summary
 - Daily/weekly nutrition totals
 - Macro breakdown with inline bar charts
 - Food log history table
 
-Uses ReportLab (no external system dependencies like wkhtmltopdf or weasyprint).
-Falls back to a simple text-based PDF if chart rendering fails.
+Falls back to a simple text-based PDF if ReportLab is not installed.
+
+Also provides:
+- get_daily_totals(): per-day aggregated nutrition data (reusable by router)
+- get_food_logs_query(): base query builder with soft-delete filtering
 """
 
 import io
 import logging
-from datetime import date, datetime, time as dt_time, timedelta
+from datetime import date, datetime, time as dt_time, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import func
@@ -29,15 +32,26 @@ from ..models.user import User
 logger = logging.getLogger(__name__)
 
 
-async def _get_user_data(user_id: int, session: AsyncSession) -> dict:
-    """Gather user profile + onboarding data."""
+# ---------------------------------------------------------------------------
+# Reusable query helpers (used by both PDF generation and router endpoints)
+# ---------------------------------------------------------------------------
+
+async def get_user_export_profile(user_id: int, session: AsyncSession) -> dict:
+    """Gather user profile + onboarding data for export/report headers.
+
+    Returns a dict with name, email, goal, and daily macro targets.
+    Always filters by the given user_id to prevent cross-user data leaks.
+    """
     result = await session.execute(
         select(User).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
 
     result = await session.execute(
-        select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
+        select(OnboardingProfile).where(
+            OnboardingProfile.user_id == user_id,
+            OnboardingProfile.deleted_at.is_(None),
+        )
     )
     profile = result.scalar_one_or_none()
 
@@ -52,13 +66,18 @@ async def _get_user_data(user_id: int, session: AsyncSession) -> dict:
     }
 
 
-async def _get_daily_totals(
+async def get_daily_totals(
     user_id: int,
     start_date: date,
     end_date: date,
     session: AsyncSession,
-) -> list:
-    """Get per-day nutrition totals for the date range."""
+) -> list[dict]:
+    """Get per-day nutrition totals for the date range.
+
+    Excludes soft-deleted records.
+    Returns a list of dicts with keys: date, calories, protein_g, carbs_g, fats_g,
+    fiber_g, meals.
+    """
     start_dt = datetime.combine(start_date, dt_time.min)
     end_dt = datetime.combine(end_date, dt_time.max)
 
@@ -69,10 +88,12 @@ async def _get_daily_totals(
             func.coalesce(func.sum(AIFoodLog.protein_g), 0).label("protein_g"),
             func.coalesce(func.sum(AIFoodLog.carbs_g), 0).label("carbs_g"),
             func.coalesce(func.sum(AIFoodLog.fats_g), 0).label("fats_g"),
+            func.coalesce(func.sum(AIFoodLog.fiber_g), 0).label("fiber_g"),
             func.count(AIFoodLog.id).label("meals"),
         )
         .where(
             AIFoodLog.user_id == user_id,
+            AIFoodLog.deleted_at.is_(None),
             AIFoodLog.logged_at >= start_dt,
             AIFoodLog.logged_at <= end_dt,
         )
@@ -87,20 +108,24 @@ async def _get_daily_totals(
             "protein_g": round(float(row.protein_g), 1),
             "carbs_g": round(float(row.carbs_g), 1),
             "fats_g": round(float(row.fats_g), 1),
+            "fiber_g": round(float(row.fiber_g), 1),
             "meals": row.meals,
         }
         for row in result.all()
     ]
 
 
-async def _get_food_log_rows(
+async def get_food_log_rows(
     user_id: int,
     start_date: date,
     end_date: date,
     session: AsyncSession,
     limit: int = 50,
-) -> list:
-    """Get individual food log entries for the report table."""
+) -> list[dict]:
+    """Get individual food log entries for the report table.
+
+    Excludes soft-deleted records. Returns up to `limit` rows, newest first.
+    """
     start_dt = datetime.combine(start_date, dt_time.min)
     end_dt = datetime.combine(end_date, dt_time.max)
 
@@ -108,6 +133,7 @@ async def _get_food_log_rows(
         select(AIFoodLog)
         .where(
             AIFoodLog.user_id == user_id,
+            AIFoodLog.deleted_at.is_(None),
             AIFoodLog.logged_at >= start_dt,
             AIFoodLog.logged_at <= end_dt,
         )
@@ -115,20 +141,27 @@ async def _get_food_log_rows(
         .limit(limit)
     )
 
-    return [
-        {
-            "date": log.logged_at.strftime("%Y-%m-%d"),
-            "time": log.logged_at.strftime("%H:%M"),
-            "meal_type": log.meal_type,
-            "food_name": (log.food_name[:30] + "...") if len(log.food_name) > 30 else log.food_name,
-            "calories": round(log.calories, 0),
-            "protein_g": round(log.protein_g, 1),
-            "carbs_g": round(log.carbs_g, 1),
-            "fats_g": round(log.fats_g, 1),
-        }
-        for log in result.scalars().all()
-    ]
+    rows = []
+    for log in result.scalars().all():
+        food_name = log.food_name or ""
+        if len(food_name) > 30:
+            food_name = food_name[:30] + "..."
+        rows.append({
+            "date": log.logged_at.strftime("%Y-%m-%d") if log.logged_at else "",
+            "time": log.logged_at.strftime("%H:%M") if log.logged_at else "",
+            "meal_type": log.meal_type or "",
+            "food_name": food_name,
+            "calories": round(log.calories, 0) if log.calories is not None else 0,
+            "protein_g": round(log.protein_g, 1) if log.protein_g is not None else 0,
+            "carbs_g": round(log.carbs_g, 1) if log.carbs_g is not None else 0,
+            "fats_g": round(log.fats_g, 1) if log.fats_g is not None else 0,
+        })
+    return rows
 
+
+# ---------------------------------------------------------------------------
+# PDF generation
+# ---------------------------------------------------------------------------
 
 def _generate_pdf_bytes(
     user_data: dict,
@@ -221,12 +254,13 @@ def _generate_pdf_bytes(
         num_days = len(daily_totals)
 
         # Summary stats
-        elements.append(Paragraph(
-            f"Dias activos: {num_days} | "
-            f"Promedio calorias: {round(total_cal / num_days)} kcal/dia | "
-            f"Promedio proteina: {round(total_protein / num_days, 1)}g/dia",
-            normal_style,
-        ))
+        if num_days > 0:
+            elements.append(Paragraph(
+                f"Dias activos: {num_days} | "
+                f"Promedio calorias: {round(total_cal / num_days)} kcal/dia | "
+                f"Promedio proteina: {round(total_protein / num_days, 1)}g/dia",
+                normal_style,
+            ))
         elements.append(Spacer(1, 8))
 
         header = ["Fecha", "Calorias", "Proteina", "Carbos", "Grasas", "Comidas"]
@@ -256,8 +290,8 @@ def _generate_pdf_bytes(
         elements.append(daily_table)
         elements.append(Spacer(1, 16))
 
-        # Macro distribution bar (simple text-based)
-        if total_cal > 0:
+        # Macro distribution
+        if total_cal > 0 and num_days > 0:
             protein_pct = round((total_protein * 4 / total_cal) * 100)
             carbs_pct = round((total_carbs * 4 / total_cal) * 100)
             fats_pct = round((total_fats * 9 / total_cal) * 100)
@@ -316,7 +350,7 @@ def _generate_pdf_bytes(
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#E0E0E0")))
     elements.append(Spacer(1, 6))
     elements.append(Paragraph(
-        f"Generado por Fitsi IA el {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC",
+        f"Generado por Fitsi IA el {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')} UTC",
         ParagraphStyle("Footer", parent=normal_style, fontSize=8, textColor=colors.HexColor("#999999")),
     ))
 
@@ -378,6 +412,10 @@ def _generate_fallback_pdf(
     return "\n".join(pdf_lines).encode("latin-1")
 
 
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
+
 async def generate_nutrition_report_pdf(
     user_id: int,
     session: AsyncSession,
@@ -393,19 +431,27 @@ async def generate_nutrition_report_pdf(
 
     Returns:
         PDF file as bytes.
+
+    Raises:
+        Exception: If PDF generation fails (caller should catch and return 500).
     """
+    if days < 1:
+        days = 1
+    elif days > 365:
+        days = 365
+
     end_date = date.today()
     start_date = end_date - timedelta(days=days)
 
-    user_data = await _get_user_data(user_id, session)
-    daily_totals = await _get_daily_totals(user_id, start_date, end_date, session)
-    food_logs = await _get_food_log_rows(user_id, start_date, end_date, session)
+    user_data = await get_user_export_profile(user_id, session)
+    daily_totals = await get_daily_totals(user_id, start_date, end_date, session)
+    food_logs = await get_food_log_rows(user_id, start_date, end_date, session)
 
     pdf_bytes = _generate_pdf_bytes(user_data, daily_totals, food_logs, start_date, end_date)
 
     logger.info(
-        "PDF report generated: user_id=%s days=%d size=%d bytes",
-        user_id, days, len(pdf_bytes),
+        "PDF report generated: user_id=%s days=%d daily_rows=%d food_rows=%d size=%d bytes",
+        user_id, days, len(daily_totals), len(food_logs), len(pdf_bytes),
     )
 
     return pdf_bytes

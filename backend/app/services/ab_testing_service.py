@@ -46,7 +46,7 @@ def _consistent_hash(user_id: int, experiment_id: int, num_variants: int) -> int
 
 async def get_active_experiments(session: AsyncSession) -> List[Experiment]:
     """Return all currently active experiments."""
-    result = await session.exec(
+    result = await session.execute(
         select(Experiment).where(Experiment.is_active == True)
     )
     return list(result.all())
@@ -74,7 +74,7 @@ async def assign_variant(
         raise ValueError(f"Experiment {experiment_id} is not active")
 
     # Check existing assignment
-    result = await session.exec(
+    result = await session.execute(
         select(ExperimentAssignment).where(
             ExperimentAssignment.user_id == user_id,
             ExperimentAssignment.experiment_id == experiment_id,
@@ -122,7 +122,7 @@ async def record_conversion(
     The user must already be assigned to a variant.
     """
     # Look up assignment to get the variant
-    result = await session.exec(
+    result = await session.execute(
         select(ExperimentAssignment).where(
             ExperimentAssignment.user_id == user_id,
             ExperimentAssignment.experiment_id == experiment_id,

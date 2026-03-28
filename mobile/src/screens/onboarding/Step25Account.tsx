@@ -28,6 +28,11 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
   const [password, setPassword]   = useState('');
   const [showPass, setShowPass]   = useState(false);
   const [loading, setLoading]     = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
 
   const [googleRequest,, googlePromptAsync] = AuthSession.useAuthRequest(
     {
@@ -99,21 +104,59 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
     }
   };
 
+  // ── Validation helpers ──────────────────────────────────────────────────────
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  const validateEmail = (value: string): string => {
+    if (!value.trim()) return 'El correo es obligatorio';
+    if (!EMAIL_REGEX.test(value.trim())) return 'Ingresa un correo valido (ej: tu@email.com)';
+    return '';
+  };
+
+  const validatePassword = (value: string): string => {
+    if (!value) return 'La contrasena es obligatoria';
+    if (value.length < 6) return `Minimo 6 caracteres (faltan ${6 - value.length})`;
+    return '';
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    if (emailTouched) setEmailError(validateEmail(value));
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    if (passwordTouched) setPasswordError(validatePassword(value));
+  };
+
+  const isFormValid = EMAIL_REGEX.test(email.trim()) && password.length >= 6;
+
   // ── Email register / login ─────────────────────────────────────────────────
   const handleEmail = async () => {
-    if (!email.includes('@') || password.length < 6) return;
+    // Touch both fields to show validation
+    setEmailTouched(true);
+    setPasswordTouched(true);
+    const eErr = validateEmail(email);
+    const pErr = validatePassword(password);
+    setEmailError(eErr);
+    setPasswordError(pErr);
+    if (eErr || pErr) return;
+
+    if (loading) return; // Prevent double-tap
+
     try {
       setLoading(true);
       // Try register first, fallback to login if email exists
       try {
-        await authService.register({ email, password });
+        await authService.register({ email: email.trim(), password });
       } catch {
         // Account may already exist — try login
-        await authService.login({ username: email, password });
+        await authService.login({ username: email.trim(), password });
       }
       await syncAndProceed();
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'Error de autenticación.');
+      const message = err?.message ?? 'Error de autenticacion. Verifica tus datos e intenta de nuevo.';
+      Alert.alert('No pudimos crear tu cuenta', message);
     } finally {
       setLoading(false);
     }
@@ -147,55 +190,81 @@ export default function Step25Account({ onNext, onBack, step, totalSteps }: Step
             label="Continuar"
             onPress={handleEmail}
             loading={loading}
-            disabled={!email.includes('@') || password.length < 6}
+            disabled={!isFormValid || loading}
           />
         }
       >
         <Text style={styles.title}>Crea tu{'\n'}cuenta</Text>
 
         <View style={styles.form}>
-          <View style={styles.inputWrapper}>
-            <Ionicons name="mail-outline" size={20} color={colors.gray} />
-            <TextInput
-              style={styles.input}
-              placeholder="Correo electrónico"
-              placeholderTextColor={colors.gray}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel="Correo electronico"
-              accessibilityHint="Ingresa tu direccion de correo electronico"
-            />
+          <View>
+            <View style={[styles.inputWrapper, emailTouched && emailError ? styles.inputWrapperError : undefined]}>
+              <Ionicons name="mail-outline" size={20} color={emailTouched && emailError ? '#EA4335' : colors.gray} />
+              <TextInput
+                style={styles.input}
+                placeholder="Correo electronico"
+                placeholderTextColor={colors.gray}
+                value={email}
+                onChangeText={handleEmailChange}
+                onBlur={() => { setEmailTouched(true); setEmailError(validateEmail(email)); }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                blurOnSubmit={false}
+                textContentType="emailAddress"
+                autoComplete="email"
+                accessibilityLabel="Correo electronico"
+                accessibilityHint="Ingresa tu direccion de correo electronico"
+              />
+              {emailTouched && !emailError && email.length > 0 && (
+                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+              )}
+            </View>
+            {emailTouched && emailError ? (
+              <Text style={styles.errorText}>{emailError}</Text>
+            ) : null}
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={20} color={colors.gray} />
-            <TextInput
-              style={styles.input}
-              placeholder="Contraseña (mín. 6 caracteres)"
-              placeholderTextColor={colors.gray}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPass}
-              autoCapitalize="none"
-              accessibilityLabel="Contrasena"
-              accessibilityHint="Ingresa una contrasena de al menos 6 caracteres"
-            />
-            <TouchableOpacity
-              onPress={() => setShowPass(v => !v)}
-              accessibilityLabel={showPass ? 'Ocultar contrasena' : 'Mostrar contrasena'}
-              accessibilityRole="button"
-            >
-              <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.gray} />
-            </TouchableOpacity>
+          <View>
+            <View style={[styles.inputWrapper, passwordTouched && passwordError ? styles.inputWrapperError : undefined]}>
+              <Ionicons name="lock-closed-outline" size={20} color={passwordTouched && passwordError ? '#EA4335' : colors.gray} />
+              <TextInput
+                ref={passwordRef}
+                style={styles.input}
+                placeholder="Contrasena (min. 6 caracteres)"
+                placeholderTextColor={colors.gray}
+                value={password}
+                onChangeText={handlePasswordChange}
+                onBlur={() => { setPasswordTouched(true); setPasswordError(validatePassword(password)); }}
+                secureTextEntry={!showPass}
+                autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={handleEmail}
+                textContentType="password"
+                autoComplete="password-new"
+                accessibilityLabel="Contrasena"
+                accessibilityHint="Ingresa una contrasena de al menos 6 caracteres"
+              />
+              <TouchableOpacity
+                onPress={() => setShowPass(v => !v)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={showPass ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+                accessibilityRole="button"
+              >
+                <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.gray} />
+              </TouchableOpacity>
+            </View>
+            {passwordTouched && passwordError ? (
+              <Text style={styles.errorText}>{passwordError}</Text>
+            ) : null}
           </View>
 
           <Text style={styles.terms}>
             Al continuar aceptas nuestros{' '}
-            <Text style={styles.link}>Términos</Text> y{' '}
-            <Text style={styles.link}>Política de privacidad</Text>.
+            <Text style={styles.link}>Terminos</Text> y{' '}
+            <Text style={styles.link}>Politica de privacidad</Text>.
           </Text>
         </View>
       </OnboardingLayout>
@@ -330,7 +399,17 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md, height: 56, gap: spacing.sm,
   },
+  inputWrapperError: {
+    borderWidth: 1.5,
+    borderColor: '#EA4335',
+  },
   input: { flex: 1, ...typography.option, color: colors.black },
+  errorText: {
+    ...typography.caption,
+    color: '#EA4335',
+    marginTop: 4,
+    marginLeft: spacing.md,
+  },
   footerContainer: { alignItems: 'center', gap: spacing.sm },
   terms: { ...typography.caption, color: colors.gray, textAlign: 'center', lineHeight: 18 },
   link:  { color: colors.black, fontWeight: '600' },

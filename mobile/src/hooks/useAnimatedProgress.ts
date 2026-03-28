@@ -23,7 +23,7 @@ export default function useAnimatedProgress({
   delay = 0,
   duration = 800,
   spring = false,
-}: AnimatedProgressOptions) {
+}: AnimatedProgressOptions): Animated.Value {
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

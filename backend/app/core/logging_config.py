@@ -13,26 +13,42 @@ In production, every log line is a valid JSON object with consistent fields:
   - module
   - function
   - line
+  - request_id (when available via contextvars)
   - Extra fields are merged into the root object.
 
+Request-ID injection:
+  The ``request_id_var`` ContextVar is set by CorrelationIDMiddleware for each
+  request.  Both the JSON formatter and the dev formatter automatically include
+  it when present, so every log line emitted during a request carries the
+  tracing identifier without callers having to pass it explicitly.
+
 Usage:
-    from app.core.logging_config import setup_logging
+    from app.core.logging_config import setup_logging, request_id_var
     setup_logging()  # Call once at app startup (in lifespan)
+
+    # In middleware:
+    request_id_var.set("abc-123")
 """
 
 import json
 import logging
 import sys
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Any, Dict
+
+# ContextVar holding the current request's correlation ID.  Set by
+# CorrelationIDMiddleware, read by formatters and exception handlers.
+request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
 
 class JSONFormatter(logging.Formatter):
     """
     Formats log records as single-line JSON objects.
 
-    Extra fields attached via `logger.info("msg", extra={"user_id": 42})`
-    are merged into the top-level JSON object.
+    Extra fields attached via ``logger.info("msg", extra={"user_id": 42})``
+    are merged into the top-level JSON object.  The ``request_id`` ContextVar
+    is always included when set.
     """
 
     # Fields from LogRecord that we explicitly handle or want to exclude
@@ -56,6 +72,11 @@ class JSONFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
+        # Inject request_id from contextvars (always present in request scope)
+        rid = request_id_var.get("")
+        if rid:
+            log_entry["request_id"] = rid
+
         # Merge extra fields
         for key, value in record.__dict__.items():
             if key not in self._SKIP_FIELDS and not key.startswith("_"):
@@ -71,9 +92,22 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_entry, default=str, ensure_ascii=False)
 
 
-# Human-readable format for development
+class _RequestIDFilter(logging.Filter):
+    """Logging filter that injects ``request_id`` into every LogRecord.
+
+    This makes ``%(request_id)s`` available in format strings for the
+    development formatter.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = request_id_var.get("")  # type: ignore[attr-defined]
+        return True
+
+
+# Human-readable format for development (now includes request_id when present)
 _DEV_FORMAT = (
-    "%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d | %(message)s"
+    "%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d"
+    " | rid=%(request_id)s | %(message)s"
 )
 
 
@@ -94,6 +128,7 @@ def setup_logging(*, production: bool = False, log_level: str = "INFO") -> None:
     if production:
         handler.setFormatter(JSONFormatter())
     else:
+        handler.addFilter(_RequestIDFilter())
         handler.setFormatter(logging.Formatter(_DEV_FORMAT, datefmt="%Y-%m-%d %H:%M:%S"))
 
     root.addHandler(handler)

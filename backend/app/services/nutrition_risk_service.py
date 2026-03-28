@@ -21,7 +21,7 @@ import json
 import logging
 import math
 import time as time_mod
-from datetime import date, datetime, time as dt_time, timedelta
+from datetime import date, datetime, time as dt_time, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import func
@@ -387,7 +387,7 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
     Retrieve the user's daily macro goals.
     Priority: UserNutritionProfile > OnboardingProfile > sensible defaults.
     """
-    result = await session.exec(
+    result = await session.execute(
         select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
     )
     profile = result.first()
@@ -399,7 +399,7 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
             "carbs_g": int(profile.target_carbs_g),
         })
 
-    result = await session.exec(
+    result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
     onboarding = result.first()
@@ -476,14 +476,14 @@ GOAL_THRESHOLDS: dict[str, dict[str, float]] = {
 
 async def _get_user_goal(user_id: int, session: AsyncSession) -> str:
     """Return the user's goal string (lose_weight / maintain / gain_muscle)."""
-    result = await session.exec(
+    result = await session.execute(
         select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
     )
     profile = result.first()
     if profile is not None and profile.goal:
         return profile.goal.value if hasattr(profile.goal, "value") else str(profile.goal)
 
-    result = await session.exec(
+    result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
     onboarding = result.first()
@@ -513,6 +513,7 @@ async def _get_day_totals(user_id: int, target_date: date, session: AsyncSession
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= day_start,
             AIFoodLog.logged_at <= day_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     row = result.one()
@@ -535,6 +536,7 @@ async def _get_distinct_meals_count(user_id: int, target_date: date, session: As
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= day_start,
             AIFoodLog.logged_at <= day_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     return result.scalar() or 0
@@ -550,6 +552,7 @@ async def _get_meal_hours(user_id: int, target_date: date, session: AsyncSession
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= day_start,
             AIFoodLog.logged_at <= day_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     rows = result.all()
@@ -558,7 +561,7 @@ async def _get_meal_hours(user_id: int, target_date: date, session: AsyncSession
 
 async def _get_water_ml(user_id: int, target_date: date, session: AsyncSession) -> float:
     """Return water intake in ml from DailyNutritionSummary."""
-    result = await session.exec(
+    result = await session.execute(
         select(DailyNutritionSummary.water_ml).where(
             DailyNutritionSummary.user_id == user_id,
             DailyNutritionSummary.date == target_date,
@@ -582,6 +585,7 @@ async def get_consecutive_no_log_days(user_id: int, session: AsyncSession) -> in
                 AIFoodLog.user_id == user_id,
                 AIFoodLog.logged_at >= day_start,
                 AIFoodLog.logged_at <= day_end,
+                AIFoodLog.deleted_at.is_(None),
             )
         )
         if (result.scalar() or 0) > 0:
@@ -982,7 +986,7 @@ def _should_send_intervention(user_id: int, severity: str) -> tuple[bool, Option
     Returns (should_send, last_intervention_at, last_intervention_type).
     """
     key = f"{user_id}:{severity}"
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     last_at = _intervention_cooldowns.get(key)
 
     if last_at is not None and (now - last_at) < timedelta(hours=24):
@@ -994,7 +998,7 @@ def _should_send_intervention(user_id: int, severity: str) -> tuple[bool, Option
 def _record_intervention(user_id: int, severity: str) -> None:
     """Record that an intervention was sent so cooldown kicks in."""
     key = f"{user_id}:{severity}"
-    _intervention_cooldowns[key] = datetime.utcnow()
+    _intervention_cooldowns[key] = datetime.now(timezone.utc)
 
 
 # ---------------------------------------------------------------------------
@@ -1003,7 +1007,7 @@ def _record_intervention(user_id: int, severity: str) -> None:
 
 def _get_time_period() -> str:
     """Return 'morning', 'afternoon', or 'evening' based on current UTC hour."""
-    hour = datetime.utcnow().hour
+    hour = datetime.now(timezone.utc).hour
     if 6 <= hour < 12:
         return "morning"
     elif 12 <= hour < 18:
@@ -1083,7 +1087,7 @@ async def _user_corrected_today(
     Looks at the existing adherence record vs current food log totals.
     """
     today = date.today()
-    result = await session.exec(
+    result = await session.execute(
         select(DailyNutritionAdherence).where(
             DailyNutritionAdherence.user_id == user_id,
             DailyNutritionAdherence.date == today,
@@ -1193,7 +1197,7 @@ async def calculate_daily_adherence(
             user_id,
         )
         # Return a minimal safe default record
-        existing_result = await session.exec(
+        existing_result = await session.execute(
             select(DailyNutritionAdherence).where(
                 DailyNutritionAdherence.user_id == user_id,
                 DailyNutritionAdherence.date == target_date,
@@ -1235,7 +1239,7 @@ async def _calculate_daily_adherence_inner(
     _t0 = time_mod.perf_counter()
 
     # Item 18: Check onboarding completion status early (reused for grace period below)
-    onboarding_result = await session.exec(
+    onboarding_result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
     onboarding = onboarding_result.first()
@@ -1351,7 +1355,7 @@ async def _calculate_daily_adherence_inner(
     plan_snapshot_str = json.dumps(plan_snapshot_dict)
 
     # Upsert: check for existing record
-    result = await session.exec(
+    result = await session.execute(
         select(DailyNutritionAdherence).where(
             DailyNutritionAdherence.user_id == user_id,
             DailyNutritionAdherence.date == target_date,
@@ -1462,7 +1466,7 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
 
     # Fetch last 7 days of adherence records
     week_ago = today - timedelta(days=6)
-    result = await session.exec(
+    result = await session.execute(
         select(DailyNutritionAdherence).where(
             DailyNutritionAdherence.user_id == user_id,
             DailyNutritionAdherence.date >= week_ago,
@@ -1650,13 +1654,13 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
 
     # Item 8: Protein minimum check — read user weight and activity level
     protein_check = None
-    onboarding_result = await session.exec(
+    onboarding_result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
     onboarding_profile = onboarding_result.first()
     if onboarding_profile and onboarding_profile.weight_kg and onboarding_profile.weight_kg > 0:
         # Determine activity level from nutrition profile
-        np_result = await session.exec(
+        np_result = await session.execute(
             select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
         )
         np = np_result.first()
@@ -1679,6 +1683,7 @@ async def get_user_risk_summary(user_id: int, session: AsyncSession) -> dict:
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     last_meal_logged_at_val = last_meal_result.scalar()
@@ -1878,7 +1883,7 @@ async def detect_weekend_pattern(user_id: int, session: AsyncSession) -> dict:
     four_weeks_ago = today - timedelta(days=28)
 
     # Fetch all adherence records for the last 4 weeks
-    result = await session.exec(
+    result = await session.execute(
         select(DailyNutritionAdherence).where(
             DailyNutritionAdherence.user_id == user_id,
             DailyNutritionAdherence.date >= four_weeks_ago,
@@ -1927,6 +1932,7 @@ async def detect_weekend_pattern(user_id: int, session: AsyncSession) -> dict:
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= fl_start,
             AIFoodLog.logged_at <= fl_end,
+            AIFoodLog.deleted_at.is_(None),
         ).order_by(AIFoodLog.logged_at)
     )
     food_log_rows = food_log_result.all()
@@ -2006,7 +2012,7 @@ async def detect_chronic_underreporting(user_id: int, session: AsyncSession) -> 
     today = date.today()
     start = today - timedelta(days=13)
 
-    result = await session.exec(
+    result = await session.execute(
         select(DailyNutritionAdherence).where(
             DailyNutritionAdherence.user_id == user_id,
             DailyNutritionAdherence.date >= start,
@@ -2104,7 +2110,7 @@ async def get_weight_risk_context(user_id: int, session: AsyncSession) -> dict:
     profile's weight_kg (current at signup) and target_weight_kg. Weekly change
     is estimated from the configured weekly_speed_kg and goal direction.
     """
-    result = await session.exec(
+    result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
     )
     profile = result.first()
@@ -2175,7 +2181,7 @@ async def detect_exercise_nutrition_correlation(
         workout_dates.add(dt_val.date() if hasattr(dt_val, "date") else dt_val)
 
     # Get adherence records in the window
-    adh_result = await session.exec(
+    adh_result = await session.execute(
         select(DailyNutritionAdherence).where(
             DailyNutritionAdherence.user_id == user_id,
             DailyNutritionAdherence.date >= start_date,

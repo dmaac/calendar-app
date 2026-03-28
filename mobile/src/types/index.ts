@@ -223,6 +223,14 @@ export interface AIFoodLog {
  *   - Removed legacy fields (total_protein, total_carbs, total_fat, etc.)
  *   - Removed meals_count alias — backend returns meals_logged only
  */
+/** Single exercise entry from today's workout log. */
+export interface ExerciseToday {
+  name: string;
+  duration: number;
+  calories: number;
+  workout_type: string;
+}
+
 export interface DailySummary {
   date: string;
   total_calories: number;
@@ -236,6 +244,14 @@ export interface DailySummary {
   water_ml: number;
   meals_logged: number;
   streak_days: number;
+  /** Calories burned through exercise today. */
+  calories_burned_exercise: number;
+  /** target - consumed + burned. */
+  calories_remaining: number;
+  /** consumed - burned. */
+  net_calories: number;
+  /** List of exercises performed today. */
+  exercises_today: ExerciseToday[];
 }
 
 // ─── Subscription ─────────────────────────────────────────────────────────────

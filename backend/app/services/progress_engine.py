@@ -1,8 +1,11 @@
 """
-Fitsia Progress Engine — XP, Levels, Streaks, Coins, and Achievements.
+Fitsia Progress Engine -- XP, Levels, Streaks, Coins, and Achievements.
 
 Core gamification engine for nutrition adherence. Manages experience points,
 level progression, streak tracking, coin economy, and achievement evaluation.
+
+IMPORTANT: Streak logic is delegated to streak_engine.py to avoid duplication.
+This module's update_streak() is a thin wrapper around streak_engine.update_streak().
 """
 
 import json
@@ -29,9 +32,12 @@ from ..models.progress import (
     WeeklyChallenge,
 )
 
+# Import streak engine to delegate streak logic (avoid duplication)
+from . import streak_engine
+
 logger = logging.getLogger(__name__)
 
-# ─── XP Rules ────────────────────────────────────────────────────────────────
+# --- XP Rules ---------------------------------------------------------------
 
 XP_RULES = {
     "register_meal": 10,
@@ -48,7 +54,7 @@ XP_RULES = {
 
 XP_DAILY_MAX = 200
 
-# ─── Coin Rules ──────────────────────────────────────────────────────────────
+# --- Coin Rules --------------------------------------------------------------
 
 COIN_RULES = {
     "streak_7": 50,
@@ -60,7 +66,7 @@ COIN_RULES = {
     "achievement_epic": 50,
 }
 
-# ─── Level Curve (20 levels) ────────────────────────────────────────────────
+# --- Level Curve (20 levels) -------------------------------------------------
 
 LEVELS = [
     {"level": 1,  "name": "Comienzo",          "xp_required": 0},
@@ -76,7 +82,7 @@ LEVELS = [
     {"level": 11, "name": "Dominando",          "xp_required": 7500},
     {"level": 12, "name": "Fuerza interior",    "xp_required": 10000},
     {"level": 13, "name": "Inquebrantable",     "xp_required": 13000},
-    {"level": 14, "name": "Maestro nutricional","xp_required": 17000},
+    {"level": 14, "name": "Maestro nutricional", "xp_required": 17000},
     {"level": 15, "name": "Elite",              "xp_required": 22000},
     {"level": 16, "name": "Leyenda",            "xp_required": 28000},
     {"level": 17, "name": "Titan",              "xp_required": 35000},
@@ -87,7 +93,18 @@ LEVELS = [
 
 
 def get_level_for_xp(xp: int) -> dict:
-    """Return current level info + progress to next level."""
+    """Return current level info + progress to next level.
+
+    Args:
+        xp: Total XP accumulated.
+
+    Returns:
+        dict with level, name, xp_total, xp_in_level, xp_for_next,
+        progress_pct, next_level, next_name, is_max_level.
+    """
+    if xp < 0:
+        xp = 0
+
     current = LEVELS[0]
     for lvl in LEVELS:
         if xp >= lvl["xp_required"]:
@@ -143,7 +160,7 @@ async def _get_today_xp(user_id: int, session: AsyncSession) -> int:
             ProgressEvent.created_at >= today_start,
         )
     )
-    return result.scalar() or 0
+    return result.scalar_one() or 0
 
 
 async def _log_event(
@@ -173,58 +190,82 @@ async def award_xp(
     reason: str,
     session: AsyncSession,
 ) -> dict:
-    """
-    Add XP to user, enforcing daily cap. Check for level up.
-    Returns {xp_added, new_total, level_up, new_level, capped}.
-    """
-    profile = await _get_or_create_profile(user_id, session)
-    today_xp = await _get_today_xp(user_id, session)
+    """Add XP to user, enforcing daily cap. Check for level up.
 
-    remaining_cap = max(0, XP_DAILY_MAX - today_xp)
-    actual_xp = min(amount, remaining_cap)
-    capped = actual_xp < amount
+    Args:
+        user_id: The user to award XP to.
+        amount: Desired XP amount (will be capped at daily max).
+        reason: Human-readable reason for the XP award.
+        session: Async DB session.
 
-    if actual_xp <= 0:
+    Returns:
+        {xp_added, new_total, level_up, new_level, capped}.
+    """
+    if amount <= 0:
         return {
             "xp_added": 0,
-            "new_total": profile.nutrition_xp_total,
+            "new_total": 0,
             "level_up": False,
             "new_level": None,
-            "capped": True,
+            "capped": False,
         }
 
-    old_level = get_level_for_xp(profile.nutrition_xp_total)["level"]
-    profile.nutrition_xp_total += actual_xp
-    profile.last_progress_event_at = datetime.utcnow()
+    try:
+        profile = await _get_or_create_profile(user_id, session)
+        today_xp = await _get_today_xp(user_id, session)
 
-    new_level_info = get_level_for_xp(profile.nutrition_xp_total)
-    level_up = new_level_info["level"] > old_level
+        remaining_cap = max(0, XP_DAILY_MAX - today_xp)
+        actual_xp = min(amount, remaining_cap)
+        capped = actual_xp < amount
 
-    if level_up:
-        profile.nutrition_level = new_level_info["level"]
-        coins_for_level = COIN_RULES["level_up"]
-        profile.fitsia_coins_balance += coins_for_level
+        if actual_xp <= 0:
+            return {
+                "xp_added": 0,
+                "new_total": profile.nutrition_xp_total,
+                "level_up": False,
+                "new_level": None,
+                "capped": True,
+            }
+
+        old_level = get_level_for_xp(profile.nutrition_xp_total)["level"]
+        profile.nutrition_xp_total += actual_xp
+        profile.last_progress_event_at = datetime.now(timezone.utc)
+
+        new_level_info = get_level_for_xp(profile.nutrition_xp_total)
+        level_up = new_level_info["level"] > old_level
+
+        if level_up:
+            profile.nutrition_level = new_level_info["level"]
+            coins_for_level = COIN_RULES["level_up"]
+            profile.fitsia_coins_balance += coins_for_level
+            await _log_event(
+                user_id, "level_up", session,
+                xp_amount=0, coins_amount=coins_for_level,
+                metadata={"old_level": old_level, "new_level": new_level_info["level"], "name": new_level_info["name"]},
+            )
+            logger.info(
+                "Level up: user_id=%d %d->%d (%s)",
+                user_id, old_level, new_level_info["level"], new_level_info["name"],
+            )
+
         await _log_event(
-            user_id, "level_up", session,
-            xp_amount=0, coins_amount=coins_for_level,
-            metadata={"old_level": old_level, "new_level": new_level_info["level"], "name": new_level_info["name"]},
+            user_id, "xp_earned", session,
+            xp_amount=actual_xp,
+            metadata={"reason": reason, "capped": capped},
         )
 
-    await _log_event(
-        user_id, "xp_earned", session,
-        xp_amount=actual_xp,
-        metadata={"reason": reason, "capped": capped},
-    )
+        await session.flush()
 
-    await session.flush()
-
-    return {
-        "xp_added": actual_xp,
-        "new_total": profile.nutrition_xp_total,
-        "level_up": level_up,
-        "new_level": new_level_info if level_up else None,
-        "capped": capped,
-    }
+        return {
+            "xp_added": actual_xp,
+            "new_total": profile.nutrition_xp_total,
+            "level_up": level_up,
+            "new_level": new_level_info if level_up else None,
+            "capped": capped,
+        }
+    except Exception:
+        logger.exception("Error awarding XP: user_id=%d amount=%d reason=%s", user_id, amount, reason)
+        raise
 
 
 async def award_coins(
@@ -233,350 +274,363 @@ async def award_coins(
     reason: str,
     session: AsyncSession,
 ) -> dict:
-    """Add coins to user balance. Returns {coins_added, new_balance}."""
-    profile = await _get_or_create_profile(user_id, session)
-    profile.fitsia_coins_balance += amount
-    profile.last_progress_event_at = datetime.utcnow()
+    """Add coins to user balance.
 
-    await _log_event(
-        user_id, "coins_earned", session,
-        coins_amount=amount,
-        metadata={"reason": reason},
-    )
-    await session.flush()
+    Args:
+        user_id: The user.
+        amount: Number of coins to add (must be > 0).
+        reason: Human-readable reason.
+        session: Async DB session.
 
-    return {
-        "coins_added": amount,
-        "new_balance": profile.fitsia_coins_balance,
-    }
+    Returns:
+        {coins_added, new_balance}.
+    """
+    if amount <= 0:
+        logger.warning("Attempted to award non-positive coins: user_id=%d amount=%d", user_id, amount)
+        return {"coins_added": 0, "new_balance": 0}
+
+    try:
+        profile = await _get_or_create_profile(user_id, session)
+        profile.fitsia_coins_balance += amount
+        profile.last_progress_event_at = datetime.now(timezone.utc)
+
+        await _log_event(
+            user_id, "coins_earned", session,
+            coins_amount=amount,
+            metadata={"reason": reason},
+        )
+        await session.flush()
+
+        return {
+            "coins_added": amount,
+            "new_balance": profile.fitsia_coins_balance,
+        }
+    except Exception:
+        logger.exception("Error awarding coins: user_id=%d amount=%d", user_id, amount)
+        raise
 
 
 async def update_streak(user_id: int, session: AsyncSession) -> dict:
+    """Delegate to streak_engine.update_streak to avoid duplicated logic.
+
+    The streak_engine version has proper double-counting protection,
+    milestone tracking, and freeze management.
+
+    Returns:
+        {streak_days, extended, frozen, lost, best_streak, milestone_hit, is_at_risk}.
     """
-    Check if streak continues based on today's food logs.
-    If no log today and no freeze, reset streak.
-    Returns {streak_days, extended, frozen, lost, best_streak}.
+    return await streak_engine.update_streak(user_id, session)
+
+
+def _compute_calorie_adherence_pct(adherence: DailyNutritionAdherence) -> Optional[float]:
+    """Compute calorie adherence percentage from the model's fields.
+
+    The model stores calories_ratio (logged/target). We convert to percentage.
+    Returns None if data is insufficient.
     """
-    profile = await _get_or_create_profile(user_id, session)
-    today = date.today()
-    yesterday = today - timedelta(days=1)
+    if adherence.calories_target <= 0:
+        return None
+    return round((adherence.calories_logged / adherence.calories_target) * 100, 1)
 
-    # Check if user logged food today
-    today_start = datetime.combine(today, datetime.min.time())
-    today_end = datetime.combine(today, datetime.max.time())
-    result = await session.execute(
-        select(sa_func.count(AIFoodLog.id)).where(
-            AIFoodLog.user_id == user_id,
-            AIFoodLog.logged_at >= today_start,
-            AIFoodLog.logged_at <= today_end,
-        )
-    )
-    today_logs = result.scalar() or 0
 
-    if today_logs > 0:
-        # Streak continues
-        profile.current_streak_days += 1
-        if profile.current_streak_days > profile.best_streak_days:
-            profile.best_streak_days = profile.current_streak_days
+def _compute_protein_adherence_pct(adherence: DailyNutritionAdherence) -> Optional[float]:
+    """Compute protein adherence percentage from logged vs target.
 
-        await _log_event(
-            user_id, "streak_extended", session,
-            metadata={"days": profile.current_streak_days},
-        )
-
-        # Check streak milestones for coin rewards
-        streak = profile.current_streak_days
-        if streak == 7:
-            await award_coins(user_id, COIN_RULES["streak_7"], "streak_7", session)
-        elif streak == 14:
-            await award_coins(user_id, COIN_RULES["streak_14"], "streak_14", session)
-        elif streak == 30:
-            await award_coins(user_id, COIN_RULES["streak_30"], "streak_30", session)
-
-        await session.flush()
-        return {
-            "streak_days": profile.current_streak_days,
-            "extended": True,
-            "frozen": False,
-            "lost": False,
-            "best_streak": profile.best_streak_days,
-        }
-
-    # No logs today — try to use a freeze
-    if profile.streak_freezes_available > 0 and profile.current_streak_days > 0:
-        profile.streak_freezes_available -= 1
-        await _log_event(
-            user_id, "streak_frozen", session,
-            metadata={"days": profile.current_streak_days, "freezes_left": profile.streak_freezes_available},
-        )
-        await session.flush()
-        return {
-            "streak_days": profile.current_streak_days,
-            "extended": False,
-            "frozen": True,
-            "lost": False,
-            "best_streak": profile.best_streak_days,
-        }
-
-    # Streak lost
-    old_streak = profile.current_streak_days
-    if old_streak > 0:
-        profile.current_streak_days = 0
-        await _log_event(
-            user_id, "streak_lost", session,
-            metadata={"old_streak": old_streak},
-        )
-        await session.flush()
-
-    return {
-        "streak_days": 0,
-        "extended": False,
-        "frozen": False,
-        "lost": old_streak > 0,
-        "best_streak": profile.best_streak_days,
-    }
+    Returns None if target is 0 or not set.
+    """
+    if adherence.protein_target <= 0:
+        return None
+    return round((adherence.protein_logged / adherence.protein_target) * 100, 1)
 
 
 async def process_daily_progress(user_id: int, session: AsyncSession) -> dict:
-    """
-    Evaluate all XP-worthy actions for the day and award XP accordingly.
+    """Evaluate all XP-worthy actions for the day and award XP accordingly.
+
     Called when a user logs food or at end of day via batch job.
-    Returns summary of all XP/coins awarded.
+
+    Returns summary of all XP/coins awarded, streak status, and profile state.
     """
-    profile = await _get_or_create_profile(user_id, session)
-    today = date.today()
-    today_start = datetime.combine(today, datetime.min.time())
-    today_end = datetime.combine(today, datetime.max.time())
+    try:
+        profile = await _get_or_create_profile(user_id, session)
+        today = date.today()
+        today_start = datetime.combine(today, datetime.min.time())
+        today_end = datetime.combine(today, datetime.max.time())
 
-    awards = []
+        awards: list[dict] = []
 
-    # 1. Count meals logged today
-    meal_count_result = await session.execute(
-        select(sa_func.count(AIFoodLog.id)).where(
-            AIFoodLog.user_id == user_id,
-            AIFoodLog.logged_at >= today_start,
-            AIFoodLog.logged_at <= today_end,
+        # 1. Count meals logged today
+        meal_count_result = await session.execute(
+            select(sa_func.count(AIFoodLog.id)).where(
+                AIFoodLog.user_id == user_id,
+                AIFoodLog.logged_at >= today_start,
+                AIFoodLog.logged_at <= today_end,
+                AIFoodLog.deleted_at.is_(None),
+            )
         )
-    )
-    meals_today = meal_count_result.scalar() or 0
+        meals_today = meal_count_result.scalar_one() or 0
 
-    if meals_today >= 1:
-        result = await award_xp(user_id, XP_RULES["register_meal"], "register_meal", session)
-        awards.append({"action": "register_meal", **result})
+        if meals_today >= 1:
+            result = await award_xp(user_id, XP_RULES["register_meal"], "register_meal", session)
+            awards.append({"action": "register_meal", **result})
 
-    if meals_today >= 3:
-        result = await award_xp(user_id, XP_RULES["register_3_meals"], "register_3_meals", session)
-        awards.append({"action": "register_3_meals", **result})
+        if meals_today >= 3:
+            result = await award_xp(user_id, XP_RULES["register_3_meals"], "register_3_meals", session)
+            awards.append({"action": "register_3_meals", **result})
 
-    # 2. Check meal type coverage (breakfast, lunch, dinner)
-    meal_types_result = await session.execute(
-        select(sa_func.count(sa_func.distinct(AIFoodLog.meal_type))).where(
-            AIFoodLog.user_id == user_id,
-            AIFoodLog.logged_at >= today_start,
-            AIFoodLog.logged_at <= today_end,
+        # 2. Check meal type coverage (breakfast, lunch, dinner)
+        meal_types_result = await session.execute(
+            select(sa_func.count(sa_func.distinct(AIFoodLog.meal_type))).where(
+                AIFoodLog.user_id == user_id,
+                AIFoodLog.logged_at >= today_start,
+                AIFoodLog.logged_at <= today_end,
+                AIFoodLog.deleted_at.is_(None),
+            )
         )
-    )
-    distinct_meal_types = meal_types_result.scalar() or 0
-    if distinct_meal_types >= 3:
-        result = await award_xp(user_id, XP_RULES["complete_day"], "complete_day", session)
-        awards.append({"action": "complete_day", **result})
+        distinct_meal_types = meal_types_result.scalar_one() or 0
+        if distinct_meal_types >= 3:
+            result = await award_xp(user_id, XP_RULES["complete_day"], "complete_day", session)
+            awards.append({"action": "complete_day", **result})
 
-    # 3. Check calorie adherence (within 10% of target)
-    adherence_result = await session.execute(
-        select(DailyNutritionAdherence).where(
-            DailyNutritionAdherence.user_id == user_id,
-            DailyNutritionAdherence.date == today,
+        # 3. Check calorie adherence (within 10% of target)
+        # FIX: The model uses calories_ratio and protein_logged/protein_target,
+        # NOT calorie_adherence_pct / protein_adherence_pct (those fields do not exist).
+        adherence_result = await session.execute(
+            select(DailyNutritionAdherence).where(
+                DailyNutritionAdherence.user_id == user_id,
+                DailyNutritionAdherence.date == today,
+            )
         )
-    )
-    adherence = adherence_result.scalar_one_or_none()
-    if adherence and adherence.calorie_adherence_pct is not None:
-        if 90 <= adherence.calorie_adherence_pct <= 110:
-            result = await award_xp(user_id, XP_RULES["hit_calorie_range"], "hit_calorie_range", session)
-            awards.append({"action": "hit_calorie_range", **result})
+        adherence = adherence_result.scalar_one_or_none()
 
-    if adherence and adherence.protein_adherence_pct is not None:
-        if adherence.protein_adherence_pct >= 90:
-            result = await award_xp(user_id, XP_RULES["hit_protein"], "hit_protein", session)
-            awards.append({"action": "hit_protein", **result})
+        if adherence:
+            calorie_pct = _compute_calorie_adherence_pct(adherence)
+            if calorie_pct is not None and 90 <= calorie_pct <= 110:
+                result = await award_xp(user_id, XP_RULES["hit_calorie_range"], "hit_calorie_range", session)
+                awards.append({"action": "hit_calorie_range", **result})
 
-    # 4. Check daily missions completion
-    missions_result = await session.execute(
-        select(sa_func.count(UserDailyMissionStatus.id)).where(
-            UserDailyMissionStatus.user_id == user_id,
-            UserDailyMissionStatus.date == today,
-            UserDailyMissionStatus.completed == True,
+            protein_pct = _compute_protein_adherence_pct(adherence)
+            if protein_pct is not None and protein_pct >= 90:
+                result = await award_xp(user_id, XP_RULES["hit_protein"], "hit_protein", session)
+                awards.append({"action": "hit_protein", **result})
+
+        # 4. Check daily missions completion
+        missions_result = await session.execute(
+            select(sa_func.count(UserDailyMissionStatus.id)).where(
+                UserDailyMissionStatus.user_id == user_id,
+                UserDailyMissionStatus.date == today,
+                UserDailyMissionStatus.completed == True,  # noqa: E712
+            )
         )
-    )
-    missions_completed = missions_result.scalar() or 0
-    if missions_completed >= 3:
-        result = await award_xp(user_id, XP_RULES["complete_3_missions"], "complete_3_missions", session)
-        awards.append({"action": "complete_3_missions", **result})
+        missions_completed = missions_result.scalar_one() or 0
+        if missions_completed >= 3:
+            result = await award_xp(user_id, XP_RULES["complete_3_missions"], "complete_3_missions", session)
+            awards.append({"action": "complete_3_missions", **result})
 
-    # 5. Check comeback bonus (returning after inactivity)
-    if profile.last_progress_event_at:
-        days_inactive = (datetime.utcnow() - profile.last_progress_event_at).days
-        if days_inactive >= 7:
-            result = await award_xp(user_id, XP_RULES["comeback_after_7d"], "comeback_after_7d", session)
-            awards.append({"action": "comeback_after_7d", **result})
-            # Update motivation state
-            profile.motivation_state = "returning"
-        elif days_inactive >= 3:
-            result = await award_xp(user_id, XP_RULES["comeback_after_3d"], "comeback_after_3d", session)
-            awards.append({"action": "comeback_after_3d", **result})
-            profile.motivation_state = "returning"
+        # 5. Check comeback bonus (returning after inactivity)
+        if profile.last_progress_event_at:
+            days_inactive = (datetime.now(timezone.utc) - profile.last_progress_event_at).days
+            if days_inactive >= 7:
+                result = await award_xp(user_id, XP_RULES["comeback_after_7d"], "comeback_after_7d", session)
+                awards.append({"action": "comeback_after_7d", **result})
+                profile.motivation_state = "returning"
+            elif days_inactive >= 3:
+                result = await award_xp(user_id, XP_RULES["comeback_after_3d"], "comeback_after_3d", session)
+                awards.append({"action": "comeback_after_3d", **result})
+                profile.motivation_state = "returning"
+            else:
+                profile.motivation_state = "active"
         else:
             profile.motivation_state = "active"
-    else:
-        profile.motivation_state = "active"
 
-    # 6. Check 3-day improvement trend
-    three_days_ago = today - timedelta(days=3)
-    trend_result = await session.execute(
-        select(DailyNutritionAdherence.overall_score).where(
-            DailyNutritionAdherence.user_id == user_id,
-            DailyNutritionAdherence.date >= three_days_ago,
-            DailyNutritionAdherence.date <= today,
-        ).order_by(DailyNutritionAdherence.date.asc())
-    )
-    scores = [row[0] for row in trend_result.all() if row[0] is not None]
-    if len(scores) >= 3:
-        improving = all(scores[i] < scores[i + 1] for i in range(len(scores) - 1))
-        if improving:
-            result = await award_xp(user_id, XP_RULES["improvement_3d"], "improvement_3d", session)
-            awards.append({"action": "improvement_3d", **result})
+        # 6. Check 3-day improvement trend
+        # FIX: Use diet_quality_score instead of non-existent overall_score
+        three_days_ago = today - timedelta(days=3)
+        trend_result = await session.execute(
+            select(DailyNutritionAdherence.diet_quality_score).where(
+                DailyNutritionAdherence.user_id == user_id,
+                DailyNutritionAdherence.date >= three_days_ago,
+                DailyNutritionAdherence.date <= today,
+            ).order_by(DailyNutritionAdherence.date.asc())
+        )
+        scores = [row[0] for row in trend_result.all() if row[0] is not None]
+        if len(scores) >= 3:
+            improving = all(scores[i] < scores[i + 1] for i in range(len(scores) - 1))
+            if improving:
+                result = await award_xp(user_id, XP_RULES["improvement_3d"], "improvement_3d", session)
+                awards.append({"action": "improvement_3d", **result})
 
-    # Update streak
-    streak_result = await update_streak(user_id, session)
+        # Update streak (delegated to streak_engine)
+        streak_result = await update_streak(user_id, session)
 
-    await session.commit()
+        await session.commit()
 
-    total_xp = sum(a.get("xp_added", 0) for a in awards)
-    return {
-        "user_id": user_id,
-        "date": str(today),
-        "awards": awards,
-        "total_xp_earned": total_xp,
-        "streak": streak_result,
-        "profile": {
-            "xp_total": profile.nutrition_xp_total,
-            "level": profile.nutrition_level,
-            "coins": profile.fitsia_coins_balance,
-            "motivation_state": profile.motivation_state,
-        },
-    }
+        total_xp = sum(a.get("xp_added", 0) for a in awards)
+        logger.info(
+            "Daily progress processed: user_id=%d total_xp=%d awards=%d streak=%d",
+            user_id, total_xp, len(awards), streak_result.get("streak_days", 0),
+        )
+
+        return {
+            "user_id": user_id,
+            "date": str(today),
+            "awards": awards,
+            "total_xp_earned": total_xp,
+            "streak": streak_result,
+            "profile": {
+                "xp_total": profile.nutrition_xp_total,
+                "level": profile.nutrition_level,
+                "coins": profile.fitsia_coins_balance,
+                "motivation_state": profile.motivation_state,
+            },
+        }
+    except Exception:
+        await session.rollback()
+        logger.exception("Error processing daily progress: user_id=%d", user_id)
+        raise
 
 
 async def check_achievements(user_id: int, session: AsyncSession) -> list[dict]:
+    """Evaluate all achievement definitions against user state.
+
+    Unlocks any newly earned achievements and awards associated XP/coins.
+
+    PERF: Pre-fetches all needed counts in batch queries upfront instead of
+    issuing individual queries per achievement definition inside the loop
+    (eliminates N+1 query pattern).
+
+    Returns:
+        List of newly unlocked achievement dicts.
     """
-    Evaluate all achievement definitions against user state.
-    Unlock any newly earned achievements and return the list.
-    """
-    profile = await _get_or_create_profile(user_id, session)
+    try:
+        profile = await _get_or_create_profile(user_id, session)
 
-    # Get already unlocked achievement IDs
-    unlocked_result = await session.execute(
-        select(UserAchievement.achievement_id).where(UserAchievement.user_id == user_id)
-    )
-    unlocked_ids = {row[0] for row in unlocked_result.all()}
+        # Get already unlocked achievement IDs
+        unlocked_result = await session.execute(
+            select(UserAchievement.achievement_id).where(UserAchievement.user_id == user_id)
+        )
+        unlocked_ids = {row[0] for row in unlocked_result.all()}
 
-    # Get all achievement definitions
-    all_defs_result = await session.execute(select(AchievementDefinition))
-    all_defs = all_defs_result.scalars().all()
+        # Get all achievement definitions
+        all_defs_result = await session.execute(select(AchievementDefinition))
+        all_defs = all_defs_result.scalars().all()
 
-    newly_unlocked = []
-
-    for defn in all_defs:
-        if defn.id in unlocked_ids:
-            continue
-
-        earned = False
-
-        if defn.condition_type == "streak":
-            earned = profile.best_streak_days >= defn.condition_value
-
-        elif defn.condition_type == "count":
-            # Count total meals logged
-            count_result = await session.execute(
-                select(sa_func.count(AIFoodLog.id)).where(AIFoodLog.user_id == user_id)
+        # ── Batch pre-fetch: run all needed counts ONCE upfront ──────────
+        # Total meals logged (for "count" condition type)
+        count_result = await session.execute(
+            select(sa_func.count(AIFoodLog.id)).where(
+                AIFoodLog.user_id == user_id,
+                AIFoodLog.deleted_at.is_(None),
             )
-            total_meals = count_result.scalar() or 0
-            earned = total_meals >= defn.condition_value
+        )
+        total_meals = count_result.scalar_one() or 0
 
-        elif defn.condition_type == "threshold":
-            # XP threshold
-            earned = profile.nutrition_xp_total >= defn.condition_value
+        # Comeback events count (for "comeback" condition type)
+        comeback_result = await session.execute(
+            select(sa_func.count(ProgressEvent.id)).where(
+                ProgressEvent.user_id == user_id,
+                ProgressEvent.event_type == "xp_earned",
+                ProgressEvent.metadata_json.contains("comeback"),
+            )
+        )
+        total_comebacks = comeback_result.scalar_one() or 0
 
-        elif defn.condition_type == "comeback":
-            # Check if user has a comeback event
-            comeback_result = await session.execute(
-                select(sa_func.count(ProgressEvent.id)).where(
-                    ProgressEvent.user_id == user_id,
-                    ProgressEvent.event_type == "xp_earned",
-                    ProgressEvent.metadata_json.contains("comeback"),
+        # Improvement events count (for "improvement" condition type)
+        improve_result = await session.execute(
+            select(sa_func.count(ProgressEvent.id)).where(
+                ProgressEvent.user_id == user_id,
+                ProgressEvent.event_type == "xp_earned",
+                ProgressEvent.metadata_json.contains("improvement"),
+            )
+        )
+        total_improvements = improve_result.scalar_one() or 0
+
+        # Completed missions count (for "missions" condition type)
+        missions_result = await session.execute(
+            select(sa_func.count(UserDailyMissionStatus.id)).where(
+                UserDailyMissionStatus.user_id == user_id,
+                UserDailyMissionStatus.completed == True,  # noqa: E712
+            )
+        )
+        total_missions = missions_result.scalar_one() or 0
+
+        # ── Evaluate each definition using pre-fetched stats ─────────────
+        newly_unlocked: list[dict] = []
+
+        for defn in all_defs:
+            if defn.id in unlocked_ids:
+                continue
+
+            earned = False
+
+            if defn.condition_type == "streak":
+                earned = profile.best_streak_days >= defn.condition_value
+
+            elif defn.condition_type == "count":
+                earned = total_meals >= defn.condition_value
+
+            elif defn.condition_type == "threshold":
+                earned = profile.nutrition_xp_total >= defn.condition_value
+
+            elif defn.condition_type == "comeback":
+                earned = total_comebacks >= defn.condition_value
+
+            elif defn.condition_type == "improvement":
+                earned = total_improvements >= defn.condition_value
+
+            elif defn.condition_type == "level":
+                earned = profile.nutrition_level >= defn.condition_value
+
+            elif defn.condition_type == "missions":
+                earned = total_missions >= defn.condition_value
+
+            else:
+                logger.warning(
+                    "Unknown achievement condition_type=%s for code=%s",
+                    defn.condition_type, defn.code,
                 )
-            )
-            comebacks = comeback_result.scalar() or 0
-            earned = comebacks >= defn.condition_value
 
-        elif defn.condition_type == "improvement":
-            # Check improvement events
-            improve_result = await session.execute(
-                select(sa_func.count(ProgressEvent.id)).where(
-                    ProgressEvent.user_id == user_id,
-                    ProgressEvent.event_type == "xp_earned",
-                    ProgressEvent.metadata_json.contains("improvement"),
+            if earned:
+                ua = UserAchievement(user_id=user_id, achievement_id=defn.id)
+                session.add(ua)
+
+                # Award XP and coins for the achievement
+                if defn.xp_reward > 0:
+                    await award_xp(user_id, defn.xp_reward, f"achievement_{defn.code}", session)
+                coin_key = f"achievement_{defn.rarity}"
+                coin_amount = COIN_RULES.get(coin_key, 0) + defn.coins_reward
+                if coin_amount > 0:
+                    await award_coins(user_id, coin_amount, f"achievement_{defn.code}", session)
+
+                await _log_event(
+                    user_id, "achievement_unlocked", session,
+                    xp_amount=defn.xp_reward,
+                    coins_amount=coin_amount,
+                    metadata={"code": defn.code, "name": defn.name, "rarity": defn.rarity},
                 )
-            )
-            improvements = improve_result.scalar() or 0
-            earned = improvements >= defn.condition_value
 
-        elif defn.condition_type == "level":
-            earned = profile.nutrition_level >= defn.condition_value
+                newly_unlocked.append({
+                    "code": defn.code,
+                    "name": defn.name,
+                    "description": defn.description,
+                    "category": defn.category,
+                    "rarity": defn.rarity,
+                    "icon": defn.icon,
+                    "xp_reward": defn.xp_reward,
+                    "coins_reward": coin_amount,
+                })
 
-        elif defn.condition_type == "missions":
-            missions_result = await session.execute(
-                select(sa_func.count(UserDailyMissionStatus.id)).where(
-                    UserDailyMissionStatus.user_id == user_id,
-                    UserDailyMissionStatus.completed == True,
+                logger.info(
+                    "Achievement unlocked: user_id=%d code=%s rarity=%s",
+                    user_id, defn.code, defn.rarity,
                 )
-            )
-            total_missions = missions_result.scalar() or 0
-            earned = total_missions >= defn.condition_value
 
-        if earned:
-            ua = UserAchievement(user_id=user_id, achievement_id=defn.id)
-            session.add(ua)
+        if newly_unlocked:
+            await session.flush()
 
-            # Award XP and coins for the achievement
-            if defn.xp_reward > 0:
-                await award_xp(user_id, defn.xp_reward, f"achievement_{defn.code}", session)
-            coin_key = f"achievement_{defn.rarity}"
-            coin_amount = COIN_RULES.get(coin_key, 0) + defn.coins_reward
-            if coin_amount > 0:
-                await award_coins(user_id, coin_amount, f"achievement_{defn.code}", session)
-
-            await _log_event(
-                user_id, "achievement_unlocked", session,
-                xp_amount=defn.xp_reward,
-                coins_amount=coin_amount,
-                metadata={"code": defn.code, "name": defn.name, "rarity": defn.rarity},
-            )
-
-            newly_unlocked.append({
-                "code": defn.code,
-                "name": defn.name,
-                "description": defn.description,
-                "category": defn.category,
-                "rarity": defn.rarity,
-                "icon": defn.icon,
-                "xp_reward": defn.xp_reward,
-                "coins_reward": coin_amount,
-            })
-
-    if newly_unlocked:
-        await session.flush()
-
-    return newly_unlocked
+        return newly_unlocked
+    except Exception:
+        logger.exception("Error checking achievements: user_id=%d", user_id)
+        raise
 
 
 async def redeem_reward(
@@ -584,122 +638,184 @@ async def redeem_reward(
     reward_id: int,
     session: AsyncSession,
 ) -> dict:
+    """Redeem a reward from the catalog. Deducts coins.
+
+    Uses SELECT ... FOR UPDATE on the reward to prevent TOCTOU race conditions
+    on stock count in concurrent requests.
+
+    Returns:
+        {success, reward, new_balance} or {success: False, error: ...}.
     """
-    Redeem a reward from the catalog. Deducts coins.
-    Returns {success, reward, new_balance} or raises error.
-    """
-    profile = await _get_or_create_profile(user_id, session)
+    try:
+        profile = await _get_or_create_profile(user_id, session)
 
-    result = await session.execute(
-        select(RewardCatalog).where(RewardCatalog.id == reward_id, RewardCatalog.is_active == True)
-    )
-    reward = result.scalar_one_or_none()
-    if not reward:
-        return {"success": False, "error": "Reward not found or inactive"}
+        # Use FOR UPDATE to prevent TOCTOU race on stock
+        result = await session.execute(
+            select(RewardCatalog)
+            .where(RewardCatalog.id == reward_id, RewardCatalog.is_active == True)  # noqa: E712
+            .with_for_update()
+        )
+        reward = result.scalar_one_or_none()
+        if not reward:
+            return {"success": False, "error": "Reward not found or inactive"}
 
-    if profile.fitsia_coins_balance < reward.cost_coins:
-        return {"success": False, "error": "Insufficient coins", "balance": profile.fitsia_coins_balance, "cost": reward.cost_coins}
+        if profile.fitsia_coins_balance < reward.cost_coins:
+            return {
+                "success": False,
+                "error": "Insufficient coins",
+                "balance": profile.fitsia_coins_balance,
+                "cost": reward.cost_coins,
+            }
 
-    if reward.stock == 0:
-        return {"success": False, "error": "Reward out of stock"}
+        if reward.stock == 0:
+            return {"success": False, "error": "Reward out of stock"}
 
-    # Deduct coins
-    profile.fitsia_coins_balance -= reward.cost_coins
-    if reward.stock > 0:
-        reward.stock -= 1
+        # Deduct coins
+        profile.fitsia_coins_balance -= reward.cost_coins
 
-    redemption = UserRewardRedemption(
-        user_id=user_id,
-        reward_id=reward_id,
-        coins_spent=reward.cost_coins,
-    )
-    session.add(redemption)
+        # Decrement stock (stock == -1 means unlimited)
+        if reward.stock > 0:
+            reward.stock -= 1
 
-    # Apply reward effect
-    if reward.reward_type == "streak_freeze":
-        profile.streak_freezes_available += 1
+        redemption = UserRewardRedemption(
+            user_id=user_id,
+            reward_id=reward_id,
+            coins_spent=reward.cost_coins,
+        )
+        session.add(redemption)
 
-    await _log_event(
-        user_id, "reward_redeemed", session,
-        coins_amount=-reward.cost_coins,
-        metadata={"reward_code": reward.code, "reward_type": reward.reward_type},
-    )
+        # Apply reward effect
+        if reward.reward_type == "streak_freeze":
+            profile.streak_freezes_available += 1
 
-    await session.flush()
+        await _log_event(
+            user_id, "reward_redeemed", session,
+            coins_amount=-reward.cost_coins,
+            metadata={"reward_code": reward.code, "reward_type": reward.reward_type},
+        )
 
-    return {
-        "success": True,
-        "reward": {
-            "code": reward.code,
-            "name": reward.name,
-            "type": reward.reward_type,
-        },
-        "coins_spent": reward.cost_coins,
-        "new_balance": profile.fitsia_coins_balance,
-    }
+        await session.flush()
+
+        logger.info(
+            "Reward redeemed: user_id=%d reward=%s coins_spent=%d",
+            user_id, reward.code, reward.cost_coins,
+        )
+
+        return {
+            "success": True,
+            "reward": {
+                "code": reward.code,
+                "name": reward.name,
+                "type": reward.reward_type,
+            },
+            "coins_spent": reward.cost_coins,
+            "new_balance": profile.fitsia_coins_balance,
+        }
+    except Exception:
+        logger.exception("Error redeeming reward: user_id=%d reward_id=%d", user_id, reward_id)
+        raise
 
 
 async def get_user_progress(user_id: int, session: AsyncSession) -> dict:
-    """Full progress profile for the frontend."""
-    profile = await _get_or_create_profile(user_id, session)
-    level_info = get_level_for_xp(profile.nutrition_xp_total)
+    """Full progress profile for the frontend.
 
-    # Count achievements
-    ach_result = await session.execute(
-        select(sa_func.count(UserAchievement.id)).where(UserAchievement.user_id == user_id)
-    )
-    achievements_unlocked = ach_result.scalar() or 0
+    Returns comprehensive user gamification state including XP, level,
+    streak, coins, achievements, missions, and recent events.
+    """
+    try:
+        profile = await _get_or_create_profile(user_id, session)
+        level_info = get_level_for_xp(profile.nutrition_xp_total)
 
-    total_ach_result = await session.execute(
-        select(sa_func.count(AchievementDefinition.id))
-    )
-    achievements_total = total_ach_result.scalar() or 0
-
-    # Today's missions
-    today = date.today()
-    missions_result = await session.execute(
-        select(sa_func.count(UserDailyMissionStatus.id)).where(
-            UserDailyMissionStatus.user_id == user_id,
-            UserDailyMissionStatus.date == today,
-            UserDailyMissionStatus.completed == True,
+        # Count achievements
+        ach_result = await session.execute(
+            select(sa_func.count(UserAchievement.id)).where(UserAchievement.user_id == user_id)
         )
-    )
-    missions_done_today = missions_result.scalar() or 0
+        achievements_unlocked = ach_result.scalar_one() or 0
 
-    # Recent events (last 10)
-    events_result = await session.execute(
-        select(ProgressEvent)
-        .where(ProgressEvent.user_id == user_id)
-        .order_by(ProgressEvent.created_at.desc())
-        .limit(10)
-    )
-    recent_events = [
-        {
-            "event_type": e.event_type,
-            "xp_amount": e.xp_amount,
-            "coins_amount": e.coins_amount,
-            "created_at": e.created_at.isoformat() if e.created_at else None,
-            "metadata": json.loads(e.metadata_json) if e.metadata_json else None,
+        total_ach_result = await session.execute(
+            select(sa_func.count(AchievementDefinition.id))
+        )
+        achievements_total = total_ach_result.scalar_one() or 0
+
+        # Today's missions
+        today = date.today()
+        missions_result = await session.execute(
+            select(sa_func.count(UserDailyMissionStatus.id)).where(
+                UserDailyMissionStatus.user_id == user_id,
+                UserDailyMissionStatus.date == today,
+                UserDailyMissionStatus.completed == True,  # noqa: E712
+            )
+        )
+        missions_done_today = missions_result.scalar_one() or 0
+
+        # Recent events (last 10)
+        events_result = await session.execute(
+            select(ProgressEvent)
+            .where(ProgressEvent.user_id == user_id)
+            .order_by(ProgressEvent.created_at.desc())
+            .limit(10)
+        )
+        recent_events = [
+            {
+                "event_type": e.event_type,
+                "xp_amount": e.xp_amount,
+                "coins_amount": e.coins_amount,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+                "metadata": json.loads(e.metadata_json) if e.metadata_json else None,
+            }
+            for e in events_result.scalars().all()
+        ]
+
+        return {
+            "user_id": user_id,
+            "xp_total": profile.nutrition_xp_total,
+            "level": level_info,
+            "streak": {
+                "current": profile.current_streak_days,
+                "best": profile.best_streak_days,
+                "freezes_available": profile.streak_freezes_available,
+            },
+            "coins_balance": profile.fitsia_coins_balance,
+            "motivation_state": profile.motivation_state,
+            "achievements": {
+                "unlocked": achievements_unlocked,
+                "total": achievements_total,
+            },
+            "missions_done_today": missions_done_today,
+            "recent_events": recent_events,
+            "created_at": profile.created_at.isoformat() if profile.created_at else None,
         }
-        for e in events_result.scalars().all()
-    ]
+    except Exception:
+        logger.exception("Error getting user progress: user_id=%d", user_id)
+        raise
 
-    return {
-        "user_id": user_id,
-        "xp_total": profile.nutrition_xp_total,
-        "level": level_info,
-        "streak": {
-            "current": profile.current_streak_days,
-            "best": profile.best_streak_days,
-            "freezes_available": profile.streak_freezes_available,
-        },
-        "coins_balance": profile.fitsia_coins_balance,
-        "motivation_state": profile.motivation_state,
-        "achievements": {
-            "unlocked": achievements_unlocked,
-            "total": achievements_total,
-        },
-        "missions_done_today": missions_done_today,
-        "recent_events": recent_events,
-        "created_at": profile.created_at.isoformat() if profile.created_at else None,
+
+async def get_progress_with_analytics(user_id: int, session: AsyncSession) -> dict:
+    """
+    Enhanced progress profile that includes analytics from insights_service.
+
+    Combines gamification state (XP, level, coins, achievements) with
+    nutrition analytics (streak stats, calorie consistency, macro balance).
+    Useful for a unified "progress + stats" screen in the mobile app.
+    """
+    from .insights_service import (
+        get_calorie_consistency,
+        get_macro_balance_score,
+        get_streak_statistics,
+    )
+
+    # Get base progress data
+    progress = await get_user_progress(user_id, session)
+
+    # Enrich with analytics — each function has its own cache
+    streak_stats = await get_streak_statistics(user_id, session)
+    consistency = await get_calorie_consistency(user_id, session, days=14)
+    macro_balance = await get_macro_balance_score(user_id, session, days=7)
+
+    progress["analytics"] = {
+        "streak_statistics": streak_stats,
+        "calorie_consistency": consistency,
+        "macro_balance_score": macro_balance.get("overall_score", 0),
     }
+
+    return progress

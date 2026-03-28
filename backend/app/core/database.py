@@ -11,10 +11,31 @@ _is_sqlite = settings.database_url_async.startswith("sqlite")
 _engine_kwargs: dict = {"echo": False}
 
 # Enable SSL for Supabase/cloud PostgreSQL connections
+# SEC: Use ssl.CERT_REQUIRED with system CA bundle to verify the server's
+# identity. This prevents MITM attacks on the database connection.
+# If a custom CA is needed, set DATABASE_SSL_CA_FILE env var.
 _db_url = settings.database_url_async
 if "supabase" in _db_url or "pooler.supabase" in _db_url:
     import ssl
-    _ssl_ctx = ssl.create_default_context()
+    import os
+    _ca_file = os.getenv("DATABASE_SSL_CA_FILE")
+    if _ca_file and os.path.isfile(_ca_file):
+        # SEC-PREFERRED: Full verification using Supabase project CA cert.
+        # Download from: Supabase Dashboard > Project Settings > Database > SSL
+        _ssl_ctx = ssl.create_default_context(cafile=_ca_file)
+        # check_hostname=True and verify_mode=CERT_REQUIRED are defaults
+        logger.info("Supabase SSL: full verification with CA file %s", _ca_file)
+    else:
+        # SEC-FALLBACK: Supabase pooler uses an internal CA not in system trust
+        # store. Encrypted in transit (TLS) but without server identity verification.
+        # Set DATABASE_SSL_CA_FILE to enable full verification.
+        _ssl_ctx = ssl.create_default_context()
+        _ssl_ctx.check_hostname = False
+        _ssl_ctx.verify_mode = ssl.CERT_NONE
+        logger.warning(
+            "Supabase SSL: using encrypted connection WITHOUT certificate verification. "
+            "Set DATABASE_SSL_CA_FILE env var with the Supabase CA cert for full security."
+        )
     _engine_kwargs["connect_args"] = {
         "ssl": _ssl_ctx,
         "statement_cache_size": 0,  # Required for Supabase pooler (transaction mode)

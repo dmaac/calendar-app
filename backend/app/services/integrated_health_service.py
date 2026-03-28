@@ -92,6 +92,7 @@ async def _calc_consistency_score(user_id: int, session: AsyncSession) -> int:
                 AIFoodLog.user_id == user_id,
                 AIFoodLog.logged_at >= day_start,
                 AIFoodLog.logged_at <= day_end,
+                AIFoodLog.deleted_at.is_(None),
             )
         )
         if (result.scalar() or 0) > 0:
@@ -110,6 +111,7 @@ async def _calc_consistency_score(user_id: int, session: AsyncSession) -> int:
                 AIFoodLog.user_id == user_id,
                 AIFoodLog.logged_at >= day_start,
                 AIFoodLog.logged_at <= day_end,
+                AIFoodLog.deleted_at.is_(None),
             )
         )
         if (result.scalar() or 0) == 0:

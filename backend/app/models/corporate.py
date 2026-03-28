@@ -8,10 +8,10 @@ Tables:
   - family_membership: Links users to a family group.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, TYPE_CHECKING
 
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Index, Integer, UniqueConstraint
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
@@ -31,13 +31,23 @@ class CorporateCompany(SQLModel, table=True):
     name: str = Field(index=True)
     domain: str = Field(index=True)  # e.g. "ironside.cl"
     admin_email: str = Field()
-    admin_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    admin_user_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     memberships: List["CorporateMembership"] = Relationship(back_populates="company")
     teams: List["CorporateTeam"] = Relationship(back_populates="company")
+
+    def __repr__(self) -> str:
+        return f"<CorporateCompany id={self.id} name={self.name!r} domain={self.domain!r}>"
 
 
 class CorporateMembership(SQLModel, table=True):
@@ -48,14 +58,38 @@ class CorporateMembership(SQLModel, table=True):
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    company_id: int = Field(foreign_key="corporate_company.id", index=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    team_id: Optional[int] = Field(default=None, foreign_key="corporate_team.id")
+    company_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("corporate_company.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    team_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            Integer,
+            ForeignKey("corporate_team.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
     role: str = Field(default="member")  # admin | member
-    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     company: CorporateCompany = Relationship(back_populates="memberships")
     team: Optional["CorporateTeam"] = Relationship(back_populates="members")
+
+    def __repr__(self) -> str:
+        return f"<CorporateMembership id={self.id} company={self.company_id} user={self.user_id} role={self.role!r}>"
 
 
 class CorporateTeam(SQLModel, table=True):
@@ -65,12 +99,22 @@ class CorporateTeam(SQLModel, table=True):
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    company_id: int = Field(foreign_key="corporate_company.id", index=True)
+    company_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("corporate_company.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
     name: str = Field()
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     company: CorporateCompany = Relationship(back_populates="teams")
     members: List[CorporateMembership] = Relationship(back_populates="team")
+
+    def __repr__(self) -> str:
+        return f"<CorporateTeam id={self.id} company={self.company_id} name={self.name!r}>"
 
 
 # ─── Family Plan ─────────────────────────────────────────────────────────────
@@ -81,11 +125,21 @@ class FamilyGroup(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(default="Mi Familia")
-    owner_user_id: int = Field(foreign_key="user.id", index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    owner_user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     memberships: List["FamilyMembership"] = Relationship(back_populates="family_group")
+
+    def __repr__(self) -> str:
+        return f"<FamilyGroup id={self.id} name={self.name!r} owner={self.owner_user_id}>"
 
 
 class FamilyMembership(SQLModel, table=True):
@@ -96,9 +150,26 @@ class FamilyMembership(SQLModel, table=True):
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    family_group_id: int = Field(foreign_key="family_group.id", index=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
+    family_group_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("family_group.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
     role: str = Field(default="member")  # owner | member
-    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     family_group: FamilyGroup = Relationship(back_populates="memberships")
+
+    def __repr__(self) -> str:
+        return f"<FamilyMembership id={self.id} group={self.family_group_id} user={self.user_id} role={self.role!r}>"

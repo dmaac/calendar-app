@@ -18,7 +18,7 @@ interface PulseOptions {
   active?: boolean;
 }
 
-export default function usePulse(options: PulseOptions = {}) {
+export default function usePulse(options: PulseOptions = {}): { transform: { scale: Animated.Value }[] } {
   const { minScale = 1, maxScale = 1.05, duration = 1500, active = true } = options;
   const scale = useRef(new Animated.Value(minScale)).current;
 

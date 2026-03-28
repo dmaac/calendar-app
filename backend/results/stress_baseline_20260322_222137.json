@@ -1,0 +1,1083 @@
+{
+  "scenario": "baseline",
+  "started_at": "2026-03-22T22:18:35.011887",
+  "finished_at": "2026-03-22T22:21:37.846642",
+  "duration_seconds": 180.06,
+  "target_users": 50,
+  "summary": {
+    "total_requests": 2674,
+    "total_success": 349,
+    "total_failures": 2325,
+    "total_errors": 0,
+    "overall_rps": 14.85,
+    "success_rate_pct": 13.05
+  },
+  "endpoints": {
+    "GET dashboard/today": {
+      "total_requests": 632,
+      "success": 64,
+      "failures": 568,
+      "errors": 0,
+      "latency_ms": {
+        "min": 6.68,
+        "avg": 229.74,
+        "p50": 12.77,
+        "p95": 1473.75,
+        "p99": 4629.2,
+        "max": 5118.82
+      },
+      "rps": 3.51
+    },
+    "GET foods/search": {
+      "total_requests": 199,
+      "success": 21,
+      "failures": 178,
+      "errors": 0,
+      "latency_ms": {
+        "min": 6.95,
+        "avg": 224.47,
+        "p50": 13.25,
+        "p95": 1940.1,
+        "p99": 2274.65,
+        "max": 2322.27
+      },
+      "rps": 1.11
+    },
+    "GET food/logs": {
+      "total_requests": 391,
+      "success": 47,
+      "failures": 344,
+      "errors": 0,
+      "latency_ms": {
+        "min": 6.52,
+        "avg": 240.13,
+        "p50": 13.04,
+        "p95": 1864.01,
+        "p99": 2029.4,
+        "max": 2318.83
+      },
+      "rps": 2.17
+    },
+    "POST food/manual": {
+      "total_requests": 236,
+      "success": 25,
+      "failures": 211,
+      "errors": 0,
+      "latency_ms": {
+        "min": 7.61,
+        "avg": 920.99,
+        "p50": 14.43,
+        "p95": 8391.32,
+        "p99": 10552.85,
+        "max": 10957.7
+      },
+      "rps": 1.31
+    },
+    "GET subscriptions/current": {
+      "total_requests": 147,
+      "success": 23,
+      "failures": 124,
+      "errors": 0,
+      "latency_ms": {
+        "min": 6.83,
+        "avg": 286.69,
+        "p50": 13.19,
+        "p95": 1830.78,
+        "p99": 1959.01,
+        "max": 2037.23
+      },
+      "rps": 0.82
+    },
+    "GET meals/summary": {
+      "total_requests": 304,
+      "success": 30,
+      "failures": 274,
+      "errors": 0,
+      "latency_ms": {
+        "min": 6.23,
+        "avg": 259.19,
+        "p50": 12.99,
+        "p95": 1823.48,
+        "p99": 3269.99,
+        "max": 5239.62
+      },
+      "rps": 1.69
+    },
+    "GET favorites": {
+      "total_requests": 121,
+      "success": 8,
+      "failures": 113,
+      "errors": 0,
+      "latency_ms": {
+        "min": 6.64,
+        "avg": 125.65,
+        "p50": 12.1,
+        "p95": 1572.07,
+        "p99": 1830.82,
+        "max": 1896.29
+      },
+      "rps": 0.67
+    },
+    "GET auth/me": {
+      "total_requests": 194,
+      "success": 22,
+      "failures": 172,
+      "errors": 0,
+      "latency_ms": {
+        "min": 6.8,
+        "avg": 178.91,
+        "p50": 13.2,
+        "p95": 1445.04,
+        "p99": 1689.86,
+        "max": 1745.95
+      },
+      "rps": 1.08
+    },
+    "POST food/water": {
+      "total_requests": 159,
+      "success": 22,
+      "failures": 137,
+      "errors": 0,
+      "latency_ms": {
+        "min": 7.53,
+        "avg": 492.28,
+        "p50": 14.06,
+        "p95": 3587.32,
+        "p99": 3841.44,
+        "max": 4086.88
+      },
+      "rps": 0.88
+    },
+    "GET meals/weekly-summary": {
+      "total_requests": 108,
+      "success": 14,
+      "failures": 94,
+      "errors": 0,
+      "latency_ms": {
+        "min": 6.23,
+        "avg": 318.89,
+        "p50": 13.24,
+        "p95": 2426.08,
+        "p99": 2699.55,
+        "max": 3399.84
+      },
+      "rps": 0.6
+    },
+    "GET nutrition-profile": {
+      "total_requests": 110,
+      "success": 0,
+      "failures": 110,
+      "errors": 0,
+      "latency_ms": {
+        "min": 6.68,
+        "avg": 202.07,
+        "p50": 13.22,
+        "p95": 2006.2,
+        "p99": 2153.68,
+        "max": 2189.68
+      },
+      "rps": 0.61
+    },
+    "GET health": {
+      "total_requests": 73,
+      "success": 73,
+      "failures": 0,
+      "errors": 0,
+      "latency_ms": {
+        "min": 1339.46,
+        "avg": 1453.38,
+        "p50": 1430.27,
+        "p95": 1723.84,
+        "p99": 1784.76,
+        "max": 1784.76
+      },
+      "rps": 0.41
+    }
+  },
+  "health_checks": [
+    {
+      "timestamp": "2026-03-22T22:18:39.482447",
+      "status_code": 200,
+      "latency_ms": 1684.72,
+      "server_status": "healthy",
+      "inflight": 34,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:18:46.003999",
+      "status_code": 200,
+      "latency_ms": 1520.15,
+      "server_status": "healthy",
+      "inflight": 39,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:18:52.406527",
+      "status_code": 200,
+      "latency_ms": 1400.33,
+      "server_status": "healthy",
+      "inflight": 37,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:18:59.024964",
+      "status_code": 200,
+      "latency_ms": 1618.13,
+      "server_status": "healthy",
+      "inflight": 41,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:19:05.627113",
+      "status_code": 200,
+      "latency_ms": 1599.94,
+      "server_status": "healthy",
+      "inflight": 39,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:19:12.312837",
+      "status_code": 200,
+      "latency_ms": 1683.55,
+      "server_status": "healthy",
+      "inflight": 42,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:19:18.773359",
+      "status_code": 200,
+      "latency_ms": 1459.71,
+      "server_status": "healthy",
+      "inflight": 42,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:19:25.395629",
+      "status_code": 200,
+      "latency_ms": 1621.91,
+      "server_status": "healthy",
+      "inflight": 41,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:19:31.854280",
+      "status_code": 200,
+      "latency_ms": 1456.45,
+      "server_status": "healthy",
+      "inflight": 43,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:19:38.305555",
+      "status_code": 200,
+      "latency_ms": 1450.32,
+      "server_status": "healthy",
+      "inflight": 42,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:19:44.767627",
+      "status_code": 200,
+      "latency_ms": 1459.94,
+      "server_status": "healthy",
+      "inflight": 44,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:19:51.271300",
+      "status_code": 200,
+      "latency_ms": 1503.42,
+      "server_status": "healthy",
+      "inflight": 42,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:19:57.791000",
+      "status_code": 200,
+      "latency_ms": 1518.91,
+      "server_status": "healthy",
+      "inflight": 43,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:20:04.230095",
+      "status_code": 200,
+      "latency_ms": 1437.58,
+      "server_status": "healthy",
+      "inflight": 42,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:20:10.564247",
+      "status_code": 200,
+      "latency_ms": 1333.47,
+      "server_status": "healthy",
+      "inflight": 42,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:20:16.997573",
+      "status_code": 200,
+      "latency_ms": 1433.03,
+      "server_status": "healthy",
+      "inflight": 44,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:20:23.390858",
+      "status_code": 200,
+      "latency_ms": 1392.29,
+      "server_status": "healthy",
+      "inflight": 42,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:20:29.872542",
+      "status_code": 200,
+      "latency_ms": 1480.51,
+      "server_status": "healthy",
+      "inflight": 43,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:20:36.316033",
+      "status_code": 200,
+      "latency_ms": 1442.26,
+      "server_status": "healthy",
+      "inflight": 47,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:20:42.821403",
+      "status_code": 200,
+      "latency_ms": 1504.16,
+      "server_status": "healthy",
+      "inflight": 52,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:20:49.306592",
+      "status_code": 200,
+      "latency_ms": 1483.98,
+      "server_status": "healthy",
+      "inflight": 49,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:20:55.697089",
+      "status_code": 200,
+      "latency_ms": 1389.29,
+      "server_status": "healthy",
+      "inflight": 48,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:21:02.078643",
+      "status_code": 200,
+      "latency_ms": 1381.17,
+      "server_status": "healthy",
+      "inflight": 47,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:21:08.534017",
+      "status_code": 200,
+      "latency_ms": 1452.06,
+      "server_status": "healthy",
+      "inflight": 47,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:21:14.942872",
+      "status_code": 200,
+      "latency_ms": 1408.19,
+      "server_status": "healthy",
+      "inflight": 51,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:21:21.482292",
+      "status_code": 200,
+      "latency_ms": 1538.5,
+      "server_status": "healthy",
+      "inflight": 52,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:21:27.917941",
+      "status_code": 200,
+      "latency_ms": 1434.38,
+      "server_status": "healthy",
+      "inflight": 47,
+      "db": "connected",
+      "redis": "connected"
+    },
+    {
+      "timestamp": "2026-03-22T22:21:34.385085",
+      "status_code": 200,
+      "latency_ms": 1459.48,
+      "server_status": "healthy",
+      "inflight": 51,
+      "db": "connected",
+      "redis": "connected"
+    }
+  ],
+  "timeline": [
+    {
+      "elapsed_s": 0.0,
+      "total_requests": 0,
+      "success_count": 0,
+      "active_users": 0,
+      "rps": 0.0
+    },
+    {
+      "elapsed_s": 2.0,
+      "total_requests": 1,
+      "success_count": 1,
+      "active_users": 4,
+      "rps": 0.5
+    },
+    {
+      "elapsed_s": 4.0,
+      "total_requests": 3,
+      "success_count": 3,
+      "active_users": 7,
+      "rps": 0.7
+    },
+    {
+      "elapsed_s": 6.0,
+      "total_requests": 7,
+      "success_count": 6,
+      "active_users": 10,
+      "rps": 1.2
+    },
+    {
+      "elapsed_s": 8.0,
+      "total_requests": 14,
+      "success_count": 9,
+      "active_users": 14,
+      "rps": 1.7
+    },
+    {
+      "elapsed_s": 10.0,
+      "total_requests": 24,
+      "success_count": 13,
+      "active_users": 17,
+      "rps": 2.4
+    },
+    {
+      "elapsed_s": 12.0,
+      "total_requests": 33,
+      "success_count": 15,
+      "active_users": 20,
+      "rps": 2.7
+    },
+    {
+      "elapsed_s": 14.0,
+      "total_requests": 52,
+      "success_count": 17,
+      "active_users": 24,
+      "rps": 3.7
+    },
+    {
+      "elapsed_s": 16.0,
+      "total_requests": 69,
+      "success_count": 20,
+      "active_users": 27,
+      "rps": 4.3
+    },
+    {
+      "elapsed_s": 18.0,
+      "total_requests": 90,
+      "success_count": 26,
+      "active_users": 30,
+      "rps": 5.0
+    },
+    {
+      "elapsed_s": 20.0,
+      "total_requests": 112,
+      "success_count": 28,
+      "active_users": 34,
+      "rps": 5.6
+    },
+    {
+      "elapsed_s": 22.0,
+      "total_requests": 130,
+      "success_count": 32,
+      "active_users": 37,
+      "rps": 5.9
+    },
+    {
+      "elapsed_s": 24.0,
+      "total_requests": 159,
+      "success_count": 36,
+      "active_users": 40,
+      "rps": 6.6
+    },
+    {
+      "elapsed_s": 26.0,
+      "total_requests": 183,
+      "success_count": 43,
+      "active_users": 44,
+      "rps": 7.0
+    },
+    {
+      "elapsed_s": 28.0,
+      "total_requests": 213,
+      "success_count": 46,
+      "active_users": 47,
+      "rps": 7.6
+    },
+    {
+      "elapsed_s": 30.0,
+      "total_requests": 252,
+      "success_count": 52,
+      "active_users": 50,
+      "rps": 8.4
+    },
+    {
+      "elapsed_s": 32.0,
+      "total_requests": 277,
+      "success_count": 56,
+      "active_users": 50,
+      "rps": 8.6
+    },
+    {
+      "elapsed_s": 34.0,
+      "total_requests": 315,
+      "success_count": 60,
+      "active_users": 50,
+      "rps": 9.3
+    },
+    {
+      "elapsed_s": 36.1,
+      "total_requests": 347,
+      "success_count": 65,
+      "active_users": 50,
+      "rps": 9.6
+    },
+    {
+      "elapsed_s": 38.1,
+      "total_requests": 379,
+      "success_count": 69,
+      "active_users": 50,
+      "rps": 10.0
+    },
+    {
+      "elapsed_s": 40.1,
+      "total_requests": 409,
+      "success_count": 74,
+      "active_users": 50,
+      "rps": 10.2
+    },
+    {
+      "elapsed_s": 42.1,
+      "total_requests": 443,
+      "success_count": 79,
+      "active_users": 50,
+      "rps": 10.5
+    },
+    {
+      "elapsed_s": 44.1,
+      "total_requests": 478,
+      "success_count": 84,
+      "active_users": 50,
+      "rps": 10.9
+    },
+    {
+      "elapsed_s": 46.1,
+      "total_requests": 508,
+      "success_count": 85,
+      "active_users": 50,
+      "rps": 11.0
+    },
+    {
+      "elapsed_s": 48.1,
+      "total_requests": 540,
+      "success_count": 90,
+      "active_users": 50,
+      "rps": 11.2
+    },
+    {
+      "elapsed_s": 50.1,
+      "total_requests": 574,
+      "success_count": 95,
+      "active_users": 50,
+      "rps": 11.5
+    },
+    {
+      "elapsed_s": 52.1,
+      "total_requests": 603,
+      "success_count": 102,
+      "active_users": 50,
+      "rps": 11.6
+    },
+    {
+      "elapsed_s": 54.1,
+      "total_requests": 635,
+      "success_count": 105,
+      "active_users": 50,
+      "rps": 11.7
+    },
+    {
+      "elapsed_s": 56.1,
+      "total_requests": 671,
+      "success_count": 110,
+      "active_users": 50,
+      "rps": 12.0
+    },
+    {
+      "elapsed_s": 58.1,
+      "total_requests": 697,
+      "success_count": 111,
+      "active_users": 50,
+      "rps": 12.0
+    },
+    {
+      "elapsed_s": 60.1,
+      "total_requests": 725,
+      "success_count": 115,
+      "active_users": 50,
+      "rps": 12.1
+    },
+    {
+      "elapsed_s": 62.1,
+      "total_requests": 757,
+      "success_count": 120,
+      "active_users": 50,
+      "rps": 12.2
+    },
+    {
+      "elapsed_s": 64.1,
+      "total_requests": 790,
+      "success_count": 123,
+      "active_users": 50,
+      "rps": 12.3
+    },
+    {
+      "elapsed_s": 66.1,
+      "total_requests": 817,
+      "success_count": 128,
+      "active_users": 50,
+      "rps": 12.4
+    },
+    {
+      "elapsed_s": 68.1,
+      "total_requests": 848,
+      "success_count": 131,
+      "active_users": 50,
+      "rps": 12.5
+    },
+    {
+      "elapsed_s": 70.1,
+      "total_requests": 884,
+      "success_count": 134,
+      "active_users": 50,
+      "rps": 12.6
+    },
+    {
+      "elapsed_s": 72.1,
+      "total_requests": 913,
+      "success_count": 138,
+      "active_users": 50,
+      "rps": 12.7
+    },
+    {
+      "elapsed_s": 74.1,
+      "total_requests": 948,
+      "success_count": 141,
+      "active_users": 50,
+      "rps": 12.8
+    },
+    {
+      "elapsed_s": 76.1,
+      "total_requests": 978,
+      "success_count": 146,
+      "active_users": 50,
+      "rps": 12.9
+    },
+    {
+      "elapsed_s": 78.1,
+      "total_requests": 1016,
+      "success_count": 151,
+      "active_users": 50,
+      "rps": 13.0
+    },
+    {
+      "elapsed_s": 80.1,
+      "total_requests": 1042,
+      "success_count": 151,
+      "active_users": 50,
+      "rps": 13.0
+    },
+    {
+      "elapsed_s": 82.1,
+      "total_requests": 1076,
+      "success_count": 156,
+      "active_users": 50,
+      "rps": 13.1
+    },
+    {
+      "elapsed_s": 84.1,
+      "total_requests": 1110,
+      "success_count": 158,
+      "active_users": 50,
+      "rps": 13.2
+    },
+    {
+      "elapsed_s": 86.1,
+      "total_requests": 1144,
+      "success_count": 163,
+      "active_users": 50,
+      "rps": 13.3
+    },
+    {
+      "elapsed_s": 88.1,
+      "total_requests": 1173,
+      "success_count": 165,
+      "active_users": 50,
+      "rps": 13.3
+    },
+    {
+      "elapsed_s": 90.1,
+      "total_requests": 1207,
+      "success_count": 170,
+      "active_users": 50,
+      "rps": 13.4
+    },
+    {
+      "elapsed_s": 92.1,
+      "total_requests": 1236,
+      "success_count": 173,
+      "active_users": 50,
+      "rps": 13.4
+    },
+    {
+      "elapsed_s": 94.1,
+      "total_requests": 1271,
+      "success_count": 177,
+      "active_users": 50,
+      "rps": 13.5
+    },
+    {
+      "elapsed_s": 96.1,
+      "total_requests": 1306,
+      "success_count": 182,
+      "active_users": 50,
+      "rps": 13.6
+    },
+    {
+      "elapsed_s": 98.1,
+      "total_requests": 1339,
+      "success_count": 188,
+      "active_users": 50,
+      "rps": 13.6
+    },
+    {
+      "elapsed_s": 100.1,
+      "total_requests": 1371,
+      "success_count": 191,
+      "active_users": 50,
+      "rps": 13.7
+    },
+    {
+      "elapsed_s": 102.1,
+      "total_requests": 1407,
+      "success_count": 196,
+      "active_users": 50,
+      "rps": 13.8
+    },
+    {
+      "elapsed_s": 104.1,
+      "total_requests": 1438,
+      "success_count": 200,
+      "active_users": 50,
+      "rps": 13.8
+    },
+    {
+      "elapsed_s": 106.1,
+      "total_requests": 1474,
+      "success_count": 206,
+      "active_users": 50,
+      "rps": 13.9
+    },
+    {
+      "elapsed_s": 108.1,
+      "total_requests": 1506,
+      "success_count": 208,
+      "active_users": 50,
+      "rps": 13.9
+    },
+    {
+      "elapsed_s": 110.1,
+      "total_requests": 1542,
+      "success_count": 211,
+      "active_users": 50,
+      "rps": 14.0
+    },
+    {
+      "elapsed_s": 112.1,
+      "total_requests": 1573,
+      "success_count": 216,
+      "active_users": 50,
+      "rps": 14.0
+    },
+    {
+      "elapsed_s": 114.1,
+      "total_requests": 1610,
+      "success_count": 219,
+      "active_users": 50,
+      "rps": 14.1
+    },
+    {
+      "elapsed_s": 116.1,
+      "total_requests": 1640,
+      "success_count": 220,
+      "active_users": 50,
+      "rps": 14.1
+    },
+    {
+      "elapsed_s": 118.1,
+      "total_requests": 1673,
+      "success_count": 227,
+      "active_users": 50,
+      "rps": 14.2
+    },
+    {
+      "elapsed_s": 120.1,
+      "total_requests": 1703,
+      "success_count": 232,
+      "active_users": 50,
+      "rps": 14.2
+    },
+    {
+      "elapsed_s": 122.1,
+      "total_requests": 1736,
+      "success_count": 237,
+      "active_users": 50,
+      "rps": 14.2
+    },
+    {
+      "elapsed_s": 124.1,
+      "total_requests": 1770,
+      "success_count": 242,
+      "active_users": 50,
+      "rps": 14.3
+    },
+    {
+      "elapsed_s": 126.1,
+      "total_requests": 1801,
+      "success_count": 246,
+      "active_users": 50,
+      "rps": 14.3
+    },
+    {
+      "elapsed_s": 128.1,
+      "total_requests": 1829,
+      "success_count": 248,
+      "active_users": 50,
+      "rps": 14.3
+    },
+    {
+      "elapsed_s": 130.1,
+      "total_requests": 1862,
+      "success_count": 250,
+      "active_users": 50,
+      "rps": 14.3
+    },
+    {
+      "elapsed_s": 132.1,
+      "total_requests": 1897,
+      "success_count": 256,
+      "active_users": 50,
+      "rps": 14.4
+    },
+    {
+      "elapsed_s": 134.1,
+      "total_requests": 1928,
+      "success_count": 262,
+      "active_users": 50,
+      "rps": 14.4
+    },
+    {
+      "elapsed_s": 136.1,
+      "total_requests": 1961,
+      "success_count": 265,
+      "active_users": 50,
+      "rps": 14.4
+    },
+    {
+      "elapsed_s": 138.1,
+      "total_requests": 1992,
+      "success_count": 269,
+      "active_users": 50,
+      "rps": 14.4
+    },
+    {
+      "elapsed_s": 140.1,
+      "total_requests": 2030,
+      "success_count": 274,
+      "active_users": 50,
+      "rps": 14.5
+    },
+    {
+      "elapsed_s": 142.1,
+      "total_requests": 2059,
+      "success_count": 275,
+      "active_users": 50,
+      "rps": 14.5
+    },
+    {
+      "elapsed_s": 144.1,
+      "total_requests": 2092,
+      "success_count": 281,
+      "active_users": 50,
+      "rps": 14.5
+    },
+    {
+      "elapsed_s": 146.1,
+      "total_requests": 2121,
+      "success_count": 283,
+      "active_users": 50,
+      "rps": 14.5
+    },
+    {
+      "elapsed_s": 148.1,
+      "total_requests": 2154,
+      "success_count": 286,
+      "active_users": 50,
+      "rps": 14.5
+    },
+    {
+      "elapsed_s": 150.1,
+      "total_requests": 2183,
+      "success_count": 290,
+      "active_users": 50,
+      "rps": 14.5
+    },
+    {
+      "elapsed_s": 152.1,
+      "total_requests": 2220,
+      "success_count": 296,
+      "active_users": 50,
+      "rps": 14.6
+    },
+    {
+      "elapsed_s": 154.2,
+      "total_requests": 2253,
+      "success_count": 299,
+      "active_users": 50,
+      "rps": 14.6
+    },
+    {
+      "elapsed_s": 156.2,
+      "total_requests": 2284,
+      "success_count": 302,
+      "active_users": 50,
+      "rps": 14.6
+    },
+    {
+      "elapsed_s": 158.2,
+      "total_requests": 2315,
+      "success_count": 308,
+      "active_users": 50,
+      "rps": 14.6
+    },
+    {
+      "elapsed_s": 160.2,
+      "total_requests": 2348,
+      "success_count": 311,
+      "active_users": 50,
+      "rps": 14.7
+    },
+    {
+      "elapsed_s": 162.2,
+      "total_requests": 2384,
+      "success_count": 313,
+      "active_users": 50,
+      "rps": 14.7
+    },
+    {
+      "elapsed_s": 164.2,
+      "total_requests": 2412,
+      "success_count": 319,
+      "active_users": 50,
+      "rps": 14.7
+    },
+    {
+      "elapsed_s": 166.2,
+      "total_requests": 2445,
+      "success_count": 324,
+      "active_users": 50,
+      "rps": 14.7
+    },
+    {
+      "elapsed_s": 168.2,
+      "total_requests": 2480,
+      "success_count": 326,
+      "active_users": 50,
+      "rps": 14.7
+    },
+    {
+      "elapsed_s": 170.2,
+      "total_requests": 2508,
+      "success_count": 333,
+      "active_users": 50,
+      "rps": 14.7
+    },
+    {
+      "elapsed_s": 172.2,
+      "total_requests": 2535,
+      "success_count": 334,
+      "active_users": 50,
+      "rps": 14.7
+    },
+    {
+      "elapsed_s": 174.2,
+      "total_requests": 2573,
+      "success_count": 338,
+      "active_users": 50,
+      "rps": 14.8
+    },
+    {
+      "elapsed_s": 176.2,
+      "total_requests": 2608,
+      "success_count": 342,
+      "active_users": 50,
+      "rps": 14.8
+    },
+    {
+      "elapsed_s": 178.2,
+      "total_requests": 2638,
+      "success_count": 345,
+      "active_users": 50,
+      "rps": 14.8
+    }
+  ]
+}

@@ -33,7 +33,16 @@ const haptics = {
   error: () => safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)),
 };
 
-export default function useHaptics() {
+interface HapticsApi {
+  light: () => void;
+  medium: () => void;
+  heavy: () => void;
+  selection: () => void;
+  success: () => void;
+  error: () => void;
+}
+
+export default function useHaptics(): HapticsApi {
   return haptics;
 }
 

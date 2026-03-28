@@ -113,28 +113,52 @@ const baseStyle = StyleSheet.create({
 
 /**
  * HomeSkeleton — Full skeleton for the HomeScreen dashboard.
- * Shows a calorie ring placeholder + macro bars + meal cards.
+ * Shows a calorie ring placeholder + macro bars + quick actions + meal cards.
+ * Matches the real HomeScreen layout so content "snaps into place" on load.
  * Uses theme colors for proper dark/light mode support.
  */
 export function HomeSkeleton() {
   const c = useThemeColors();
   return (
-    <Animated.View style={skeletonStyles.container}>
-      {/* Calorie ring placeholder */}
+    <Animated.View
+      style={skeletonStyles.container}
+      accessibilityLabel="Cargando dashboard"
+      accessibilityRole="progressbar"
+    >
+      {/* Calorie ring + macro bars card */}
       <Animated.View style={[skeletonStyles.ringRow, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
         <SkeletonLoader width={160} height={160} borderRadius={80} />
         <Animated.View style={skeletonStyles.macros}>
-          <SkeletonLoader height={12} width="60%" />
+          {/* Protein bar skeleton */}
+          <SkeletonLoader height={10} width="55%" />
           <SkeletonLoader height={5} />
-          <SkeletonLoader height={12} width="50%" />
+          {/* Carbs bar skeleton */}
+          <SkeletonLoader height={10} width="48%" />
           <SkeletonLoader height={5} />
-          <SkeletonLoader height={12} width="55%" />
+          {/* Fats bar skeleton */}
+          <SkeletonLoader height={10} width="52%" />
           <SkeletonLoader height={5} />
         </Animated.View>
       </Animated.View>
 
+      {/* Quick actions row skeleton */}
+      <View style={skeletonStyles.quickActionsRow}>
+        <View style={[skeletonStyles.quickActionSkeleton, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
+          <SkeletonLoader width={36} height={36} borderRadius={18} />
+          <SkeletonLoader width={40} height={10} />
+        </View>
+        <View style={[skeletonStyles.quickActionSkeleton, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
+          <SkeletonLoader width={36} height={36} borderRadius={18} />
+          <SkeletonLoader width={36} height={10} />
+        </View>
+        <View style={[skeletonStyles.quickActionSkeleton, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
+          <SkeletonLoader width={36} height={36} borderRadius={18} />
+          <SkeletonLoader width={44} height={10} />
+        </View>
+      </View>
+
       {/* Section title placeholder */}
-      <SkeletonLoader width={60} height={12} style={{ marginTop: 20, marginBottom: 12 }} />
+      <SkeletonLoader width={60} height={12} style={{ marginTop: 12, marginBottom: 12 }} />
 
       {/* Meal card placeholders */}
       <Animated.View style={[skeletonStyles.mealCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
@@ -166,6 +190,19 @@ const skeletonStyles = StyleSheet.create({
   macros: {
     flex: 1,
     gap: 8,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  quickActionSkeleton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: 6,
   },
   mealCard: {
     borderRadius: radius.lg,

@@ -87,14 +87,15 @@ async def _gather_user_stats(user_id: int, session: AsyncSession) -> dict:
             func.count(case((AIFoodLog.meal_type == "lunch", 1))).label("lunch"),
             func.count(case((AIFoodLog.meal_type == "dinner", 1))).label("dinner"),
             func.count(case((AIFoodLog.meal_type == "snack", 1))).label("snack"),
-        ).where(AIFoodLog.user_id == user_id)
+        ).where(AIFoodLog.user_id == user_id, AIFoodLog.deleted_at.is_(None))
     )
     mc = meal_counts.one()
 
     # --- Active days (days with >= 1 log) ---
     active_days_q = await session.execute(
         select(func.count(distinct(func.date(AIFoodLog.logged_at)))).where(
-            AIFoodLog.user_id == user_id
+            AIFoodLog.user_id == user_id,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     active_days = active_days_q.scalar() or 0
@@ -103,7 +104,7 @@ async def _gather_user_stats(user_id: int, session: AsyncSession) -> dict:
     complete_days_q = await session.execute(
         select(func.count()).select_from(
             select(func.date(AIFoodLog.logged_at).label("d"))
-            .where(AIFoodLog.user_id == user_id)
+            .where(AIFoodLog.user_id == user_id, AIFoodLog.deleted_at.is_(None))
             .group_by(func.date(AIFoodLog.logged_at))
             .having(func.count() >= 3)
             .subquery()
@@ -141,7 +142,7 @@ async def _gather_user_stats(user_id: int, session: AsyncSession) -> dict:
     # --- High protein meals (>= 25g) ---
     high_prot_q = await session.execute(
         select(func.count()).where(
-            and_(AIFoodLog.user_id == user_id, AIFoodLog.protein_g >= 25)
+            and_(AIFoodLog.user_id == user_id, AIFoodLog.protein_g >= 25, AIFoodLog.deleted_at.is_(None))
         )
     )
     high_protein_meals = high_prot_q.scalar() or 0

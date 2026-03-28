@@ -17,7 +17,14 @@ interface PressAnimationOptions {
   hapticType?: 'light' | 'medium' | 'selection';
 }
 
-export default function usePressAnimation(options: PressAnimationOptions = {}) {
+interface PressAnimationReturn {
+  onPressIn: () => void;
+  onPressOut: () => void;
+  animatedStyle: { transform: { scale: Animated.Value }[] };
+  scale: Animated.Value;
+}
+
+export default function usePressAnimation(options: PressAnimationOptions = {}): PressAnimationReturn {
   const { pressedScale = 0.97, haptic = true, hapticType = 'light' } = options;
   const scale = useRef(new Animated.Value(1)).current;
 

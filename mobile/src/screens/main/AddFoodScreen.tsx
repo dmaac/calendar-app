@@ -1,8 +1,18 @@
 /**
- * AddFoodScreen — Registro manual de alimentos
+ * AddFoodScreen -- Registro manual de alimentos
  * El usuario escribe nombre + macros sin necesitar foto.
+ *
+ * Features:
+ * - Manual entry form (food name, calories, protein, carbs, fat, fiber)
+ * - Portion size selector (small, medium, large, custom grams)
+ * - Meal type selector (breakfast, lunch, dinner, snack)
+ * - "Save as favorite" toggle
+ * - Input validation with friendly error messages per field
+ * - Numeric keyboard for number fields
+ * - Autocomplete from food history
+ * - Offline queueing
  */
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,21 +24,43 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
-  Animated,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, useLayout, mealColors, shadows } from '../../theme';
 import * as foodService from '../../services/food.service';
 import { MealType, FoodSuggestion, searchFoodHistory } from '../../services/food.service';
+import * as favoritesService from '../../services/favorites.service';
 import { haptics } from '../../hooks/useHaptics';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { enqueueAction } from '../../services/offlineStore';
 import { showNotification } from '../../components/InAppNotification';
 
+// ── Constants ────────────────────────────────────────────────────────────────
+
 const MEAL_OPTIONS = (Object.entries(mealColors) as [MealType, typeof mealColors[string]][]).map(
   ([key, v]) => ({ key, ...v })
 );
+
+type PortionSize = 'small' | 'medium' | 'large' | 'custom';
+
+interface PortionOption {
+  key: PortionSize;
+  label: string;
+  icon: string;
+  multiplier: number;
+  description: string;
+}
+
+const PORTION_OPTIONS: PortionOption[] = [
+  { key: 'small', label: 'Chica', icon: 'remove-circle-outline', multiplier: 0.7, description: '~70%' },
+  { key: 'medium', label: 'Normal', icon: 'ellipse-outline', multiplier: 1.0, description: '100%' },
+  { key: 'large', label: 'Grande', icon: 'add-circle-outline', multiplier: 1.3, description: '~130%' },
+  { key: 'custom', label: 'Gramos', icon: 'scale-outline', multiplier: 1.0, description: 'Custom' },
+];
+
+// ── Macro input component ────────────────────────────────────────────────────
 
 function MacroInput({
   label,
@@ -37,6 +69,7 @@ function MacroInput({
   unit = 'g',
   color,
   colors,
+  error,
 }: {
   label: string;
   value: string;
@@ -44,11 +77,15 @@ function MacroInput({
   unit?: string;
   color: string;
   colors: ReturnType<typeof useThemeColors>;
+  error?: string;
 }) {
   return (
     <View style={macroStyles.wrapper}>
       <Text style={[macroStyles.label, { color }]}>{label}</Text>
-      <View style={[macroStyles.inputRow, { borderColor: color + '40', backgroundColor: colors.surface }]}>
+      <View style={[
+        macroStyles.inputRow,
+        { borderColor: error ? '#E53935' : color + '40', backgroundColor: colors.surface },
+      ]}>
         <TextInput
           style={[macroStyles.input, { color: colors.black }]}
           value={value}
@@ -59,6 +96,7 @@ function MacroInput({
         />
         <Text style={[macroStyles.unit, { color: colors.gray }]}>{unit}</Text>
       </View>
+      {!!error && <Text style={macroStyles.error}>{error}</Text>}
     </View>
   );
 }
@@ -78,7 +116,10 @@ const macroStyles = StyleSheet.create({
   },
   input: { ...typography.label, minWidth: 30, textAlign: 'center' },
   unit: { ...typography.caption, marginLeft: 2 },
+  error: { color: '#E53935', fontSize: 10, marginTop: 2, textAlign: 'center' },
 });
+
+// ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function AddFoodScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
@@ -94,11 +135,19 @@ export default function AddFoodScreen({ navigation, route }: any) {
   const [carbs, setCarbs] = useState('');
   const [fats, setFats] = useState('');
   const [fiber, setFiber] = useState('');
-  const [serving, setServing] = useState('');
+  const [portionSize, setPortionSize] = useState<PortionSize>('medium');
+  const [customGrams, setCustomGrams] = useState('');
+  const [saveAsFavorite, setSaveAsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<FoodSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Track which fields have been touched for validation display
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const markTouched = useCallback((field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  }, []);
 
   const handleFoodNameChange = (value: string) => {
     setFoodName(value);
@@ -130,48 +179,107 @@ export default function AddFoodScreen({ navigation, route }: any) {
   };
 
   const handleFoodNameBlur = () => {
+    markTouched('foodName');
     // Delay hide so tap on suggestion registers first
     setTimeout(() => setShowSuggestions(false), 150);
   };
 
   const parse = (v: string) => parseFloat(v.replace(',', '.')) || 0;
 
-  // ─── Validation ───────────────────────────────────────────────────────────
-  const foodNameTrimmed = foodName.trim();
-  const foodNameError = foodNameTrimmed.length > 100 ? 'Máximo 100 caracteres' : '';
-  const calParsed = parse(calories);
-  const caloriesError = calories.length > 0 && (calParsed <= 0 || calParsed >= 10000)
-    ? 'Debe ser entre 1 y 9999' : '';
-  const macroError = (v: string) => {
-    if (!v) return '';
-    const n = parse(v);
-    return (n < 0 || n >= 1000) ? 'Debe ser entre 0 y 999' : '';
-  };
-  const proteinError = macroError(protein);
-  const carbsError   = macroError(carbs);
-  const fatsError    = macroError(fats);
-  const fiberError   = macroError(fiber);
+  // ── Validation ─────────────────────────────────────────────────────────────
 
-  const hasErrors = !foodNameTrimmed || !!foodNameError || !calories || !!caloriesError
-    || !!proteinError || !!carbsError || !!fatsError || !!fiberError;
+  const foodNameTrimmed = foodName.trim();
+  const foodNameError = !foodNameTrimmed
+    ? 'El nombre es obligatorio'
+    : foodNameTrimmed.length < 2
+      ? 'Minimo 2 caracteres'
+      : foodNameTrimmed.length > 100
+        ? 'Maximo 100 caracteres'
+        : '';
+
+  const calParsed = parse(calories);
+  const caloriesError = !calories
+    ? 'Las calorias son obligatorias'
+    : calParsed <= 0
+      ? 'Debe ser mayor a 0'
+      : calParsed >= 10000
+        ? 'Maximo 9999 kcal'
+        : '';
+
+  const validateMacro = (v: string, label: string): string => {
+    if (!v) return ''; // macros are optional
+    const n = parse(v);
+    if (n < 0) return `${label} no puede ser negativo`;
+    if (n >= 1000) return `${label} maximo 999g`;
+    return '';
+  };
+
+  const proteinError = validateMacro(protein, 'Proteina');
+  const carbsError = validateMacro(carbs, 'Carbos');
+  const fatsError = validateMacro(fats, 'Grasas');
+  const fiberError = validateMacro(fiber, 'Fibra');
+
+  const customGramsError = portionSize === 'custom' && customGrams
+    ? (parse(customGrams) <= 0 ? 'Debe ser mayor a 0' : parse(customGrams) > 5000 ? 'Maximo 5000g' : '')
+    : portionSize === 'custom' && !customGrams
+      ? 'Ingresa los gramos'
+      : '';
+
+  const hasErrors = !!foodNameError || !!caloriesError
+    || !!proteinError || !!carbsError || !!fatsError || !!fiberError
+    || !!customGramsError;
+
+  // ── Portion multiplier ─────────────────────────────────────────────────────
+
+  const getEffectiveMultiplier = (): number => {
+    if (portionSize === 'custom') {
+      const g = parse(customGrams);
+      // Assume base portion is 100g when custom grams are entered
+      return g > 0 ? g / 100 : 1;
+    }
+    return PORTION_OPTIONS.find((o) => o.key === portionSize)?.multiplier ?? 1;
+  };
+
+  // ── Save ───────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
+    // Mark all fields as touched to show errors
+    setTouched({
+      foodName: true,
+      calories: true,
+      protein: true,
+      carbs: true,
+      fats: true,
+      fiber: true,
+      customGrams: true,
+    });
+
     if (hasErrors) {
       haptics.error();
+      showNotification({
+        message: 'Revisa los campos marcados en rojo',
+        type: 'warning',
+        icon: 'alert-circle-outline',
+      });
       return;
     }
 
     haptics.light();
     setLoading(true);
 
+    const multiplier = getEffectiveMultiplier();
+    const servingLabel = portionSize === 'custom'
+      ? `${customGrams}g`
+      : PORTION_OPTIONS.find((o) => o.key === portionSize)?.label ?? '';
+
     const payload = {
       food_name: foodName.trim(),
-      calories: parse(calories),
-      protein_g: parse(protein),
-      carbs_g: parse(carbs),
-      fats_g: parse(fats),
-      fiber_g: fiber ? parse(fiber) : undefined,
-      serving_size: serving.trim() || undefined,
+      calories: Math.round(parse(calories) * multiplier),
+      protein_g: Math.round(parse(protein) * multiplier * 10) / 10,
+      carbs_g: Math.round(parse(carbs) * multiplier * 10) / 10,
+      fats_g: Math.round(parse(fats) * multiplier * 10) / 10,
+      fiber_g: fiber ? Math.round(parse(fiber) * multiplier * 10) / 10 : undefined,
+      serving_size: servingLabel || undefined,
       meal_type: mealType,
     };
 
@@ -179,18 +287,36 @@ export default function AddFoodScreen({ navigation, route }: any) {
       if (isConnected) {
         await foodService.manualLogFood(payload);
       } else {
-        // Offline — queue for later sync
+        // Offline -- queue for later sync
         await enqueueAction('log_food', payload);
       }
+
+      // Save as favorite if toggled on
+      if (saveAsFavorite) {
+        try {
+          await favoritesService.addFavorite({
+            name: payload.food_name,
+            calories: payload.calories,
+            protein_g: payload.protein_g,
+            carbs_g: payload.carbs_g,
+            fats_g: payload.fats_g,
+          });
+        } catch {
+          // Non-critical, don't block the main flow
+        }
+      }
+
       haptics.success();
       showNotification({
-        message: 'Comida registrada!',
+        message: saveAsFavorite
+          ? 'Comida registrada y guardada en favoritos!'
+          : 'Comida registrada!',
         type: 'success',
         icon: 'checkmark-circle',
       });
       navigation.goBack();
     } catch {
-      // Network failed despite thinking we were online — queue it
+      // Network failed despite thinking we were online -- queue it
       try {
         await enqueueAction('log_food', payload);
         haptics.success();
@@ -202,12 +328,18 @@ export default function AddFoodScreen({ navigation, route }: any) {
         navigation.goBack();
       } catch {
         haptics.error();
-        Alert.alert('Error', 'No se pudo guardar el registro. Inténtalo de nuevo.');
+        Alert.alert('Error', 'No se pudo guardar el registro. Intentalo de nuevo.');
       }
     } finally {
       setLoading(false);
     }
   };
+
+  // ── Computed display ───────────────────────────────────────────────────────
+
+  const multiplier = getEffectiveMultiplier();
+  const showAdjusted = multiplier !== 1 && calParsed > 0;
+  const adjustedCals = showAdjusted ? Math.round(calParsed * multiplier) : 0;
 
   return (
     <KeyboardAvoidingView
@@ -220,7 +352,7 @@ export default function AddFoodScreen({ navigation, route }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: c.surface }]}>
           <Ionicons name="close" size={20} color={c.black} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: c.black }]}>Añadir alimento</Text>
+        <Text style={[styles.headerTitle, { color: c.black }]}>Anadir alimento</Text>
         <TouchableOpacity
           onPress={handleSave}
           disabled={loading || hasErrors}
@@ -235,7 +367,7 @@ export default function AddFoodScreen({ navigation, route }: any) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
       >
-        {/* Meal type selector */}
+        {/* ── Meal type selector ─────────────────────────────────────────────── */}
         <Text style={[styles.sectionLabel, { color: c.gray }]}>Comida</Text>
         <View style={styles.mealRow}>
           {MEAL_OPTIONS.map((opt) => (
@@ -268,10 +400,14 @@ export default function AddFoodScreen({ navigation, route }: any) {
           ))}
         </View>
 
-        {/* Food name */}
+        {/* ── Food name ──────────────────────────────────────────────────────── */}
         <Text style={[styles.sectionLabel, { color: c.gray }]}>Nombre del alimento</Text>
         <View>
-          <View style={[styles.inputWrapper, { backgroundColor: c.surface }]}>
+          <View style={[
+            styles.inputWrapper,
+            { backgroundColor: c.surface },
+            touched.foodName && !!foodNameError && styles.inputError,
+          ]}>
             <Ionicons name="restaurant-outline" size={18} color={c.gray} />
             <TextInput
               style={[styles.nameInput, { color: c.black }]}
@@ -285,7 +421,12 @@ export default function AddFoodScreen({ navigation, route }: any) {
               maxLength={100}
             />
           </View>
-          {!!foodNameError && <Text style={styles.fieldError}>{foodNameError}</Text>}
+          {touched.foodName && !!foodNameError && (
+            <View style={styles.errorRow}>
+              <Ionicons name="alert-circle" size={14} color="#E53935" />
+              <Text style={styles.fieldError}>{foodNameError}</Text>
+            </View>
+          )}
           {showSuggestions && (
             <View style={[styles.suggestionsContainer, { backgroundColor: c.bg, borderColor: c.grayLight }]}>
               <FlatList
@@ -305,7 +446,7 @@ export default function AddFoodScreen({ navigation, route }: any) {
                     <View style={styles.suggestionLeft}>
                       <Text style={[styles.suggestionName, { color: c.black }]} numberOfLines={1}>{item.food_name}</Text>
                       <Text style={[styles.suggestionMacros, { color: c.gray }]}>
-                        P {item.protein_g}g · C {item.carbs_g}g · G {item.fats_g}g
+                        P {item.protein_g}g  C {item.carbs_g}g  G {item.fats_g}g
                       </Text>
                     </View>
                     <Text style={[styles.suggestionCalories, { color: c.black }]}>{Math.round(item.calories)} kcal</Text>
@@ -316,43 +457,172 @@ export default function AddFoodScreen({ navigation, route }: any) {
           )}
         </View>
 
-        {/* Calories — big & prominent */}
-        <Text style={[styles.sectionLabel, { color: c.gray }]}>Calorías</Text>
+        {/* ── Calories (big & prominent) ─────────────────────────────────────── */}
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Calorias</Text>
         <View style={[styles.caloriesWrapper, { backgroundColor: c.primary }]}>
           <TextInput
             style={styles.caloriesInput}
             value={calories}
-            onChangeText={setCalories}
-            keyboardType="decimal-pad"
+            onChangeText={(v) => { setCalories(v); markTouched('calories'); }}
+            onBlur={() => markTouched('calories')}
+            keyboardType="number-pad"
             placeholder="0"
-            placeholderTextColor={c.disabled}
+            placeholderTextColor="rgba(255,255,255,0.3)"
           />
           <Text style={styles.caloriesUnit}>kcal</Text>
         </View>
-        {!!caloriesError && <Text style={styles.fieldError}>{caloriesError}</Text>}
-
-        {/* Macros grid */}
-        <Text style={[styles.sectionLabel, { color: c.gray }]}>Macronutrientes</Text>
-        <View style={styles.macroGrid}>
-          <MacroInput label="Proteína" value={protein} onChange={setProtein} color={c.protein} colors={c} />
-          <MacroInput label="Carbos"   value={carbs}   onChange={setCarbs}   color={c.carbs} colors={c} />
-          <MacroInput label="Grasas"   value={fats}    onChange={setFats}    color={c.fats} colors={c} />
-          <MacroInput label="Fibra"    value={fiber}   onChange={setFiber}   color={c.success} colors={c} />
-        </View>
-        {(!!proteinError || !!carbsError || !!fatsError || !!fiberError) && (
-          <Text style={styles.fieldError}>Los macros deben ser entre 0 y 999</Text>
+        {showAdjusted && (
+          <View style={styles.adjustedRow}>
+            <Ionicons name="resize-outline" size={14} color={c.accent} />
+            <Text style={[styles.adjustedText, { color: c.accent }]}>
+              Con porcion {PORTION_OPTIONS.find((o) => o.key === portionSize)?.label.toLowerCase()}: ~{adjustedCals} kcal
+            </Text>
+          </View>
+        )}
+        {touched.calories && !!caloriesError && (
+          <View style={styles.errorRow}>
+            <Ionicons name="alert-circle" size={14} color="#E53935" />
+            <Text style={styles.fieldError}>{caloriesError}</Text>
+          </View>
         )}
 
-        {/* Optional serving size */}
-        <Text style={[styles.sectionLabel, { color: c.gray }]}>Porción (opcional)</Text>
-        <View style={[styles.inputWrapper, { backgroundColor: c.surface }]}>
-          <Ionicons name="scale-outline" size={18} color={c.gray} />
-          <TextInput
-            style={[styles.nameInput, { color: c.black }]}
-            value={serving}
-            onChangeText={setServing}
-            placeholder="Ej: 100g, 1 taza, 1 pieza"
-            placeholderTextColor={c.disabled}
+        {/* ── Macros grid ────────────────────────────────────────────────────── */}
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Macronutrientes</Text>
+        <View style={styles.macroGrid}>
+          <MacroInput
+            label="Proteina"
+            value={protein}
+            onChange={(v) => { setProtein(v); markTouched('protein'); }}
+            color={c.protein}
+            colors={c}
+            error={touched.protein ? proteinError : undefined}
+          />
+          <MacroInput
+            label="Carbos"
+            value={carbs}
+            onChange={(v) => { setCarbs(v); markTouched('carbs'); }}
+            color={c.carbs}
+            colors={c}
+            error={touched.carbs ? carbsError : undefined}
+          />
+          <MacroInput
+            label="Grasas"
+            value={fats}
+            onChange={(v) => { setFats(v); markTouched('fats'); }}
+            color={c.fats}
+            colors={c}
+            error={touched.fats ? fatsError : undefined}
+          />
+          <MacroInput
+            label="Fibra"
+            value={fiber}
+            onChange={(v) => { setFiber(v); markTouched('fiber'); }}
+            color={c.success}
+            colors={c}
+            error={touched.fiber ? fiberError : undefined}
+          />
+        </View>
+
+        {/* ── Portion size selector ──────────────────────────────────────────── */}
+        <Text style={[styles.sectionLabel, { color: c.gray }]}>Tamano de porcion</Text>
+        <View style={styles.portionRow}>
+          {PORTION_OPTIONS.map((opt) => {
+            const isActive = portionSize === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[
+                  styles.portionChip,
+                  { backgroundColor: c.surface, borderColor: c.grayLight },
+                  isActive && { backgroundColor: c.accent, borderColor: c.accent },
+                ]}
+                onPress={() => {
+                  haptics.selection();
+                  setPortionSize(opt.key);
+                  if (opt.key !== 'custom') setCustomGrams('');
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel={`Porcion ${opt.label}`}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isActive }}
+              >
+                <Ionicons
+                  name={opt.icon as any}
+                  size={16}
+                  color={isActive ? c.white : c.gray}
+                />
+                <Text style={[
+                  styles.portionChipLabel,
+                  { color: c.gray },
+                  isActive && { color: c.white },
+                ]}>
+                  {opt.label}
+                </Text>
+                <Text style={[
+                  styles.portionChipDesc,
+                  { color: c.gray + '80' },
+                  isActive && { color: 'rgba(255,255,255,0.7)' },
+                ]}>
+                  {opt.description}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Custom grams input */}
+        {portionSize === 'custom' && (
+          <View style={styles.customGramsRow}>
+            <View style={[
+              styles.customGramsInput,
+              { backgroundColor: c.surface, borderColor: c.grayLight },
+              touched.customGrams && !!customGramsError && styles.inputError,
+            ]}>
+              <Ionicons name="scale-outline" size={18} color={c.gray} />
+              <TextInput
+                style={[styles.nameInput, { color: c.black }]}
+                value={customGrams}
+                onChangeText={(v) => { setCustomGrams(v); markTouched('customGrams'); }}
+                onBlur={() => markTouched('customGrams')}
+                placeholder="Ej: 150"
+                placeholderTextColor={c.disabled}
+                keyboardType="number-pad"
+                maxLength={5}
+              />
+              <Text style={[styles.gramsUnit, { color: c.gray }]}>gramos</Text>
+            </View>
+            {touched.customGrams && !!customGramsError && (
+              <View style={styles.errorRow}>
+                <Ionicons name="alert-circle" size={14} color="#E53935" />
+                <Text style={styles.fieldError}>{customGramsError}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Save as favorite toggle ────────────────────────────────────────── */}
+        <View style={[styles.favoriteRow, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
+          <View style={styles.favoriteLeft}>
+            <Ionicons
+              name={saveAsFavorite ? 'heart' : 'heart-outline'}
+              size={20}
+              color={saveAsFavorite ? '#EF4444' : c.gray}
+            />
+            <View>
+              <Text style={[styles.favoriteLabel, { color: c.black }]}>Guardar como favorito</Text>
+              <Text style={[styles.favoriteHint, { color: c.gray }]}>
+                Registralo rapidamente la proxima vez
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={saveAsFavorite}
+            onValueChange={(v) => {
+              haptics.selection();
+              setSaveAsFavorite(v);
+            }}
+            trackColor={{ false: c.grayLight, true: c.accent + '60' }}
+            thumbColor={saveAsFavorite ? c.accent : c.disabled}
           />
         </View>
 
@@ -361,6 +631,8 @@ export default function AddFoodScreen({ navigation, route }: any) {
     </KeyboardAvoidingView>
   );
 }
+
+// ── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -412,6 +684,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     height: 52,
   },
+  inputError: {
+    borderWidth: 1.5,
+    borderColor: '#E53935',
+  },
   nameInput: { flex: 1, ...typography.option },
   caloriesWrapper: {
     flexDirection: 'row',
@@ -430,8 +706,87 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   caloriesUnit: { fontSize: 20, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
+  adjustedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    paddingLeft: spacing.xs,
+  },
+  adjustedText: {
+    ...typography.caption,
+    fontWeight: '600',
+  },
   macroGrid: { flexDirection: 'row', gap: spacing.sm },
-  fieldError: { color: '#E53935', fontSize: 12, marginTop: spacing.xs, marginLeft: spacing.xs },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xs,
+    paddingLeft: spacing.xs,
+  },
+  fieldError: { color: '#E53935', fontSize: 12 },
+  portionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  portionChip: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    gap: 2,
+  },
+  portionChipLabel: {
+    ...typography.caption,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  portionChipDesc: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  customGramsRow: {
+    marginTop: spacing.sm,
+  },
+  customGramsInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    height: 48,
+  },
+  gramsUnit: {
+    ...typography.caption,
+    fontWeight: '600',
+  },
+  favoriteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  favoriteLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  favoriteLabel: {
+    ...typography.bodyMd,
+    fontWeight: '600',
+  },
+  favoriteHint: {
+    ...typography.caption,
+    marginTop: 1,
+  },
   suggestionsContainer: {
     borderWidth: 1,
     borderRadius: radius.md,

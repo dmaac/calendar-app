@@ -2,26 +2,33 @@
  * ProgressScreen -- Cal AI-style progress dashboard
  *
  * Sections:
- * 1. Weekly Summary card (shows on Sunday/Monday, dismissible)
- * 2. Share Progress Card (daily NutriScore, streak, macros)
- * 3. Day Streak + Badges Earned (side-by-side cards)
- * 4. Current Weight card with start/goal + prediction
- * 5. Weight Progress SVG line chart with time filters (90D, 6M, 1Y, ALL)
- * 6. Weight Changes table (3d, 7d, 14d, 30d, 90d, All Time)
- * 7. Progress Photos section with upload button
- * 8. Micronutrient Dashboard (expandable, estimated from logged foods)
- * 9. Supplement Tracker (daily checklist + weekly history)
- * 10. Daily Average Calories bar chart
+ * 1. Header with Share Progress button
+ * 2. Weekly Summary card (shows on Sunday/Monday, dismissible)
+ * 3. Share Progress Card (daily NutriScore, streak, macros)
+ * 4. Calendar Heatmap (90 days NutriScore)
+ * 5. Day Streak + Badges Earned (side-by-side cards)
+ * 6. Current Weight card with start/goal + prediction
+ * 7. Weight Progress SVG line chart with goal line + time filters (90D, 6M, 1Y, ALL)
+ * 8. Weight Changes table (3d, 7d, 14d, 30d, 90d, All Time)
+ * 9. Milestone Achievements
+ * 10. Progress Photos section with upload button
+ * 11. Body Metrics Tracker
+ * 12. Workout Summary (weekly activity)
+ * 13. Micronutrient Dashboard (expandable)
+ * 14. Supplement Tracker
+ * 15. Daily Average Calories bar chart
  *
  * Uses ThemeContext for dark/light mode support.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Share,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,9 +57,8 @@ import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import useStreak from '../../hooks/useStreak';
 
-// ─── Theme-aware color palette ──────────────────────────────────────────────
+// ─── Theme-aware color palette ───────────────────────────────────────────────
 
-/** Returns a progress-screen color set derived from the active theme. */
 function useProgressColors() {
   const { isDark } = useAppTheme();
   const tc = useThemeColors();
@@ -72,10 +78,14 @@ function useProgressColors() {
     fire: '#FF6B35',
     medal: '#FBBF24',
     separator: tc.grayLight,
+    success: '#10B981',
+    danger: '#EF4444',
+    purple: '#8B5CF6',
+    grayLight: tc.grayLight,
   }), [isDark, tc]);
 }
 
-// ─── Mock data ──────────────────────────────────────────────────────────────
+// ─── Mock data ────────────────────────────────────────────────────────────────
 
 const MOCK = {
   streak: 12,
@@ -87,7 +97,6 @@ const MOCK = {
   nextWeighIn: 'Tomorrow',
 };
 
-// Mock data for ShareProgressCard (daily snapshot)
 const MOCK_DAILY_PROGRESS = {
   nutriScore: 74,
   caloriesCurrent: 1820,
@@ -97,7 +106,6 @@ const MOCK_DAILY_PROGRESS = {
   fats: { current: 60, target: 70 },
 };
 
-// Mock data for WeeklySummary
 const MOCK_WEEKLY_SUMMARY = {
   avgCalories: 1950,
   bestNutriScore: 88,
@@ -109,16 +117,15 @@ const MOCK_WEEKLY_SUMMARY = {
   avgFats: 62,
 };
 
-// Mock data for WorkoutSummaryCard
 function generateMockWorkoutLog(): WorkoutLogEntry[] {
   const entries: WorkoutLogEntry[] = [];
   const now = new Date();
   const samples = [
-    { name: 'Pesas (general)',        cat: 'weights',  color: '#6366F1', icon: 'barbell-outline',   dur: 55, cal: 337 },
-    { name: 'Correr (ritmo moderado)', cat: 'running',  color: '#EA4335', icon: 'walk-outline',      dur: 30, cal: 360 },
-    { name: 'Yoga (Hatha)',           cat: 'yoga',     color: '#8B5CF6', icon: 'body-outline',      dur: 20, cal: 61  },
-    { name: 'Peso muerto / Deadlift', cat: 'weights',  color: '#6366F1', icon: 'barbell-outline',   dur: 60, cal: 441 },
-    { name: 'Futbol',                 cat: 'sports',   color: '#F97316', icon: 'football-outline',  dur: 90, cal: 771 },
+    { name: 'Pesas (general)', cat: 'weights', color: '#6366F1', icon: 'barbell-outline', dur: 55, cal: 337 },
+    { name: 'Correr (ritmo moderado)', cat: 'running', color: '#EA4335', icon: 'walk-outline', dur: 30, cal: 360 },
+    { name: 'Yoga (Hatha)', cat: 'yoga', color: '#8B5CF6', icon: 'body-outline', dur: 20, cal: 61 },
+    { name: 'Peso muerto / Deadlift', cat: 'weights', color: '#6366F1', icon: 'barbell-outline', dur: 60, cal: 441 },
+    { name: 'Futbol', cat: 'sports', color: '#F97316', icon: 'football-outline', dur: 90, cal: 771 },
     { name: 'Spinning / Indoor cycling', cat: 'cycling', color: '#10B981', icon: 'bicycle-outline', dur: 45, cal: 468 },
   ];
   for (let i = 0; i < samples.length; i++) {
@@ -141,8 +148,11 @@ function generateMockWorkoutLog(): WorkoutLogEntry[] {
 
 const MOCK_WORKOUT_LOG = generateMockWorkoutLog();
 
-// Weight history (last ~120 days for ALL filter)
-function generateWeightHistory(days: number, start: number, current: number): { date: Date; weight: number }[] {
+function generateWeightHistory(
+  days: number,
+  start: number,
+  current: number,
+): { date: Date; weight: number }[] {
   const data: { date: Date; weight: number }[] = [];
   const now = new Date();
   const diff = start - current;
@@ -167,7 +177,6 @@ const WEIGHT_CHANGES = [
   { label: 'All Time', value: -5.0 },
 ];
 
-// Daily average calories (last 7 days)
 const DAILY_CALORIES = [
   { day: 'Mon', value: 1950 },
   { day: 'Tue', value: 2100 },
@@ -180,7 +189,80 @@ const DAILY_CALORIES = [
 
 const CALORIE_TARGET = 2100;
 
-// ─── Time filter ────────────────────────────────────────────────────────────
+// ─── Milestone data ──────────────────────────────────────────────────────────
+
+interface Milestone {
+  id: string;
+  icon: string;
+  iconColor: string;
+  bgColor: string;
+  title: string;
+  subtitle: string;
+  achieved: boolean;
+  achievedDate?: string;
+}
+
+const MILESTONES: Milestone[] = [
+  {
+    id: 'first_log',
+    icon: 'camera-outline',
+    iconColor: '#4285F4',
+    bgColor: '#E8F0FE',
+    title: 'Primera comida registrada',
+    subtitle: 'Empezaste tu viaje',
+    achieved: true,
+    achievedDate: 'Ene 15',
+  },
+  {
+    id: 'streak_7',
+    icon: 'flame-outline',
+    iconColor: '#F59E0B',
+    bgColor: '#FEF3C7',
+    title: 'Racha de 7 dias',
+    subtitle: 'Una semana seguida',
+    achieved: true,
+    achievedDate: 'Feb 3',
+  },
+  {
+    id: 'lose_1kg',
+    icon: 'trending-down-outline',
+    iconColor: '#10B981',
+    bgColor: '#D1FAE5',
+    title: 'Primer kilogramo perdido',
+    subtitle: '1 kg menos',
+    achieved: true,
+    achievedDate: 'Feb 12',
+  },
+  {
+    id: 'streak_30',
+    icon: 'star-outline',
+    iconColor: '#8B5CF6',
+    bgColor: '#EDE9FE',
+    title: 'Racha de 30 dias',
+    subtitle: 'Un mes completo',
+    achieved: false,
+  },
+  {
+    id: 'lose_5kg',
+    icon: 'trophy-outline',
+    iconColor: '#F59E0B',
+    bgColor: '#FEF3C7',
+    title: '5 kilogramos perdidos',
+    subtitle: 'Mitad del camino',
+    achieved: false,
+  },
+  {
+    id: 'goal_reached',
+    icon: 'ribbon-outline',
+    iconColor: '#EA4335',
+    bgColor: '#FEE2E2',
+    title: 'Meta alcanzada',
+    subtitle: `Llegar a ${MOCK.goalWeight} kg`,
+    achieved: false,
+  },
+];
+
+// ─── Time filter ─────────────────────────────────────────────────────────────
 
 type TimeFilter = '90D' | '6M' | '1Y' | 'ALL';
 const TIME_FILTERS: TimeFilter[] = ['90D', '6M', '1Y', 'ALL'];
@@ -194,21 +276,22 @@ function filterDays(f: TimeFilter): number {
   }
 }
 
-// ─── Weight Line Chart ──────────────────────────────────────────────────────
+// ─── Weight Line Chart (with goal line) ──────────────────────────────────────
 
-const CHART_H = 180;
-const CHART_PAD_TOP = 16;
-const CHART_PAD_BOTTOM = 24;
-const CHART_PAD_LEFT = 36;
-const CHART_PAD_RIGHT = 12;
+const CHART_H = 200;
+const CHART_PAD_TOP = 20;
+const CHART_PAD_BOTTOM = 28;
+const CHART_PAD_LEFT = 40;
+const CHART_PAD_RIGHT = 16;
 
-// Memoized to prevent expensive SVG path recalculation on unrelated state changes
 const WeightLineChart = React.memo(function WeightLineChart({
   data,
+  goalWeight,
   width,
   colors: C,
 }: {
   data: { date: Date; weight: number }[];
+  goalWeight: number;
   width: number;
   colors: ReturnType<typeof useProgressColors>;
 }) {
@@ -218,8 +301,8 @@ const WeightLineChart = React.memo(function WeightLineChart({
   const drawH = CHART_H - CHART_PAD_TOP - CHART_PAD_BOTTOM;
 
   const weights = data.map((d) => d.weight);
-  const minW = Math.min(...weights) - 0.5;
-  const maxW = Math.max(...weights) + 0.5;
+  const minW = Math.min(...weights, goalWeight) - 0.5;
+  const maxW = Math.max(...weights, goalWeight) + 0.5;
   const range = maxW - minW || 1;
 
   const toX = (i: number) => CHART_PAD_LEFT + (i / (data.length - 1)) * drawW;
@@ -234,14 +317,14 @@ const WeightLineChart = React.memo(function WeightLineChart({
     ` L${toX(data.length - 1).toFixed(1)},${(CHART_H - CHART_PAD_BOTTOM).toFixed(1)}` +
     ` L${toX(0).toFixed(1)},${(CHART_H - CHART_PAD_BOTTOM).toFixed(1)} Z`;
 
-  // Y-axis ticks
+  const goalY = toY(goalWeight);
+
   const yTicks = 4;
   const yLabels = Array.from({ length: yTicks }, (_, i) => {
     const val = minW + (range * i) / (yTicks - 1);
     return { val, y: toY(val) };
   });
 
-  // X-axis labels (first, mid, last)
   const xIndices = [0, Math.floor(data.length / 2), data.length - 1];
   const fmtDate = (d: Date) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -256,7 +339,7 @@ const WeightLineChart = React.memo(function WeightLineChart({
     <Svg width={width} height={CHART_H}>
       <Defs>
         <LinearGradient id="weightAreaGrad" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={C.accent} stopOpacity="0.3" />
+          <Stop offset="0" stopColor={C.accent} stopOpacity="0.25" />
           <Stop offset="1" stopColor={C.accent} stopOpacity="0.02" />
         </LinearGradient>
       </Defs>
@@ -273,6 +356,27 @@ const WeightLineChart = React.memo(function WeightLineChart({
           strokeWidth={0.5}
         />
       ))}
+
+      {/* Goal weight dashed line */}
+      <Line
+        x1={CHART_PAD_LEFT}
+        y1={goalY}
+        x2={width - CHART_PAD_RIGHT}
+        y2={goalY}
+        stroke={C.success}
+        strokeWidth={1.5}
+        strokeDasharray="6,4"
+      />
+      <SvgText
+        x={width - CHART_PAD_RIGHT - 2}
+        y={goalY - 5}
+        fontSize={9}
+        fontWeight="700"
+        fill={C.success}
+        textAnchor="end"
+      >
+        Meta {goalWeight} kg
+      </SvgText>
 
       {/* Y labels */}
       {yLabels.map((t, i) => (
@@ -305,24 +409,36 @@ const WeightLineChart = React.memo(function WeightLineChart({
       {/* Area fill */}
       <Path d={areaPath} fill="url(#weightAreaGrad)" />
 
-      {/* Line */}
+      {/* Weight line */}
       <Path
         d={linePath}
         fill="none"
         stroke={C.accent}
-        strokeWidth={2}
+        strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
 
-      {/* Latest dot */}
-      <Circle cx={lastX} cy={lastY} r={4} fill={C.accent} />
-      <Circle cx={lastX} cy={lastY} r={2} fill={C.white} />
+      {/* Latest point */}
+      <Circle cx={lastX} cy={lastY} r={5} fill={C.accent} />
+      <Circle cx={lastX} cy={lastY} r={2.5} fill={C.white} />
+
+      {/* Latest value label */}
+      <SvgText
+        x={lastX}
+        y={lastY - 10}
+        fontSize={11}
+        fontWeight="700"
+        fill={C.accent}
+        textAnchor="middle"
+      >
+        {data[lastIdx].weight} kg
+      </SvgText>
     </Svg>
   );
 });
 
-// ─── Calories Bar Chart ─────────────────────────────────────────────────────
+// ─── Calories Bar Chart ──────────────────────────────────────────────────────
 
 const BAR_CHART_H = 160;
 const BAR_PAD_TOP = 12;
@@ -330,7 +446,6 @@ const BAR_PAD_BOTTOM = 24;
 const BAR_PAD_LEFT = 36;
 const BAR_PAD_RIGHT = 12;
 
-// Memoized to prevent bar re-render when time filter changes (only weight chart updates)
 const CaloriesBarChart = React.memo(function CaloriesBarChart({
   data,
   target,
@@ -392,7 +507,6 @@ const CaloriesBarChart = React.memo(function CaloriesBarChart({
               fill={isOverTarget ? C.orange : C.accent}
               opacity={0.9}
             />
-            {/* Day label */}
             <SvgText
               x={BAR_PAD_LEFT + i * barW + barW / 2}
               y={BAR_CHART_H - 4}
@@ -409,9 +523,8 @@ const CaloriesBarChart = React.memo(function CaloriesBarChart({
   );
 });
 
-// ─── Weight Change Row ──────────────────────────────────────────────────────
+// ─── Weight Change Row ────────────────────────────────────────────────────────
 
-// Memoized to avoid re-render of all rows when only time filter changes
 const WeightChangeRow = React.memo(function WeightChangeRow({
   label,
   value,
@@ -442,14 +555,143 @@ const WeightChangeRow = React.memo(function WeightChangeRow({
           ]}
         />
       </View>
-      <Text style={[s.changeValue, { color: C.textSecondary }, isLoss && { color: C.accent }]}>
+      <Text
+        style={[
+          s.changeValue,
+          { color: C.textSecondary },
+          isLoss && { color: C.accent },
+        ]}
+      >
         {displayText}
       </Text>
     </View>
   );
 });
 
-// ─── Main screen ────────────────────────────────────────────────────────────
+// ─── Milestones section ───────────────────────────────────────────────────────
+
+function MilestonesSection({ colors: C }: { colors: ReturnType<typeof useProgressColors> }) {
+  const achieved = MILESTONES.filter((m) => m.achieved);
+  const pending = MILESTONES.filter((m) => !m.achieved);
+
+  return (
+    <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+      <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">
+        Logros
+      </Text>
+
+      {/* Achieved */}
+      <View style={msStyles.group}>
+        <Text style={[msStyles.groupLabel, { color: C.textSecondary }]}>Conseguidos</Text>
+        {achieved.map((m) => (
+          <View key={m.id} style={[msStyles.row, { borderBottomColor: C.separator }]}>
+            <View style={[msStyles.iconWrap, { backgroundColor: m.bgColor }]}>
+              <Ionicons name={m.icon as any} size={20} color={m.iconColor} />
+            </View>
+            <View style={msStyles.info}>
+              <Text style={[msStyles.title, { color: C.textPrimary }]}>{m.title}</Text>
+              <Text style={[msStyles.sub, { color: C.textSecondary }]}>{m.subtitle}</Text>
+            </View>
+            <View style={msStyles.right}>
+              <View style={[msStyles.checkBadge, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name="checkmark" size={12} color="#059669" />
+              </View>
+              {m.achievedDate && (
+                <Text style={[msStyles.date, { color: C.textTertiary }]}>{m.achievedDate}</Text>
+              )}
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* Pending */}
+      <View style={msStyles.group}>
+        <Text style={[msStyles.groupLabel, { color: C.textSecondary }]}>Proximos logros</Text>
+        {pending.map((m) => (
+          <View
+            key={m.id}
+            style={[msStyles.row, { borderBottomColor: C.separator, opacity: 0.5 }]}
+          >
+            <View style={[msStyles.iconWrap, { backgroundColor: C.separator + '50' }]}>
+              <Ionicons name={m.icon as any} size={20} color={C.textTertiary} />
+            </View>
+            <View style={msStyles.info}>
+              <Text style={[msStyles.title, { color: C.textPrimary }]}>{m.title}</Text>
+              <Text style={[msStyles.sub, { color: C.textSecondary }]}>{m.subtitle}</Text>
+            </View>
+            <View style={[msStyles.lockBadge, { backgroundColor: C.separator }]}>
+              <Ionicons name="lock-closed-outline" size={12} color={C.textTertiary} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const msStyles = StyleSheet.create({
+  group: { marginBottom: spacing.sm },
+  groupLabel: {
+    ...typography.caption,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+    fontWeight: '600',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  info: { flex: 1 },
+  title: { ...typography.label, marginBottom: 2 },
+  sub: { ...typography.caption },
+  right: { alignItems: 'flex-end', gap: 2 },
+  checkBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  date: { ...typography.caption },
+});
+
+// ─── Share progress handler ───────────────────────────────────────────────────
+
+async function handleShareProgress(streak: number) {
+  try {
+    await Share.share({
+      message:
+        `Mi progreso en Fitsi IA:\n` +
+        `Peso actual: ${MOCK.currentWeight} kg\n` +
+        `Perdido: ${(MOCK.startWeight - MOCK.currentWeight).toFixed(1)} kg\n` +
+        `Racha: ${streak} dias seguidos\n` +
+        `Meta: ${MOCK.goalWeight} kg para ${MOCK.goalDate}`,
+      title: 'Mi progreso en Fitsi IA',
+    });
+  } catch {
+    // user dismissed share sheet
+  }
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
@@ -460,49 +702,61 @@ export default function ProgressScreen() {
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('90D');
 
-  // Streak state (with freeze support)
   const {
     streak: streakDays,
     hasFreezeAvailable,
     freezeUsedToday,
   } = useStreak();
 
-  // Use streak hook value if available, fallback to mock
   const displayStreak = streakDays > 0 ? streakDays : MOCK.streak;
 
-  // Memoize filtered weight data to avoid re-slicing on every render
   const weightData = useMemo(() => {
     const filteredDays = filterDays(timeFilter);
     return ALL_WEIGHT_DATA.slice(-Math.min(filteredDays, ALL_WEIGHT_DATA.length));
   }, [timeFilter]);
 
-  // Memoize max abs change — static data, computed once
   const maxAbsChange = useMemo(
     () => Math.max(...WEIGHT_CHANGES.map((c) => Math.abs(c.value))),
     [],
   );
 
+  const onShareProgress = useCallback(() => {
+    haptics.light();
+    track('share_progress_tapped');
+    handleShareProgress(displayStreak);
+  }, [displayStreak, track]);
+
   return (
     <View style={[s.screen, { paddingTop: insets.top, backgroundColor: C.bg }]}>
-      {/* Header */}
+      {/* Header with Share button */}
       <View style={[s.header, { paddingHorizontal: sidePadding }]} accessibilityRole="header">
-        <Text style={[s.headerTitle, { color: C.textPrimary }]}>Progress</Text>
+        <Text style={[s.headerTitle, { color: C.textPrimary }]}>Progreso</Text>
+        <TouchableOpacity
+          style={[s.shareHeaderBtn, { backgroundColor: C.accent + '18', borderColor: C.accent + '30' }]}
+          onPress={onShareProgress}
+          activeOpacity={0.7}
+          accessibilityLabel="Compartir progreso"
+          accessibilityRole="button"
+        >
+          <Ionicons name="share-social-outline" size={16} color={C.accent} />
+          <Text style={[s.shareHeaderText, { color: C.accent }]}>Compartir</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        bounces={true}
+        bounces
         overScrollMode="never"
         contentContainerStyle={[s.scroll, { paddingHorizontal: sidePadding }]}
       >
-        {/* ── Weekly Summary (shows on Sunday/Monday) ── */}
+        {/* Weekly Summary (shows on Sunday/Monday) */}
         <WeeklySummary
           data={{ ...MOCK_WEEKLY_SUMMARY, streak: displayStreak }}
           onDismiss={() => track('weekly_summary_dismissed')}
           onShareComplete={() => track('weekly_summary_shared')}
         />
 
-        {/* ── Share Progress Card (daily snapshot) ── */}
+        {/* Daily snapshot share card */}
         <ShareProgressCard
           nutriScore={MOCK_DAILY_PROGRESS.nutriScore}
           streak={displayStreak}
@@ -515,12 +769,15 @@ export default function ProgressScreen() {
           onShareComplete={() => track('daily_progress_shared')}
         />
 
-        {/* ── Calendar Heatmap (90 days NutriScore) ── */}
-        <View accessibilityLabel="Mapa de calor nutricional de los ultimos 90 dias" accessibilityRole="summary">
+        {/* Calendar Heatmap */}
+        <View
+          accessibilityLabel="Mapa de calor nutricional de los ultimos 90 dias"
+          accessibilityRole="summary"
+        >
           <CalendarHeatmap />
         </View>
 
-        {/* ── Streak + Badges ── */}
+        {/* Streak + Badges */}
         <View style={s.topCardsRow}>
           <View
             style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}
@@ -529,7 +786,8 @@ export default function ProgressScreen() {
             <FitsiMascot expression="muscle" size="small" animation="idle" />
             <Text style={[s.topCardValue, { color: C.textPrimary }]}>{displayStreak}</Text>
             <Text style={[s.topCardLabel, { color: C.textSecondary }]}>
-              Day Streak{hasFreezeAvailable ? ' \u2744' : ''}
+              {'Dia de racha'}
+              {hasFreezeAvailable ? ' \u2744' : ''}
             </Text>
           </View>
           <View
@@ -537,54 +795,91 @@ export default function ProgressScreen() {
             accessibilityLabel={`${MOCK.badges} insignias obtenidas`}
           >
             <View style={[s.topCardIcon, { backgroundColor: C.separator + '30' }]}>
-              <Ionicons name="medal" size={24} color={C.medal} accessibilityRole="image" accessibilityLabel="Icono de medalla" />
+              <Ionicons
+                name="medal"
+                size={24}
+                color={C.medal}
+                accessibilityRole="image"
+                accessibilityLabel="Icono de medalla"
+              />
             </View>
             <Text style={[s.topCardValue, { color: C.textPrimary }]}>{MOCK.badges}</Text>
-            <Text style={[s.topCardLabel, { color: C.textSecondary }]}>Badges Earned</Text>
+            <Text style={[s.topCardLabel, { color: C.textSecondary }]}>Logros</Text>
           </View>
         </View>
 
-        {/* ── Current Weight Card ── */}
+        {/* Current Weight Card */}
         <View
           style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}
-          accessibilityLabel={`Peso actual ${MOCK.currentWeight} kilogramos. Peso inicial ${MOCK.startWeight}, objetivo ${MOCK.goalWeight}`}
+          accessibilityLabel={`Peso actual ${MOCK.currentWeight} kilogramos. Inicio ${MOCK.startWeight}, meta ${MOCK.goalWeight}`}
         >
           <View style={s.weightHeaderRow}>
             <View>
-              <Text style={[s.weightLabel, { color: C.textSecondary }]}>Current Weight</Text>
-              <Text style={[s.weightValue, { color: C.textPrimary }]}>{MOCK.currentWeight} kg</Text>
+              <Text style={[s.weightLabel, { color: C.textSecondary }]}>Peso actual</Text>
+              <Text style={[s.weightValue, { color: C.textPrimary }]}>
+                {MOCK.currentWeight} kg
+              </Text>
             </View>
             <View style={[s.weightBadge, { backgroundColor: C.accent + '1F' }]}>
               <Ionicons name="scale-outline" size={14} color={C.accent} />
-              <Text style={[s.weightBadgeText, { color: C.accentLight }]}>Next: {MOCK.nextWeighIn}</Text>
+              <Text style={[s.weightBadgeText, { color: C.accentLight }]}>
+                Proximo: {MOCK.nextWeighIn}
+              </Text>
             </View>
           </View>
 
           <View style={s.weightStatsRow}>
             <View style={s.weightStat}>
-              <Text style={[s.weightStatLabel, { color: C.textTertiary }]}>Start</Text>
-              <Text style={[s.weightStatValue, { color: C.textPrimary }]}>{MOCK.startWeight} kg</Text>
+              <Text style={[s.weightStatLabel, { color: C.textTertiary }]}>Inicio</Text>
+              <Text style={[s.weightStatValue, { color: C.textPrimary }]}>
+                {MOCK.startWeight} kg
+              </Text>
             </View>
             <View style={[s.weightStatDivider, { backgroundColor: C.separator }]} />
             <View style={s.weightStat}>
-              <Text style={[s.weightStatLabel, { color: C.textTertiary }]}>Goal</Text>
-              <Text style={[s.weightStatValue, { color: C.textPrimary }]}>{MOCK.goalWeight} kg</Text>
+              <Text style={[s.weightStatLabel, { color: C.textTertiary }]}>Perdido</Text>
+              <Text style={[s.weightStatValue, { color: C.success }]}>
+                -{(MOCK.startWeight - MOCK.currentWeight).toFixed(1)} kg
+              </Text>
+            </View>
+            <View style={[s.weightStatDivider, { backgroundColor: C.separator }]} />
+            <View style={s.weightStat}>
+              <Text style={[s.weightStatLabel, { color: C.textTertiary }]}>Meta</Text>
+              <Text style={[s.weightStatValue, { color: C.textPrimary }]}>
+                {MOCK.goalWeight} kg
+              </Text>
             </View>
           </View>
 
           <View style={s.goalPrediction}>
             <Ionicons name="trending-down" size={14} color={C.green} />
-            <Text style={[s.goalPredictionText, { color: C.green }]}>At your goal by {MOCK.goalDate}</Text>
+            <Text style={[s.goalPredictionText, { color: C.green }]}>
+              Llegas a tu meta el {MOCK.goalDate}
+            </Text>
           </View>
         </View>
 
-        {/* ── Weight Progress Chart ── */}
+        {/* Weight Progress Chart */}
         <View
           style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}
-          accessibilityLabel="Grafico de progreso de peso"
+          accessibilityLabel="Grafico de progreso de peso con linea de meta"
           accessibilityRole="summary"
         >
-          <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">Weight Progress</Text>
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">
+            Tendencia de peso
+          </Text>
+
+          {/* Legend */}
+          <View style={s.chartLegend}>
+            <View style={s.legendItem}>
+              <View style={[s.legendLine, { backgroundColor: C.accent }]} />
+              <Text style={[s.legendText, { color: C.textSecondary }]}>Peso</Text>
+            </View>
+            <View style={s.legendItem}>
+              <View style={[s.legendDash, { borderColor: C.success }]} />
+              <Text style={[s.legendText, { color: C.textSecondary }]}>Meta</Text>
+            </View>
+          </View>
 
           {/* Time filter pills */}
           <View style={s.filterRow}>
@@ -601,25 +896,33 @@ export default function ProgressScreen() {
                 accessibilityLabel={`Filtro de tiempo ${f}`}
                 accessibilityRole="button"
                 accessibilityState={{ selected: timeFilter === f }}
-                accessibilityHint={`Muestra datos de peso de los ultimos ${f === 'ALL' ? 'todos los periodos' : f}`}
               >
-                <Text style={[
-                  s.filterPillText,
-                  { color: C.textSecondary },
-                  timeFilter === f && { color: C.white },
-                ]}>
+                <Text
+                  style={[
+                    s.filterPillText,
+                    { color: C.textSecondary },
+                    timeFilter === f && { color: C.white },
+                  ]}
+                >
                   {f}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <WeightLineChart data={weightData} width={innerWidth - spacing.md * 2} colors={C} />
+          <WeightLineChart
+            data={weightData}
+            goalWeight={MOCK.goalWeight}
+            width={innerWidth - spacing.md * 2}
+            colors={C}
+          />
         </View>
 
-        {/* ── Weight Changes Table ── */}
+        {/* Weight Changes Table */}
         <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
-          <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">Weight Changes</Text>
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">
+            Cambios de peso
+          </Text>
           {WEIGHT_CHANGES.map((wc) => (
             <WeightChangeRow
               key={wc.label}
@@ -631,26 +934,31 @@ export default function ProgressScreen() {
           ))}
         </View>
 
-        {/* ── Progress Photos (full component) ── */}
+        {/* Milestone Achievements */}
+        <MilestonesSection colors={C} />
+
+        {/* Progress Photos */}
         <ProgressPhotos />
 
-        {/* ── Body Metrics Tracker ── */}
+        {/* Body Metrics */}
         <BodyMetrics />
 
-        {/* ── Workout Summary (weekly activity) ── */}
+        {/* Workout Summary */}
         <WorkoutSummaryCard workouts={MOCK_WORKOUT_LOG} />
 
-        {/* ── Micronutrient Dashboard (expandable) ── */}
+        {/* Micronutrient Dashboard */}
         <MicronutrientDashboard />
 
-        {/* ── Supplement Tracker ── */}
+        {/* Supplement Tracker */}
         <SupplementTracker />
 
-        {/* ── Daily Average Calories ── */}
+        {/* Daily Average Calories */}
         <View style={[s.card, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
-          <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">Daily Average Calories</Text>
+          <Text style={[s.sectionTitle, { color: C.textPrimary }]} accessibilityRole="header">
+            Calorias diarias
+          </Text>
           <Text style={[s.calSubtitle, { color: C.textTertiary }]}>
-            Target: {CALORIE_TARGET} kcal
+            Meta: {CALORIE_TARGET} kcal
           </Text>
           <CaloriesBarChart
             data={DAILY_CALORIES}
@@ -660,31 +968,57 @@ export default function ProgressScreen() {
           />
         </View>
 
+        {/* Share progress CTA at the bottom */}
+        <TouchableOpacity
+          style={[s.shareBottomBtn, { backgroundColor: C.accent }]}
+          onPress={onShareProgress}
+          activeOpacity={0.85}
+          accessibilityLabel="Compartir mi progreso"
+          accessibilityRole="button"
+        >
+          <Ionicons name="share-social-outline" size={20} color="#FFFFFF" />
+          <Text style={s.shareBottomBtnText}>Compartir mi progreso</Text>
+        </TouchableOpacity>
+
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </View>
   );
 }
 
-// ─── Styles (layout only — colors applied inline from theme) ─────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
+  screen: { flex: 1 },
+
+  // Header
   header: {
     paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
-  scroll: {
-    paddingTop: spacing.sm,
+  shareHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  shareHeaderText: {
+    ...typography.label,
   },
 
-  // ── Top cards (Streak + Badges) ──
+  scroll: { paddingTop: spacing.sm },
+
+  // Top cards
   topCardsRow: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -707,15 +1041,10 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.xs,
   },
-  topCardValue: {
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  topCardLabel: {
-    ...typography.caption,
-  },
+  topCardValue: { fontSize: 28, fontWeight: '800' },
+  topCardLabel: { ...typography.caption },
 
-  // ── Card ──
+  // Card
   card: {
     borderRadius: radius.lg,
     borderWidth: 1,
@@ -723,21 +1052,15 @@ const s = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  // ── Current Weight ──
+  // Weight card
   weightHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.md,
   },
-  weightLabel: {
-    ...typography.caption,
-    marginBottom: 4,
-  },
-  weightValue: {
-    fontSize: 32,
-    fontWeight: '800',
-  },
+  weightLabel: { ...typography.caption, marginBottom: 4 },
+  weightValue: { fontSize: 32, fontWeight: '800' },
   weightBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -746,31 +1069,16 @@ const s = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: radius.full,
   },
-  weightBadgeText: {
-    ...typography.caption,
-    fontWeight: '600',
-  },
+  weightBadgeText: { ...typography.caption, fontWeight: '600' },
   weightStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  weightStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  weightStatLabel: {
-    ...typography.caption,
-    marginBottom: 2,
-  },
-  weightStatValue: {
-    ...typography.bodyMd,
-    fontWeight: '700',
-  },
-  weightStatDivider: {
-    width: 1,
-    height: 28,
-  },
+  weightStat: { flex: 1, alignItems: 'center' },
+  weightStatLabel: { ...typography.caption, marginBottom: 2 },
+  weightStatValue: { ...typography.bodyMd, fontWeight: '700' },
+  weightStatDivider: { width: 1, height: 28 },
   goalPrediction: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -780,18 +1088,28 @@ const s = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
   },
-  goalPredictionText: {
-    ...typography.caption,
-    fontWeight: '600',
-  },
+  goalPredictionText: { ...typography.caption, fontWeight: '600' },
 
-  // ── Section title ──
-  sectionTitle: {
-    ...typography.titleSm,
+  // Section title
+  sectionTitle: { ...typography.titleSm, marginBottom: spacing.sm },
+
+  // Chart legend
+  chartLegend: {
+    flexDirection: 'row',
+    gap: spacing.md,
     marginBottom: spacing.sm,
   },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendLine: { width: 16, height: 2.5, borderRadius: 2 },
+  legendDash: {
+    width: 16,
+    borderTopWidth: 2,
+    borderStyle: 'dashed',
+    borderRadius: 2,
+  },
+  legendText: { ...typography.caption, fontWeight: '600' },
 
-  // ── Time filter ──
+  // Time filter
   filterRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -802,23 +1120,16 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.full,
   },
-  filterPillText: {
-    ...typography.caption,
-    fontWeight: '600',
-  },
+  filterPillText: { ...typography.caption, fontWeight: '600' },
 
-  // ── Weight Changes ──
+  // Weight changes
   changeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
-  changeLabel: {
-    width: 70,
-    ...typography.caption,
-    fontWeight: '600',
-  },
+  changeLabel: { width: 70, ...typography.caption, fontWeight: '600' },
   changeBarContainer: {
     flex: 1,
     height: 8,
@@ -826,20 +1137,21 @@ const s = StyleSheet.create({
     marginHorizontal: spacing.sm,
     overflow: 'hidden',
   },
-  changeBar: {
-    height: 8,
-    borderRadius: 4,
-  },
-  changeValue: {
-    width: 80,
-    ...typography.caption,
-    fontWeight: '600',
-    textAlign: 'right',
-  },
+  changeBar: { height: 8, borderRadius: 4 },
+  changeValue: { width: 80, ...typography.caption, fontWeight: '600', textAlign: 'right' },
 
-  // ── Daily Calories ──
-  calSubtitle: {
-    ...typography.caption,
-    marginBottom: spacing.sm,
+  // Daily calories
+  calSubtitle: { ...typography.caption, marginBottom: spacing.sm },
+
+  // Share bottom CTA
+  shareBottomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    height: 56,
+    borderRadius: radius.full,
+    marginBottom: spacing.md,
   },
+  shareBottomBtnText: { ...typography.button, color: '#FFFFFF' },
 });

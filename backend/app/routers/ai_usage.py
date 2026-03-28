@@ -47,5 +47,5 @@ async def get_ai_usage(
 ):
     """Return the authenticated user's AI token usage this week."""
     tier = "premium" if current_user.is_premium else "free"
-    data = get_usage_summary(current_user.id, tier=tier)
+    data = await get_usage_summary(current_user.id, tier=tier)
     return AIUsageResponse(**data)

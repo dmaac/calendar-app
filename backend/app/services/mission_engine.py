@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import random
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func
@@ -381,7 +381,7 @@ async def assign_daily_missions(
     assigned = []
     for mission_data in personalized[:3]:
         # Find or create the mission definition in DB
-        result = await session.exec(
+        result = await session.execute(
             select(DailyMission).where(DailyMission.code == mission_data["code"])
         )
         mission = result.first()
@@ -435,7 +435,7 @@ async def get_today_missions(
 ) -> list[dict]:
     """Return today's missions with completion status."""
     today = date.today()
-    result = await session.exec(
+    result = await session.execute(
         select(UserDailyMissionStatus, DailyMission)
         .join(DailyMission, DailyMission.id == UserDailyMissionStatus.mission_id)
         .where(
@@ -482,12 +482,13 @@ async def update_mission_progress(
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     today_meal_count = meal_count_result.scalar() or 0
 
     # Get today's uncompleted missions
-    result = await session.exec(
+    result = await session.execute(
         select(UserDailyMissionStatus, DailyMission)
         .join(DailyMission, DailyMission.id == UserDailyMissionStatus.mission_id)
         .where(
@@ -520,6 +521,7 @@ async def update_mission_progress(
                     AIFoodLog.logged_at <= datetime.combine(
                         today, datetime.min.time().replace(hour=12)
                     ),
+                    AIFoodLog.deleted_at.is_(None),
                 )
             )
             before_noon = before_noon_result.scalar() or 0
@@ -529,7 +531,7 @@ async def update_mission_progress(
 
         if completed:
             status.completed = True
-            status.completed_at = datetime.utcnow()
+            status.completed_at = datetime.now(timezone.utc)
             session.add(status)
             newly_completed.append({
                 "code": mission.code,

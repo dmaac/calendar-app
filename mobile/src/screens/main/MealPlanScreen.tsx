@@ -1,7 +1,11 @@
 /**
- * MealPlanScreen — Weekly meal plan with 7 days, 3 meals per day.
+ * MealPlanScreen — Weekly meal plan with 7 days, 4 meals per day (breakfast,
+ * lunch, dinner, snack).
  * Sprint 5: Dynamic plan generation from recipe database, regenerate button,
  * daily macro totals, and individual meal swap via bottom sheet.
+ * Sprint 7: Snack slot added to each day. Calorie-goal-aware generation modal
+ * lets users enter a daily kcal target and auto-fills the plan with recipes
+ * whose combined calories are closest to that goal.
  */
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
@@ -13,6 +17,9 @@ import {
   Modal,
   FlatList,
   Animated,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,9 +48,10 @@ interface DayPlan {
   breakfast: Meal;
   lunch: Meal;
   dinner: Meal;
+  snack: Meal;
 }
 
-type MealSlot = 'breakfast' | 'lunch' | 'dinner';
+type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 // ─── Dynamic Plan Generation ──────────────────────────────────────────────────
 
@@ -83,21 +91,61 @@ function recipeToMeal(r: Recipe): Meal {
 /**
  * Generate a 7-day meal plan by sampling from the recipe database.
  * Ensures variety by shuffling and cycling through available recipes per meal type.
- * Each day's total calories are validated to fall within a reasonable range (1200-2500 kcal)
- * to comply with clinical nutrition safety guidelines.
+ * When a calorieTarget is provided (kcal/day), the function picks recipe combos
+ * whose sum is closest to that target, keeping each slot independent so at least
+ * one recipe per slot is always present.
  */
-function generateWeeklyPlan(): DayPlan[] {
+function generateWeeklyPlan(calorieTarget?: number): DayPlan[] {
   const breakfasts = shuffleArray(recipes.filter((r) => r.mealType === 'breakfast'));
   const lunches = shuffleArray(recipes.filter((r) => r.mealType === 'lunch'));
   const dinners = shuffleArray(recipes.filter((r) => r.mealType === 'dinner'));
+  const snacks = shuffleArray(recipes.filter((r) => r.mealType === 'snack'));
 
-  return DAY_NAMES.map(({ day, shortDay }, i) => ({
-    day,
-    shortDay,
-    breakfast: recipeToMeal(breakfasts[i % breakfasts.length]),
-    lunch: recipeToMeal(lunches[i % lunches.length]),
-    dinner: recipeToMeal(dinners[i % dinners.length]),
-  }));
+  return DAY_NAMES.map(({ day, shortDay }, i) => {
+    if (!calorieTarget) {
+      // Default random rotation
+      return {
+        day,
+        shortDay,
+        breakfast: recipeToMeal(breakfasts[i % breakfasts.length]),
+        lunch: recipeToMeal(lunches[i % lunches.length]),
+        dinner: recipeToMeal(dinners[i % dinners.length]),
+        snack: recipeToMeal(snacks[i % snacks.length]),
+      };
+    }
+
+    // Calorie-goal-aware: pick the combination (one from each pool) whose
+    // total calories is closest to calorieTarget. We do a greedy pass:
+    // assign breakfast, then pick lunch that keeps us on track, etc.
+    // This is O(n) per slot — no exhaustive search needed for 50-recipe pools.
+    const targetPerMeal = calorieTarget / 4; // rough equal split as starting point
+
+    const pickClosest = (pool: Recipe[], remainingTarget: number): Recipe => {
+      return pool.reduce((best, candidate) =>
+        Math.abs(candidate.calories - remainingTarget) <
+        Math.abs(best.calories - remainingTarget)
+          ? candidate
+          : best,
+      pool[0]);
+    };
+
+    const bf = pickClosest(breakfasts, targetPerMeal);
+    const remainAfterBf = calorieTarget - bf.calories;
+    const ln = pickClosest(lunches, remainAfterBf / 3);
+    const remainAfterLn = remainAfterBf - ln.calories;
+    const dn = pickClosest(dinners, remainAfterLn / 2);
+    const remainAfterDn = remainAfterLn - dn.calories;
+    const sn = pickClosest(snacks, Math.max(remainAfterDn, 50)); // at least a small snack
+
+    return {
+      day,
+      shortDay,
+      breakfast: recipeToMeal(bf),
+      lunch: recipeToMeal(ln),
+      dinner: recipeToMeal(dn),
+      snack: recipeToMeal(sn),
+    };
+  });
 }
 
 /** Get alternative recipes for a given meal slot, excluding the current one. */
@@ -106,6 +154,7 @@ function getAlternatives(slot: MealSlot, currentId?: string): Recipe[] {
     breakfast: 'breakfast',
     lunch: 'lunch',
     dinner: 'dinner',
+    snack: 'snack',
   };
   return recipes
     .filter((r) => r.mealType === mealTypeMap[slot] && r.id !== currentId)
@@ -118,6 +167,7 @@ const MEAL_TYPES: { key: MealSlot; label: string; icon: string; color: string }[
   { key: 'breakfast', label: 'Desayuno', icon: 'sunny-outline', color: '#F59E0B' },
   { key: 'lunch', label: 'Almuerzo', icon: 'restaurant-outline', color: '#10B981' },
   { key: 'dinner', label: 'Cena', icon: 'moon-outline', color: '#6366F1' },
+  { key: 'snack', label: 'Snack', icon: 'leaf-outline', color: '#EC4899' },
 ];
 
 // ─── Meal Card ──────────────────────────────────────────────────────────────
@@ -179,53 +229,115 @@ function MealCard({
 
 function DailyMacroBar({
   plan,
+  calorieTarget,
   c,
 }: {
   plan: DayPlan;
+  calorieTarget?: number;
   c: ReturnType<typeof useThemeColors>;
 }) {
-  const totalCal = plan.breakfast.calories + plan.lunch.calories + plan.dinner.calories;
-  const totalProtein = plan.breakfast.protein + plan.lunch.protein + plan.dinner.protein;
-  const totalCarbs = plan.breakfast.carbs + plan.lunch.carbs + plan.dinner.carbs;
-  const totalFats = plan.breakfast.fats + plan.lunch.fats + plan.dinner.fats;
+  const totalCal =
+    plan.breakfast.calories +
+    plan.lunch.calories +
+    plan.dinner.calories +
+    plan.snack.calories;
+  const totalProtein =
+    plan.breakfast.protein +
+    plan.lunch.protein +
+    plan.dinner.protein +
+    plan.snack.protein;
+  const totalCarbs =
+    plan.breakfast.carbs +
+    plan.lunch.carbs +
+    plan.dinner.carbs +
+    plan.snack.carbs;
+  const totalFats =
+    plan.breakfast.fats +
+    plan.lunch.fats +
+    plan.dinner.fats +
+    plan.snack.fats;
+
+  // Progress toward calorie goal — shown only when a target is set
+  const calProgress = calorieTarget ? Math.min(totalCal / calorieTarget, 1) : null;
 
   return (
-    <View style={[macroBarStyles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <View style={macroBarStyles.item}>
-        <Ionicons name="flame-outline" size={14} color={c.accent} />
-        <Text style={[macroBarStyles.value, { color: c.black }]}>{totalCal}</Text>
-        <Text style={[macroBarStyles.label, { color: c.gray }]}>kcal</Text>
-      </View>
-      <View style={[macroBarStyles.divider, { backgroundColor: c.grayLight }]} />
-      <View style={macroBarStyles.item}>
-        <Text style={[macroBarStyles.value, { color: c.protein }]}>{totalProtein}g</Text>
-        <Text style={[macroBarStyles.label, { color: c.gray }]}>Prot</Text>
-      </View>
-      <View style={[macroBarStyles.divider, { backgroundColor: c.grayLight }]} />
-      <View style={macroBarStyles.item}>
-        <Text style={[macroBarStyles.value, { color: c.carbs }]}>{totalCarbs}g</Text>
-        <Text style={[macroBarStyles.label, { color: c.gray }]}>Carb</Text>
-      </View>
-      <View style={[macroBarStyles.divider, { backgroundColor: c.grayLight }]} />
-      <View style={macroBarStyles.item}>
-        <Text style={[macroBarStyles.value, { color: c.fats }]}>{totalFats}g</Text>
-        <Text style={[macroBarStyles.label, { color: c.gray }]}>Gras</Text>
+    <View style={[macroBarStyles.wrapper, { backgroundColor: c.surface, borderColor: c.border }]}>
+      {/* Calorie goal progress bar — only visible when a target is active */}
+      {calProgress !== null && (
+        <View style={macroBarStyles.goalRow}>
+          <View style={[macroBarStyles.goalBg, { backgroundColor: c.grayLight }]}>
+            <View
+              style={[
+                macroBarStyles.goalFill,
+                {
+                  backgroundColor: calProgress >= 1 ? c.success : c.accent,
+                  width: `${Math.round(calProgress * 100)}%`,
+                },
+              ]}
+            />
+          </View>
+          <Text style={[macroBarStyles.goalLabel, { color: c.gray }]}>
+            {totalCal} / {calorieTarget} kcal ({Math.round(calProgress * 100)}%)
+          </Text>
+        </View>
+      )}
+      <View style={macroBarStyles.container}>
+        <View style={macroBarStyles.item}>
+          <Ionicons name="flame-outline" size={14} color={c.accent} />
+          <Text style={[macroBarStyles.value, { color: c.black }]}>{totalCal}</Text>
+          <Text style={[macroBarStyles.label, { color: c.gray }]}>kcal</Text>
+        </View>
+        <View style={[macroBarStyles.divider, { backgroundColor: c.grayLight }]} />
+        <View style={macroBarStyles.item}>
+          <Text style={[macroBarStyles.value, { color: c.protein }]}>{totalProtein}g</Text>
+          <Text style={[macroBarStyles.label, { color: c.gray }]}>Prot</Text>
+        </View>
+        <View style={[macroBarStyles.divider, { backgroundColor: c.grayLight }]} />
+        <View style={macroBarStyles.item}>
+          <Text style={[macroBarStyles.value, { color: c.carbs }]}>{totalCarbs}g</Text>
+          <Text style={[macroBarStyles.label, { color: c.gray }]}>Carb</Text>
+        </View>
+        <View style={[macroBarStyles.divider, { backgroundColor: c.grayLight }]} />
+        <View style={macroBarStyles.item}>
+          <Text style={[macroBarStyles.value, { color: c.fats }]}>{totalFats}g</Text>
+          <Text style={[macroBarStyles.label, { color: c.gray }]}>Gras</Text>
+        </View>
       </View>
     </View>
   );
 }
 
 const macroBarStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
+  wrapper: {
     borderRadius: radius.lg,
     borderWidth: 1,
     paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  container: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    ...shadows.sm,
+  },
+  goalRow: {
+    marginBottom: spacing.sm,
+  },
+  goalBg: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  goalFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  goalLabel: {
+    ...typography.caption,
+    fontSize: 10,
+    textAlign: 'center',
   },
   item: {
     alignItems: 'center',
@@ -272,7 +384,8 @@ function SwapModal({
 
   const slotLabel =
     slot === 'breakfast' ? 'Desayuno' :
-    slot === 'lunch' ? 'Almuerzo' : 'Cena';
+    slot === 'lunch' ? 'Almuerzo' :
+    slot === 'snack' ? 'Snack' : 'Cena';
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -399,21 +512,31 @@ export default function MealPlanScreen({ navigation }: any) {
   const spinAnim = useRef(new Animated.Value(0)).current;
   const [showGroceryList, setShowGroceryList] = useState(false);
 
+  // Calorie-goal modal state
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
+  // Active calorie target — null means "no target set"
+  const [calorieTarget, setCalorieTarget] = useState<number | undefined>(undefined);
+
   const todayIdx = new Date().getDay(); // 0=Sun
   const adjustedIdx = todayIdx === 0 ? 6 : todayIdx - 1; // Convert to Mon=0
 
   const plan = weeklyPlan[selectedDay];
-  const totalCal = plan.breakfast.calories + plan.lunch.calories + plan.dinner.calories;
+  const totalCal =
+    plan.breakfast.calories +
+    plan.lunch.calories +
+    plan.dinner.calories +
+    plan.snack.calories;
 
   const handleDayPress = useCallback((idx: number) => {
     haptics.light();
     setSelectedDay(idx);
   }, []);
 
-  /** Regenerate entire plan with fresh shuffle from recipe database. */
-  const handleRegenerate = useCallback(() => {
+  /** Regenerate entire plan with optional calorie target. */
+  const handleRegenerate = useCallback((target?: number) => {
     haptics.success();
-    track('meal_plan_regenerated');
+    track('meal_plan_regenerated', { calorie_target: target ?? 'none' });
 
     // Spin animation on the regenerate icon
     spinAnim.setValue(0);
@@ -423,8 +546,28 @@ export default function MealPlanScreen({ navigation }: any) {
       useNativeDriver: true,
     }).start();
 
-    setWeeklyPlan(generateWeeklyPlan());
+    setWeeklyPlan(generateWeeklyPlan(target));
   }, [track, spinAnim]);
+
+  /** Apply the user-entered calorie goal and regenerate the plan. */
+  const handleApplyGoal = useCallback(() => {
+    const parsed = parseInt(goalInput, 10);
+    if (!parsed || parsed < 1000 || parsed > 5000) return;
+    haptics.medium();
+    setCalorieTarget(parsed);
+    setShowGoalModal(false);
+    setGoalInput('');
+    handleRegenerate(parsed);
+    track('calorie_goal_set', { target: parsed });
+  }, [goalInput, handleRegenerate, track]);
+
+  /** Clear the calorie target and regenerate without constraints. */
+  const handleClearGoal = useCallback(() => {
+    haptics.light();
+    setCalorieTarget(undefined);
+    handleRegenerate(undefined);
+    track('calorie_goal_cleared');
+  }, [handleRegenerate, track]);
 
   /** Swap a single meal within the current day. */
   const handleSwapMeal = useCallback((slot: MealSlot, recipe: Recipe) => {
@@ -451,11 +594,14 @@ export default function MealPlanScreen({ navigation }: any) {
     }
   }, [navigation, track]);
 
-  /** Collect all recipe IDs from the weekly plan for the grocery list. */
+  /** Collect all recipe IDs from the weekly plan for the grocery list.
+   *  Now includes snack slot as well. */
   const allRecipeIds = useMemo(
     () =>
       weeklyPlan.flatMap((d) =>
-        [d.breakfast.recipeId, d.lunch.recipeId, d.dinner.recipeId].filter(Boolean) as string[],
+        [d.breakfast.recipeId, d.lunch.recipeId, d.dinner.recipeId, d.snack.recipeId].filter(
+          Boolean,
+        ) as string[],
       ),
     [weeklyPlan],
   );
@@ -471,10 +617,25 @@ export default function MealPlanScreen({ navigation }: any) {
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: c.black }]}>Plan Semanal</Text>
-          <Text style={[styles.headerSub, { color: c.gray }]}>Tu plan personalizado de comidas</Text>
+          <Text style={[styles.headerSub, { color: c.gray }]}>
+            {calorieTarget
+              ? `Meta: ${calorieTarget} kcal/dia`
+              : 'Tu plan personalizado de comidas'}
+          </Text>
         </View>
+        {/* Clear goal button — only shown when a target is active */}
+        {calorieTarget && (
+          <TouchableOpacity
+            onPress={handleClearGoal}
+            style={[styles.regenBtn, { backgroundColor: c.surface }]}
+            activeOpacity={0.7}
+            accessibilityLabel="Quitar meta de calorias"
+          >
+            <Ionicons name="close-circle-outline" size={18} color={c.gray} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
-          onPress={handleRegenerate}
+          onPress={() => handleRegenerate(calorieTarget)}
           style={[styles.regenBtn, { backgroundColor: c.surface }]}
           activeOpacity={0.7}
           accessibilityLabel="Regenerar plan semanal"
@@ -532,8 +693,8 @@ export default function MealPlanScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Daily Macro Summary */}
-        <DailyMacroBar plan={plan} c={c} />
+        {/* Daily Macro Summary — shows goal progress bar when target is set */}
+        <DailyMacroBar plan={plan} calorieTarget={calorieTarget} c={c} />
 
         {/* Meals with swap capability */}
         {MEAL_TYPES.map((mt) => (
@@ -569,15 +730,49 @@ export default function MealPlanScreen({ navigation }: any) {
           <Ionicons name="chevron-forward" size={18} color={c.success} />
         </TouchableOpacity>
 
-        {/* Regenerate CTA */}
-        <TouchableOpacity
-          style={[styles.regenCta, { borderColor: c.grayLight }]}
-          onPress={handleRegenerate}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="shuffle-outline" size={18} color={c.accent} />
-          <Text style={[styles.regenCtaText, { color: c.accent }]}>Regenerar plan completo</Text>
-        </TouchableOpacity>
+        {/* CTA row: regenerate freely + generate with calorie goal */}
+        <View style={styles.ctaRow}>
+          <TouchableOpacity
+            style={[styles.regenCta, { borderColor: c.grayLight, flex: 1 }]}
+            onPress={() => handleRegenerate(calorieTarget)}
+            activeOpacity={0.7}
+            accessibilityLabel="Regenerar plan completo"
+          >
+            <Ionicons name="shuffle-outline" size={16} color={c.accent} />
+            <Text style={[styles.regenCtaText, { color: c.accent }]}>Regenerar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.regenCta,
+              {
+                borderColor: calorieTarget ? c.accent : c.grayLight,
+                backgroundColor: calorieTarget ? c.accent + '12' : 'transparent',
+                flex: 1,
+              },
+            ]}
+            onPress={() => {
+              haptics.light();
+              setGoalInput(calorieTarget ? String(calorieTarget) : '');
+              setShowGoalModal(true);
+            }}
+            activeOpacity={0.7}
+            accessibilityLabel="Generar plan con meta de calorias"
+          >
+            <Ionicons
+              name="options-outline"
+              size={16}
+              color={calorieTarget ? c.accent : c.gray}
+            />
+            <Text
+              style={[
+                styles.regenCtaText,
+                { color: calorieTarget ? c.accent : c.gray },
+              ]}
+            >
+              {calorieTarget ? `${calorieTarget} kcal` : 'Meta kcal'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
@@ -601,9 +796,213 @@ export default function MealPlanScreen({ navigation }: any) {
         onClose={() => setSwapModal({ visible: false, slot: 'breakfast' })}
         c={c}
       />
+
+      {/* Calorie Goal Modal */}
+      <Modal visible={showGoalModal} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          style={goalStyles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[goalStyles.sheet, { backgroundColor: c.bg, paddingBottom: insets.bottom + spacing.md }]}>
+            {/* Handle */}
+            <View style={[goalStyles.handle, { backgroundColor: c.grayLight }]} />
+
+            {/* Header */}
+            <View style={goalStyles.header}>
+              <Text style={[goalStyles.title, { color: c.black }]}>Meta de Calorias</Text>
+              <TouchableOpacity
+                onPress={() => setShowGoalModal(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Cerrar"
+              >
+                <Ionicons name="close" size={24} color={c.gray} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[goalStyles.description, { color: c.gray }]}>
+              Ingresa tu meta diaria de calorias. El plan se generara automaticamente
+              con recetas que se acerquen a ese total.
+            </Text>
+
+            <View style={goalStyles.inputRow}>
+              <TextInput
+                style={[goalStyles.input, { backgroundColor: c.surface, color: c.black, borderColor: c.grayLight }]}
+                placeholder="Ej: 2000"
+                placeholderTextColor={c.disabled}
+                value={goalInput}
+                onChangeText={setGoalInput}
+                keyboardType="numeric"
+                returnKeyType="done"
+                onSubmitEditing={handleApplyGoal}
+                autoFocus
+                accessibilityLabel="Meta de calorias en kcal"
+              />
+              <Text style={[goalStyles.unit, { color: c.gray }]}>kcal</Text>
+            </View>
+
+            {/* Quick presets */}
+            <View style={goalStyles.presetRow}>
+              {[1500, 1800, 2000, 2200, 2500].map((preset) => (
+                <TouchableOpacity
+                  key={preset}
+                  style={[
+                    goalStyles.presetChip,
+                    {
+                      backgroundColor: goalInput === String(preset) ? c.accent + '15' : c.surface,
+                      borderColor: goalInput === String(preset) ? c.accent : c.grayLight,
+                    },
+                  ]}
+                  onPress={() => { haptics.light(); setGoalInput(String(preset)); }}
+                  accessibilityLabel={`${preset} calorias`}
+                >
+                  <Text
+                    style={[
+                      goalStyles.presetText,
+                      { color: goalInput === String(preset) ? c.accent : c.gray },
+                    ]}
+                  >
+                    {preset}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Action buttons */}
+            <View style={goalStyles.actions}>
+              {calorieTarget && (
+                <TouchableOpacity
+                  style={[goalStyles.clearBtn, { borderColor: c.grayLight }]}
+                  onPress={() => {
+                    setShowGoalModal(false);
+                    handleClearGoal();
+                  }}
+                  accessibilityLabel="Quitar meta"
+                >
+                  <Text style={[goalStyles.clearBtnText, { color: c.gray }]}>Quitar meta</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[
+                  goalStyles.applyBtn,
+                  {
+                    backgroundColor:
+                      goalInput.trim() && parseInt(goalInput, 10) >= 1000
+                        ? c.primary
+                        : c.disabled,
+                    flex: 1,
+                  },
+                ]}
+                onPress={handleApplyGoal}
+                disabled={!goalInput.trim() || parseInt(goalInput, 10) < 1000}
+                accessibilityLabel="Aplicar meta y regenerar plan"
+              >
+                <Ionicons name="checkmark" size={18} color="#FFF" />
+                <Text style={goalStyles.applyBtnText}>Generar plan</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
+
+// ─── Goal Modal Styles ──────────────────────────────────────────────────────
+
+const goalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  sheet: {
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  title: { ...typography.titleSm },
+  description: {
+    ...typography.body,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  input: {
+    flex: 1,
+    ...typography.body,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  unit: {
+    ...typography.label,
+    fontSize: 16,
+  },
+  presetRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    flexWrap: 'wrap',
+    marginBottom: spacing.lg,
+  },
+  presetChip: {
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  presetText: {
+    ...typography.caption,
+    fontWeight: '700',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  clearBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearBtnText: { ...typography.label },
+  applyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm + 4,
+    borderRadius: radius.full,
+  },
+  applyBtnText: {
+    ...typography.label,
+    color: '#FFF',
+    fontWeight: '700',
+  },
+});
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
@@ -739,13 +1138,17 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontSize: 11,
   },
+  ctaRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
   regenCta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.md,
-    marginTop: spacing.sm,
     borderWidth: 1,
     borderRadius: radius.lg,
     borderStyle: 'dashed',

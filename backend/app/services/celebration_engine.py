@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import func
@@ -148,7 +148,7 @@ COINS_ALL_MISSIONS_BONUS = 20
 async def _get_or_create_profile(
     user_id: int, session: AsyncSession
 ) -> UserProgressProfile:
-    result = await session.exec(
+    result = await session.execute(
         select(UserProgressProfile).where(UserProgressProfile.user_id == user_id)
     )
     profile = result.first()
@@ -165,7 +165,7 @@ async def _get_or_create_profile(
 
 async def _count_total_logs(user_id: int, session: AsyncSession) -> int:
     result = await session.execute(
-        select(func.count(AIFoodLog.id)).where(AIFoodLog.user_id == user_id)
+        select(func.count(AIFoodLog.id)).where(AIFoodLog.user_id == user_id, AIFoodLog.deleted_at.is_(None))
     )
     return result.scalar() or 0
 
@@ -177,7 +177,8 @@ async def _count_total_logs(user_id: int, session: AsyncSession) -> int:
 async def _count_logged_days(user_id: int, session: AsyncSession) -> int:
     result = await session.execute(
         select(func.count(func.distinct(func.date(AIFoodLog.logged_at)))).where(
-            AIFoodLog.user_id == user_id
+            AIFoodLog.user_id == user_id,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     return result.scalar() or 0
@@ -196,6 +197,7 @@ async def _count_today_meals(user_id: int, session: AsyncSession) -> int:
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     return result.scalar() or 0
@@ -230,7 +232,7 @@ async def _award_xp(
     profile = await _get_or_create_profile(user_id, session)
     old_level = profile.nutrition_level
     profile.nutrition_xp_total += xp
-    profile.last_progress_event_at = datetime.utcnow()
+    profile.last_progress_event_at = datetime.now(timezone.utc)
 
     # Check level up
     new_level = old_level
@@ -385,7 +387,7 @@ async def _check_exit_red_zone(
 
             yesterday = date.today() - timedelta(days=1)
             week_ago = date.today() - timedelta(days=7)
-            result = await session.exec(
+            result = await session.execute(
                 select(DailyNutritionAdherence).where(
                     DailyNutritionAdherence.user_id == user_id,
                     DailyNutritionAdherence.date >= week_ago,
@@ -413,7 +415,7 @@ async def _check_protein_streak(
         from ..models.nutrition_adherence import DailyNutritionAdherence
 
         today = date.today()
-        result = await session.exec(
+        result = await session.execute(
             select(DailyNutritionAdherence)
             .where(
                 DailyNutritionAdherence.user_id == user_id,
@@ -499,6 +501,7 @@ async def _check_comeback(user_id: int, session: AsyncSession) -> Optional[dict]
                     yesterday - timedelta(days=2), datetime.min.time()
                 ),
                 AIFoodLog.logged_at <= datetime.combine(yesterday, datetime.max.time()),
+                AIFoodLog.deleted_at.is_(None),
             )
         )
         recent_logs = result.scalar() or 0
@@ -657,7 +660,7 @@ async def generate_weekly_summary(
     missions_completed = result.scalar() or 0
 
     # Weekly challenge status
-    result = await session.exec(
+    result = await session.execute(
         select(UserWeeklyChallengeStatus).where(
             UserWeeklyChallengeStatus.user_id == user_id,
             UserWeeklyChallengeStatus.week_start >= week_start,

@@ -31,8 +31,10 @@ class Settings(BaseSettings):
     db_pool_recycle: int = 3600
 
     # Refresh token settings
+    # SEC: 7-day refresh window balances UX (weekly re-auth) vs risk surface.
+    # Override with REFRESH_TOKEN_EXPIRE_DAYS env var if needed.
     refresh_secret_key: str = ""
-    refresh_token_expire_days: int = 30
+    refresh_token_expire_days: int = 7
 
     # Apple OAuth
     apple_client_id: str = ""
@@ -56,6 +58,9 @@ class Settings(BaseSettings):
     # template/haiku only (no sonnet/opus). Toggle via AI_EXPENSIVE_ENABLED=false.
     ai_expensive_enabled: bool = True
 
+    # Supabase SSL CA certificate file path (for full SSL verification)
+    database_ssl_ca_file: str = ""
+
     # Supabase
     supabase_url: str = ""
     supabase_anon_key: str = ""
@@ -74,10 +79,16 @@ class Settings(BaseSettings):
     cors_headers: List[str] = [
         "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With",
         "X-App-Version", "X-API-Version", "X-Platform", "X-Idempotency-Key", "If-None-Match",
+        "X-CSRF-Token",  # SEC: Required for CSRF double-submit cookie pattern
     ]
 
     # Deployment environment — set ENV=production in prod to enforce stricter checks.
     env: str = "development"
+
+    # SEC: Trusted proxy IPs — only accept X-Forwarded-For from these addresses.
+    # Set TRUSTED_PROXY_IPS as a comma-separated list of IPs/CIDRs in .env.
+    # When empty, X-Forwarded-For is ignored and request.client.host is used.
+    trusted_proxy_ips: List[str] = []
 
     # Password policy
     password_min_length: int = 8

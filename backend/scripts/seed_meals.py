@@ -229,6 +229,13 @@ def _build_meals() -> list[dict]:
         ("Huevo en pan con espinaca", [("Pan integral", 60), ("Huevo entero", 60), ("Espinaca", 40), ("Aceite de oliva", 5)], 1, 10, "general", "rapido"),
         ("Smoothie de manzana y avena", [("Manzana", 120), ("Avena", 30), ("Leche descremada", 200), ("Miel", 10)], 1, 5, "general", "rapido"),
         ("Yogurt griego con nueces", [("Yogurt griego", 200), ("Nueces", 20), ("Miel", 10)], 1, 5, "general", "rapido,low_carb"),
+        # Additional breakfasts to reach 100+
+        ("Avena con pera y canela", [("Avena", 60), ("Platano", 80), ("Almendras", 10), ("Leche descremada", 150)], 1, 10, "general", "saludable"),
+        ("Huevos con palta y semillas", [("Huevo entero", 120), ("Palta (aguacate)", 40), ("Semillas de chia", 8)], 1, 10, "high_protein", "proteico"),
+        ("Smoothie de proteina con espinaca", [("Proteina whey", 30), ("Espinaca", 40), ("Platano", 80), ("Leche descremada", 200)], 1, 5, "high_protein", "rapido,proteico"),
+        ("Bowl energetico matinal", [("Avena", 50), ("Platano", 60), ("Mantequilla de mani", 15), ("Almendras", 10), ("Leche descremada", 100)], 1, 10, "general", "energetico"),
+        ("Pan integral con huevo y champiñones", [("Pan integral", 60), ("Huevo entero", 60), ("Champiñones", 60)], 1, 10, "general", "rapido"),
+        ("Cottage cheese con kiwi", [("Queso cottage", 150), ("Kiwi", 100)], 1, 2, "high_protein", "rapido,proteico"),
     ]
 
     # ===== LUNCHES (150) =====
@@ -360,6 +367,30 @@ def _build_meals() -> list[dict]:
         ("Pollo con arroz y pimenton", [("Pechuga de pollo", 140), ("Arroz blanco cocido", 150), ("Pimenton rojo", 60), ("Cebolla", 20), ("Aceite de oliva", 5)], 2, 25, "general", "clasico"),
         ("Bowl de salmon con edamame", [("Salmon", 110), ("Arroz blanco cocido", 100), ("Palta (aguacate)", 30), ("Pepino", 30), ("Porotos negros cocidos", 50)], 2, 15, "high_protein", "asiatico"),
         ("Lentejas con arroz integral", [("Lentejas cocidas", 180), ("Arroz integral cocido", 140), ("Cebolla", 20), ("Aceite de oliva", 5)], 2, 25, "vegetarian", "vegetariano,economico"),
+        # Additional lunches to reach 150+
+        ("Arroz con pollo y palta", [("Arroz blanco cocido", 140), ("Pechuga de pollo", 120), ("Palta (aguacate)", 40), ("Lechuga", 20)], 2, 20, "general", "rapido"),
+        ("Merluza con arroz integral y brocoli", [("Merluza", 160), ("Arroz integral cocido", 130), ("Brocoli", 70), ("Aceite de oliva", 5)], 2, 25, "general", "saludable"),
+        ("Pollo al cilantro con arroz", [("Pechuga de pollo", 150), ("Arroz blanco cocido", 150), ("Cebolla", 20), ("Aceite de oliva", 5)], 2, 25, "general", "clasico"),
+        ("Ceviche de merluza", [("Merluza", 150), ("Tomate", 60), ("Cebolla", 30), ("Pepino", 40), ("Camote cocido", 80)], 2, 20, "high_protein", "peruano,fresco"),
+        ("Pollo al oregano con camote", [("Pechuga de pollo", 150), ("Camote cocido", 160), ("Espinaca", 30), ("Aceite de oliva", 5)], 2, 30, "high_protein", "proteico"),
+        ("Salmon con arroz y ensalada verde", [("Salmon", 120), ("Arroz blanco cocido", 120), ("Lechuga", 30), ("Pepino", 30), ("Aceite de oliva", 5)], 2, 25, "high_protein", "proteico"),
+        ("Ensalada de pollo con camote", [("Pechuga de pollo", 130), ("Camote cocido", 100), ("Lechuga", 40), ("Tomate", 40), ("Aceite de oliva", 5)], 1, 20, "high_protein", "proteico,saludable"),
+        ("Cerdo con quinoa y espinaca", [("Lomo de cerdo", 130), ("Quinoa cocida", 130), ("Espinaca", 40), ("Aceite de oliva", 5)], 2, 25, "high_protein", "proteico"),
+        ("Bowl de atun con camote", [("Atun en agua", 120), ("Camote cocido", 120), ("Palta (aguacate)", 30), ("Lechuga", 20)], 1, 15, "high_protein", "proteico"),
+        ("Pollo con arroz y zanahoria", [("Pechuga de pollo", 140), ("Arroz blanco cocido", 140), ("Zanahoria", 50), ("Aceite de oliva", 5)], 2, 25, "general", "casero"),
+        ("Pasta con merluza y espinaca", [("Pasta cocida", 140), ("Merluza", 130), ("Espinaca", 40), ("Aceite de oliva", 5)], 2, 20, "general", "saludable"),
+        ("Wrap de carne con verduras", [("Tortilla de maiz", 60), ("Carne molida magra", 100), ("Lechuga", 20), ("Tomate", 30), ("Palta (aguacate)", 20)], 1, 15, "general", "rapido"),
+        ("Camarones con arroz integral", [("Camarones", 130), ("Arroz integral cocido", 150), ("Brocoli", 50), ("Aceite de oliva", 5)], 2, 20, "high_protein", "proteico"),
+        ("Bowl de pollo con camote y palta", [("Pechuga de pollo", 120), ("Camote cocido", 100), ("Palta (aguacate)", 40), ("Espinaca", 20)], 2, 20, "high_protein", "proteico"),
+        ("Arroz con merluza y zanahoria", [("Arroz blanco cocido", 140), ("Merluza", 130), ("Zanahoria", 40), ("Cebolla", 20), ("Aceite de oliva", 5)], 2, 25, "general", "casero"),
+        ("Pollo con ensalada de repollo", [("Pechuga de pollo", 140), ("Lechuga", 60), ("Zanahoria", 40), ("Aceite de oliva", 5)], 1, 15, "high_protein", "proteico"),
+        ("Salmon con camote y brocoli", [("Salmon", 130), ("Camote cocido", 130), ("Brocoli", 60), ("Aceite de oliva", 5)], 2, 25, "high_protein", "proteico,saludable"),
+        ("Bowl de quinoa y verduras grilladas", [("Quinoa cocida", 150), ("Zapallo italiano", 50), ("Pimenton rojo", 50), ("Cebolla", 20), ("Aceite de oliva", 10)], 2, 20, "vegetarian", "vegetariano"),
+        ("Pollo con pasta y champiñones", [("Pechuga de pollo", 120), ("Pasta cocida", 130), ("Champiñones", 60), ("Aceite de oliva", 5)], 2, 20, "general", "clasico"),
+        ("Tofu con arroz y brocoli", [("Tofu firme", 130), ("Arroz blanco cocido", 140), ("Brocoli", 60), ("Aceite de oliva", 5)], 2, 20, "vegetarian", "vegano"),
+        ("Ensalada de camarones con palta", [("Camarones", 120), ("Palta (aguacate)", 50), ("Lechuga", 40), ("Tomate", 40), ("Aceite de oliva", 5)], 1, 15, "high_protein", "proteico,fresco"),
+        ("Cerdo con papa y ensalada", [("Lomo de cerdo", 130), ("Papa cocida", 130), ("Lechuga", 30), ("Tomate", 30)], 2, 25, "general", "casero"),
+        ("Arroz con salmon y espinaca", [("Arroz blanco cocido", 130), ("Salmon", 100), ("Espinaca", 40), ("Aceite de oliva", 5)], 2, 20, "high_protein", "proteico"),
     ]
 
     # ===== DINNERS (150) =====
@@ -469,6 +500,52 @@ def _build_meals() -> list[dict]:
         ("Sopa de tomate", [("Tomate", 200), ("Cebolla", 30), ("Aceite de oliva", 10), ("Pan integral", 30)], 1, 20, "vegetarian", "vegetariano,ligero"),
         ("Camarones a la plancha con ensalada", [("Camarones", 150), ("Lechuga", 50), ("Tomate", 40), ("Pepino", 30), ("Aceite de oliva", 5)], 1, 15, "high_protein", "proteico"),
         ("Cerdo con ensalada de espinaca", [("Lomo de cerdo", 130), ("Espinaca", 60), ("Tomate", 40), ("Nueces", 10), ("Aceite de oliva", 5)], 2, 20, "high_protein", "proteico"),
+        # Additional dinners to reach 150+
+        ("Pollo al romero con verduras", [("Pechuga de pollo", 150), ("Zapallo italiano", 60), ("Zanahoria", 40), ("Aceite de oliva", 10)], 2, 30, "high_protein", "proteico"),
+        ("Merluza al limon con brocoli", [("Merluza", 170), ("Brocoli", 100), ("Aceite de oliva", 5)], 2, 20, "general", "saludable"),
+        ("Salmon al eneldo con espinaca", [("Salmon", 140), ("Espinaca", 70), ("Aceite de oliva", 5)], 2, 20, "high_protein", "proteico"),
+        ("Cerdo con brocoli y quinoa", [("Lomo de cerdo", 130), ("Brocoli", 80), ("Quinoa cocida", 80), ("Aceite de oliva", 5)], 2, 25, "high_protein", "proteico"),
+        ("Ensalada de merluza y espinaca", [("Merluza", 150), ("Espinaca", 60), ("Tomate", 40), ("Aceite de oliva", 10)], 1, 15, "general", "saludable"),
+        ("Pollo con espinaca y almendras", [("Pechuga de pollo", 140), ("Espinaca", 60), ("Almendras", 10), ("Aceite de oliva", 5)], 2, 20, "high_protein", "proteico"),
+        ("Sopa de pollo con espinaca y papa", [("Pechuga de pollo", 100), ("Espinaca", 50), ("Papa cocida", 80), ("Cebolla", 15)], 2, 30, "general", "casero"),
+        ("Atun con ensalada de pepino", [("Atun en agua", 140), ("Pepino", 60), ("Lechuga", 40), ("Aceite de oliva", 10)], 1, 10, "high_protein", "proteico"),
+        ("Camarones al limon con espinaca", [("Camarones", 140), ("Espinaca", 60), ("Aceite de oliva", 5)], 1, 15, "high_protein", "proteico"),
+        ("Cerdo al horno con pimenton", [("Lomo de cerdo", 140), ("Pimenton rojo", 60), ("Cebolla", 20), ("Aceite de oliva", 5)], 2, 30, "high_protein", "proteico"),
+        ("Ensalada de pollo y champiñones", [("Pechuga de pollo", 130), ("Champiñones", 80), ("Lechuga", 40), ("Aceite de oliva", 10)], 1, 15, "high_protein", "proteico"),
+        ("Merluza con espinaca y champiñones", [("Merluza", 160), ("Espinaca", 50), ("Champiñones", 60), ("Aceite de oliva", 5)], 2, 20, "general", "saludable"),
+        ("Pollo asado con zanahoria y papa", [("Pechuga de pollo", 130), ("Zanahoria", 50), ("Papa cocida", 80), ("Aceite de oliva", 5)], 2, 35, "general", "casero"),
+        ("Sopa cremosa de zapallo y pollo", [("Pechuga de pollo", 80), ("Zapallo italiano", 150), ("Leche descremada", 80), ("Cebolla", 20)], 2, 25, "general", "ligero"),
+        ("Salmon al horno con pimenton", [("Salmon", 130), ("Pimenton rojo", 60), ("Cebolla", 20), ("Aceite de oliva", 5)], 2, 25, "high_protein", "proteico"),
+        ("Tofu grillado con ensalada", [("Tofu firme", 140), ("Lechuga", 40), ("Tomate", 40), ("Pepino", 30), ("Aceite de oliva", 10)], 1, 15, "vegetarian", "vegano"),
+        ("Pollo con quinoa y pimenton", [("Pechuga de pollo", 130), ("Quinoa cocida", 100), ("Pimenton rojo", 40), ("Aceite de oliva", 5)], 2, 20, "high_protein", "proteico"),
+        ("Crema de brocoli y espinaca", [("Brocoli", 120), ("Espinaca", 80), ("Papa cocida", 50), ("Leche descremada", 80), ("Aceite de oliva", 5)], 2, 25, "vegetarian", "vegetariano,ligero"),
+        ("Merluza a la provenzal", [("Merluza", 170), ("Tomate", 60), ("Cebolla", 20), ("Aceite de oliva", 10)], 2, 25, "general", "saludable"),
+        ("Cerdo con ensalada mediterránea", [("Lomo de cerdo", 130), ("Tomate", 40), ("Pepino", 30), ("Lechuga", 30), ("Aceite de oliva", 10)], 2, 20, "high_protein", "proteico"),
+        ("Camarones a la mantequilla con brocoli", [("Camarones", 140), ("Brocoli", 80), ("Aceite de oliva", 10)], 2, 15, "high_protein", "proteico"),
+        ("Pollo al horno con espinaca y tomate", [("Pechuga de pollo", 140), ("Espinaca", 50), ("Tomate", 50), ("Aceite de oliva", 5)], 2, 25, "high_protein", "proteico"),
+        ("Salmon con ensalada tibia", [("Salmon", 120), ("Espinaca", 50), ("Champiñones", 40), ("Aceite de oliva", 10)], 2, 20, "high_protein", "proteico"),
+        ("Ensalada de tofu con pimenton", [("Tofu firme", 130), ("Pimenton rojo", 50), ("Lechuga", 40), ("Aceite de oliva", 10)], 1, 10, "vegetarian", "vegano"),
+        ("Sopa de merluza con verduras", [("Merluza", 120), ("Papa cocida", 60), ("Zanahoria", 30), ("Espinaca", 20), ("Cebolla", 15)], 2, 25, "general", "ligero"),
+        ("Pollo relleno de espinaca", [("Pechuga de pollo", 150), ("Espinaca", 50), ("Queso", 10), ("Aceite de oliva", 5)], 2, 30, "high_protein", "proteico"),
+        ("Cerdo con verduras al curry", [("Lomo de cerdo", 130), ("Brocoli", 50), ("Zanahoria", 30), ("Cebolla", 20), ("Aceite de oliva", 5)], 2, 25, "general", "asiatico"),
+        ("Ensalada de atun con huevo", [("Atun en agua", 100), ("Huevo entero", 60), ("Lechuga", 40), ("Tomate", 30), ("Aceite de oliva", 5)], 1, 15, "high_protein", "proteico"),
+        ("Pollo al vapor con brocoli y zanahoria", [("Pechuga de pollo", 140), ("Brocoli", 60), ("Zanahoria", 40)], 2, 20, "high_protein", "proteico,saludable"),
+        ("Camarones con verduras mixtas", [("Camarones", 130), ("Pimenton rojo", 40), ("Zapallo italiano", 40), ("Cebolla", 15), ("Aceite de oliva", 5)], 2, 15, "high_protein", "proteico"),
+        ("Merluza gratinada light", [("Merluza", 170), ("Queso", 10), ("Espinaca", 40), ("Aceite de oliva", 5)], 2, 25, "general", "saludable"),
+        ("Salmon al horno con zanahoria", [("Salmon", 130), ("Zanahoria", 60), ("Brocoli", 50), ("Aceite de oliva", 5)], 2, 25, "high_protein", "proteico"),
+        ("Tofu con champiñones y espinaca", [("Tofu firme", 140), ("Champiñones", 70), ("Espinaca", 50), ("Aceite de oliva", 5)], 2, 15, "vegetarian", "vegano"),
+        ("Pollo con calabaza y espinaca", [("Pechuga de pollo", 140), ("Zapallo italiano", 80), ("Espinaca", 40), ("Aceite de oliva", 5)], 2, 25, "high_protein", "proteico"),
+        ("Ensalada energetica nocturna", [("Pechuga de pollo", 100), ("Quinoa cocida", 60), ("Palta (aguacate)", 30), ("Tomate", 30), ("Espinaca", 20)], 1, 15, "high_protein", "proteico"),
+        ("Sopa cremosa de champiñones y pollo", [("Pechuga de pollo", 80), ("Champiñones", 120), ("Leche descremada", 80), ("Cebolla", 15)], 2, 25, "general", "ligero"),
+        ("Merluza con pure de camote", [("Merluza", 160), ("Camote cocido", 130), ("Espinaca", 30)], 2, 25, "general", "saludable"),
+        ("Cerdo al horno con quinoa", [("Lomo de cerdo", 130), ("Quinoa cocida", 100), ("Brocoli", 50), ("Aceite de oliva", 5)], 2, 30, "high_protein", "proteico"),
+        ("Ensalada de salmon con almendras", [("Salmon", 110), ("Lechuga", 40), ("Almendras", 10), ("Tomate", 30), ("Aceite de oliva", 5)], 1, 10, "high_protein", "proteico"),
+        ("Pollo con pure de papa y espinaca", [("Pechuga de pollo", 130), ("Papa cocida", 100), ("Espinaca", 40), ("Aceite de oliva", 5)], 2, 25, "general", "casero"),
+        ("Camarones al horno con espinaca", [("Camarones", 140), ("Espinaca", 60), ("Tomate", 30), ("Aceite de oliva", 5)], 2, 20, "high_protein", "proteico"),
+        ("Salmon con verduras al vapor", [("Salmon", 130), ("Brocoli", 60), ("Zanahoria", 30), ("Espinaca", 20)], 2, 20, "high_protein", "proteico,saludable"),
+        ("Pollo al horno con palta", [("Pechuga de pollo", 140), ("Palta (aguacate)", 40), ("Lechuga", 30), ("Tomate", 20)], 2, 25, "high_protein", "proteico"),
+        ("Ensalada verde con atun y huevo", [("Atun en agua", 100), ("Huevo entero", 30), ("Lechuga", 50), ("Pepino", 30), ("Aceite de oliva", 5)], 1, 10, "high_protein", "proteico"),
+        ("Sopa de tomate con pollo", [("Pechuga de pollo", 80), ("Tomate", 150), ("Cebolla", 20), ("Aceite de oliva", 5)], 2, 25, "general", "ligero"),
     ]
 
     # ===== SNACKS (100) =====
@@ -568,6 +645,12 @@ def _build_meals() -> list[dict]:
         ("Frutillas naturales", [("Frutillas", 200)], 1, 1, "general", "rapido,sin_coccion"),
         ("Queso cottage con miel", [("Queso cottage", 120), ("Miel", 10)], 1, 2, "high_protein", "rapido,proteico"),
         ("Yogurt griego con almendras", [("Yogurt griego", 150), ("Almendras", 20)], 1, 2, "high_protein", "rapido,proteico"),
+        # Additional snacks to reach 100+
+        ("Pepino con queso cottage", [("Pepino", 80), ("Queso cottage", 80)], 1, 2, "high_protein", "rapido"),
+        ("Manzana con queso cottage", [("Manzana", 120), ("Queso cottage", 60)], 1, 2, "general", "rapido"),
+        ("Batido de arandanos y yogurt", [("Arandanos", 80), ("Yogurt griego", 100), ("Leche descremada", 100)], 1, 5, "general", "rapido"),
+        ("Platano con almendras", [("Platano", 80), ("Almendras", 15)], 1, 1, "general", "rapido"),
+        ("Smoothie de manzana y yogurt", [("Manzana", 100), ("Yogurt griego", 100), ("Miel", 5)], 1, 5, "general", "rapido"),
     ]
 
     # Process all meal definitions
@@ -613,53 +696,65 @@ async def seed():
     print(f"  Dinners:    {sum(1 for m in meals_data if m['meal_type'] == 'dinner')}")
     print(f"  Snacks:     {sum(1 for m in meals_data if m['meal_type'] == 'snack')}")
 
+    from sqlalchemy import func, text
+    from sqlmodel import select
+
     async with AsyncSessionLocal() as session:
         # Check existing count
-        from sqlalchemy import func, text
-        from sqlmodel import select
-        result = await session.execute(select(func.count(MealTemplate.id)))
-        existing = result.scalar() or 0
+        result = await session.exec(select(func.count(MealTemplate.id)))
+        existing = result.first() or 0
         if existing > 0:
             print(f"\nAlready {existing} meals in DB. Clearing...")
-            await session.execute(text("DELETE FROM meal_ingredient"))
-            await session.execute(text("DELETE FROM meal_template"))
+            await session.exec(text("DELETE FROM meal_ingredient"))
+            await session.exec(text("DELETE FROM meal_template"))
             await session.commit()
+            print("  Cleared.")
 
-        # Insert meals
+        # Insert in batches of 50 meals to reduce round trips
+        BATCH_SIZE = 50
         inserted = 0
-        for meal_data in meals_data:
-            meal = MealTemplate(
-                name=meal_data["name"],
-                meal_type=meal_data["meal_type"],
-                calories=meal_data["calories"],
-                protein_g=meal_data["protein_g"],
-                carbs_g=meal_data["carbs_g"],
-                fat_g=meal_data["fat_g"],
-                fiber_g=meal_data["fiber_g"],
-                difficulty=meal_data["difficulty"],
-                prep_time_min=meal_data["prep_time_min"],
-                category=meal_data["category"],
-                tags=meal_data["tags"],
-                is_active=True,
-            )
-            session.add(meal)
-            await session.flush()  # Get the meal ID
-
-            for ing_data in meal_data["ingredients"]:
-                ingredient = MealIngredient(
-                    meal_id=meal.id,
-                    food_name=ing_data["food_name"],
-                    quantity_grams=ing_data["quantity_grams"],
-                    calories=ing_data["calories"],
-                    protein_g=ing_data["protein_g"],
-                    carbs_g=ing_data["carbs_g"],
-                    fat_g=ing_data["fat_g"],
+        for batch_start in range(0, len(meals_data), BATCH_SIZE):
+            batch = meals_data[batch_start:batch_start + BATCH_SIZE]
+            # Add all meals in this batch
+            meal_objects = []
+            for meal_data in batch:
+                meal = MealTemplate(
+                    name=meal_data["name"],
+                    meal_type=meal_data["meal_type"],
+                    calories=meal_data["calories"],
+                    protein_g=meal_data["protein_g"],
+                    carbs_g=meal_data["carbs_g"],
+                    fat_g=meal_data["fat_g"],
+                    fiber_g=meal_data["fiber_g"],
+                    difficulty=meal_data["difficulty"],
+                    prep_time_min=meal_data["prep_time_min"],
+                    category=meal_data["category"],
+                    tags=meal_data["tags"],
+                    is_active=True,
                 )
-                session.add(ingredient)
+                session.add(meal)
+                meal_objects.append((meal, meal_data))
 
-            inserted += 1
-            if inserted % 50 == 0:
-                print(f"  Inserted {inserted}/{len(meals_data)} meals...")
+            # Single flush to get all IDs
+            await session.flush()
+
+            # Now add all ingredients
+            for meal, meal_data in meal_objects:
+                for ing_data in meal_data["ingredients"]:
+                    ingredient = MealIngredient(
+                        meal_id=meal.id,
+                        food_name=ing_data["food_name"],
+                        quantity_grams=ing_data["quantity_grams"],
+                        calories=ing_data["calories"],
+                        protein_g=ing_data["protein_g"],
+                        carbs_g=ing_data["carbs_g"],
+                        fat_g=ing_data["fat_g"],
+                    )
+                    session.add(ingredient)
+
+            await session.flush()
+            inserted += len(batch)
+            print(f"  Inserted {inserted}/{len(meals_data)} meals...")
 
         await session.commit()
 
@@ -667,12 +762,10 @@ async def seed():
 
     # Verify
     async with AsyncSessionLocal() as session:
-        from sqlalchemy import func
-        from sqlmodel import select
-        result = await session.execute(select(func.count(MealTemplate.id)))
-        count = result.scalar()
-        result2 = await session.execute(select(func.count(MealIngredient.id)))
-        ing_count = result2.scalar()
+        result = await session.exec(select(func.count(MealTemplate.id)))
+        count = result.first()
+        result2 = await session.exec(select(func.count(MealIngredient.id)))
+        ing_count = result2.first()
         print(f"Verification: {count} meals, {ing_count} ingredients in DB")
 
 

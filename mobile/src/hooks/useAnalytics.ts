@@ -7,7 +7,12 @@
 import { useEffect, useCallback } from 'react';
 import { analyticsService } from '../services/analytics.service';
 
-export function useAnalytics(screenName?: string) {
+interface UseAnalyticsReturn {
+  track: (event: string, properties?: Record<string, unknown>) => void;
+  screen: (name: string, properties?: Record<string, unknown>) => void;
+}
+
+export function useAnalytics(screenName?: string): UseAnalyticsReturn {
   // Auto-track screen view on mount
   useEffect(() => {
     if (screenName) {
@@ -16,14 +21,14 @@ export function useAnalytics(screenName?: string) {
   }, [screenName]);
 
   const track = useCallback(
-    (event: string, properties?: Record<string, any>) => {
+    (event: string, properties?: Record<string, unknown>) => {
       analyticsService.track(event, properties);
     },
     [],
   );
 
   const screen = useCallback(
-    (name: string, properties?: Record<string, any>) => {
+    (name: string, properties?: Record<string, unknown>) => {
       analyticsService.screen(name, properties);
     },
     [],

@@ -10,6 +10,12 @@
  * - Local product cache for instant repeat lookups
  * - Backend fallback when Open Food Facts fails
  * - "Add manually" flow when product not found
+ *
+ * Sprint 5 improvements:
+ * - Flashlight (torch) toggle button on camera view
+ * - Pulsing crosshair corner animation for visual polish
+ * - Enhanced loading state showing the scanned barcode number
+ * - Permission denied state with "Open Settings" fallback
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -22,7 +28,10 @@ import {
   ScrollView,
   Image,
   Animated,
+  Easing,
   FlatList,
+  Linking,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
@@ -165,6 +174,7 @@ export default function BarcodeScreen({ navigation, route }: any) {
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
+  const [torchOn, setTorchOn] = useState(false);
 
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -174,6 +184,12 @@ export default function BarcodeScreen({ navigation, route }: any) {
 
   // Scanning line animation
   const scanLineY = useRef(new Animated.Value(0)).current;
+
+  // Pulsing corner animation
+  const cornerPulse = useRef(new Animated.Value(1)).current;
+
+  // Loading progress animation (indeterminate shimmer)
+  const loadingShimmer = useRef(new Animated.Value(0)).current;
 
   // Load scan history on mount and when returning to scanning state
   const loadHistory = useCallback(async () => {
@@ -188,15 +204,46 @@ export default function BarcodeScreen({ navigation, route }: any) {
   useEffect(() => {
     if (state === 'scanning') {
       loadHistory();
+      setTorchOn(false);
 
-      const loop = Animated.loop(
+      // Scan line sweeps up and down
+      const lineLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(scanLineY, { toValue: 1, duration: 2000, useNativeDriver: true }),
           Animated.timing(scanLineY, { toValue: 0, duration: 2000, useNativeDriver: true }),
         ]),
       );
-      loop.start();
-      return () => loop.stop();
+      lineLoop.start();
+
+      // Pulsing corners for visual feedback
+      const pulseLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(cornerPulse, { toValue: 0.5, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(cornerPulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]),
+      );
+      pulseLoop.start();
+
+      return () => {
+        lineLoop.stop();
+        pulseLoop.stop();
+      };
+    }
+  }, [state]);
+
+  // Loading shimmer animation
+  useEffect(() => {
+    if (state === 'loading') {
+      const shimmerLoop = Animated.loop(
+        Animated.timing(loadingShimmer, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      );
+      shimmerLoop.start();
+      return () => shimmerLoop.stop();
     }
   }, [state]);
 
@@ -328,6 +375,8 @@ export default function BarcodeScreen({ navigation, route }: any) {
   }
 
   if (!permission.granted) {
+    const canStillAsk = permission.canAskAgain !== false;
+
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg }]}>
         <View style={[styles.permIcon, { backgroundColor: c.black }]}>
@@ -335,16 +384,38 @@ export default function BarcodeScreen({ navigation, route }: any) {
         </View>
         <Text style={[styles.permTitle, { color: c.black }]}>Acceso a camara</Text>
         <Text style={[styles.permSubtitle, { color: c.gray }]}>
-          Necesitamos acceso a la camara para escanear codigos de barras.
+          {canStillAsk
+            ? 'Necesitamos acceso a la camara para escanear codigos de barras de productos alimenticios y obtener su informacion nutricional automaticamente.'
+            : 'El permiso de camara fue denegado. Para escanear codigos de barras, activa el acceso a la camara desde la configuracion de tu dispositivo.'}
         </Text>
+
+        {/* Explanation bullets */}
+        <View style={styles.permBullets}>
+          <View style={styles.permBulletRow}>
+            <Ionicons name="barcode-outline" size={16} color={c.accent} />
+            <Text style={[styles.permBulletText, { color: c.gray }]}>Escanea el codigo de barras del producto</Text>
+          </View>
+          <View style={styles.permBulletRow}>
+            <Ionicons name="nutrition-outline" size={16} color={c.accent} />
+            <Text style={[styles.permBulletText, { color: c.gray }]}>Obten calorias y macros al instante</Text>
+          </View>
+          <View style={styles.permBulletRow}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={c.accent} />
+            <Text style={[styles.permBulletText, { color: c.gray }]}>La camara solo se usa para escanear</Text>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={[styles.permBtn, { backgroundColor: c.black }]}
-          onPress={requestPermission}
+          onPress={canStillAsk ? requestPermission : () => Linking.openSettings()}
           activeOpacity={0.85}
-          accessibilityLabel="Permitir acceso a la camara"
+          accessibilityLabel={canStillAsk ? 'Permitir acceso a la camara' : 'Abrir configuracion del dispositivo'}
           accessibilityRole="button"
         >
-          <Text style={[styles.permBtnText, { color: c.white }]}>Permitir camara</Text>
+          <Ionicons name={canStillAsk ? 'camera-outline' : 'settings-outline'} size={18} color={c.white} />
+          <Text style={[styles.permBtnText, { color: c.white }]}>
+            {canStillAsk ? 'Permitir camara' : 'Abrir Configuracion'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.backBtnAlt}
@@ -568,10 +639,33 @@ export default function BarcodeScreen({ navigation, route }: any) {
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (state === 'loading') {
+    const shimmerOpacity = loadingShimmer.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0.3, 1, 0.3],
+    });
+
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg }]}>
-        <ActivityIndicator size="large" color={c.black} />
-        <Text style={[styles.loadingText, { color: c.gray }]}>Buscando producto...</Text>
+        <Animated.View style={[styles.loadingIconWrap, { backgroundColor: c.surface, opacity: shimmerOpacity }]}>
+          <Ionicons name="barcode-outline" size={40} color={c.accent} />
+        </Animated.View>
+        <ActivityIndicator size="large" color={c.black} style={{ marginTop: spacing.md }} />
+        <Text style={[styles.loadingText, { color: c.black }]}>Buscando producto...</Text>
+        {scannedCode && (
+          <View style={[styles.loadingBarcodeBadge, { backgroundColor: c.surface }]}>
+            <Ionicons name="barcode-outline" size={14} color={c.gray} />
+            <Text style={[styles.loadingBarcodeText, { color: c.gray }]}>{scannedCode}</Text>
+          </View>
+        )}
+        <TouchableOpacity
+          style={[styles.loadingCancelBtn]}
+          onPress={handleRetry}
+          activeOpacity={0.7}
+          accessibilityLabel="Cancelar busqueda"
+          accessibilityRole="button"
+        >
+          <Text style={[styles.loadingCancelText, { color: c.gray }]}>Cancelar</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -604,6 +698,7 @@ export default function BarcodeScreen({ navigation, route }: any) {
         <CameraView
           style={StyleSheet.absoluteFill}
           facing="back"
+          enableTorch={torchOn}
           barcodeScannerSettings={{
             barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
           }}
@@ -612,10 +707,11 @@ export default function BarcodeScreen({ navigation, route }: any) {
         {/* Overlay with cutout */}
         <View style={styles.overlay}>
           <View style={styles.scanFrame}>
-            <View style={styles.cornerTL} />
-            <View style={styles.cornerTR} />
-            <View style={styles.cornerBL} />
-            <View style={styles.cornerBR} />
+            {/* Animated pulsing corners */}
+            <Animated.View style={[styles.cornerTL, { opacity: cornerPulse }]} />
+            <Animated.View style={[styles.cornerTR, { opacity: cornerPulse }]} />
+            <Animated.View style={[styles.cornerBL, { opacity: cornerPulse }]} />
+            <Animated.View style={[styles.cornerBR, { opacity: cornerPulse }]} />
             <Animated.View
               style={[
                 styles.scanLine,
@@ -624,6 +720,30 @@ export default function BarcodeScreen({ navigation, route }: any) {
             />
           </View>
         </View>
+
+        {/* Flashlight toggle button */}
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity
+            style={[
+              styles.torchBtn,
+              { backgroundColor: torchOn ? c.accent : 'rgba(0,0,0,0.5)' },
+            ]}
+            onPress={() => {
+              haptics.light();
+              setTorchOn((prev) => !prev);
+            }}
+            activeOpacity={0.7}
+            accessibilityLabel={torchOn ? 'Apagar linterna' : 'Encender linterna'}
+            accessibilityRole="button"
+            accessibilityState={{ selected: torchOn }}
+          >
+            <Ionicons
+              name={torchOn ? 'flash' : 'flash-outline'}
+              size={20}
+              color="#FFFFFF"
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       <Text style={[styles.hint, { color: c.gray }]}>Apunta la camara al codigo de barras del producto</Text>
@@ -818,7 +938,45 @@ const styles = StyleSheet.create({
   secondaryBtnText: { ...typography.button },
 
   // Loading
-  loadingText: { ...typography.subtitle, marginTop: spacing.md },
+  loadingIconWrap: {
+    width: 80, height: 80, borderRadius: 40,
+    alignItems: 'center' as const, justifyContent: 'center' as const,
+  },
+  loadingText: { ...typography.titleSm, marginTop: spacing.sm },
+  loadingBarcodeBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    marginTop: spacing.sm,
+  },
+  loadingBarcodeText: {
+    ...typography.caption,
+    fontVariant: ['tabular-nums'] as any,
+    letterSpacing: 1,
+  },
+  loadingCancelBtn: {
+    marginTop: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    minHeight: 44,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  loadingCancelText: { ...typography.button },
+
+  // Torch (flashlight) button
+  torchBtn: {
+    position: 'absolute' as const,
+    bottom: spacing.sm,
+    right: spacing.sm,
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    zIndex: 10,
+  },
 
   // Permission
   permIcon: {
@@ -827,11 +985,31 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   permTitle: { ...typography.titleSm, marginBottom: spacing.sm },
-  permSubtitle: { ...typography.subtitle, textAlign: 'center', lineHeight: 22, marginBottom: spacing.xl },
+  permSubtitle: { ...typography.subtitle, textAlign: 'center', lineHeight: 22, marginBottom: spacing.md },
+  permBullets: {
+    alignSelf: 'stretch',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
+  },
+  permBulletRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing.sm,
+  },
+  permBulletText: {
+    ...typography.caption,
+    flex: 1,
+    lineHeight: 18,
+  },
   permBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: spacing.sm,
     borderRadius: radius.full,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
-    marginBottom: spacing.sm, width: '100%', alignItems: 'center', minHeight: 52,
+    marginBottom: spacing.sm, width: '100%', minHeight: 52,
   },
   permBtnText: { ...typography.button },
   backBtnAlt: {

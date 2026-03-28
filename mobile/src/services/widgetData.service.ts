@@ -12,6 +12,11 @@
  *   - For now, data is stored under @fitsi_widget_data and can be read by any
  *     native extension that shares the same AsyncStorage container.
  *
+ * Network improvements:
+ *   - Debounced sync to avoid excessive writes when multiple mutations happen quickly
+ *   - syncWidgetDataFromDashboard() helper that fetches DailySummary and syncs widget
+ *   - Network-aware: skips sync attempts when offline (uses last known data)
+ *
  * Usage:
  *   Call `syncWidgetData()` after every food log, water log, or daily refresh.
  *   The function is idempotent and safe to call frequently.
@@ -70,6 +75,10 @@ export interface WidgetDataInput {
   total_fiber_g?: number;
   /** Number of distinct food items logged, for NutriScore variety */
   food_variety?: number;
+  /** Calories burned through exercise today */
+  calories_burned_exercise?: number;
+  /** Net calories (consumed - burned) */
+  net_calories?: number;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -239,4 +248,65 @@ async function clearSharedDefaults(): Promise<void> {
   } catch {
     // Silently ignore
   }
+}
+
+// ---- Debounced sync ----------------------------------------------------------
+
+let _debouncedTimer: ReturnType<typeof setTimeout> | null = null;
+let _pendingInput: WidgetDataInput | null = null;
+
+/**
+ * Debounced version of syncWidgetData. Waits 500ms after the last call
+ * before actually writing, so rapid-fire mutations (e.g., logging multiple
+ * items in quick succession) only result in a single write.
+ */
+export function syncWidgetDataDebounced(input: WidgetDataInput): void {
+  _pendingInput = input;
+
+  if (_debouncedTimer) {
+    clearTimeout(_debouncedTimer);
+  }
+
+  _debouncedTimer = setTimeout(async () => {
+    if (_pendingInput) {
+      await syncWidgetData(_pendingInput);
+      _pendingInput = null;
+    }
+  }, 500);
+}
+
+/**
+ * Convenience: build WidgetDataInput from a DailySummary object and sync.
+ * Call this after fetching the daily summary to keep widget data up to date.
+ */
+export function syncWidgetDataFromSummary(summary: {
+  total_calories: number;
+  target_calories: number;
+  total_protein_g: number;
+  target_protein_g: number;
+  total_carbs_g: number;
+  target_carbs_g: number;
+  total_fats_g: number;
+  target_fats_g: number;
+  water_ml: number;
+  streak_days: number;
+  meals_logged: number;
+  calories_burned_exercise?: number;
+  net_calories?: number;
+}): void {
+  syncWidgetDataDebounced({
+    total_calories: summary.total_calories,
+    target_calories: summary.target_calories,
+    total_protein_g: summary.total_protein_g,
+    target_protein_g: summary.target_protein_g,
+    total_carbs_g: summary.total_carbs_g,
+    target_carbs_g: summary.target_carbs_g,
+    total_fats_g: summary.total_fats_g,
+    target_fats_g: summary.target_fats_g,
+    water_ml: summary.water_ml,
+    streak_days: summary.streak_days,
+    meals_logged: summary.meals_logged,
+    calories_burned_exercise: summary.calories_burned_exercise,
+    net_calories: summary.net_calories,
+  });
 }

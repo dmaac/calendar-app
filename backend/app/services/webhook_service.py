@@ -17,12 +17,15 @@ fans out to every active webhook registered for that event.
 import asyncio
 import hashlib
 import hmac
+import ipaddress
 import json
 import logging
 import secrets
+import socket
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
+from urllib.parse import urlparse
 
 import httpx
 from sqlalchemy import select, func
@@ -45,6 +48,63 @@ MAX_RETRIES = 3
 BACKOFF_BASE_SECONDS = 2  # 2s, 4s, 8s
 DELIVERY_TIMEOUT_SECONDS = 10
 RESPONSE_BODY_MAX_LENGTH = 5000
+
+# ── SSRF protection ─────────────────────────────────────────────────────────
+# SEC: Block requests to internal/private IP ranges to prevent Server-Side
+# Request Forgery attacks via webhook URLs.
+
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),        # RFC 1918 private
+    ipaddress.ip_network("172.16.0.0/12"),      # RFC 1918 private
+    ipaddress.ip_network("192.168.0.0/16"),     # RFC 1918 private
+    ipaddress.ip_network("127.0.0.0/8"),        # Loopback
+    ipaddress.ip_network("169.254.0.0/16"),     # Link-local
+    ipaddress.ip_network("0.0.0.0/8"),          # "This" network
+    ipaddress.ip_network("::1/128"),            # IPv6 loopback
+    ipaddress.ip_network("fc00::/7"),           # IPv6 unique local
+    ipaddress.ip_network("fe80::/10"),          # IPv6 link-local
+    ipaddress.ip_network("::ffff:0:0/96"),      # IPv4-mapped IPv6
+]
+
+
+def _is_internal_ip(ip_str: str) -> bool:
+    """Check if an IP address belongs to a private/internal network."""
+    try:
+        addr = ipaddress.ip_address(ip_str)
+        return any(addr in network for network in _BLOCKED_NETWORKS)
+    except ValueError:
+        return True  # If we can't parse the IP, block it (fail-closed)
+
+
+def _validate_webhook_url(url: str) -> None:
+    """Validate that a webhook URL does not point to an internal/private address.
+
+    Resolves the hostname to IP addresses and checks each against the blocked
+    network list. Raises ValueError if the URL targets a private network.
+    """
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+
+    if not hostname:
+        raise ValueError("Webhook URL has no hostname")
+
+    # Block non-HTTP(S) schemes
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Webhook URL scheme '{parsed.scheme}' is not allowed; use http or https")
+
+    # Resolve hostname to IP addresses
+    try:
+        addr_infos = socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        raise ValueError(f"Cannot resolve webhook hostname: {hostname}")
+
+    for family, _, _, _, sockaddr in addr_infos:
+        ip_str = sockaddr[0]
+        if _is_internal_ip(ip_str):
+            raise ValueError(
+                f"Webhook URL resolves to internal/private IP ({ip_str}). "
+                f"Delivery to internal networks is blocked for security."
+            )
 
 
 # ── Signature helpers ────────────────────────────────────────────────────────
@@ -88,6 +148,9 @@ class WebhookService:
         description: Optional[str] = None,
     ) -> Webhook:
         """Register a new webhook.  A unique signing secret is generated automatically."""
+        # SEC: Validate URL does not target internal networks (SSRF prevention)
+        _validate_webhook_url(url)
+
         webhook = Webhook(
             user_id=user_id,
             url=url,
@@ -177,7 +240,7 @@ class WebhookService:
         test_payload = {
             "event": webhook.event,
             "test": True,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": {
                 "message": "This is a test delivery from Fitsi IA",
                 "webhook_id": webhook.id,
@@ -192,6 +255,29 @@ class WebhookService:
 
         Logs every attempt as a WebhookDelivery row.
         """
+        # SEC: Re-validate URL at delivery time to defend against DNS rebinding
+        # (hostname may resolve to a different IP than at registration time).
+        try:
+            _validate_webhook_url(webhook.url)
+        except ValueError as e:
+            logger.warning(
+                "Webhook delivery blocked (SSRF): webhook_id=%s url=%s reason=%s",
+                webhook.id, webhook.url, e,
+            )
+            delivery = WebhookDelivery(
+                webhook_id=webhook.id,
+                event=webhook.event,
+                payload=json.dumps(payload_dict, default=str),
+                attempt=1,
+                status=DeliveryStatus.FAILED,
+                error_message=f"SSRF blocked: {e}",
+                duration_ms=0,
+            )
+            self.session.add(delivery)
+            await self.session.commit()
+            await self.session.refresh(delivery)
+            return delivery
+
         payload_json = json.dumps(payload_dict, default=str)
         signature = compute_signature(payload_json, webhook.secret)
 
@@ -312,7 +398,7 @@ async def dispatch_webhooks_for_event(event_name: str, data: dict) -> None:
 
             payload = {
                 "event": event_name,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "data": data,
             }
 

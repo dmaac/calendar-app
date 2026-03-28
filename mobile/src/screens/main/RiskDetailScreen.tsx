@@ -69,8 +69,8 @@ export default function RiskDetailScreen() {
       if (summaryRes.status === 'fulfilled' && summaryRes.value) {
         setSummary(summaryRes.value as any);
       }
-    } catch {
-      // Silently fail — individual sections will show empty state
+    } catch (err) {
+      console.error('[RiskDetailScreen] Failed to fetch risk extras:', err);
     }
   }, [riskScore]);
 

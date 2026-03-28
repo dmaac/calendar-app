@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, Date, Index, UniqueConstraint
+from sqlalchemy import Column, Date, ForeignKey, Index, Integer, UniqueConstraint
 from typing import Optional
-from datetime import date as date_type, datetime
+from datetime import date as date_type, datetime, timezone
 
 
 class DailyNutritionAdherence(SQLModel, table=True):
@@ -11,10 +11,19 @@ class DailyNutritionAdherence(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("user_id", "date", name="uq_adherence_user_date"),
         Index("ix_adherence_user_date", "user_id", "date"),
+        # Risk analytics: filter by adherence status over date ranges
+        Index("ix_adherence_user_status", "user_id", "adherence_status"),
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
     date: date_type = Field(sa_column=Column(Date, nullable=False))
 
     # Calorie targets vs actual
@@ -47,4 +56,10 @@ class DailyNutritionAdherence(SQLModel, table=True):
     primary_risk_reason: Optional[str] = Field(default=None)
     plan_snapshot: Optional[str] = Field(default=None)  # JSON: {calories, protein_g, fat_g, carbs_g}
 
-    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self) -> str:
+        return (
+            f"<DailyNutritionAdherence id={self.id} user={self.user_id} "
+            f"date={self.date} status={self.adherence_status!r} score={self.diet_quality_score}>"
+        )

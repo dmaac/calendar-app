@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
@@ -19,7 +19,7 @@ class OnboardingService:
         statement = select(OnboardingProfile).where(
             OnboardingProfile.user_id == user_id
         )
-        result = await self.session.exec(statement)
+        result = await self.session.execute(statement)
         return result.first()
 
     async def save_or_update_profile(
@@ -33,7 +33,7 @@ class OnboardingService:
         if profile:
             for field, value in update_data.items():
                 setattr(profile, field, value)
-            profile.updated_at = datetime.utcnow()
+            profile.updated_at = datetime.now(timezone.utc)
         else:
             profile = OnboardingProfile(user_id=user_id, **update_data)
 
@@ -53,7 +53,7 @@ class OnboardingService:
         if profile:
             for field, value in update_data.items():
                 setattr(profile, field, value)
-            profile.updated_at = datetime.utcnow()
+            profile.updated_at = datetime.now(timezone.utc)
         else:
             profile = OnboardingProfile(user_id=user_id, **update_data)
 
@@ -64,8 +64,8 @@ class OnboardingService:
         profile.daily_protein_g = plan.protein_g
         profile.daily_fats_g = plan.fats_g
         profile.health_score = plan.health_score
-        profile.completed_at = datetime.utcnow()
-        profile.updated_at = datetime.utcnow()
+        profile.completed_at = datetime.now(timezone.utc)
+        profile.updated_at = datetime.now(timezone.utc)
 
         self.session.add(profile)
         await self.session.commit()

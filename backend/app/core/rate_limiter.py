@@ -1,6 +1,7 @@
 """Sliding-window rate limiter with per-user tiers and burst allowance.
 
 Uses Redis sorted sets for accurate sliding-window counting.
+Falls back to in-memory sliding window when Redis is unavailable (fail-closed).
 
 Usage::
 
@@ -13,8 +14,10 @@ Or apply per-route with the dependency::
     @router.get("/scan", dependencies=[Depends(rate_limit_dependency)])
     async def scan_food(): ...
 """
+import threading
 import time
 import logging
+from collections import defaultdict
 from typing import Optional
 
 from fastapi import Request, Response
@@ -38,6 +41,69 @@ WINDOW_SECONDS = 60
 
 # Paths exempt from rate limiting
 _EXEMPT_PATHS = {"/health", "/api/health", "/docs", "/redoc", "/openapi.json", "/"}
+
+# ─── In-memory fallback for when Redis is unavailable ───────────────────────
+# SEC: Rate limiting must NOT become a no-op when Redis is down. This
+# in-memory sliding window provides degraded but functional rate limiting.
+# Thread-safe via a lock; entries auto-expire to prevent unbounded memory growth.
+
+_MEM_LOCK = threading.Lock()
+_MEM_WINDOWS: dict[str, list[float]] = defaultdict(list)
+_MEM_LAST_CLEANUP = time.time()
+_MEM_CLEANUP_INTERVAL = 300  # Clean up stale entries every 5 minutes
+
+
+def _mem_cleanup_if_needed() -> None:
+    """Remove stale entries older than the window to prevent unbounded memory growth."""
+    global _MEM_LAST_CLEANUP
+    now = time.time()
+    if now - _MEM_LAST_CLEANUP < _MEM_CLEANUP_INTERVAL:
+        return
+    _MEM_LAST_CLEANUP = now
+    cutoff = now - WINDOW_SECONDS
+    stale_keys = [k for k, v in _MEM_WINDOWS.items() if not v or v[-1] < cutoff]
+    for k in stale_keys:
+        del _MEM_WINDOWS[k]
+
+
+def _check_rate_limit_memory(identifier: str, tier: str = DEFAULT_TIER) -> dict:
+    """In-memory sliding-window rate check (fallback when Redis is unavailable)."""
+    tier_config = RATE_TIERS.get(tier, RATE_TIERS[DEFAULT_TIER])
+    max_requests = tier_config["requests_per_minute"]
+    burst = tier_config["burst"]
+    effective_limit = max_requests + burst
+
+    now = time.time()
+    window_start = now - WINDOW_SECONDS
+
+    with _MEM_LOCK:
+        _mem_cleanup_if_needed()
+        # Remove expired timestamps
+        timestamps = _MEM_WINDOWS[identifier]
+        _MEM_WINDOWS[identifier] = [t for t in timestamps if t > window_start]
+        current_count = len(_MEM_WINDOWS[identifier])
+
+        if current_count >= effective_limit:
+            oldest = _MEM_WINDOWS[identifier][0] if _MEM_WINDOWS[identifier] else now
+            retry_after = max(0, WINDOW_SECONDS - (now - oldest))
+            return {
+                "allowed": False,
+                "limit": max_requests,
+                "remaining": 0,
+                "reset": int(now + retry_after),
+                "retry_after": int(retry_after) + 1,
+            }
+
+        _MEM_WINDOWS[identifier].append(now)
+        remaining = max(0, effective_limit - current_count - 1)
+
+    return {
+        "allowed": True,
+        "limit": max_requests,
+        "remaining": remaining,
+        "reset": int(now + WINDOW_SECONDS),
+        "retry_after": 0,
+    }
 
 
 # ─── Core sliding-window logic ──────────────────────────────────────────────
@@ -129,10 +195,9 @@ def _get_user_id_from_request(request: Request) -> Optional[int]:
 
 
 def _get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    """Extract real client IP, only trusting X-Forwarded-For from known proxies."""
+    from app.core.ip_utils import get_client_ip
+    return get_client_ip(request)
 
 
 def _get_user_tier(request: Request) -> str:
@@ -173,9 +238,10 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         try:
             result = await _check_rate_limit(identifier, tier)
         except Exception as exc:
-            # If Redis is down, allow the request (fail open)
-            logger.warning("Rate limiter Redis error — allowing request: %s", exc)
-            return await call_next(request)
+            # SEC: If Redis is down, fall back to in-memory rate limiting
+            # instead of allowing all requests (fail-closed, not fail-open).
+            logger.warning("Rate limiter Redis error — using in-memory fallback: %s", exc)
+            result = _check_rate_limit_memory(identifier, tier)
 
         if not result["allowed"]:
             resp = JSONResponse(

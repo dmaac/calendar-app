@@ -146,7 +146,13 @@ export default function BottomSheet({
           ]}
         >
           {/* Handle bar */}
-          <View style={styles.handleContainer}>
+          <View
+            style={styles.handleContainer}
+            accessible={true}
+            accessibilityLabel="Arrastrar hacia abajo para cerrar"
+            accessibilityRole="button"
+            accessibilityHint="Desliza hacia abajo para cerrar este panel"
+          >
             <View style={[styles.handle, { backgroundColor: c.grayLight }]} />
           </View>
           {children}

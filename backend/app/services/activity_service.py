@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
-from datetime import datetime
+from datetime import datetime, timezone
 from ..models.activity import Activity, ActivityCreate, ActivityUpdate
 
 
@@ -14,7 +14,7 @@ class ActivityService:
 
     async def get_user_activities(self, user_id: int) -> List[Activity]:
         statement = select(Activity).where(Activity.user_id == user_id)
-        result = await self.session.exec(statement)
+        result = await self.session.execute(statement)
         return list(result.all())
 
     async def get_user_activities_by_date_range(
@@ -25,7 +25,7 @@ class ActivityService:
             Activity.start_time >= start_date,
             Activity.end_time <= end_date
         )
-        result = await self.session.exec(statement)
+        result = await self.session.execute(statement)
         return list(result.all())
 
     async def check_duplicate_title(self, user_id: int, title: str, exclude_activity_id: Optional[int] = None) -> bool:
@@ -38,7 +38,7 @@ class ActivityService:
         if exclude_activity_id:
             statement = statement.where(Activity.id != exclude_activity_id)
 
-        result = await self.session.exec(statement)
+        result = await self.session.execute(statement)
         existing_activity = result.first()
         return existing_activity is not None
 
@@ -68,7 +68,7 @@ class ActivityService:
                 if await self.check_duplicate_title(user_id, update_data["title"], exclude_activity_id=activity_id):
                     raise ValueError(f"Activity with title '{update_data['title']}' already exists")
 
-            update_data["updated_at"] = datetime.utcnow()
+            update_data["updated_at"] = datetime.now(timezone.utc)
             for field, value in update_data.items():
                 setattr(activity, field, value)
             self.session.add(activity)

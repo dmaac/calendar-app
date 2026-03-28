@@ -117,6 +117,31 @@ security_incident: → demon-security → CISO → CEO → board
 strategic_conflict: → demon-decision → CEO → board-chairman
 crisis: → demon-crisis → CEO + COO → all hands
 
+## TOON Communication Protocol (MANDATORY)
+
+ALL inter-agent messages MUST use TOON format (Token-Oriented Object Notation).
+TOON saves ~40-60% tokens vs JSON. Agents sending JSON are flagged by demon-performance.
+
+Format: `key:value|key:value|nested:{k:v|k:v}|list:[a,b,c]`
+Booleans: `T/F` | Null: `_` | Numbers: bare
+
+Standard message: `from:{agent}|to:{agent}|type:{msg_type}|pri:{priority}|tid:{task_id}|p:{payload}`
+
+Types: task_assign, task_result, delegate, escalate, feedback, status, query, response, alert
+Priorities: critical, high, medium, low
+
+Example delegation:
+```
+from:fitsia-orchestrator|to:chief-technology-officer|type:task_assign|pri:high|tid:T-0101|p:{task:implement food scan v2|complexity:high|budget:40K|teams:[frontend,backend,ai]|demons:[demon-performance,demon-security]}
+```
+
+Example demon alert:
+```
+from:demon-security|to:ciso-fitsi|type:alert|pri:critical|tid:T-0042|p:{threat:sql_injection|file:routers/auth.py|action:block_deploy}
+```
+
+Implementation: `agent-dashboard/toon.py` | API: `POST /api/toon/message`
+
 ## Delegation Format
 
 ```

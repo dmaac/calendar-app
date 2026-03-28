@@ -1,4 +1,4 @@
-"""Recommendations router — personalized meal suggestions."""
+"""Recommendations router -- personalized meal suggestions."""
 import logging
 from typing import Optional
 
@@ -10,6 +10,8 @@ from ..models.user import User
 from ..services.food_recommendation_engine import (
     browse_meals,
     get_meal_recommendations,
+    get_macro_focused_suggestions,
+    get_time_based_suggestions,
     log_recommendation_choice,
 )
 from .auth import get_current_user
@@ -26,7 +28,13 @@ async def recommendations(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Get personalized meal recommendations based on remaining daily macros."""
+    """Get personalized meal recommendations based on remaining daily macros.
+
+    Now includes:
+    - Dietary preference filtering from onboarding (vegetarian, keto, etc.)
+    - Macro-balancing advice (which macros need attention)
+    - Diet-aware scoring and explanations in Spanish
+    """
     try:
         return await get_meal_recommendations(
             user_id=current_user.id,
@@ -34,11 +42,80 @@ async def recommendations(
             meal_type=meal_type,
             limit=limit,
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Error generating recommendations for user %s", current_user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al generar recomendaciones",
+        )
+
+
+@router.get("/macro-focus")
+async def macro_focused(
+    macro: str = Query(
+        "protein_g",
+        description="Target macro to focus on: protein_g, carbs_g, or fat_g",
+    ),
+    limit: int = Query(5, ge=1, le=20),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Get meal suggestions specifically to fill a macro deficit.
+
+    Unlike the general recommendations endpoint, this finds meals that are
+    rich in a specific macro the user is behind on. Useful when the user
+    taps "I need more protein" on the dashboard.
+
+    Examples:
+    - /api/recommendations/macro-focus?macro=protein_g
+    - /api/recommendations/macro-focus?macro=fat_g&limit=3
+    """
+    try:
+        return await get_macro_focused_suggestions(
+            user_id=current_user.id,
+            session=session,
+            target_macro=macro,
+            limit=limit,
+        )
+    except Exception:
+        logger.exception("Error generating macro-focused suggestions for user %s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al generar sugerencias por macro",
+        )
+
+
+@router.get("/time-based")
+async def time_based(
+    limit: int = Query(3, ge=1, le=10),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Get quick meal suggestions appropriate for the current time of day.
+
+    Automatically detects whether it is breakfast, lunch, snack, or dinner
+    time and suggests meals that fit the user's remaining calorie budget.
+
+    Applies time-based heuristics:
+    - Morning (5-10): light breakfast options with quick prep
+    - Midday (11-14): substantial lunch options
+    - Afternoon (15-17): light snacks
+    - Evening (18-22): dinner options
+    - Late night (23-4): very light snacks only
+
+    Respects dietary preferences from onboarding.
+    """
+    try:
+        return await get_time_based_suggestions(
+            user_id=current_user.id,
+            session=session,
+            limit=limit,
+        )
+    except Exception:
+        logger.exception("Error generating time-based suggestions for user %s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al generar sugerencias por horario",
         )
 
 

@@ -4,9 +4,9 @@ user interactions (impressions, CTA clicks, interventions, corrections).
 """
 
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, Index, Text
+from sqlalchemy import Column, ForeignKey, Index, Integer, Text
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class RiskAnalyticsEvent(SQLModel, table=True):
@@ -19,7 +19,13 @@ class RiskAnalyticsEvent(SQLModel, table=True):
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
 
     # One of: risk_card_impression, risk_cta_clicked, intervention_sent,
     #         intervention_opened, correction_after_intervention, risk_improved
@@ -28,4 +34,7 @@ class RiskAnalyticsEvent(SQLModel, table=True):
     # JSON metadata (variant, risk_score, reason, etc.)
     metadata_json: Optional[str] = Field(default=None, sa_column=Column(Text))
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self) -> str:
+        return f"<RiskAnalyticsEvent id={self.id} user={self.user_id} type={self.event_type!r}>"

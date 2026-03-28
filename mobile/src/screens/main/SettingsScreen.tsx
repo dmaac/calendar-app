@@ -1,5 +1,15 @@
 /**
- * SettingsScreen — Cal AI style preferences with Appearance selector + feature toggles
+ * SettingsScreen -- Organized preferences with clear section hierarchy:
+ * Appearance, Preferences, Features, Integrations, Goals, Notifications,
+ * Data & Privacy, Help & Support, Account (destructive), About.
+ *
+ * Key improvements:
+ * - Logical section grouping (data/privacy together, destructive actions at bottom)
+ * - Subtitle support on rows for additional context
+ * - Two-step delete account confirmation
+ * - App version pinned at bottom footer
+ * - Consistent icon colors and circle backgrounds
+ * - Proper bottom inset padding for scroll content
  */
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -15,11 +25,12 @@ import {
   PanResponder,
   LayoutChangeEvent,
   DimensionValue,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, typography, spacing, radius, useThemeColors } from '../../theme';
+import { typography, spacing, radius, shadows, useThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useTranslation } from '../../context/LanguageContext';
@@ -29,6 +40,7 @@ import ApiService from '../../services/api';
 import useHealthKit from '../../hooks/useHealthKit';
 
 const APP_VERSION = '1.0.0';
+const BUILD_NUMBER = '1';
 
 const LOCALE_LABELS: Record<string, string> = {
   en: 'English',
@@ -45,7 +57,7 @@ const LOCALE_LABELS: Record<string, string> = {
   nl: 'Nederlands',
 };
 
-// AsyncStorage keys for Cal AI toggles
+// AsyncStorage keys
 const TOGGLE_KEYS = {
   badgeCelebrations: '@fitsi_badge_celebrations',
   liveActivity: '@fitsi_live_activity',
@@ -56,13 +68,13 @@ const TOGGLE_KEYS = {
 
 const AI_PROVIDER_KEY = '@fitsi_ai_provider';
 const AI_PROVIDER_OPTIONS = [
-  { value: 'auto', label: 'Auto (recomendado)' },
+  { value: 'auto', label: 'Auto (recommended)' },
   { value: 'claude', label: 'Claude AI' },
   { value: 'openai', label: 'GPT-4o' },
 ] as const;
 type AIProviderValue = typeof AI_PROVIDER_OPTIONS[number]['value'];
 
-// ─── Appearance mode button ──────────────────────────────────────────────────
+// ---- Sub-components ---------------------------------------------------------
 
 function AppearanceButton({
   icon,
@@ -84,45 +96,33 @@ function AppearanceButton({
         { backgroundColor: c.surface },
         isSelected && { borderColor: c.accent, borderWidth: 2 },
       ]}
-      onPress={() => {
-        haptics.light();
-        onPress();
-      }}
+      onPress={() => { haptics.light(); onPress(); }}
       activeOpacity={0.7}
-      accessibilityLabel={`Apariencia: ${label}`}
+      accessibilityLabel={`Appearance: ${label}`}
       accessibilityRole="button"
       accessibilityState={{ selected: isSelected }}
     >
-      <Ionicons
-        name={icon as any}
-        size={24}
-        color={isSelected ? c.accent : c.gray}
-      />
-      <Text
-        style={[
-          styles.appearanceBtnLabel,
-          { color: isSelected ? c.accent : c.gray },
-          isSelected && { fontWeight: '700' },
-        ]}
-      >
+      <Ionicons name={icon as any} size={24} color={isSelected ? c.accent : c.gray} />
+      <Text style={[styles.appearanceBtnLabel, { color: isSelected ? c.accent : c.gray }, isSelected && { fontWeight: '700' }]}>
         {label}
       </Text>
     </TouchableOpacity>
   );
 }
 
-// ─── Section header ─────────────────────────────────────────────────────────
-
 function SectionHeader({ title, c }: { title: string; c: ReturnType<typeof useThemeColors> }) {
-  return <Text style={[styles.sectionHeader, { color: c.gray }]}>{title}</Text>;
+  return (
+    <Text style={[styles.sectionHeader, { color: c.gray }]} accessibilityRole="header" allowFontScaling>
+      {title}
+    </Text>
+  );
 }
-
-// ─── Row variants ───────────────────────────────────────────────────────────
 
 function SettingsRow({
   icon,
-  iconColor = colors.gray,
+  iconColor,
   label,
+  subtitle,
   value,
   onPress,
   destructive,
@@ -132,12 +132,15 @@ function SettingsRow({
   icon: string;
   iconColor?: string;
   label: string;
+  subtitle?: string;
   value?: string;
   onPress?: () => void;
   destructive?: boolean;
   isLast?: boolean;
   c: ReturnType<typeof useThemeColors>;
 }) {
+  const resolvedColor = iconColor ?? c.gray;
+
   return (
     <TouchableOpacity
       style={[styles.row, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.grayLight }]}
@@ -146,19 +149,22 @@ function SettingsRow({
       disabled={!onPress}
       accessibilityLabel={value != null ? `${label}: ${value}` : label}
       accessibilityRole={onPress ? 'button' : 'text'}
-      accessibilityHint={onPress && !destructive ? `Navega a ${label.toLowerCase()}` : undefined}
+      accessibilityHint={onPress && !destructive ? `Navigate to ${label.toLowerCase()}` : undefined}
     >
-      <View style={[styles.iconCircle, { backgroundColor: destructive ? '#FFEDED' : c.surface }]}>
-        <Ionicons
-          name={icon as any}
-          size={18}
-          color={destructive ? colors.protein : iconColor}
-        />
+      <View style={[styles.iconCircle, { backgroundColor: destructive ? c.protein + '15' : c.surface }]}>
+        <Ionicons name={icon as any} size={18} color={destructive ? c.protein : resolvedColor} />
       </View>
-      <Text style={[styles.rowLabel, { color: c.black }, destructive && { color: colors.protein }]}>
-        {label}
-      </Text>
-      {value != null && <Text style={[styles.rowValue, { color: c.gray }]}>{value}</Text>}
+      <View style={styles.rowTextWrap}>
+        <Text style={[styles.rowLabel, { color: c.black }, destructive && { color: c.protein }]} allowFontScaling>
+          {label}
+        </Text>
+        {subtitle != null && (
+          <Text style={[styles.rowSubtitle, { color: c.gray }]} allowFontScaling numberOfLines={2}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
+      {value != null && <Text style={[styles.rowValue, { color: c.gray }]} allowFontScaling>{value}</Text>}
       {onPress && !destructive && (
         <Ionicons name="chevron-forward" size={16} color={c.disabled} />
       )}
@@ -168,8 +174,9 @@ function SettingsRow({
 
 function ToggleRow({
   icon,
-  iconColor = colors.gray,
+  iconColor,
   label,
+  subtitle,
   value,
   onToggle,
   isLast,
@@ -178,6 +185,7 @@ function ToggleRow({
   icon: string;
   iconColor?: string;
   label: string;
+  subtitle?: string;
   value: boolean;
   onToggle: (v: boolean) => void;
   isLast?: boolean;
@@ -186,18 +194,22 @@ function ToggleRow({
   return (
     <View
       style={[styles.row, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.grayLight }]}
-      accessibilityLabel={`${label}: ${value ? 'activado' : 'desactivado'}`}
+      accessibilityLabel={`${label}: ${value ? 'enabled' : 'disabled'}`}
     >
       <View style={[styles.iconCircle, { backgroundColor: c.surface }]}>
-        <Ionicons name={icon as any} size={18} color={iconColor} />
+        <Ionicons name={icon as any} size={18} color={iconColor ?? c.gray} />
       </View>
-      <Text style={[styles.rowLabel, { color: c.black }]}>{label}</Text>
+      <View style={styles.rowTextWrap}>
+        <Text style={[styles.rowLabel, { color: c.black }]} allowFontScaling>{label}</Text>
+        {subtitle != null && (
+          <Text style={[styles.rowSubtitle, { color: c.gray }]} allowFontScaling numberOfLines={2}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
       <Switch
         value={value}
-        onValueChange={(v) => {
-          haptics.light();
-          onToggle(v);
-        }}
+        onValueChange={(v) => { haptics.light(); onToggle(v); }}
         trackColor={{ false: c.grayLight, true: c.accent }}
         thumbColor={c.white}
         ios_backgroundColor={c.grayLight}
@@ -210,7 +222,7 @@ function ToggleRow({
 
 function SliderRow({
   icon,
-  iconColor = colors.gray,
+  iconColor,
   label,
   value,
   min,
@@ -239,7 +251,7 @@ function SliderRow({
     <View style={[styles.row, styles.sliderRow, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.grayLight }]}>
       <View style={styles.sliderTop}>
         <View style={[styles.iconCircle, { backgroundColor: c.surface }]}>
-          <Ionicons name={icon as any} size={18} color={iconColor} />
+          <Ionicons name={icon as any} size={18} color={iconColor ?? c.gray} />
         </View>
         <Text style={[styles.rowLabel, { color: c.black }]}>{label}</Text>
       </View>
@@ -249,15 +261,13 @@ function SliderRow({
           onPress={() => { haptics.light(); onDecrease(); }}
           disabled={value <= min}
           activeOpacity={0.6}
-          accessibilityLabel={`Disminuir ${label.toLowerCase()}`}
+          accessibilityLabel={`Decrease ${label.toLowerCase()}`}
           accessibilityRole="button"
+          accessibilityState={{ disabled: value <= min }}
         >
           <Ionicons name="remove" size={18} color={value <= min ? c.disabled : c.black} />
         </TouchableOpacity>
-        <Text
-          style={[styles.stepperValue, { color: c.black }]}
-          accessibilityLabel={`${label}: ${value.toFixed(1)} ${unit}`}
-        >
+        <Text style={[styles.stepperValue, { color: c.black }]} accessibilityLabel={`${label}: ${value.toFixed(1)} ${unit}`}>
           {value.toFixed(1)} {unit}
         </Text>
         <TouchableOpacity
@@ -265,8 +275,9 @@ function SliderRow({
           onPress={() => { haptics.light(); onIncrease(); }}
           disabled={value >= max}
           activeOpacity={0.6}
-          accessibilityLabel={`Aumentar ${label.toLowerCase()}`}
+          accessibilityLabel={`Increase ${label.toLowerCase()}`}
           accessibilityRole="button"
+          accessibilityState={{ disabled: value >= max }}
         >
           <Ionicons name="add" size={18} color={value >= max ? c.disabled : c.black} />
         </TouchableOpacity>
@@ -274,8 +285,6 @@ function SliderRow({
     </View>
   );
 }
-
-// ─── True Tone custom slider (no external dependency) ───────────────────────
 
 function TrueToneSlider({
   value,
@@ -296,21 +305,16 @@ function TrueToneSlider({
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
         const x = evt.nativeEvent.locationX;
-        const pct = Math.round(Math.max(0, Math.min(100, (x / trackWidth.current) * 100)));
-        onValueChange(pct);
+        onValueChange(Math.round(Math.max(0, Math.min(100, (x / trackWidth.current) * 100))));
       },
       onPanResponderMove: (evt) => {
         const x = evt.nativeEvent.locationX;
-        const pct = Math.round(Math.max(0, Math.min(100, (x / trackWidth.current) * 100)));
-        onValueChange(pct);
+        onValueChange(Math.round(Math.max(0, Math.min(100, (x / trackWidth.current) * 100))));
       },
     }),
   ).current;
 
-  const handleLayout = (e: LayoutChangeEvent) => {
-    trackWidth.current = e.nativeEvent.layout.width;
-  };
-
+  const handleLayout = (e: LayoutChangeEvent) => { trackWidth.current = e.nativeEvent.layout.width; };
   const pct = `${value}%` as DimensionValue;
 
   return (
@@ -318,66 +322,48 @@ function TrueToneSlider({
       style={styles.trueToneTrack}
       onLayout={handleLayout}
       {...panResponder.panHandlers}
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel={`True Tone: ${value} percent`}
+      accessibilityValue={{ min: 0, max: 100, now: value }}
+      accessibilityHint="Drag to adjust screen warmth"
     >
-      <View
-        style={[
-          styles.trueToneTrackFill,
-          {
-            width: pct,
-            backgroundColor: '#F59E0B',
-          },
-        ]}
-      />
-      <View
-        style={[
-          styles.trueToneThumb,
-          {
-            left: pct,
-            backgroundColor: '#FFFFFF',
-            borderColor: '#F59E0B',
-          },
-        ]}
-      />
+      <View style={[styles.trueToneTrackFill, { width: pct, backgroundColor: '#F59E0B' }]} />
+      <View style={[styles.trueToneThumb, { left: pct, backgroundColor: '#FFFFFF', borderColor: '#F59E0B' }]} />
     </View>
   );
 }
-
-// ─── Card wrapper ───────────────────────────────────────────────────────────
 
 function Card({ children, c }: { children: React.ReactNode; c: ReturnType<typeof useThemeColors> }) {
   return <View style={[styles.card, { backgroundColor: c.bg }]}>{children}</View>;
 }
 
-// ─── Main component ─────────────────────────────────────────────────────────
+// ---- Main component ---------------------------------------------------------
 
 export default function SettingsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { isDark, mode: themeMode, setMode, warmth, setWarmth } = useAppTheme();
   const c = useThemeColors();
   const { t, locale } = useTranslation();
   const { track } = useAnalytics('Settings');
   const healthKit = useHealthKit();
 
-  // Local state for toggles
+  // Local state
   const [unitSystem, setUnitSystem] = useState<'metric' | 'imperial'>('metric');
   const [waterGoal, setWaterGoal] = useState(2.5);
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [scheduleReminders, setScheduleReminders] = useState(true);
-
-  // AI provider preference
   const [aiProvider, setAiProvider] = useState<AIProviderValue>('auto');
 
-  // Cal AI feature toggles
+  // Feature toggles
   const [badgeCelebrations, setBadgeCelebrations] = useState(true);
   const [liveActivity, setLiveActivity] = useState(false);
   const [addBurnedCalories, setAddBurnedCalories] = useState(false);
   const [rolloverCalories, setRolloverCalories] = useState(false);
   const [autoAdjustMacros, setAutoAdjustMacros] = useState(false);
 
-  // Load saved toggle states
+  // Load persisted values on mount
   useEffect(() => {
-    const loadToggles = async () => {
+    (async () => {
       try {
         const [badge, live, burned, rollover, autoAdj, savedProvider] = await Promise.all([
           AsyncStorage.getItem(TOGGLE_KEYS.badgeCelebrations),
@@ -394,8 +380,7 @@ export default function SettingsScreen({ navigation }: any) {
         if (autoAdj !== null) setAutoAdjustMacros(autoAdj === 'true');
         if (savedProvider !== null) setAiProvider(savedProvider as AIProviderValue);
       } catch {}
-    };
-    loadToggles();
+    })();
   }, []);
 
   const persistToggle = (key: string, setter: (v: boolean) => void) => (v: boolean) => {
@@ -404,23 +389,26 @@ export default function SettingsScreen({ navigation }: any) {
     AsyncStorage.setItem(key, String(v));
   };
 
+  // ---- Action handlers ------------------------------------------------------
+
   const handleLogout = () => {
     haptics.heavy();
-    Alert.alert(t('settings.logoutConfirmTitle'), t('settings.logoutConfirmMessage'), [
-      { text: t('settings.cancel'), style: 'cancel' },
-      {
-        text: t('settings.logout'),
-        style: 'destructive',
-        onPress: async () => {
-          haptics.medium();
-          try {
-            await logout();
-          } catch {
-            // Logout failed
-          }
+    Alert.alert(
+      t('settings.logoutConfirmTitle'),
+      t('settings.logoutConfirmMessage'),
+      [
+        { text: t('settings.cancel'), style: 'cancel' },
+        {
+          text: t('settings.logout'),
+          style: 'destructive',
+          onPress: async () => {
+            haptics.medium();
+            track('logout_confirmed');
+            try { await logout(); } catch {}
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const handleDeleteAccount = () => {
@@ -433,15 +421,30 @@ export default function SettingsScreen({ navigation }: any) {
         {
           text: t('settings.deleteAccount'),
           style: 'destructive',
-          onPress: async () => {
-            haptics.heavy();
-            try {
-              await ApiService.deleteAccount();
-              await logout();
-              Alert.alert(t('settings.accountDeleted'), t('settings.accountDeletedMessage'));
-            } catch (error: any) {
-              Alert.alert(t('common.error'), error?.response?.data?.detail || t('common.error'));
-            }
+          onPress: () => {
+            // Second confirmation for this irreversible action
+            Alert.alert(
+              'Are you sure?',
+              'This cannot be undone. Your account and all associated data will be permanently removed.',
+              [
+                { text: t('settings.cancel'), style: 'cancel' },
+                {
+                  text: 'Delete permanently',
+                  style: 'destructive',
+                  onPress: async () => {
+                    haptics.heavy();
+                    track('account_delete_confirmed');
+                    try {
+                      await ApiService.deleteAccount();
+                      await logout();
+                      Alert.alert(t('settings.accountDeleted'), t('settings.accountDeletedMessage'));
+                    } catch (error: any) {
+                      Alert.alert(t('common.error'), error?.response?.data?.detail || t('common.error'));
+                    }
+                  },
+                },
+              ],
+            );
           },
         },
       ],
@@ -450,21 +453,24 @@ export default function SettingsScreen({ navigation }: any) {
 
   const handleExportData = () => {
     haptics.medium();
+    track('export_data_started');
     Alert.alert(
       t('settings.exportDataTitle'),
       t('settings.exportDataMessage'),
       [
         { text: t('settings.cancel'), style: 'cancel' },
-        { text: t('settings.export'), onPress: () => {} },
+        { text: t('settings.export'), onPress: () => { track('export_data_confirmed'); } },
       ],
     );
   };
 
   const handleContactSupport = () => {
+    track('contact_support_tapped');
     Linking.openURL('mailto:support@fitsi.app');
   };
 
   const handleRateApp = () => {
+    track('rate_app_tapped');
     const storeUrl = Platform.select({
       ios: 'https://apps.apple.com/app/fitsi',
       android: 'https://play.google.com/store/apps/details?id=com.fitsi',
@@ -473,58 +479,46 @@ export default function SettingsScreen({ navigation }: any) {
     if (storeUrl) Linking.openURL(storeUrl);
   };
 
+  // ---- Render ---------------------------------------------------------------
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.surface }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
+
       {/* Header */}
       <View style={[styles.header, { backgroundColor: c.bg, borderBottomColor: c.grayLight }]}>
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: c.surface }]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
-          accessibilityLabel="Volver"
+          accessibilityLabel="Go back"
           accessibilityRole="button"
         >
           <Ionicons name="chevron-back" size={20} color={c.black} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: c.black }]}>{t('settings.title')}</Text>
-        <View style={[styles.backButton, { backgroundColor: c.surface }]} />
+        <Text style={[styles.headerTitle, { color: c.black }]} accessibilityRole="header" allowFontScaling>
+          {t('settings.title')}
+        </Text>
+        <View style={styles.backButton} importantForAccessibility="no" />
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        bounces={true}
+        bounces
         overScrollMode="never"
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
-        {/* APPEARANCE — Cal AI 3-button selector */}
+        {/* ---- APPEARANCE ---- */}
         <SectionHeader title={t('settings.appearance')} c={c} />
         <Card c={c}>
-          <View style={styles.appearanceRow}>
-            <AppearanceButton
-              icon="phone-portrait-outline"
-              label={t('settings.system')}
-              isSelected={themeMode === 'system'}
-              onPress={() => { track('theme_changed', { theme: 'system' }); setMode('system'); }}
-              c={c}
-            />
-            <AppearanceButton
-              icon="sunny-outline"
-              label={t('settings.light')}
-              isSelected={themeMode === 'light'}
-              onPress={() => { track('theme_changed', { theme: 'light' }); setMode('light'); }}
-              c={c}
-            />
-            <AppearanceButton
-              icon="moon-outline"
-              label={t('settings.dark')}
-              isSelected={themeMode === 'dark'}
-              onPress={() => { track('theme_changed', { theme: 'dark' }); setMode('dark'); }}
-              c={c}
-            />
+          <View style={styles.appearanceRow} accessibilityRole="radiogroup" accessibilityLabel="Select appearance mode">
+            <AppearanceButton icon="phone-portrait-outline" label={t('settings.system')} isSelected={themeMode === 'system'} onPress={() => { track('theme_changed', { theme: 'system' }); setMode('system'); }} c={c} />
+            <AppearanceButton icon="sunny-outline" label={t('settings.light')} isSelected={themeMode === 'light'} onPress={() => { track('theme_changed', { theme: 'light' }); setMode('light'); }} c={c} />
+            <AppearanceButton icon="moon-outline" label={t('settings.dark')} isSelected={themeMode === 'dark'} onPress={() => { track('theme_changed', { theme: 'dark' }); setMode('dark'); }} c={c} />
           </View>
         </Card>
 
-        {/* TRUE TONE — warmth slider, only visible in dark mode */}
+        {/* True Tone (dark mode only) */}
         {isDark && (
           <Card c={c}>
             <View style={styles.trueToneContainer}>
@@ -536,100 +530,21 @@ export default function SettingsScreen({ navigation }: any) {
                 <Text style={[styles.trueToneValue, { color: c.gray }]}>{warmth}%</Text>
               </View>
               <View style={styles.trueToneSliderRow}>
-                <Text style={[styles.trueToneEndLabel, { color: c.gray }]}>Frio</Text>
+                <Text style={[styles.trueToneEndLabel, { color: c.gray }]}>Cool</Text>
                 <View style={styles.trueToneTrackWrapper}>
                   <TrueToneSlider value={warmth} onValueChange={setWarmth} c={c} />
                 </View>
-                <Text style={[styles.trueToneEndLabel, { color: c.gray }]}>Calido</Text>
+                <Text style={[styles.trueToneEndLabel, { color: c.gray }]}>Warm</Text>
               </View>
               <View style={[styles.trueTonePreview, { backgroundColor: c.bg, borderColor: c.grayLight }]}>
                 <View style={[styles.trueTonePreviewBar, { backgroundColor: c.surface }]} />
-                <View style={[styles.trueTonePreviewBar, { backgroundColor: c.surfaceAlt, width: '60%' }]} />
+                <View style={[styles.trueTonePreviewBar, { backgroundColor: c.surfaceAlt, width: '60%' as DimensionValue }]} />
               </View>
             </View>
           </Card>
         )}
 
-        {/* FEATURES — Cal AI toggles */}
-        <SectionHeader title={t('settings.features')} c={c} />
-        <Card c={c}>
-          <ToggleRow
-            icon="trophy-outline"
-            iconColor="#F59E0B"
-            label={t('settings.badgeCelebrations')}
-            value={badgeCelebrations}
-            onToggle={persistToggle(TOGGLE_KEYS.badgeCelebrations, setBadgeCelebrations)}
-            c={c}
-          />
-          <ToggleRow
-            icon="pulse-outline"
-            iconColor="#10B981"
-            label={t('settings.liveActivity')}
-            value={liveActivity}
-            onToggle={persistToggle(TOGGLE_KEYS.liveActivity, setLiveActivity)}
-            c={c}
-          />
-          <ToggleRow
-            icon="flame-outline"
-            iconColor="#EA4335"
-            label={t('settings.addBurnedCalories')}
-            value={addBurnedCalories}
-            onToggle={persistToggle(TOGGLE_KEYS.addBurnedCalories, setAddBurnedCalories)}
-            c={c}
-          />
-          <ToggleRow
-            icon="arrow-redo-outline"
-            iconColor="#6366F1"
-            label={t('settings.rolloverCalories')}
-            value={rolloverCalories}
-            onToggle={persistToggle(TOGGLE_KEYS.rolloverCalories, setRolloverCalories)}
-            c={c}
-          />
-          <ToggleRow
-            icon="options-outline"
-            iconColor={colors.accent}
-            label={t('settings.autoAdjustMacros')}
-            value={autoAdjustMacros}
-            onToggle={persistToggle(TOGGLE_KEYS.autoAdjustMacros, setAutoAdjustMacros)}
-            isLast
-            c={c}
-          />
-        </Card>
-
-        {/* INTEGRATIONS — Apple Health toggle */}
-        {healthKit.isAvailable && (
-          <>
-            <SectionHeader title={t('settings.integrations')} c={c} />
-            <Card c={c}>
-              <ToggleRow
-                icon="heart-outline"
-                iconColor="#FF2D55"
-                label={t('settings.appleHealth')}
-                value={healthKit.connected}
-                onToggle={async (v) => {
-                  if (v) {
-                    track('apple_health_connect_started');
-                    const ok = await healthKit.connect();
-                    track('apple_health_connect_result', { success: ok });
-                    if (!ok && healthKit.error) {
-                      Alert.alert(
-                        'Apple Health',
-                        healthKit.error,
-                      );
-                    }
-                  } else {
-                    track('apple_health_disconnected');
-                    await healthKit.disconnect();
-                  }
-                }}
-                isLast
-                c={c}
-              />
-            </Card>
-          </>
-        )}
-
-        {/* GENERAL */}
+        {/* ---- PREFERENCES ---- */}
         <SectionHeader title={t('settings.general')} c={c} />
         <Card c={c}>
           <SettingsRow
@@ -637,10 +552,7 @@ export default function SettingsScreen({ navigation }: any) {
             iconColor={c.accent}
             label={t('settings.units')}
             value={unitSystem === 'metric' ? t('settings.metric') : t('settings.imperial')}
-            onPress={() => {
-              haptics.light();
-              setUnitSystem((u) => (u === 'metric' ? 'imperial' : 'metric'));
-            }}
+            onPress={() => { haptics.light(); setUnitSystem((u) => (u === 'metric' ? 'imperial' : 'metric')); }}
             c={c}
           />
           <SettingsRow
@@ -669,7 +581,46 @@ export default function SettingsScreen({ navigation }: any) {
           />
         </Card>
 
-        {/* METAS */}
+        {/* ---- FEATURES ---- */}
+        <SectionHeader title={t('settings.features')} c={c} />
+        <Card c={c}>
+          <ToggleRow icon="trophy-outline" iconColor="#F59E0B" label={t('settings.badgeCelebrations')} value={badgeCelebrations} onToggle={persistToggle(TOGGLE_KEYS.badgeCelebrations, setBadgeCelebrations)} c={c} />
+          <ToggleRow icon="pulse-outline" iconColor="#10B981" label={t('settings.liveActivity')} value={liveActivity} onToggle={persistToggle(TOGGLE_KEYS.liveActivity, setLiveActivity)} c={c} />
+          <ToggleRow icon="flame-outline" iconColor="#EA4335" label={t('settings.addBurnedCalories')} value={addBurnedCalories} onToggle={persistToggle(TOGGLE_KEYS.addBurnedCalories, setAddBurnedCalories)} c={c} />
+          <ToggleRow icon="arrow-redo-outline" iconColor="#6366F1" label={t('settings.rolloverCalories')} value={rolloverCalories} onToggle={persistToggle(TOGGLE_KEYS.rolloverCalories, setRolloverCalories)} c={c} />
+          <ToggleRow icon="options-outline" iconColor={c.accent} label={t('settings.autoAdjustMacros')} value={autoAdjustMacros} onToggle={persistToggle(TOGGLE_KEYS.autoAdjustMacros, setAutoAdjustMacros)} isLast c={c} />
+        </Card>
+
+        {/* ---- INTEGRATIONS ---- */}
+        {healthKit.isAvailable && (
+          <>
+            <SectionHeader title={t('settings.integrations')} c={c} />
+            <Card c={c}>
+              <ToggleRow
+                icon="heart-outline"
+                iconColor="#FF2D55"
+                label={t('settings.appleHealth')}
+                subtitle="Sync workouts and activity data"
+                value={healthKit.connected}
+                onToggle={async (v) => {
+                  if (v) {
+                    track('apple_health_connect_started');
+                    const ok = await healthKit.connect();
+                    track('apple_health_connect_result', { success: ok });
+                    if (!ok && healthKit.error) Alert.alert('Apple Health', healthKit.error);
+                  } else {
+                    track('apple_health_disconnected');
+                    await healthKit.disconnect();
+                  }
+                }}
+                isLast
+                c={c}
+              />
+            </Card>
+          </>
+        )}
+
+        {/* ---- GOALS ---- */}
         <SectionHeader title={t('settings.goals')} c={c} />
         <Card c={c}>
           <SliderRow
@@ -695,84 +646,47 @@ export default function SettingsScreen({ navigation }: any) {
           />
         </Card>
 
-        {/* NOTIFICACIONES */}
+        {/* ---- NOTIFICATIONS ---- */}
         <SectionHeader title={t('settings.notifications')} c={c} />
         <Card c={c}>
-          <ToggleRow
+          <SettingsRow
             icon="notifications-outline"
             iconColor={c.accent}
-            label={t('settings.pushNotifications')}
-            value={pushEnabled}
-            onToggle={setPushEnabled}
+            label="Notification Preferences"
+            subtitle="Manage what notifications you receive"
+            onPress={() => navigation.navigate('NotificationPreferences')}
             c={c}
           />
-          <ToggleRow
+          <SettingsRow
             icon="time-outline"
             iconColor="#8B5CF6"
             label={t('settings.scheduleReminders')}
-            value={scheduleReminders}
-            onToggle={setScheduleReminders}
+            subtitle="Set meal and water reminders"
+            onPress={() => navigation.navigate('TrackingReminders')}
             isLast
             c={c}
           />
         </Card>
 
-        {/* CUENTA */}
-        <SectionHeader title={t('settings.accountSection')} c={c} />
+        {/* ---- DATA & PRIVACY ---- */}
+        <SectionHeader title="DATA & PRIVACY" c={c} />
         <Card c={c}>
+          <SettingsRow
+            icon="document-text-outline"
+            iconColor="#4285F4"
+            label={t('settings.pdfReport')}
+            subtitle="Download a PDF summary of your progress"
+            onPress={() => navigation.navigate('PDFReport')}
+            c={c}
+          />
           <SettingsRow
             icon="download-outline"
             iconColor="#3B82F6"
             label={t('settings.exportData')}
+            subtitle="Export all your data via email"
             onPress={handleExportData}
             c={c}
           />
-          <SettingsRow
-            icon="trash-outline"
-            label={t('settings.deleteAccount')}
-            onPress={handleDeleteAccount}
-            destructive
-            c={c}
-          />
-          <SettingsRow
-            icon="log-out-outline"
-            label={t('settings.logout')}
-            onPress={handleLogout}
-            destructive
-            isLast
-            c={c}
-          />
-        </Card>
-
-        {/* AYUDA */}
-        <SectionHeader title={t('settings.help')} c={c} />
-        <Card c={c}>
-          <SettingsRow
-            icon="color-palette-outline"
-            iconColor="#4CAF50"
-            label={t('settings.ringColorsExplained')}
-            onPress={() => navigation.navigate('RingColors')}
-            isLast
-            c={c}
-          />
-        </Card>
-
-        {/* SUPPORT */}
-        <SectionHeader title={t('settings.support')} c={c} />
-        <Card c={c}>
-          <SettingsRow
-            icon="help-circle-outline"
-            iconColor="#4285F4"
-            label={t('settings.helpAndFaq')}
-            onPress={() => navigation.navigate('Help')}
-            isLast
-            c={c}
-          />
-        </Card>
-
-        {/* LEGAL */}
-        <SectionHeader title={t('settings.legal')} c={c} />
-        <Card c={c}>
           <SettingsRow
             icon="shield-checkmark-outline"
             iconColor="#10B981"
@@ -790,14 +704,21 @@ export default function SettingsScreen({ navigation }: any) {
           />
         </Card>
 
-        {/* APP */}
-        <SectionHeader title={t('settings.app')} c={c} />
+        {/* ---- HELP & SUPPORT ---- */}
+        <SectionHeader title="HELP & SUPPORT" c={c} />
         <Card c={c}>
           <SettingsRow
-            icon="document-text-outline"
+            icon="help-circle-outline"
             iconColor="#4285F4"
-            label={t('settings.pdfReport')}
-            onPress={() => navigation.navigate('PDFReport')}
+            label={t('settings.helpAndFaq')}
+            onPress={() => navigation.navigate('Help')}
+            c={c}
+          />
+          <SettingsRow
+            icon="color-palette-outline"
+            iconColor="#4CAF50"
+            label={t('settings.ringColorsExplained')}
+            onPress={() => navigation.navigate('RingColors')}
             c={c}
           />
           <SettingsRow
@@ -805,13 +726,6 @@ export default function SettingsScreen({ navigation }: any) {
             iconColor="#8B5CF6"
             label={t('settings.widgetGuide')}
             onPress={() => navigation.navigate('WidgetGuide')}
-            c={c}
-          />
-          <SettingsRow
-            icon="information-circle-outline"
-            iconColor={c.gray}
-            label={t('settings.version')}
-            value={APP_VERSION}
             c={c}
           />
           <SettingsRow
@@ -826,54 +740,81 @@ export default function SettingsScreen({ navigation }: any) {
             iconColor="#F59E0B"
             label={t('settings.rateApp')}
             onPress={handleRateApp}
-            isLast={false}
-            c={c}
-          />
-          <SettingsRow
-            icon="information-circle-outline"
-            iconColor="#6366F1"
-            label={t('settings.aboutApp')}
-            onPress={() => navigation.navigate('About')}
             isLast
             c={c}
           />
         </Card>
 
-        <View style={{ height: spacing.xxl }} />
+        {/* ---- ACCOUNT (destructive actions grouped at bottom) ---- */}
+        <SectionHeader title={t('settings.accountSection')} c={c} />
+        <Card c={c}>
+          <SettingsRow
+            icon="log-out-outline"
+            label={t('settings.logout')}
+            onPress={handleLogout}
+            destructive
+            c={c}
+          />
+          <SettingsRow
+            icon="trash-outline"
+            label={t('settings.deleteAccount')}
+            subtitle="Permanently delete your account and all data"
+            onPress={handleDeleteAccount}
+            destructive
+            isLast
+            c={c}
+          />
+        </Card>
+
+        {/* ---- ABOUT ---- */}
+        <SectionHeader title="ABOUT" c={c} />
+        <Card c={c}>
+          <SettingsRow
+            icon="information-circle-outline"
+            iconColor="#6366F1"
+            label={t('settings.aboutApp')}
+            onPress={() => navigation.navigate('About')}
+            c={c}
+          />
+          <SettingsRow
+            icon="information-circle-outline"
+            iconColor={c.gray}
+            label={t('settings.version')}
+            value={`${APP_VERSION} (${BUILD_NUMBER})`}
+            isLast
+            c={c}
+          />
+        </Card>
+
+        {/* Version footer */}
+        <Text style={[styles.versionFooter, { color: c.disabled }]} allowFontScaling>
+          Fitsi IA v{APP_VERSION} ({BUILD_NUMBER})
+        </Text>
       </ScrollView>
     </View>
   );
 }
 
-// ─── Styles ─────────────────────────────────────────────────────────────────
+// ---- Styles -----------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
+  screen: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.bg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.grayLight,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    ...typography.titleSm,
-    color: colors.black,
-  },
+  headerTitle: { ...typography.titleSm },
   scroll: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
@@ -881,7 +822,6 @@ const styles = StyleSheet.create({
   sectionHeader: {
     ...typography.caption,
     fontWeight: '600',
-    color: colors.gray,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: spacing.lg,
@@ -889,11 +829,12 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   card: {
-    backgroundColor: colors.bg,
     borderRadius: radius.lg,
     overflow: 'hidden',
+    ...shadows.sm,
   },
-  // Appearance selector
+
+  // Appearance
   appearanceRow: {
     flexDirection: 'row',
     padding: spacing.md,
@@ -909,20 +850,15 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     gap: spacing.xs,
   },
-  appearanceBtnLabel: {
-    ...typography.caption,
-    fontWeight: '600',
-  },
+  appearanceBtnLabel: { ...typography.caption, fontWeight: '600' },
+
+  // Row
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 4,
     gap: spacing.sm,
-  },
-  rowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.grayLight,
   },
   iconCircle: {
     width: 32,
@@ -931,16 +867,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowLabel: {
-    ...typography.bodyMd,
-    color: colors.black,
-    flex: 1,
-  },
-  rowValue: {
-    ...typography.caption,
-    color: colors.gray,
-    marginRight: 4,
-  },
+  rowTextWrap: { flex: 1 },
+  rowLabel: { ...typography.bodyMd },
+  rowSubtitle: { ...typography.caption, marginTop: 2 },
+  rowValue: { ...typography.caption, marginRight: 4 },
+
+  // Slider
   sliderRow: {
     flexDirection: 'column',
     alignItems: 'stretch',
@@ -962,48 +894,19 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepperBtnDisabled: {
-    opacity: 0.4,
-  },
-  stepperValue: {
-    ...typography.titleSm,
-    color: colors.black,
-    minWidth: 60,
-    textAlign: 'center',
-  },
+  stepperBtnDisabled: { opacity: 0.4 },
+  stepperValue: { ...typography.titleSm, minWidth: 60, textAlign: 'center' },
+
   // True Tone
-  trueToneContainer: {
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  trueToneHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  trueToneValue: {
-    ...typography.caption,
-    fontWeight: '600',
-  },
-  trueToneSliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.xs,
-  },
-  trueToneEndLabel: {
-    ...typography.caption,
-    fontWeight: '500',
-    width: 38,
-    textAlign: 'center',
-  },
-  trueToneTrackWrapper: {
-    flex: 1,
-  },
+  trueToneContainer: { padding: spacing.md, gap: spacing.sm },
+  trueToneHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  trueToneValue: { ...typography.caption, fontWeight: '600' },
+  trueToneSliderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.xs },
+  trueToneEndLabel: { ...typography.caption, fontWeight: '500', width: 38, textAlign: 'center' },
+  trueToneTrackWrapper: { flex: 1 },
   trueToneTrack: {
     height: 28,
     borderRadius: 14,
@@ -1044,6 +947,14 @@ const styles = StyleSheet.create({
   trueTonePreviewBar: {
     height: 6,
     borderRadius: 3,
-    width: '80%',
+    width: '80%' as DimensionValue,
+  },
+
+  // Version footer
+  versionFooter: {
+    ...typography.caption,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
 });

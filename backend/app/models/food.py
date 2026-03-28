@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class FoodBase(SQLModel):
@@ -22,8 +22,16 @@ class Food(FoodBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     # Owner of this food entry — used for authorization (IDOR prevention).
     # NULL means system/admin-created (e.g., seed data) and is immutable by regular users.
-    created_by: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: Optional[int] = Field(
+        default=None,
+        foreign_key="user.id",
+        index=True,
+        sa_column_kwargs={"comment": "NULL = system/admin created"},
+    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self) -> str:
+        return f"<Food id={self.id} name={self.name!r} cal={self.calories}>"
 
 
 class FoodCreate(FoodBase):

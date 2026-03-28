@@ -1087,3 +1087,120 @@ async def dashboard_today(
         pass  # cache failure -- return result anyway
 
     return result
+
+
+# ─── Orphan Scan Recovery ─────────────────────────────────────────────────────
+
+@router.get(
+    "/orphan-scans",
+    summary="List orphan scans (pending re-analysis)",
+    description=(
+        "Returns food log entries that have an image_url but failed AI analysis "
+        "(food_name='Analyzing...' or ai_provider='pending'). These can be "
+        "recovered by calling POST /api/food/recover-scan/{id}."
+    ),
+)
+async def list_orphan_scans(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(AIFoodLog).where(
+            AIFoodLog.user_id == current_user.id,
+            AIFoodLog.ai_provider == "pending",
+            AIFoodLog.image_url.isnot(None),
+        ).order_by(AIFoodLog.logged_at.desc())
+    )
+    orphans = result.scalars().all()
+    return [
+        {
+            "id": o.id,
+            "image_url": o.image_url,
+            "image_hash": o.image_hash,
+            "meal_type": o.meal_type,
+            "logged_at": o.logged_at.isoformat() if o.logged_at else None,
+        }
+        for o in orphans
+    ]
+
+
+@router.post(
+    "/recover-scan/{log_id}",
+    summary="Re-analyze an orphan scan",
+    description=(
+        "Downloads the image from storage and re-runs AI analysis to fill in "
+        "the missing nutrition data. Only works on scans with ai_provider='pending'."
+    ),
+)
+async def recover_scan(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    import httpx
+
+    result = await session.execute(
+        select(AIFoodLog).where(
+            AIFoodLog.id == log_id,
+            AIFoodLog.user_id == current_user.id,
+        )
+    )
+    log = result.scalars().first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Food log not found")
+
+    if log.ai_provider != "pending":
+        return {"message": "Scan already analyzed", "food_name": log.food_name}
+
+    if not log.image_url:
+        raise HTTPException(status_code=422, detail="No image URL — cannot re-analyze")
+
+    # Download image from storage
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(log.image_url, timeout=15)
+            resp.raise_for_status()
+            image_bytes = resp.content
+    except Exception as e:
+        logger.error("Failed to download image for recovery log_id=%s: %s", log_id, e)
+        raise HTTPException(status_code=502, detail="Could not download image from storage")
+
+    # Re-run AI analysis
+    from ..services.ai_scan_service import _call_ai_vision, _sanitize_string, _sanitize_numeric
+
+    try:
+        ai_result = await _call_ai_vision(image_bytes)
+    except Exception as e:
+        logger.error("AI re-analysis failed for log_id=%s: %s", log_id, e)
+        raise HTTPException(status_code=502, detail="AI analysis failed. Try again later.")
+
+    # Update the log with real data
+    log.food_name = _sanitize_string(ai_result.get("food_name", "Unknown"), 200)
+    log.calories = _sanitize_numeric(ai_result.get("calories"), "calories")
+    log.carbs_g = _sanitize_numeric(ai_result.get("carbs_g"), "carbs_g")
+    log.protein_g = _sanitize_numeric(ai_result.get("protein_g"), "protein_g")
+    log.fats_g = _sanitize_numeric(ai_result.get("fats_g"), "fats_g")
+    log.fiber_g = _sanitize_numeric(ai_result.get("fiber_g"), "fiber_g") if ai_result.get("fiber_g") is not None else None
+    log.sugar_g = _sanitize_numeric(ai_result.get("sugar_g"), "sugar_g") if ai_result.get("sugar_g") is not None else None
+    log.sodium_mg = _sanitize_numeric(ai_result.get("sodium_mg"), "sodium_mg") if ai_result.get("sodium_mg") is not None else None
+    log.serving_size = _sanitize_string(ai_result.get("serving_size", ""), 200)
+    log.ai_provider = ai_result.get("ai_provider", "recovered")
+    log.ai_confidence = float(ai_result.get("confidence", 0.8))
+
+    session.add(log)
+    await session.commit()
+    await session.refresh(log)
+
+    logger.info("Recovered scan log_id=%s food_name=%s calories=%s", log.id, log.food_name, log.calories)
+
+    return {
+        "id": log.id,
+        "food_name": log.food_name,
+        "calories": log.calories,
+        "protein_g": log.protein_g,
+        "carbs_g": log.carbs_g,
+        "fats_g": log.fats_g,
+        "meal_type": log.meal_type,
+        "image_url": log.image_url,
+        "recovered": True,
+    }

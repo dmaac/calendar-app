@@ -1,146 +1,164 @@
 /**
- * AdaptiveCalorieBanner — Suggests calorie goal adjustments based on recent intake.
+ * AdaptiveCalorieBanner — Server-driven calorie adjustment recommendation banner.
  *
- * Logic:
- *   If the 7-day rolling average differs by >15% from the current target,
- *   the banner appears with a suggestion to adjust the goal.
+ * Fetches the adaptive calorie target from the backend and displays a
+ * contextual banner when an adjustment is recommended. The user can
+ * accept ("Aplicar") or dismiss ("Ignorar") the recommendation.
  *
  * UX:
- *   - Fade-in animation on appearance
+ *   - Fade-in + slide-up animation on appearance
  *   - Haptic feedback on button press
- *   - Dismissable with "Mantener" or actionable with "Ajustar"
- *   - Subtle surface card matching Fitsi design language
+ *   - Contextual icon and color based on trend
+ *   - Navigates to CalorieAdjustmentScreen on "Ver detalle" press
  */
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors, typography, spacing, radius, shadows } from '../theme';
 import { haptics } from '../hooks/useHaptics';
+import useAdaptiveCalories from '../hooks/useAdaptiveCalories';
 
 // ---- Types ----------------------------------------------------------------
 
 interface AdaptiveCalorieBannerProps {
-  /** Array of daily calorie totals for the last 7 days (most recent last). */
-  recentDailyCalories: number[];
-  /** Current daily calorie target. */
-  currentTarget: number;
-  /** Called when the user accepts the suggested adjustment. */
-  onAdjust: (newTarget: number) => void;
-  /** Called when the user dismisses the suggestion. */
-  onDismiss?: () => void;
+  /** Called when the user wants to navigate to the detail screen. */
+  onViewDetail?: () => void;
+  /** Called when an adjustment is successfully applied (to trigger a data refresh). */
+  onAdjustmentApplied?: () => void;
 }
 
-// ---- Constants ------------------------------------------------------------
+// ---- Trend config ---------------------------------------------------------
 
-/** Threshold: if average differs by more than this fraction, suggest adjustment. */
-const DEVIATION_THRESHOLD = 0.15;
-
-/** Minimum number of days required to evaluate a trend. */
-const MIN_DAYS_REQUIRED = 5;
-
-/** Minimum safe calorie intake — never suggest below this. */
-const MIN_SAFE_CALORIES = 1200;
-
-// ---- Helpers --------------------------------------------------------------
-
-function computeSuggestedTarget(
-  recentCalories: number[],
-  currentTarget: number,
-): number | null {
-  if (recentCalories.length < MIN_DAYS_REQUIRED) return null;
-
-  const sum = recentCalories.reduce((acc, v) => acc + v, 0);
-  const avg = sum / recentCalories.length;
-
-  const deviation = Math.abs(avg - currentTarget) / currentTarget;
-  if (deviation <= DEVIATION_THRESHOLD) return null;
-
-  // Round to nearest 50 for cleaner UX
-  const raw = Math.round(avg / 50) * 50;
-  return Math.max(MIN_SAFE_CALORIES, raw);
+interface TrendConfig {
+  icon: string;
+  iconColor: string;
+  bgColor: string;
 }
+
+const TREND_MAP: Record<string, TrendConfig> = {
+  losing_too_fast: {
+    icon: 'trending-down',
+    iconColor: '#D97706',
+    bgColor: '#FEF3C7',
+  },
+  losing_on_track: {
+    icon: 'checkmark-circle',
+    iconColor: '#059669',
+    bgColor: '#D1FAE5',
+  },
+  stable: {
+    icon: 'remove-circle',
+    iconColor: '#6B7280',
+    bgColor: '#F3F4F6',
+  },
+  gaining_on_track: {
+    icon: 'checkmark-circle',
+    iconColor: '#059669',
+    bgColor: '#D1FAE5',
+  },
+  gaining_too_fast: {
+    icon: 'trending-up',
+    iconColor: '#DC2626',
+    bgColor: '#FEE2E2',
+  },
+  not_losing: {
+    icon: 'pause-circle',
+    iconColor: '#D97706',
+    bgColor: '#FEF3C7',
+  },
+  not_gaining: {
+    icon: 'pause-circle',
+    iconColor: '#D97706',
+    bgColor: '#FEF3C7',
+  },
+  insufficient_data: {
+    icon: 'information-circle',
+    iconColor: '#6B7280',
+    bgColor: '#F3F4F6',
+  },
+};
 
 // ---- Component ------------------------------------------------------------
 
 export default function AdaptiveCalorieBanner({
-  recentDailyCalories,
-  currentTarget,
-  onAdjust,
-  onDismiss,
+  onViewDetail,
+  onAdjustmentApplied,
 }: AdaptiveCalorieBannerProps) {
   const c = useThemeColors();
-  const [dismissed, setDismissed] = useState(false);
+  const {
+    data,
+    loading,
+    acting,
+    apply,
+    dismiss,
+  } = useAdaptiveCalories();
 
-  const suggestedTarget = useMemo(
-    () => computeSuggestedTarget(recentDailyCalories, currentTarget),
-    [recentDailyCalories, currentTarget],
-  );
-
-  // Fade-in animation
+  // Animation refs
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(8)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
 
+  // Animate in when data arrives and there is a pending adjustment
   useEffect(() => {
-    if (suggestedTarget !== null && !dismissed) {
+    if (data && data.has_pending_adjustment && Math.abs(data.adjustment) > 0) {
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 1,
-          duration: 400,
-          delay: 300,
+          duration: 450,
+          delay: 400,
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
           toValue: 0,
-          duration: 400,
-          delay: 300,
+          duration: 450,
+          delay: 400,
           useNativeDriver: true,
         }),
       ]).start();
     }
-  }, [suggestedTarget, dismissed]);
+  }, [data, opacity, translateY]);
 
-  const handleAdjust = useCallback(() => {
-    if (suggestedTarget === null) return;
+  const handleApply = useCallback(async () => {
     haptics.success();
-    onAdjust(suggestedTarget);
-    setDismissed(true);
-  }, [suggestedTarget, onAdjust]);
+    const ok = await apply();
+    if (ok) {
+      // Animate out
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -12, duration: 250, useNativeDriver: true }),
+      ]).start();
+      onAdjustmentApplied?.();
+    }
+  }, [apply, opacity, translateY, onAdjustmentApplied]);
 
-  const handleDismiss = useCallback(() => {
+  const handleDismiss = useCallback(async () => {
     haptics.light();
-    // Animate out
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: -8,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setDismissed(true);
-      onDismiss?.();
-    });
-  }, [onDismiss, opacity, translateY]);
+    const ok = await dismiss();
+    if (ok) {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -12, duration: 250, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [dismiss, opacity, translateY]);
 
-  // Don't render if no suggestion or already dismissed
-  if (suggestedTarget === null || dismissed) return null;
+  const handleViewDetail = useCallback(() => {
+    haptics.light();
+    onViewDetail?.();
+  }, [onViewDetail]);
 
-  const avg = Math.round(
-    recentDailyCalories.reduce((a, b) => a + b, 0) / recentDailyCalories.length,
-  );
-  const daysCount = recentDailyCalories.length;
-  const diff = currentTarget - avg;
-  const isEatingLess = diff > 0;
+  // Don't render if loading, no data, or no meaningful adjustment
+  if (loading || !data) return null;
+  if (!data.has_pending_adjustment || Math.abs(data.adjustment) === 0) return null;
+
+  const trendConfig = TREND_MAP[data.trend] ?? TREND_MAP.stable;
+  const isIncrease = data.adjustment > 0;
 
   return (
     <Animated.View
@@ -153,45 +171,84 @@ export default function AdaptiveCalorieBanner({
           transform: [{ translateY }],
         },
       ]}
-      accessibilityLabel={`Sugerencia: llevas ${daysCount} dias consumiendo un promedio de ${avg} calorias. Tu objetivo actual es ${currentTarget}. Sugerencia: ajustar a ${suggestedTarget}.`}
       accessibilityRole="alert"
+      accessibilityLabel={`Ajuste de calorias recomendado: ${isIncrease ? 'subir' : 'bajar'} ${Math.abs(data.adjustment)} calorias. ${data.reason}`}
     >
       {/* Icon */}
-      <View style={[s.iconCircle, { backgroundColor: '#FEF3C7' }]}>
-        <Ionicons name="trending-down" size={18} color="#D97706" />
+      <View style={[s.iconCircle, { backgroundColor: trendConfig.bgColor }]}>
+        <Ionicons
+          name={trendConfig.icon as any}
+          size={20}
+          color={trendConfig.iconColor}
+        />
       </View>
 
-      {/* Text */}
+      {/* Content */}
       <View style={s.textCol}>
-        <Text style={[s.title, { color: c.black }]}>
-          {isEatingLess ? 'Consumo por debajo del objetivo' : 'Consumo por encima del objetivo'}
-        </Text>
-        <Text style={[s.subtitle, { color: c.gray }]}>
-          Llevas {daysCount} dias consumiendo ~{Math.abs(diff)} kcal {isEatingLess ? 'menos' : 'mas'} de tu objetivo.
-          {'\n'}Ajustar a {suggestedTarget} kcal?
+        {/* Title */}
+        <Text style={[s.title, { color: c.black }]} allowFontScaling>
+          {isIncrease ? 'Subir' : 'Bajar'} a {data.recommended_target} kcal
         </Text>
 
-        {/* Action buttons */}
+        {/* Adjustment badge */}
+        <View style={s.badgeRow}>
+          <View style={[s.badge, { backgroundColor: isIncrease ? '#D1FAE5' : '#FEE2E2' }]}>
+            <Text style={[s.badgeText, { color: isIncrease ? '#059669' : '#DC2626' }]}>
+              {isIncrease ? '+' : ''}{data.adjustment} kcal
+            </Text>
+          </View>
+          {data.actual_weight && (
+            <Text style={[s.weightInfo, { color: c.gray }]}>
+              Peso actual: {data.actual_weight} kg
+            </Text>
+          )}
+        </View>
+
+        {/* Reason */}
+        <Text style={[s.reason, { color: c.gray }]} numberOfLines={3} allowFontScaling>
+          {data.reason}
+        </Text>
+
+        {/* Actions */}
         <View style={s.actions}>
           <TouchableOpacity
             style={[s.btnPrimary, { backgroundColor: c.accent }]}
-            onPress={handleAdjust}
+            onPress={handleApply}
             activeOpacity={0.8}
-            accessibilityLabel={`Ajustar objetivo a ${suggestedTarget} calorias`}
+            disabled={acting}
+            accessibilityLabel={`Aplicar ajuste a ${data.recommended_target} calorias`}
             accessibilityRole="button"
           >
-            <Text style={s.btnPrimaryText}>Ajustar</Text>
+            {acting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={s.btnPrimaryText}>Aplicar</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[s.btnSecondary, { borderColor: c.grayLight }]}
             onPress={handleDismiss}
             activeOpacity={0.8}
-            accessibilityLabel="Mantener objetivo actual"
+            disabled={acting}
+            accessibilityLabel="Ignorar ajuste"
             accessibilityRole="button"
           >
-            <Text style={[s.btnSecondaryText, { color: c.gray }]}>Mantener</Text>
+            <Text style={[s.btnSecondaryText, { color: c.gray }]}>Ignorar</Text>
           </TouchableOpacity>
+
+          {onViewDetail && (
+            <TouchableOpacity
+              style={s.btnLink}
+              onPress={handleViewDetail}
+              activeOpacity={0.7}
+              accessibilityLabel="Ver detalle del ajuste"
+              accessibilityRole="button"
+            >
+              <Text style={[s.btnLinkText, { color: c.accent }]}>Detalle</Text>
+              <Ionicons name="chevron-forward" size={14} color={c.accent} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </Animated.View>
@@ -212,9 +269,9 @@ const s = StyleSheet.create({
     ...shadows.sm,
   },
   iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -226,13 +283,33 @@ const s = StyleSheet.create({
   title: {
     ...typography.label,
     fontWeight: '700',
+    fontSize: 15,
   },
-  subtitle: {
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  badge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  weightInfo: {
+    ...typography.caption,
+    fontSize: 12,
+  },
+  reason: {
     ...typography.caption,
     lineHeight: 18,
   },
   actions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
@@ -241,6 +318,7 @@ const s = StyleSheet.create({
     paddingVertical: spacing.xs + 2,
     borderRadius: radius.full,
     minHeight: 34,
+    minWidth: 72,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -259,6 +337,16 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   btnSecondaryText: {
+    ...typography.caption,
+    fontWeight: '600',
+  },
+  btnLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginLeft: 'auto',
+  },
+  btnLinkText: {
     ...typography.caption,
     fontWeight: '600',
   },

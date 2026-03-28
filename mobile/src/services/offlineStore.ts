@@ -6,6 +6,7 @@
  * - Auto-syncs the queue when connectivity is restored.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AxiosError } from 'axios';
 import { getNetworkStatus } from '../hooks/useNetworkStatus';
 
 // ─── Cache keys ──────────────────────────────────────────────────────────────
@@ -68,10 +69,74 @@ export async function clearCache(): Promise<void> {
 
 // ─── Offline action queue ────────────────────────────────────────────────────
 
+/** Payload shapes for each offline action type. */
+export interface OfflinePayloadMap {
+  log_food: {
+    food_name: string;
+    calories: number;
+    carbs_g: number;
+    protein_g: number;
+    fats_g: number;
+    fiber_g?: number;
+    serving_size?: string;
+    meal_type: string;
+  };
+  log_water: { ml: number };
+  log_meal: {
+    date: string;
+    meal_type: string;
+    food_id: number;
+    servings: number;
+  };
+  delete_meal: { id: number };
+  edit_food_log: { id: number; updates: Record<string, unknown> };
+  delete_food_log: { id: number };
+  quick_log_food: {
+    food_name?: string;
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fats_g?: number;
+    fiber_g?: number;
+    sugar_g?: number;
+    sodium_mg?: number;
+    serving_size?: string;
+    meal_type: string;
+    food_log_id?: number;
+  };
+  log_workout: {
+    workout_type: string;
+    duration_min: number;
+    calories_burned?: number | null;
+    notes?: string | null;
+  };
+  delete_workout: { id: number };
+  apply_adaptive_target: Record<string, never>;
+  dismiss_adaptive_target: Record<string, never>;
+  log_weight: {
+    weight_kg: number;
+    date?: string;
+    source?: string;
+    notes?: string;
+  };
+  add_favorite: {
+    food_name?: string;
+    food_id?: number;
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+  };
+  remove_favorite: { server_id: number };
+  log_favorite: { server_id: number; meal_type: string };
+}
+
+export type OfflineActionType = keyof OfflinePayloadMap;
+
 export interface OfflineAction {
   id: string;
-  type: 'log_food' | 'log_water' | 'log_meal' | 'delete_meal';
-  payload: any;
+  type: OfflineActionType;
+  payload: OfflinePayloadMap[OfflineActionType];
   createdAt: number;
 }
 
@@ -92,9 +157,9 @@ async function saveQueue(queue: OfflineAction[]): Promise<void> {
   }
 }
 
-export async function enqueueAction(
-  type: OfflineAction['type'],
-  payload: any,
+export async function enqueueAction<T extends OfflineActionType>(
+  type: T,
+  payload: OfflinePayloadMap[T],
 ): Promise<OfflineAction> {
   const action: OfflineAction = {
     id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -166,9 +231,11 @@ export async function syncQueue(): Promise<number> {
         await handler(action);
         await removeFromQueue(action.id);
         synced++;
-      } catch (err: any) {
+      } catch (err: unknown) {
         // If it's a 4xx (client error), the data is invalid — drop it
-        if (err?.response?.status >= 400 && err?.response?.status < 500) {
+        const axiosErr = err as AxiosError;
+        const status = axiosErr?.response?.status;
+        if (status !== undefined && status >= 400 && status < 500) {
           await removeFromQueue(action.id);
         }
         // 5xx or network error — keep in queue for next attempt

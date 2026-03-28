@@ -20,7 +20,7 @@ export default function useFadeIn(
   /** Set to true to trigger the animation. */
   trigger: boolean,
   options: FadeInOptions = {},
-) {
+): Animated.WithAnimatedObject<ViewStyle> {
   const { duration = 350, delay = 0, translateY = 12 } = options;
   const opacity = useRef(new Animated.Value(0)).current;
   const translate = useRef(new Animated.Value(translateY)).current;

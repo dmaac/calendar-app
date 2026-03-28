@@ -30,6 +30,11 @@ from sqlalchemy import func as sa_func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ..core.cache import (
+    cache_get, cache_set, cache_delete,
+    achievements_key, progress_profile_key, streak_key,
+    CACHE_TTL,
+)
 from ..core.database import get_session
 from ..models.progress import (
     AchievementDefinition,
@@ -107,6 +112,14 @@ async def post_meal_events(
 
     await session.commit()
 
+    # Invalidate progress caches since XP/streak/missions changed
+    try:
+        await cache_delete(progress_profile_key(current_user.id))
+        await cache_delete(streak_key(current_user.id))
+        await cache_delete(achievements_key(current_user.id))
+    except Exception:
+        pass
+
     return {
         "celebrations": celebrations,
         "missions_completed": completed_missions,
@@ -167,8 +180,23 @@ async def get_progress_profile(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Full progress profile: XP, level, streak, coins, achievements summary."""
-    return await get_user_progress(current_user.id, session)
+    """Full progress profile: XP, level, streak, coins, achievements summary.  Cached 2 min."""
+    cache_key = progress_profile_key(current_user.id)
+    try:
+        cached = await cache_get(cache_key)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass
+
+    result = await get_user_progress(current_user.id, session)
+
+    try:
+        await cache_set(cache_key, result, CACHE_TTL["progress_profile"])
+    except Exception:
+        pass
+
+    return result
 
 
 # ─── GET /api/progress/achievements ──────────────────────────────────────────
@@ -179,7 +207,17 @@ async def get_achievements(
     session: AsyncSession = Depends(get_session),
     category: Optional[str] = Query(None, description="Filter by category"),
 ):
-    """User's unlocked achievements + available (locked) achievements."""
+    """User's unlocked achievements + available (locked) achievements.  Cached 5 min."""
+    # Try cache (only for unfiltered requests which are the most common)
+    if category is None:
+        a_cache_key = achievements_key(current_user.id)
+        try:
+            cached = await cache_get(a_cache_key)
+            if cached is not None:
+                return cached
+        except Exception:
+            pass
+
     # Get user's unlocked achievement IDs
     unlocked_result = await session.execute(
         select(UserAchievement).where(UserAchievement.user_id == current_user.id)
@@ -219,12 +257,28 @@ async def get_achievements(
     newly_unlocked = await check_achievements(current_user.id, session)
     await session.commit()
 
-    return {
+    response = {
         "achievements": achievements,
         "newly_unlocked": newly_unlocked,
         "total": len(all_defs),
         "unlocked_count": len(unlocked_map),
     }
+
+    # Cache if unfiltered and no new unlocks (new unlocks would change the data)
+    if category is None and not newly_unlocked:
+        try:
+            await cache_set(achievements_key(current_user.id), response, CACHE_TTL["achievements"])
+        except Exception:
+            pass
+    elif newly_unlocked:
+        # New achievements unlocked -- invalidate stale cache
+        try:
+            await cache_delete(achievements_key(current_user.id))
+            await cache_delete(progress_profile_key(current_user.id))
+        except Exception:
+            pass
+
+    return response
 
 
 # ─── GET /api/progress/missions/today ────────────────────────────────────────
@@ -530,8 +584,23 @@ async def get_streak(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Comprehensive streak status: current, best, freezes, at-risk, next milestone."""
-    return await get_streak_status(current_user.id, session)
+    """Comprehensive streak status: current, best, freezes, at-risk, next milestone.  Cached 1 min."""
+    s_cache_key = streak_key(current_user.id)
+    try:
+        cached = await cache_get(s_cache_key)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass
+
+    result = await get_streak_status(current_user.id, session)
+
+    try:
+        await cache_set(s_cache_key, result, CACHE_TTL["streak"])
+    except Exception:
+        pass
+
+    return result
 
 
 # ─── POST /api/progress/streak/freeze ─────────────────────────────────────
@@ -550,5 +619,12 @@ async def freeze_streak(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=result.get("error", "Streak freeze failed"),
         )
+
+    # Invalidate streak cache
+    try:
+        await cache_delete(streak_key(current_user.id))
+        await cache_delete(progress_profile_key(current_user.id))
+    except Exception:
+        pass
 
     return result

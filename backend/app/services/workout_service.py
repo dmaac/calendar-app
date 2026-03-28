@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from ..models.workout import WorkoutLog, WorkoutLogCreate, WorkoutType, WorkoutSummary
 
 
@@ -26,8 +26,16 @@ class WorkoutService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def log_workout(self, user_id: int, data: WorkoutLogCreate) -> WorkoutLog:
+    async def log_workout(
+        self, user_id: int, data: WorkoutLogCreate, weight_kg: float | None = None,
+    ) -> WorkoutLog:
         workout_data = data.model_dump()
+        # Auto-estimate calories if not provided
+        if workout_data.get("calories_burned") is None:
+            w_kg = weight_kg or 70.0
+            workout_data["calories_burned"] = estimate_calories(
+                data.workout_type, data.duration_min, w_kg,
+            )
         workout = WorkoutLog(**workout_data, user_id=user_id)
         self.session.add(workout)
         await self.session.commit()
@@ -48,20 +56,20 @@ class WorkoutService:
             statement = statement.where(WorkoutLog.created_at <= date_to)
 
         statement = statement.order_by(WorkoutLog.created_at.desc())
-        result = await self.session.exec(statement)
-        return list(result.all())
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
 
     async def get_workout_by_id(self, workout_id: int) -> Optional[WorkoutLog]:
         return await self.session.get(WorkoutLog, workout_id)
 
     async def get_workout_summary(self, user_id: int, days: int = 7) -> WorkoutSummary:
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
         statement = select(WorkoutLog).where(
             WorkoutLog.user_id == user_id,
             WorkoutLog.created_at >= since,
         )
-        result = await self.session.exec(statement)
-        workouts = list(result.all())
+        result = await self.session.execute(statement)
+        workouts = list(result.scalars().all())
 
         if not workouts:
             return WorkoutSummary()

@@ -96,7 +96,17 @@ export default function StreakBadge({
 
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.8}
+        accessibilityLabel={
+          `Racha de ${days} dia${days > 1 ? 's' : ''}` +
+          (hasFreezeAvailable ? ', freeze disponible' : '') +
+          (freezeUsedToday ? ', freeze usado hoy' : '')
+        }
+        accessibilityRole="button"
+        accessibilityHint="Toca para ver tus logros y rachas"
+      >
         {content}
       </TouchableOpacity>
     );

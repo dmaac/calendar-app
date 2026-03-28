@@ -11,7 +11,7 @@ Covers:
 
 import pytest
 import pytest_asyncio
-from datetime import datetime, date, timedelta, time as dt_time
+from datetime import datetime, date, timedelta, time as dt_time, timezone
 
 from app.models.ai_food_log import AIFoodLog
 from app.models.onboarding_profile import OnboardingProfile
@@ -34,7 +34,7 @@ class TestMealTimePrediction:
     @pytest.mark.asyncio
     async def test_predicts_breakfast_time(self, async_session, test_user):
         """With enough breakfast logs, the service should predict a time."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Seed 5 breakfast logs at ~08:30
         for i in range(5):
@@ -63,7 +63,7 @@ class TestMealTimePrediction:
     @pytest.mark.asyncio
     async def test_no_prediction_with_insufficient_data(self, async_session, test_user):
         """With fewer than 3 logs, the prediction should be None."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Only 2 lunch logs
         for i in range(2):
@@ -94,7 +94,7 @@ class TestInactivityNudge:
     async def test_nudge_when_no_logs_today_and_past_threshold(self, async_session, test_user):
         """Should fire if user has 0 logs and 4+ hours since waking start."""
         # Simulate 13:00 (5 hours after 08:00 waking start)
-        now = datetime.utcnow().replace(hour=13, minute=0, second=0)
+        now = datetime.now(timezone.utc).replace(hour=13, minute=0, second=0)
 
         service = SmartNotificationService(async_session)
         intents = await service.evaluate_notifications(test_user.id, now)
@@ -106,7 +106,7 @@ class TestInactivityNudge:
     @pytest.mark.asyncio
     async def test_no_nudge_during_night(self, async_session, test_user):
         """No nudge should fire outside waking hours (before 08:00)."""
-        now = datetime.utcnow().replace(hour=6, minute=0, second=0)
+        now = datetime.now(timezone.utc).replace(hour=6, minute=0, second=0)
 
         service = SmartNotificationService(async_session)
         intents = await service.evaluate_notifications(test_user.id, now)
@@ -117,7 +117,7 @@ class TestInactivityNudge:
     @pytest.mark.asyncio
     async def test_no_nudge_if_recently_logged(self, async_session, test_user):
         """No nudge if the user logged food within the last 4 hours."""
-        now = datetime.utcnow().replace(hour=14, minute=0, second=0)
+        now = datetime.now(timezone.utc).replace(hour=14, minute=0, second=0)
 
         # Log food 2 hours ago
         recent_log = AIFoodLog(
@@ -146,7 +146,7 @@ class TestStreakCelebration:
     @pytest.mark.asyncio
     async def test_no_celebration_at_non_milestone(self, async_session, test_user):
         """A streak of 2 should not trigger a celebration."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         today = now.date()
 
         # Create logs for 2 consecutive days

@@ -1,9 +1,20 @@
 /**
- * ReportsScreen — Weekly/Monthly reports with insights
- * Bar chart (calories per day), goal line, summary cards,
- * AI-generated insights, and macro pie chart.
+ * ReportsScreen — Weekly / Monthly / Last-30-Days nutrition reports with insights.
+ *
+ * Sections:
+ * 1. Time-range selector (Esta Semana / Este Mes / Ultimos 30 Dias)
+ * 2. Fitsi mascot mood
+ * 3. Calorie bar chart (SVG) with goal line
+ * 4. Average calories hero card + adherence ring
+ * 5. Macro summary cards (avg protein / adherence)
+ * 6. Goal vs actual comparison bars (calories, protein, carbs, fat)
+ * 7. Macro donut / pie chart with legend
+ * 8. Top foods eaten list
+ * 9. Best day card
+ * 10. AI-generated insights
+ * 11. Share button
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,15 +24,50 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Rect, Line, Circle, Path, G, Text as SvgText } from 'react-native-svg';
+import Svg, {
+  Rect,
+  Line,
+  Circle,
+  Path,
+  G,
+  Defs,
+  LinearGradient,
+  Stop,
+  Text as SvgText,
+} from 'react-native-svg';
 import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import FitsiMascot from '../../components/FitsiMascot';
 import { shareWeeklySummary } from '../../components/ShareableCard';
 
-// ─── Mock data ───────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const WEEKLY_DATA = [
+type Period = 'week' | 'month' | 'last30';
+
+interface DayEntry { day: string; calories: number }
+interface Summary {
+  avgCalories: number;
+  avgProtein: number;
+  avgCarbs: number;
+  avgFats: number;
+  adherence: number;
+  proteinTarget: number;
+  carbsTarget: number;
+  fatsTarget: number;
+}
+interface Macros { protein: number; carbs: number; fat: number }
+interface BestDay { day: string; metric: string; delta: string }
+interface Insight { icon: 'trending-down-outline' | 'trending-up-outline' | 'flame-outline' | 'calendar-outline' | 'nutrition-outline' | 'alert-circle-outline'; text: string }
+interface TopFood { name: string; count: number; avgCalories: number; icon: string; color: string }
+
+// ─── Mock data ────────────────────────────────────────────────────────────────
+
+const CALORIE_TARGET = 2000;
+const PROTEIN_TARGET = 120;
+const CARBS_TARGET = 250;
+const FATS_TARGET = 65;
+
+const WEEKLY_DATA: DayEntry[] = [
   { day: 'Lun', calories: 1850 },
   { day: 'Mar', calories: 1420 },
   { day: 'Mie', calories: 2100 },
@@ -31,48 +77,80 @@ const WEEKLY_DATA = [
   { day: 'Dom', calories: 1900 },
 ];
 
-const MONTHLY_DATA = [
+const MONTHLY_DATA: DayEntry[] = [
   { day: 'S1', calories: 1900 },
   { day: 'S2', calories: 1780 },
   { day: 'S3', calories: 2050 },
   { day: 'S4', calories: 1850 },
 ];
 
-const CALORIE_TARGET = 2000;
-
-const WEEKLY_SUMMARY = {
-  avgCalories: 1894,
-  avgProtein: 85,
-  adherence: 71,
-  proteinTarget: 120,
-};
-
-const MONTHLY_SUMMARY = {
-  avgCalories: 1895,
-  avgProtein: 90,
-  adherence: 68,
-  proteinTarget: 120,
-};
-
-const WEEKLY_MACROS = { protein: 85, carbs: 210, fat: 62 };
-const MONTHLY_MACROS = { protein: 90, carbs: 220, fat: 58 };
-
-const WEEKLY_BEST_DAY = { day: 'Viernes', metric: '125g proteinas', delta: '+5g sobre la meta' };
-const MONTHLY_BEST_DAY = { day: 'Semana 3', metric: '132g proteinas', delta: '+12g sobre la meta' };
-
-const WEEKLY_INSIGHTS = [
-  { icon: 'trending-down-outline' as const, text: 'Tu proteina promedio es 85g, debajo de tu meta de 120g. Intenta agregar una porcion extra de proteina al almuerzo.' },
-  { icon: 'flame-outline' as const, text: 'Llevas 5 dias seguidos logueando, sigue asi!' },
-  { icon: 'calendar-outline' as const, text: 'Los martes es cuando menos registras comidas. Pon una alarma para no olvidar.' },
+const LAST30_DATA: DayEntry[] = [
+  { day: 'S1', calories: 1820 },
+  { day: 'S2', calories: 1960 },
+  { day: 'S3', calories: 2080 },
+  { day: 'S4', calories: 1750 },
 ];
 
-const MONTHLY_INSIGHTS = [
-  { icon: 'trending-up-outline' as const, text: 'Tu adherencia mejoro 8% respecto al mes anterior.' },
-  { icon: 'nutrition-outline' as const, text: 'Tu consumo de grasas esta dentro del rango ideal de forma consistente.' },
-  { icon: 'alert-circle-outline' as const, text: 'Las semanas 2 y 4 tuvieron menor registro. Intenta mantener la consistencia.' },
+const WEEKLY_SUMMARY: Summary = {
+  avgCalories: 1894, avgProtein: 85, avgCarbs: 210, avgFats: 62,
+  adherence: 71, proteinTarget: PROTEIN_TARGET, carbsTarget: CARBS_TARGET, fatsTarget: FATS_TARGET,
+};
+const MONTHLY_SUMMARY: Summary = {
+  avgCalories: 1895, avgProtein: 90, avgCarbs: 220, avgFats: 58,
+  adherence: 68, proteinTarget: PROTEIN_TARGET, carbsTarget: CARBS_TARGET, fatsTarget: FATS_TARGET,
+};
+const LAST30_SUMMARY: Summary = {
+  avgCalories: 1902, avgProtein: 88, avgCarbs: 215, avgFats: 60,
+  adherence: 72, proteinTarget: PROTEIN_TARGET, carbsTarget: CARBS_TARGET, fatsTarget: FATS_TARGET,
+};
+
+const WEEKLY_MACROS: Macros = { protein: 85, carbs: 210, fat: 62 };
+const MONTHLY_MACROS: Macros = { protein: 90, carbs: 220, fat: 58 };
+const LAST30_MACROS: Macros = { protein: 88, carbs: 215, fat: 60 };
+
+const WEEKLY_BEST_DAY: BestDay = { day: 'Viernes', metric: '125g proteinas', delta: '+5g sobre la meta' };
+const MONTHLY_BEST_DAY: BestDay = { day: 'Semana 3', metric: '132g proteinas', delta: '+12g sobre la meta' };
+const LAST30_BEST_DAY: BestDay = { day: 'Semana 2', metric: '128g proteinas', delta: '+8g sobre la meta' };
+
+const WEEKLY_INSIGHTS: Insight[] = [
+  { icon: 'trending-down-outline', text: 'Tu proteina promedio es 85g, debajo de tu meta de 120g. Agrega una porcion extra de proteina al almuerzo.' },
+  { icon: 'flame-outline', text: 'Llevas 5 dias seguidos logueando. Sigue asi.' },
+  { icon: 'calendar-outline', text: 'Los martes es cuando menos registras comidas. Pon una alarma para no olvidar.' },
+];
+const MONTHLY_INSIGHTS: Insight[] = [
+  { icon: 'trending-up-outline', text: 'Tu adherencia mejoro 8% respecto al mes anterior.' },
+  { icon: 'nutrition-outline', text: 'Tu consumo de grasas esta dentro del rango ideal de forma consistente.' },
+  { icon: 'alert-circle-outline', text: 'Las semanas 2 y 4 tuvieron menor registro. Intenta mantener la consistencia.' },
+];
+const LAST30_INSIGHTS: Insight[] = [
+  { icon: 'trending-up-outline', text: 'Tus calorias promedio bajaron 50 kcal respecto al mes anterior, acercandote a tu meta.' },
+  { icon: 'flame-outline', text: 'Tu mejor racha en los ultimos 30 dias fue de 9 dias consecutivos.' },
+  { icon: 'nutrition-outline', text: 'Los carbohidratos se mantienen estables. Trabaja en aumentar la proteina.' },
 ];
 
-// ─── Bar chart (SVG) ─────────────────────────────────────────────────────────
+const TOP_FOODS_WEEKLY: TopFood[] = [
+  { name: 'Pechuga de pollo', count: 5, avgCalories: 165, icon: 'restaurant-outline', color: '#EA4335' },
+  { name: 'Arroz integral', count: 5, avgCalories: 215, icon: 'leaf-outline', color: '#FBBC04' },
+  { name: 'Huevos', count: 4, avgCalories: 155, icon: 'egg-outline', color: '#F59E0B' },
+  { name: 'Platano', count: 4, avgCalories: 105, icon: 'nutrition-outline', color: '#10B981' },
+  { name: 'Yogur griego', count: 3, avgCalories: 130, icon: 'water-outline', color: '#4285F4' },
+];
+const TOP_FOODS_MONTHLY: TopFood[] = [
+  { name: 'Pechuga de pollo', count: 18, avgCalories: 165, icon: 'restaurant-outline', color: '#EA4335' },
+  { name: 'Arroz integral', count: 16, avgCalories: 215, icon: 'leaf-outline', color: '#FBBC04' },
+  { name: 'Huevos', count: 15, avgCalories: 155, icon: 'egg-outline', color: '#F59E0B' },
+  { name: 'Avena', count: 14, avgCalories: 150, icon: 'nutrition-outline', color: '#10B981' },
+  { name: 'Salmon', count: 10, avgCalories: 208, icon: 'fish-outline', color: '#4285F4' },
+];
+const TOP_FOODS_LAST30: TopFood[] = [
+  { name: 'Pechuga de pollo', count: 20, avgCalories: 165, icon: 'restaurant-outline', color: '#EA4335' },
+  { name: 'Huevos', count: 17, avgCalories: 155, icon: 'egg-outline', color: '#F59E0B' },
+  { name: 'Arroz integral', count: 15, avgCalories: 215, icon: 'leaf-outline', color: '#FBBC04' },
+  { name: 'Salmon', count: 12, avgCalories: 208, icon: 'fish-outline', color: '#4285F4' },
+  { name: 'Espinaca', count: 11, avgCalories: 23, icon: 'leaf-outline', color: '#10B981' },
+];
+
+// ─── Calorie bar chart (SVG) ───────────────────────────────────────────────────
 
 function CalorieBarChart({
   data,
@@ -80,7 +158,7 @@ function CalorieBarChart({
   width,
   c,
 }: {
-  data: { day: string; calories: number }[];
+  data: DayEntry[];
   target: number;
   width: number;
   c: ReturnType<typeof useThemeColors>;
@@ -88,14 +166,25 @@ function CalorieBarChart({
   const chartHeight = 180;
   const barPadding = 8;
   const labelHeight = 24;
-  const topPadding = 16;
+  const topPadding = 20;
   const maxVal = Math.max(...data.map((d) => d.calories), target) * 1.15;
   const barWidth = (width - barPadding * (data.length + 1)) / data.length;
   const targetY = topPadding + chartHeight - (target / maxVal) * chartHeight;
 
   return (
     <Svg width={width} height={chartHeight + labelHeight + topPadding}>
-      {/* Target line */}
+      <Defs>
+        <LinearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={c.primary} stopOpacity="1" />
+          <Stop offset="1" stopColor={c.primary} stopOpacity="0.6" />
+        </LinearGradient>
+        <LinearGradient id="barGradOver" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={c.accent} stopOpacity="1" />
+          <Stop offset="1" stopColor={c.accent} stopOpacity="0.6" />
+        </LinearGradient>
+      </Defs>
+
+      {/* Target dashed line */}
       <Line
         x1={0}
         y1={targetY}
@@ -113,7 +202,7 @@ function CalorieBarChart({
         fill={c.accent}
         textAnchor="end"
       >
-        Meta
+        Meta {target}
       </SvgText>
 
       {/* Bars */}
@@ -125,7 +214,7 @@ function CalorieBarChart({
 
         return (
           <G key={d.day}>
-            {/* Bar background track */}
+            {/* Track */}
             <Rect
               x={x}
               y={topPadding}
@@ -141,13 +230,13 @@ function CalorieBarChart({
               width={barWidth}
               height={barH}
               rx={6}
-              fill={overTarget ? c.accent : c.primary}
+              fill={overTarget ? 'url(#barGradOver)' : 'url(#barGrad)'}
             />
-            {/* Value label */}
+            {/* Value */}
             <SvgText
               x={x + barWidth / 2}
               y={y - 4}
-              fontSize={10}
+              fontSize={9}
               fontWeight="600"
               fill={c.gray}
               textAnchor="middle"
@@ -172,13 +261,13 @@ function CalorieBarChart({
   );
 }
 
-// ─── Macro pie chart (SVG) ───────────────────────────────────────────────────
+// ─── Macro donut chart (SVG) ──────────────────────────────────────────────────
 
-function MacroPieChart({
+function MacroDonutChart({
   protein,
   carbs,
   fat,
-  size = 120,
+  size = 130,
   c,
 }: {
   protein: number;
@@ -192,16 +281,16 @@ function MacroPieChart({
 
   const cx = size / 2;
   const cy = size / 2;
-  const r = size / 2 - 4;
+  const r = size / 2 - 6;
+  const innerR = r * 0.58;
 
   const slices = [
-    { value: protein, color: c.protein, label: 'Proteina' },
-    { value: carbs, color: c.carbs, label: 'Carbos' },
-    { value: fat, color: c.fats, label: 'Grasas' },
+    { value: protein, color: c.protein, label: 'Proteina', grams: protein },
+    { value: carbs, color: c.carbs, label: 'Carbos', grams: carbs },
+    { value: fat, color: c.fats, label: 'Grasas', grams: fat },
   ];
 
-  let cumAngle = -90; // start from top
-
+  let cumAngle = -90;
   const paths = slices.map((slice) => {
     const angle = (slice.value / total) * 360;
     const startAngle = cumAngle;
@@ -218,25 +307,30 @@ function MacroPieChart({
     const largeArc = angle > 180 ? 1 : 0;
 
     const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
     return { ...slice, d, pct: Math.round((slice.value / total) * 100) };
   });
 
   return (
-    <View style={pieStyles.container}>
-      <Svg width={size} height={size}>
+    <View style={donutStyles.container}>
+      <View style={donutStyles.svgWrap}>
+        <Svg width={size} height={size}>
+          {paths.map((p) => (
+            <Path key={p.label} d={p.d} fill={p.color} />
+          ))}
+          <Circle cx={cx} cy={cy} r={innerR} fill={c.surface} />
+        </Svg>
+        <View style={donutStyles.centerLabel}>
+          <Text style={[donutStyles.centerPct, { color: c.black }]}>{total}g</Text>
+          <Text style={[donutStyles.centerSub, { color: c.gray }]}>total</Text>
+        </View>
+      </View>
+      <View style={donutStyles.legend}>
         {paths.map((p) => (
-          <Path key={p.label} d={p.d} fill={p.color} />
-        ))}
-        {/* Center hole for donut effect */}
-        <Circle cx={cx} cy={cy} r={r * 0.55} fill={c.surface} />
-      </Svg>
-      <View style={pieStyles.legend}>
-        {paths.map((p) => (
-          <View key={p.label} style={pieStyles.legendRow}>
-            <View style={[pieStyles.legendDot, { backgroundColor: p.color }]} />
-            <Text style={[pieStyles.legendLabel, { color: c.gray }]}>{p.label}</Text>
-            <Text style={[pieStyles.legendPct, { color: c.black }]}>{p.pct}%</Text>
+          <View key={p.label} style={donutStyles.legendRow}>
+            <View style={[donutStyles.legendDot, { backgroundColor: p.color }]} />
+            <Text style={[donutStyles.legendLabel, { color: c.gray }]}>{p.label}</Text>
+            <Text style={[donutStyles.legendGrams, { color: c.black }]}>{p.grams}g</Text>
+            <Text style={[donutStyles.legendPct, { color: c.gray }]}>{p.pct}%</Text>
           </View>
         ))}
       </View>
@@ -244,16 +338,255 @@ function MacroPieChart({
   );
 }
 
-const pieStyles = StyleSheet.create({
+const donutStyles = StyleSheet.create({
   container: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  svgWrap: { alignItems: 'center', justifyContent: 'center' },
+  centerLabel: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
+  centerPct: { fontSize: 15, fontWeight: '800' },
+  centerSub: { fontSize: 10, fontWeight: '400' },
   legend: { flex: 1, gap: spacing.sm },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendDot: { width: 9, height: 9, borderRadius: 5 },
   legendLabel: { ...typography.caption, flex: 1 },
-  legendPct: { ...typography.label },
+  legendGrams: { ...typography.caption, fontWeight: '700', marginRight: 2 },
+  legendPct: { ...typography.caption, width: 32, textAlign: 'right' },
 });
 
-// ─── Summary card ────────────────────────────────────────────────────────────
+// ─── Adherence ring (SVG) ─────────────────────────────────────────────────────
+
+function AdherenceRing({
+  pct,
+  size = 72,
+  color,
+  c,
+}: {
+  pct: number;
+  size?: number;
+  color: string;
+  c: ReturnType<typeof useThemeColors>;
+}) {
+  const strokeWidth = 7;
+  const r = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * r;
+  const progress = Math.min(1, Math.max(0, pct / 100));
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={c.grayLight}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={`${progress * circumference} ${circumference}`}
+          strokeLinecap="round"
+          rotation="-90"
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      <Text style={{ fontSize: 15, fontWeight: '800', color: c.black }}>{pct}%</Text>
+    </View>
+  );
+}
+
+// ─── Average calories hero card ───────────────────────────────────────────────
+
+function AvgCaloriesCard({
+  avgCalories,
+  target,
+  adherence,
+  adherenceColor,
+  c,
+}: {
+  avgCalories: number;
+  target: number;
+  adherence: number;
+  adherenceColor: string;
+  c: ReturnType<typeof useThemeColors>;
+}) {
+  const diff = avgCalories - target;
+  const diffAbs = Math.abs(diff);
+  const isOver = diff > 0;
+
+  return (
+    <View style={[avgStyles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={avgStyles.left}>
+        <Text style={[avgStyles.label, { color: c.gray }]}>Promedio diario</Text>
+        <Text style={[avgStyles.value, { color: c.black }]}>
+          {avgCalories}
+          <Text style={[avgStyles.unit, { color: c.gray }]}> kcal</Text>
+        </Text>
+        <View style={[avgStyles.diffBadge, { backgroundColor: isOver ? '#FEE2E2' : '#D1FAE5' }]}>
+          <Ionicons
+            name={isOver ? 'arrow-up' : 'arrow-down'}
+            size={11}
+            color={isOver ? '#DC2626' : '#059669'}
+          />
+          <Text style={[avgStyles.diffText, { color: isOver ? '#DC2626' : '#059669' }]}>
+            {diffAbs} kcal {isOver ? 'sobre' : 'bajo'} meta
+          </Text>
+        </View>
+      </View>
+      <AdherenceRing pct={adherence} color={adherenceColor} c={c} />
+    </View>
+  );
+}
+
+const avgStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  left: { gap: 4 },
+  label: { ...typography.caption, textTransform: 'uppercase', letterSpacing: 0.5 },
+  value: { fontSize: 32, fontWeight: '800', letterSpacing: -1 },
+  unit: { fontSize: 14, fontWeight: '400' },
+  diffBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    alignSelf: 'flex-start',
+  },
+  diffText: { fontSize: 11, fontWeight: '700' },
+});
+
+// ─── Goal vs actual comparison bars ──────────────────────────────────────────
+
+interface ComparisonItem {
+  label: string;
+  actual: number;
+  target: number;
+  unit: string;
+  color: string;
+}
+
+function GoalComparisonRow({
+  item,
+  c,
+}: {
+  item: ComparisonItem;
+  c: ReturnType<typeof useThemeColors>;
+}) {
+  const pct = Math.min(1, item.actual / item.target);
+  const isOnTarget = item.actual >= item.target * 0.85;
+
+  return (
+    <View style={cmpStyles.row}>
+      <View style={cmpStyles.header}>
+        <Text style={[cmpStyles.label, { color: c.black }]}>{item.label}</Text>
+        <Text style={[cmpStyles.values, { color: c.gray }]}>
+          <Text style={{ color: isOnTarget ? '#10B981' : c.accent, fontWeight: '700' }}>
+            {item.actual}{item.unit}
+          </Text>
+          {' / '}{item.target}{item.unit}
+        </Text>
+      </View>
+      <View style={[cmpStyles.track, { backgroundColor: c.grayLight }]}>
+        <View
+          style={[
+            cmpStyles.fill,
+            {
+              width: `${Math.round(pct * 100)}%`,
+              backgroundColor: pct >= 1 ? '#10B981' : item.color,
+            },
+          ]}
+        />
+      </View>
+      <Text style={[cmpStyles.pctLabel, { color: isOnTarget ? '#10B981' : c.gray }]}>
+        {Math.round(pct * 100)}% de la meta
+      </Text>
+    </View>
+  );
+}
+
+const cmpStyles = StyleSheet.create({
+  row: { gap: 4, marginBottom: spacing.sm },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  label: { ...typography.label },
+  values: { ...typography.caption },
+  track: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  fill: { height: 8, borderRadius: 4 },
+  pctLabel: { ...typography.caption, fontWeight: '600', textAlign: 'right' },
+});
+
+// ─── Top foods list ───────────────────────────────────────────────────────────
+
+function TopFoodsList({
+  foods,
+  c,
+}: {
+  foods: TopFood[];
+  c: ReturnType<typeof useThemeColors>;
+}) {
+  return (
+    <View style={{ gap: spacing.xs }}>
+      {foods.map((food, i) => (
+        <View
+          key={food.name}
+          style={[foodStyles.row, { borderBottomColor: c.grayLight, borderBottomWidth: i < foods.length - 1 ? 1 : 0 }]}
+        >
+          <View style={foodStyles.rank}>
+            <Text style={[foodStyles.rankNum, { color: c.gray }]}>{i + 1}</Text>
+          </View>
+          <View style={[foodStyles.iconWrap, { backgroundColor: food.color + '18' }]}>
+            <Ionicons name={food.icon as any} size={16} color={food.color} />
+          </View>
+          <View style={foodStyles.info}>
+            <Text style={[foodStyles.name, { color: c.black }]}>{food.name}</Text>
+            <Text style={[foodStyles.sub, { color: c.gray }]}>{food.count} veces registrado</Text>
+          </View>
+          <Text style={[foodStyles.cal, { color: c.gray }]}>{food.avgCalories} kcal</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const foodStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  rank: { width: 18, alignItems: 'center' },
+  rankNum: { ...typography.caption, fontWeight: '700' },
+  iconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  info: { flex: 1, gap: 1 },
+  name: { ...typography.label },
+  sub: { ...typography.caption },
+  cal: { ...typography.caption, fontWeight: '600' },
+});
+
+// ─── Summary mini-cards ───────────────────────────────────────────────────────
 
 function SummaryCard({
   icon,
@@ -271,19 +604,23 @@ function SummaryCard({
   c: ReturnType<typeof useThemeColors>;
 }) {
   return (
-    <View style={[summaryStyles.card, { backgroundColor: c.surface, borderColor: c.border }]} accessibilityLabel={`${label}: ${value} ${unit}`}>
-      <View style={[summaryStyles.iconWrap, { backgroundColor: color + '18' }]}>
+    <View
+      style={[smStyles.card, { backgroundColor: c.surface, borderColor: c.border }]}
+      accessibilityLabel={`${label}: ${value} ${unit}`}
+    >
+      <View style={[smStyles.iconWrap, { backgroundColor: color + '18' }]}>
         <Ionicons name={icon as any} size={18} color={color} />
       </View>
-      <Text style={[summaryStyles.value, { color: c.black }]}>
-        {value}<Text style={[summaryStyles.unit, { color: c.gray }]}>{unit}</Text>
+      <Text style={[smStyles.value, { color: c.black }]}>
+        {value}
+        <Text style={[smStyles.unit, { color: c.gray }]}>{unit}</Text>
       </Text>
-      <Text style={[summaryStyles.label, { color: c.gray }]}>{label}</Text>
+      <Text style={[smStyles.label, { color: c.gray }]}>{label}</Text>
     </View>
   );
 }
 
-const summaryStyles = StyleSheet.create({
+const smStyles = StyleSheet.create({
   card: {
     flex: 1,
     borderRadius: radius.lg,
@@ -301,53 +638,44 @@ const summaryStyles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  value: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  unit: {
-    fontSize: 12,
-    fontWeight: '400',
-  },
-  label: {
-    ...typography.caption,
-    textAlign: 'center',
-  },
+  value: { fontSize: 20, fontWeight: '800' },
+  unit: { fontSize: 12, fontWeight: '400' },
+  label: { ...typography.caption, textAlign: 'center' },
 });
 
-// ─── Best day card ──────────────────────────────────────────────────────────
+// ─── Best day card ────────────────────────────────────────────────────────────
 
 function BestDayCard({
   bestDay,
   c,
 }: {
-  bestDay: { day: string; metric: string; delta: string };
+  bestDay: BestDay;
   c: ReturnType<typeof useThemeColors>;
 }) {
   return (
     <View
-      style={[bestDayStyles.card, { backgroundColor: c.surface, borderColor: c.border }]}
+      style={[bdStyles.card, { backgroundColor: c.surface, borderColor: c.border }]}
       accessibilityLabel={`Mejor dia: ${bestDay.day}, ${bestDay.metric}, ${bestDay.delta}`}
     >
-      <View style={bestDayStyles.left}>
-        <View style={bestDayStyles.trophyWrap}>
+      <View style={bdStyles.left}>
+        <View style={bdStyles.trophyWrap}>
           <Ionicons name="trophy" size={24} color="#F59E0B" />
         </View>
-        <View style={bestDayStyles.info}>
-          <Text style={[bestDayStyles.label, { color: c.gray }]}>Mejor Dia</Text>
-          <Text style={[bestDayStyles.day, { color: c.black }]}>{bestDay.day}</Text>
-          <Text style={[bestDayStyles.metric, { color: c.black }]}>{bestDay.metric}</Text>
+        <View style={bdStyles.info}>
+          <Text style={[bdStyles.label, { color: c.gray }]}>Mejor Dia</Text>
+          <Text style={[bdStyles.day, { color: c.black }]}>{bestDay.day}</Text>
+          <Text style={[bdStyles.metric, { color: c.black }]}>{bestDay.metric}</Text>
         </View>
       </View>
-      <View style={bestDayStyles.badge}>
+      <View style={bdStyles.badge}>
         <Ionicons name="arrow-up" size={12} color="#10B981" />
-        <Text style={bestDayStyles.badgeText}>{bestDay.delta}</Text>
+        <Text style={bdStyles.badgeText}>{bestDay.delta}</Text>
       </View>
     </View>
   );
 }
 
-const bestDayStyles = StyleSheet.create({
+const bdStyles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -358,11 +686,7 @@ const bestDayStyles = StyleSheet.create({
     marginBottom: spacing.md,
     ...shadows.sm,
   },
-  left: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
+  left: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   trophyWrap: {
     width: 44,
     height: 44,
@@ -371,22 +695,10 @@ const bestDayStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  info: {
-    gap: 1,
-  },
-  label: {
-    ...typography.caption,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  day: {
-    ...typography.label,
-    fontSize: 16,
-  },
-  metric: {
-    ...typography.caption,
-    fontWeight: '600',
-  },
+  info: { gap: 1 },
+  label: { ...typography.caption, textTransform: 'uppercase', letterSpacing: 0.5 },
+  day: { ...typography.label, fontSize: 16 },
+  metric: { ...typography.caption, fontWeight: '600' },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -398,112 +710,157 @@ const bestDayStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#A7F3D0',
   },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#10B981',
-  },
+  badgeText: { fontSize: 11, fontWeight: '700', color: '#10B981' },
 });
 
-// ─── Main screen ─────────────────────────────────────────────────────────────
+// ─── Period toggle ────────────────────────────────────────────────────────────
+
+const PERIODS: { key: Period; label: string }[] = [
+  { key: 'week', label: 'Semana' },
+  { key: 'month', label: 'Mes' },
+  { key: 'last30', label: '30 Dias' },
+];
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function ReportsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { innerWidth, sidePadding } = useLayout();
   const c = useThemeColors();
-  const [period, setPeriod] = useState<'week' | 'month'>('week');
+  const [period, setPeriod] = useState<Period>('week');
 
-  const isWeek = period === 'week';
-  const data = isWeek ? WEEKLY_DATA : MONTHLY_DATA;
-  const summary = isWeek ? WEEKLY_SUMMARY : MONTHLY_SUMMARY;
-  const macros = isWeek ? WEEKLY_MACROS : MONTHLY_MACROS;
-  const insights = isWeek ? WEEKLY_INSIGHTS : MONTHLY_INSIGHTS;
-  const bestDay = isWeek ? WEEKLY_BEST_DAY : MONTHLY_BEST_DAY;
+  const data = useMemo(() => {
+    switch (period) {
+      case 'week': return WEEKLY_DATA;
+      case 'month': return MONTHLY_DATA;
+      case 'last30': return LAST30_DATA;
+    }
+  }, [period]);
+
+  const summary = useMemo(() => {
+    switch (period) {
+      case 'week': return WEEKLY_SUMMARY;
+      case 'month': return MONTHLY_SUMMARY;
+      case 'last30': return LAST30_SUMMARY;
+    }
+  }, [period]);
+
+  const macros = useMemo(() => {
+    switch (period) {
+      case 'week': return WEEKLY_MACROS;
+      case 'month': return MONTHLY_MACROS;
+      case 'last30': return LAST30_MACROS;
+    }
+  }, [period]);
+
+  const insights = useMemo(() => {
+    switch (period) {
+      case 'week': return WEEKLY_INSIGHTS;
+      case 'month': return MONTHLY_INSIGHTS;
+      case 'last30': return LAST30_INSIGHTS;
+    }
+  }, [period]);
+
+  const bestDay = useMemo(() => {
+    switch (period) {
+      case 'week': return WEEKLY_BEST_DAY;
+      case 'month': return MONTHLY_BEST_DAY;
+      case 'last30': return LAST30_BEST_DAY;
+    }
+  }, [period]);
+
+  const topFoods = useMemo(() => {
+    switch (period) {
+      case 'week': return TOP_FOODS_WEEKLY;
+      case 'month': return TOP_FOODS_MONTHLY;
+      case 'last30': return TOP_FOODS_LAST30;
+    }
+  }, [period]);
 
   const adherenceColor =
     summary.adherence >= 80 ? '#10B981' : summary.adherence >= 60 ? '#F59E0B' : c.accent;
+
+  const comparisonItems: ComparisonItem[] = [
+    { label: 'Calorias', actual: summary.avgCalories, target: CALORIE_TARGET, unit: ' kcal', color: c.accent },
+    { label: 'Proteina', actual: summary.avgProtein, target: summary.proteinTarget, unit: 'g', color: c.protein },
+    { label: 'Carbohidratos', actual: summary.avgCarbs, target: summary.carbsTarget, unit: 'g', color: c.carbs },
+    { label: 'Grasas', actual: summary.avgFats, target: summary.fatsTarget, unit: 'g', color: c.fats },
+  ];
+
+  const periodLabel = period === 'week' ? 'esta semana' : period === 'month' ? 'este mes' : 'ultimos 30 dias';
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
         <TouchableOpacity
-          onPress={() => {
-            haptics.light();
-            navigation.goBack();
-          }}
+          onPress={() => { haptics.light(); navigation.goBack(); }}
           style={[styles.backBtn, { backgroundColor: c.surface }]}
           accessibilityLabel="Volver"
           accessibilityRole="button"
         >
           <Ionicons name="chevron-back" size={20} color={c.black} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: c.black }]} accessibilityRole="header">Reportes</Text>
+        <Text style={[styles.headerTitle, { color: c.black }]} accessibilityRole="header">
+          Reportes
+        </Text>
         <View style={styles.backBtn} />
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        bounces={true}
+        bounces
         overScrollMode="never"
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
       >
-        {/* Period toggle */}
+        {/* Period toggle — three options */}
         <View style={[styles.toggleRow, { backgroundColor: c.surface }]}>
-          <TouchableOpacity
-            style={[styles.toggleBtn, isWeek && { backgroundColor: c.primary }]}
-            onPress={() => {
-              haptics.light();
-              setPeriod('week');
-            }}
-            accessibilityLabel="Reporte semanal"
-            accessibilityRole="button"
-            accessibilityState={{ selected: isWeek }}
-          >
-            <Text style={[styles.toggleText, { color: isWeek ? c.white : c.gray }]}>Semanal</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleBtn, !isWeek && { backgroundColor: c.primary }]}
-            onPress={() => {
-              haptics.light();
-              setPeriod('month');
-            }}
-            accessibilityLabel="Reporte mensual"
-            accessibilityRole="button"
-            accessibilityState={{ selected: !isWeek }}
-          >
-            <Text style={[styles.toggleText, { color: !isWeek ? c.white : c.gray }]}>Mensual</Text>
-          </TouchableOpacity>
+          {PERIODS.map(({ key, label }) => {
+            const active = period === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[styles.toggleBtn, active && { backgroundColor: c.primary }]}
+                onPress={() => { haptics.light(); setPeriod(key); }}
+                accessibilityLabel={`Ver reporte ${label}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.toggleText, { color: active ? c.white : c.gray }]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Fitsi celebrate when adherence is high */}
+        {/* Fitsi mascot */}
         <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
           <FitsiMascot
             expression={summary.adherence >= 80 ? 'fire' : summary.adherence < 50 ? 'sad' : 'neutral'}
             size="small"
             animation={summary.adherence >= 80 ? 'celebrate' : 'idle'}
-            message={summary.adherence >= 80 ? 'On fire!' : summary.adherence < 50 ? 'Podemos mejorar!' : undefined}
+            message={
+              summary.adherence >= 80
+                ? 'On fire!'
+                : summary.adherence < 50
+                ? 'Podemos mejorar!'
+                : undefined
+            }
           />
         </View>
 
-        {/* Bar chart */}
-        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Text style={[styles.sectionTitle, { color: c.black }]}>
-            Calorias {isWeek ? 'esta semana' : 'este mes'}
-          </Text>
-          <CalorieBarChart data={data} target={CALORIE_TARGET} width={innerWidth - spacing.md * 2} c={c} />
-        </View>
+        {/* Average calories hero + adherence ring */}
+        <AvgCaloriesCard
+          avgCalories={summary.avgCalories}
+          target={CALORIE_TARGET}
+          adherence={summary.adherence}
+          adherenceColor={adherenceColor}
+          c={c}
+        />
 
-        {/* Summary cards */}
+        {/* Macro mini-cards */}
         <View style={styles.summaryRow}>
-          <SummaryCard
-            icon="flame-outline"
-            label="Cal. promedio"
-            value={summary.avgCalories}
-            unit=" kcal"
-            color={c.accent}
-            c={c}
-          />
           <SummaryCard
             icon="fish-outline"
             label="Prot. promedio"
@@ -513,29 +870,78 @@ export default function ReportsScreen({ navigation }: any) {
             c={c}
           />
           <SummaryCard
-            icon="checkmark-circle-outline"
-            label="Adherencia"
-            value={summary.adherence}
-            unit="%"
-            color={adherenceColor}
+            icon="leaf-outline"
+            label="Carbos prom."
+            value={summary.avgCarbs}
+            unit="g"
+            color={c.carbs}
+            c={c}
+          />
+          <SummaryCard
+            icon="water-outline"
+            label="Grasas prom."
+            value={summary.avgFats}
+            unit="g"
+            color={c.fats}
             c={c}
           />
         </View>
 
-        {/* Best Day */}
-        <BestDayCard bestDay={bestDay} c={c} />
+        {/* Calorie bar chart */}
+        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.sectionTitle, { color: c.black }]}>
+            Calorias {periodLabel}
+          </Text>
+          <CalorieBarChart
+            data={data}
+            target={CALORIE_TARGET}
+            width={innerWidth - spacing.md * 2}
+            c={c}
+          />
+        </View>
 
-        {/* Macro pie chart */}
+        {/* Goal vs actual comparison */}
+        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.sectionTitle, { color: c.black }]}>Meta vs real</Text>
+          {comparisonItems.map((item) => (
+            <GoalComparisonRow key={item.label} item={item} c={c} />
+          ))}
+        </View>
+
+        {/* Macro donut chart */}
         <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Text style={[styles.sectionTitle, { color: c.black }]}>Distribucion de macros</Text>
-          <MacroPieChart protein={macros.protein} carbs={macros.carbs} fat={macros.fat} c={c} />
+          <MacroDonutChart
+            protein={macros.protein}
+            carbs={macros.carbs}
+            fat={macros.fat}
+            c={c}
+          />
         </View>
+
+        {/* Top foods */}
+        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.sectionTitle, { color: c.black }]}>Alimentos mas frecuentes</Text>
+          <TopFoodsList foods={topFoods} c={c} />
+        </View>
+
+        {/* Best day */}
+        <BestDayCard bestDay={bestDay} c={c} />
 
         {/* Insights */}
         <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Text style={[styles.sectionTitle, { color: c.black }]}>Insights</Text>
           {insights.map((insight, i) => (
-            <View key={i} style={[styles.insightRow, { borderBottomColor: c.grayLight }]}>
+            <View
+              key={i}
+              style={[
+                styles.insightRow,
+                {
+                  borderBottomColor: c.grayLight,
+                  borderBottomWidth: i < insights.length - 1 ? 1 : 0,
+                },
+              ]}
+            >
               <View style={[styles.insightIcon, { backgroundColor: c.accent + '18' }]}>
                 <Ionicons name={insight.icon as any} size={18} color={c.accent} />
               </View>
@@ -556,7 +962,7 @@ export default function ReportsScreen({ navigation }: any) {
               adherence: summary.adherence,
             }).catch(() => {});
           }}
-          accessibilityLabel="Compartir resumen semanal"
+          accessibilityLabel="Compartir resumen"
           accessibilityRole="button"
         >
           <Ionicons name="share-outline" size={18} color="#FFFFFF" />
@@ -569,12 +975,10 @@ export default function ReportsScreen({ navigation }: any) {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
+  screen: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -588,13 +992,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    ...typography.titleSm,
-  },
-  scroll: {
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xl,
-  },
+  headerTitle: { ...typography.titleSm },
+  scroll: { paddingTop: spacing.sm, paddingBottom: spacing.xl },
   toggleRow: {
     flexDirection: 'row',
     borderRadius: radius.full,
@@ -607,9 +1006,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
   },
-  toggleText: {
-    ...typography.label,
-  },
+  toggleText: { ...typography.label },
   card: {
     borderRadius: radius.lg,
     borderWidth: 1,
@@ -633,7 +1030,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.sm,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
   },
   insightIcon: {
     width: 32,
@@ -643,11 +1039,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 2,
   },
-  insightText: {
-    ...typography.caption,
-    flex: 1,
-    lineHeight: 18,
-  },
+  insightText: { ...typography.caption, flex: 1, lineHeight: 18 },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -659,8 +1051,5 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     ...shadows.sm,
   },
-  shareBtnText: {
-    ...typography.button,
-    color: '#FFFFFF',
-  },
+  shareBtnText: { ...typography.button, color: '#FFFFFF' },
 });

@@ -120,15 +120,16 @@ async def upsert_oauth_user(
 ) -> User:
     """Find existing user by provider+provider_id, or create new one."""
     # Try by provider identity first
-    result = await session.exec(
+    # SEC: Use scalars().first() to get the User object, not a Row tuple
+    result = await session.execute(
         select(User).where(User.provider == provider, User.provider_id == provider_id)
     )
-    user = result.first()
+    user = result.scalars().first()
 
     if not user:
         # Try by email (user may have registered via email first)
-        result = await session.exec(select(User).where(User.email == email))
-        user = result.first()
+        result = await session.execute(select(User).where(User.email == email))
+        user = result.scalars().first()
         if user:
             # SEC: Do NOT overwrite the existing provider — this would allow an
             # attacker who controls a different OAuth provider to hijack an account.

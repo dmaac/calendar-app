@@ -255,8 +255,8 @@ async def seed_users(session: AsyncSession, count: int = 1000) -> None:
                 provider_id=f"seed_{provider}_{idx}" if provider != "email" else None,
                 is_premium=random.random() < 0.30,
                 is_active=True,
-                created_at=datetime.utcnow() - timedelta(days=random.randint(1, 90)),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(1, 90)),
+                updated_at=datetime.now(timezone.utc),
             )
             new_users.append(user)
 
@@ -339,7 +339,7 @@ async def seed_users(session: AsyncSession, count: int = 1000) -> None:
             daily_carbs_g=carbs_g,
             daily_fats_g=fats_g,
             health_score=round(random.uniform(40, 95), 1),
-            completed_at=datetime.utcnow() - timedelta(days=random.randint(0, 30)),
+            completed_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 30)),
             notifications_enabled=random.random() < 0.7,
             health_connected=random.random() < 0.3,
         )
@@ -369,8 +369,8 @@ async def seed_users(session: AsyncSession, count: int = 1000) -> None:
                 currency="USD",
                 store=random.choice(["apple", "google"]),
                 store_tx_id=f"seed_tx_{user.id}_{plan}",
-                created_at=datetime.utcnow() - timedelta(days=random.randint(0, 30)),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 30)),
+                updated_at=datetime.now(timezone.utc),
             ))
 
     if profiles_batch:

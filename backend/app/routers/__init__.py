@@ -29,6 +29,10 @@ from .risk import router as risk_router
 from .ai_usage import router as ai_usage_router
 from .progress import router as progress_router
 from .recommendations import router as recommendations_router
+from .adaptive_calories import router as adaptive_calories_router
+from .audit import router as audit_router
+from .recovery import router as recovery_router
+from .backup import router as backup_router
 
 __all__ = [
     "auth_router",
@@ -62,4 +66,8 @@ __all__ = [
     "ai_usage_router",
     "progress_router",
     "recommendations_router",
+    "adaptive_calories_router",
+    "audit_router",
+    "recovery_router",
+    "backup_router",
 ]

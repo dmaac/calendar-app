@@ -41,7 +41,8 @@ ROLLING_WINDOW_MAX_AGE_S = 600       # Discard entries older than 10 minutes
 
 # Paths to skip for performance tracking (noisy, low-value)
 _SKIP_PATHS: Set[str] = {
-    "/health", "/api/health", "/docs", "/redoc", "/openapi.json",
+    "/health", "/api/health", "/health/live", "/health/ready",
+    "/docs", "/redoc", "/openapi.json",
     "/metrics", "/api/metrics/performance",
 }
 

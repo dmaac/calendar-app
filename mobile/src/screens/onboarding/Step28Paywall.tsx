@@ -121,6 +121,11 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
   const [annualPackage, setAnnualPackage] = useState<any>(null);
   const [plans, setPlans] = useState<PlanDisplay[]>(FALLBACK_PLANS);
 
+  // ── Track paywall impression — critical for conversion funnel analytics ─
+  useEffect(() => {
+    track('paywall_viewed', { source: 'onboarding', step: step });
+  }, []);
+
   // ── Load offerings ──────────────────────────────────────────────────────
   useEffect(() => {
     loadOfferings();
@@ -252,6 +257,7 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
           <PrimaryButton
             label={buttonLabel}
             onPress={handleSubscribe}
+            loading={loading}
             disabled={loading || loadingOfferings}
             accessibilityLabel={buttonLabel}
             accessibilityRole="button"
@@ -290,7 +296,10 @@ export default function Step28Paywall({ onNext, onBack, step, totalSteps }: Step
 
           {/* Skip option */}
           <TouchableOpacity
-            onPress={onNext}
+            onPress={() => {
+              track('paywall_skipped', { plan: selectedPlan });
+              onNext();
+            }}
             activeOpacity={0.6}
             accessibilityLabel="Saltar y continuar sin suscripcion"
             accessibilityRole="button"

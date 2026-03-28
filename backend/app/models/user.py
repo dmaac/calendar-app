@@ -1,6 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Index
 from typing import Optional, List, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from .activity import Activity
@@ -24,10 +25,17 @@ class UserBase(SQLModel):
 
 
 class User(UserBase, table=True):
+    __table_args__ = (
+        # Provider lookups: find user by OAuth provider + provider_id
+        Index("ix_user_provider_provider_id", "provider", "provider_id"),
+        # Created-at for admin user listing sorted by registration date
+        Index("ix_user_created_at", "created_at"),
+    )
+
     id: Optional[int] = Field(default=None, primary_key=True)
     hashed_password: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # OAuth fields
     provider: str = Field(default="email")
@@ -50,6 +58,9 @@ class User(UserBase, table=True):
     push_tokens: List["PushToken"] = Relationship(back_populates="user")
     workout_logs: List["WorkoutLog"] = Relationship(back_populates="user")
     notification_schedule: Optional["NotificationSchedule"] = Relationship(back_populates="user")
+
+    def __repr__(self) -> str:
+        return f"<User id={self.id} email={self.email!r} active={self.is_active} premium={self.is_premium}>"
 
 
 class UserCreate(UserBase):

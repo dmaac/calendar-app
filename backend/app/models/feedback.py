@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Index
+from sqlalchemy import Column, ForeignKey, Index, Integer
 from typing import Optional, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -33,7 +33,13 @@ class Feedback(SQLModel, table=True):
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
 
     type: FeedbackType = Field()
     message: str = Field(max_length=5000)
@@ -48,7 +54,10 @@ class Feedback(SQLModel, table=True):
     status: FeedbackStatus = Field(default=FeedbackStatus.NEW)
     admin_notes: Optional[str] = Field(default=None, max_length=2000)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     user: "User" = Relationship()
+
+    def __repr__(self) -> str:
+        return f"<Feedback id={self.id} user={self.user_id} type={self.type} status={self.status}>"

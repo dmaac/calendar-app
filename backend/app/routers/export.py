@@ -1,23 +1,25 @@
 """
 Export endpoints
-────────────────
-GET /api/export/pdf          — Weekly nutrition PDF report
-GET /api/export/csv          — CSV export of food logs (with date filters)
-GET /api/export/my-data      — Full JSON export of all user data (GDPR portability)
-GET /api/export/my-data/csv  — CSV export of user's food logs (legacy, no filters)
+----------------
+GET /api/export/pdf              -- Weekly nutrition PDF report
+GET /api/export/food-logs        -- Food logs export (CSV or JSON, with date filters, streaming)
+GET /api/export/weekly-summary   -- Weekly summary export (one row per day with totals)
+GET /api/export/my-data          -- Full JSON export of all user data (GDPR portability)
+GET /api/export/my-data/csv      -- CSV export of user's food logs (legacy, no filters)
 """
 
 import csv
 import io
 import json
 import logging
-from datetime import date, datetime, time as dt_time, timedelta
-from typing import Optional
+from datetime import date, datetime, time as dt_time, timedelta, timezone
+from enum import Enum
+from typing import AsyncIterator, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from ..core.database import get_session
 from ..models.user import User
@@ -36,6 +38,53 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
+# Maximum date range allowed for exports (365 days)
+_MAX_EXPORT_RANGE_DAYS = 365
+
+# Batch size for streaming queries
+_STREAM_BATCH_SIZE = 500
+
+# UTF-8 BOM for Excel compatibility
+_UTF8_BOM = b"\xef\xbb\xbf"
+
+
+# ---- Export format enum ----
+
+class ExportFormat(str, Enum):
+    csv = "csv"
+    json = "json"
+
+
+# ---- Rate limiting for exports ----
+
+async def _check_export_rate_limit(user_id: int) -> None:
+    """Enforce max 1 export per minute per user via Redis.
+
+    Raises HTTPException 429 if the user has exported within the last 60 seconds.
+    Fails open (allows the request) if Redis is unavailable.
+    """
+    try:
+        from ..core.token_store import get_redis
+        r = get_redis()
+        key = f"export_ratelimit:user:{user_id}"
+        exists = await r.get(key)
+        if exists:
+            ttl = await r.ttl(key)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Export rate limit exceeded. Please wait {max(ttl, 1)} seconds before requesting another export.",
+                headers={"Retry-After": str(max(ttl, 1))},
+            )
+        # Set the key with 60-second expiration
+        await r.set(key, "1", ex=60)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Redis unavailable -- fail open, allow the export
+        logger.warning("Export rate limiter Redis error (allowing request): %s", exc)
+
+
+# ---- Helpers ----
 
 def _dt(val) -> str | None:
     """Serialize a datetime or date to ISO string, or None."""
@@ -46,10 +95,233 @@ def _dt(val) -> str | None:
     return str(val)
 
 
-# ─── PDF export ──────────────────────────────────────────────────────────────
+def _safe_round(val, digits: int = 1) -> str:
+    """Round a numeric value safely, returning empty string for None."""
+    if val is None:
+        return ""
+    return str(round(val, digits))
+
+
+def _validate_date_range(
+    start_date: Optional[date],
+    end_date: Optional[date],
+    default_days: int = 30,
+) -> tuple[date, date]:
+    """Validate and normalize date range parameters.
+
+    Returns (start_date, end_date) with defaults applied.
+    Raises HTTPException on invalid ranges.
+    """
+    today = date.today()
+
+    if end_date is None:
+        end_date = today
+    if start_date is None:
+        start_date = end_date - timedelta(days=default_days)
+
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=422,
+            detail="start_date must be on or before end_date.",
+        )
+
+    if end_date > today:
+        raise HTTPException(
+            status_code=422,
+            detail="end_date cannot be in the future.",
+        )
+
+    range_days = (end_date - start_date).days
+    if range_days > _MAX_EXPORT_RANGE_DAYS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Date range exceeds maximum of {_MAX_EXPORT_RANGE_DAYS} days. "
+                   f"Requested range: {range_days} days.",
+        )
+
+    return start_date, end_date
+
+
+# ---- Full food log columns (all fields from AIFoodLog) ----
+
+_FOOD_LOG_CSV_COLUMNS = [
+    "date",
+    "time",
+    "meal_type",
+    "food_name",
+    "calories",
+    "protein_g",
+    "carbs_g",
+    "fat_g",
+    "fiber_g",
+    "sugar_g",
+    "sodium_mg",
+    "serving_size",
+    "was_edited",
+    "notes",
+]
+
+
+def _food_log_to_csv_row(log: AIFoodLog) -> list:
+    """Convert a single AIFoodLog record to a CSV row list."""
+    return [
+        log.logged_at.strftime("%Y-%m-%d") if log.logged_at else "",
+        log.logged_at.strftime("%H:%M") if log.logged_at else "",
+        log.meal_type or "",
+        log.food_name or "",
+        _safe_round(log.calories, 1),
+        _safe_round(log.protein_g, 1),
+        _safe_round(log.carbs_g, 1),
+        _safe_round(log.fats_g, 1),
+        _safe_round(log.fiber_g, 1),
+        _safe_round(log.sugar_g, 1),
+        _safe_round(log.sodium_mg, 1),
+        log.serving_size or "",
+        "yes" if log.was_edited else "no",
+        log.notes or "",
+    ]
+
+
+def _food_log_to_dict(log: AIFoodLog) -> dict:
+    """Convert a single AIFoodLog record to a JSON-serializable dict."""
+    return {
+        "date": log.logged_at.strftime("%Y-%m-%d") if log.logged_at else None,
+        "time": log.logged_at.strftime("%H:%M") if log.logged_at else None,
+        "meal_type": log.meal_type,
+        "food_name": log.food_name,
+        "calories": round(log.calories, 1) if log.calories is not None else None,
+        "protein_g": round(log.protein_g, 1) if log.protein_g is not None else None,
+        "carbs_g": round(log.carbs_g, 1) if log.carbs_g is not None else None,
+        "fat_g": round(log.fats_g, 1) if log.fats_g is not None else None,
+        "fiber_g": round(log.fiber_g, 1) if log.fiber_g is not None else None,
+        "sugar_g": round(log.sugar_g, 1) if log.sugar_g is not None else None,
+        "sodium_mg": round(log.sodium_mg, 1) if log.sodium_mg is not None else None,
+        "serving_size": log.serving_size,
+        "was_edited": log.was_edited,
+        "notes": log.notes,
+    }
+
+
+# ---- Streaming generators ----
+
+async def _stream_food_logs_csv(
+    user_id: int,
+    start_dt: datetime,
+    end_dt: datetime,
+    session: AsyncSession,
+) -> AsyncIterator[bytes]:
+    """Stream food log CSV rows in batches to avoid loading all data in memory.
+
+    Yields UTF-8 encoded bytes including BOM header for Excel compatibility.
+    """
+    # Yield BOM + header row
+    header_buf = io.StringIO()
+    writer = csv.writer(header_buf)
+    writer.writerow(_FOOD_LOG_CSV_COLUMNS)
+    yield _UTF8_BOM + header_buf.getvalue().encode("utf-8")
+
+    offset = 0
+    while True:
+        query = (
+            select(AIFoodLog)
+            .where(
+                AIFoodLog.user_id == user_id,
+                AIFoodLog.deleted_at.is_(None),
+                AIFoodLog.logged_at >= start_dt,
+                AIFoodLog.logged_at <= end_dt,
+            )
+            .order_by(AIFoodLog.logged_at.asc())
+            .offset(offset)
+            .limit(_STREAM_BATCH_SIZE)
+        )
+        result = await session.execute(query)
+        batch = result.scalars().all()
+
+        if not batch:
+            break
+
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        for log in batch:
+            writer.writerow(_food_log_to_csv_row(log))
+        yield buf.getvalue().encode("utf-8")
+
+        if len(batch) < _STREAM_BATCH_SIZE:
+            break
+        offset += _STREAM_BATCH_SIZE
+
+
+async def _stream_food_logs_json(
+    user_id: int,
+    start_dt: datetime,
+    end_dt: datetime,
+    session: AsyncSession,
+) -> AsyncIterator[bytes]:
+    """Stream food logs as a JSON array, yielding chunks to avoid full memory load."""
+    yield b'{"export_version":"1.2","exported_at":"'
+    yield datetime.now(timezone.utc).isoformat().encode("utf-8")
+    yield b'","food_logs":[\n'
+
+    offset = 0
+    first_row = True
+    while True:
+        query = (
+            select(AIFoodLog)
+            .where(
+                AIFoodLog.user_id == user_id,
+                AIFoodLog.deleted_at.is_(None),
+                AIFoodLog.logged_at >= start_dt,
+                AIFoodLog.logged_at <= end_dt,
+            )
+            .order_by(AIFoodLog.logged_at.asc())
+            .offset(offset)
+            .limit(_STREAM_BATCH_SIZE)
+        )
+        result = await session.execute(query)
+        batch = result.scalars().all()
+
+        if not batch:
+            break
+
+        for log in batch:
+            row_json = json.dumps(_food_log_to_dict(log), ensure_ascii=False)
+            if first_row:
+                yield row_json.encode("utf-8")
+                first_row = False
+            else:
+                yield b",\n" + row_json.encode("utf-8")
+
+        if len(batch) < _STREAM_BATCH_SIZE:
+            break
+        offset += _STREAM_BATCH_SIZE
+
+    yield b"\n]}\n"
+
+
+# ---- Weekly summary columns ----
+
+_WEEKLY_SUMMARY_CSV_COLUMNS = [
+    "date",
+    "total_calories",
+    "total_protein_g",
+    "total_carbs_g",
+    "total_fat_g",
+    "total_fiber_g",
+    "meals_logged",
+    "avg_calories_per_meal",
+]
+
+
+# =============================================================================
+# ENDPOINTS
+# =============================================================================
+
+
+# ---- PDF export ----
 
 @router.get("/pdf")
 async def export_pdf(
+    request: Request,
     days: int = Query(default=7, ge=1, le=90, description="Number of days to include in the report"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -63,7 +335,11 @@ async def export_pdf(
     The `days` parameter controls how many days back the report covers (default 7, max 90).
     Uses ReportLab for PDF generation with styled tables, macro distribution,
     and a detailed food log section.
+
+    Rate limited to 1 export per minute per user.
     """
+    await _check_export_rate_limit(current_user.id)
+
     from ..services.export_service import generate_nutrition_report_pdf
 
     try:
@@ -72,9 +348,8 @@ async def export_pdf(
             session=session,
             days=days,
         )
-    except Exception as e:
+    except Exception:
         logger.exception("PDF export failed: user_id=%s days=%d", current_user.id, days)
-        from fastapi import HTTPException
         raise HTTPException(
             status_code=500,
             detail="Failed to generate PDF report. Please try again later.",
@@ -94,15 +369,11 @@ async def export_pdf(
     )
 
 
-# ─── CSV export (with date filters) ─────────────────────────────────────────
+# ---- Food logs export (CSV or JSON, streaming, with date filters) ----
 
-_CSV_EXPORT_COLUMNS = [
-    "date", "meal_type", "food_name", "calories", "protein", "carbs", "fat", "fiber",
-]
-
-
-@router.get("/csv")
-async def export_csv(
+@router.get("/food-logs")
+async def export_food_logs(
+    request: Request,
     start_date: Optional[date] = Query(
         default=None,
         description="Start date for the export (inclusive). Defaults to 30 days ago.",
@@ -111,86 +382,246 @@ async def export_csv(
         default=None,
         description="End date for the export (inclusive). Defaults to today.",
     ),
+    format: ExportFormat = Query(
+        default=ExportFormat.csv,
+        description="Export format: csv or json.",
+    ),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Export food logs as a CSV file with optional date range filtering.
+    Export food logs with all fields as CSV or JSON, with optional date range filtering.
 
-    Columns: date, meal_type, food_name, calories, protein, carbs, fat, fiber.
+    CSV columns: date, time, meal_type, food_name, calories, protein_g, carbs_g,
+    fat_g, fiber_g, sugar_g, sodium_mg, serving_size, was_edited, notes.
 
-    If no dates are provided, defaults to the last 30 days.
+    CSV output includes UTF-8 BOM for Excel compatibility and proper RFC 4180 escaping.
+    Large exports are streamed in batches to avoid loading all data in memory.
+
+    Rate limited to 1 export per minute per user.
     """
+    await _check_export_rate_limit(current_user.id)
+
     user_id = current_user.id
+    start_date, end_date = _validate_date_range(start_date, end_date, default_days=30)
+    start_dt = datetime.combine(start_date, dt_time.min)
+    end_dt = datetime.combine(end_date, dt_time.max)
 
-    if end_date is None:
-        end_date = date.today()
-    if start_date is None:
-        start_date = end_date - timedelta(days=30)
+    date_suffix = f"{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
 
-    try:
-        start_dt = datetime.combine(start_date, dt_time.min)
-        end_dt = datetime.combine(end_date, dt_time.max)
-
-        query = (
-            select(AIFoodLog)
-            .where(
-                AIFoodLog.user_id == user_id,
-                AIFoodLog.logged_at >= start_dt,
-                AIFoodLog.logged_at <= end_dt,
-            )
-            .order_by(AIFoodLog.logged_at.asc())
+    if format == ExportFormat.json:
+        filename = f"fitsi_food_logs_{user_id}_{date_suffix}.json"
+        logger.info(
+            "Food logs JSON export (streaming): user_id=%s range=%s..%s",
+            user_id, start_date, end_date,
         )
-        result = await session.execute(query)
-        logs = result.scalars().all()
-
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(_CSV_EXPORT_COLUMNS)
-
-        for log in logs:
-            writer.writerow([
-                log.logged_at.strftime("%Y-%m-%d") if log.logged_at else "",
-                log.meal_type,
-                log.food_name,
-                round(log.calories, 1),
-                round(log.protein_g, 1),
-                round(log.carbs_g, 1),
-                round(log.fats_g, 1),
-                round(log.fiber_g, 1) if log.fiber_g is not None else "",
-            ])
-
-        csv_bytes = output.getvalue().encode("utf-8")
-    except Exception as e:
-        logger.exception("CSV export failed: user_id=%s", user_id)
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to generate CSV export. Please try again later.",
+        return StreamingResponse(
+            _stream_food_logs_json(user_id, start_dt, end_dt, session),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
-    filename = (
-        f"fitsi_food_logs_{user_id}"
-        f"_{start_date.strftime('%Y%m%d')}"
-        f"_{end_date.strftime('%Y%m%d')}.csv"
-    )
-
+    # Default: CSV
+    filename = f"fitsi_food_logs_{user_id}_{date_suffix}.csv"
     logger.info(
-        "CSV export: user_id=%s range=%s..%s rows=%d",
-        user_id, start_date, end_date, len(logs),
+        "Food logs CSV export (streaming): user_id=%s range=%s..%s",
+        user_id, start_date, end_date,
     )
-
     return StreamingResponse(
-        io.BytesIO(csv_bytes),
-        media_type="text/csv",
+        _stream_food_logs_csv(user_id, start_dt, end_dt, session),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
-# ─── Full JSON export ────────────────────────────────────────────────────────
+# ---- Weekly summary export ----
+
+@router.get("/weekly-summary")
+async def export_weekly_summary(
+    request: Request,
+    start_date: Optional[date] = Query(
+        default=None,
+        description="Start date for the summary (inclusive). Defaults to 30 days ago.",
+    ),
+    end_date: Optional[date] = Query(
+        default=None,
+        description="End date for the summary (inclusive). Defaults to today.",
+    ),
+    format: ExportFormat = Query(
+        default=ExportFormat.csv,
+        description="Export format: csv or json.",
+    ),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Export a weekly summary with one row per day containing daily nutrition totals.
+
+    Columns: date, total_calories, total_protein_g, total_carbs_g, total_fat_g,
+    total_fiber_g, meals_logged, avg_calories_per_meal.
+
+    Aggregates food logs by day. Days with no logged meals are omitted.
+
+    Rate limited to 1 export per minute per user.
+    """
+    await _check_export_rate_limit(current_user.id)
+
+    user_id = current_user.id
+    start_date, end_date = _validate_date_range(start_date, end_date, default_days=30)
+    start_dt = datetime.combine(start_date, dt_time.min)
+    end_dt = datetime.combine(end_date, dt_time.max)
+
+    try:
+        query = (
+            select(
+                func.date(AIFoodLog.logged_at).label("log_date"),
+                func.coalesce(func.sum(AIFoodLog.calories), 0).label("total_calories"),
+                func.coalesce(func.sum(AIFoodLog.protein_g), 0).label("total_protein_g"),
+                func.coalesce(func.sum(AIFoodLog.carbs_g), 0).label("total_carbs_g"),
+                func.coalesce(func.sum(AIFoodLog.fats_g), 0).label("total_fat_g"),
+                func.coalesce(func.sum(AIFoodLog.fiber_g), 0).label("total_fiber_g"),
+                func.count(AIFoodLog.id).label("meals_logged"),
+            )
+            .where(
+                AIFoodLog.user_id == user_id,
+                AIFoodLog.deleted_at.is_(None),
+                AIFoodLog.logged_at >= start_dt,
+                AIFoodLog.logged_at <= end_dt,
+            )
+            .group_by(func.date(AIFoodLog.logged_at))
+            .order_by(func.date(AIFoodLog.logged_at).asc())
+        )
+        result = await session.execute(query)
+        rows = result.all()
+    except Exception:
+        logger.exception("Weekly summary export query failed: user_id=%s", user_id)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate weekly summary. Please try again later.",
+        )
+
+    date_suffix = f"{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
+
+    if format == ExportFormat.json:
+        summary_list = []
+        for row in rows:
+            total_cal = float(row.total_calories)
+            meals = int(row.meals_logged)
+            summary_list.append({
+                "date": str(row.log_date),
+                "total_calories": round(total_cal, 1),
+                "total_protein_g": round(float(row.total_protein_g), 1),
+                "total_carbs_g": round(float(row.total_carbs_g), 1),
+                "total_fat_g": round(float(row.total_fat_g), 1),
+                "total_fiber_g": round(float(row.total_fiber_g), 1),
+                "meals_logged": meals,
+                "avg_calories_per_meal": round(total_cal / meals, 1) if meals > 0 else 0.0,
+            })
+
+        export_payload = {
+            "export_version": "1.2",
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "period": {"start_date": str(start_date), "end_date": str(end_date)},
+            "daily_summaries": summary_list,
+        }
+
+        json_bytes = json.dumps(export_payload, indent=2, ensure_ascii=False).encode("utf-8")
+        filename = f"fitsi_weekly_summary_{user_id}_{date_suffix}.json"
+
+        logger.info(
+            "Weekly summary JSON export: user_id=%s range=%s..%s days=%d",
+            user_id, start_date, end_date, len(rows),
+        )
+
+        return StreamingResponse(
+            io.BytesIO(json_bytes),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    # Default: CSV with UTF-8 BOM
+    output = io.BytesIO()
+    output.write(_UTF8_BOM)
+
+    text_buf = io.StringIO()
+    writer = csv.writer(text_buf)
+    writer.writerow(_WEEKLY_SUMMARY_CSV_COLUMNS)
+
+    for row in rows:
+        total_cal = float(row.total_calories)
+        meals = int(row.meals_logged)
+        avg_cal = round(total_cal / meals, 1) if meals > 0 else 0.0
+        writer.writerow([
+            str(row.log_date),
+            round(total_cal, 1),
+            round(float(row.total_protein_g), 1),
+            round(float(row.total_carbs_g), 1),
+            round(float(row.total_fat_g), 1),
+            round(float(row.total_fiber_g), 1),
+            meals,
+            avg_cal,
+        ])
+
+    output.write(text_buf.getvalue().encode("utf-8"))
+    output.seek(0)
+
+    filename = f"fitsi_weekly_summary_{user_id}_{date_suffix}.csv"
+
+    logger.info(
+        "Weekly summary CSV export: user_id=%s range=%s..%s days=%d",
+        user_id, start_date, end_date, len(rows),
+    )
+
+    return StreamingResponse(
+        output,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ---- Legacy CSV export (kept for backward compatibility, redirects) ----
+
+@router.get("/csv")
+async def export_csv(
+    request: Request,
+    start_date: Optional[date] = Query(
+        default=None,
+        description="Start date for the export (inclusive). Defaults to 30 days ago.",
+    ),
+    end_date: Optional[date] = Query(
+        default=None,
+        description="End date for the export (inclusive). Defaults to today.",
+    ),
+    format: ExportFormat = Query(
+        default=ExportFormat.csv,
+        description="Export format: csv or json.",
+    ),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Export food logs as CSV or JSON with optional date range filtering.
+
+    This endpoint is maintained for backward compatibility. It delegates
+    to the /food-logs endpoint with the same parameters.
+
+    Rate limited to 1 export per minute per user.
+    """
+    return await export_food_logs(
+        request=request,
+        start_date=start_date,
+        end_date=end_date,
+        format=format,
+        current_user=current_user,
+        session=session,
+    )
+
+
+# ---- Full JSON export (GDPR data portability) ----
 
 @router.get("/my-data")
 async def export_my_data(
+    request: Request,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -199,10 +630,17 @@ async def export_my_data(
 
     Includes: profile, onboarding, nutrition targets, food logs, meal logs,
     daily summaries, activities, workouts, subscriptions, and feedback.
+
+    Only returns data belonging to the authenticated user.
+    Soft-deleted records are excluded.
+
+    Rate limited to 1 export per minute per user.
     """
+    await _check_export_rate_limit(current_user.id)
+
     user_id = current_user.id
 
-    # ── User profile ──
+    # -- User profile --
     profile_data = {
         "id": current_user.id,
         "email": current_user.email,
@@ -215,9 +653,12 @@ async def export_my_data(
         "updated_at": _dt(current_user.updated_at),
     }
 
-    # ── Onboarding profile ──
+    # -- Onboarding profile --
     ob_result = await session.execute(
-        select(OnboardingProfile).where(OnboardingProfile.user_id == user_id)
+        select(OnboardingProfile).where(
+            OnboardingProfile.user_id == user_id,
+            OnboardingProfile.deleted_at.is_(None),
+        )
     )
     ob = ob_result.scalar_one_or_none()
     onboarding_data = None
@@ -249,7 +690,7 @@ async def export_my_data(
             "created_at": _dt(ob.created_at),
         }
 
-    # ── Nutrition profile ──
+    # -- Nutrition profile --
     np_result = await session.execute(
         select(UserNutritionProfile).where(UserNutritionProfile.user_id == user_id)
     )
@@ -269,9 +710,11 @@ async def export_my_data(
             "target_fat_g": np.target_fat_g,
         }
 
-    # ── AI food logs ──
+    # -- AI food logs (exclude soft-deleted) --
     fl_result = await session.execute(
-        select(AIFoodLog).where(AIFoodLog.user_id == user_id).order_by(AIFoodLog.logged_at.desc())
+        select(AIFoodLog)
+        .where(AIFoodLog.user_id == user_id, AIFoodLog.deleted_at.is_(None))
+        .order_by(AIFoodLog.logged_at.desc())
     )
     food_logs = [
         {
@@ -290,12 +733,13 @@ async def export_my_data(
             "ai_provider": log.ai_provider,
             "ai_confidence": log.ai_confidence,
             "was_edited": log.was_edited,
+            "notes": log.notes,
             "image_url": log.image_url,
         }
         for log in fl_result.scalars().all()
     ]
 
-    # ── Meal logs ──
+    # -- Meal logs --
     ml_result = await session.execute(
         select(MealLog).where(MealLog.user_id == user_id).order_by(MealLog.created_at.desc())
     )
@@ -317,10 +761,11 @@ async def export_my_data(
         for m in ml_result.scalars().all()
     ]
 
-    # ── Daily summaries ──
+    # -- Daily summaries (exclude soft-deleted) --
     ds_result = await session.execute(
         select(DailyNutritionSummary).where(
-            DailyNutritionSummary.user_id == user_id
+            DailyNutritionSummary.user_id == user_id,
+            DailyNutritionSummary.deleted_at.is_(None),
         ).order_by(DailyNutritionSummary.date.desc())
     )
     daily_summaries = [
@@ -336,7 +781,7 @@ async def export_my_data(
         for s in ds_result.scalars().all()
     ]
 
-    # ── Activities ──
+    # -- Activities --
     act_result = await session.execute(
         select(Activity).where(Activity.user_id == user_id).order_by(Activity.created_at.desc())
     )
@@ -353,7 +798,7 @@ async def export_my_data(
         for a in act_result.scalars().all()
     ]
 
-    # ── Workouts ──
+    # -- Workouts --
     wk_result = await session.execute(
         select(WorkoutLog).where(WorkoutLog.user_id == user_id).order_by(WorkoutLog.created_at.desc())
     )
@@ -369,7 +814,7 @@ async def export_my_data(
         for w in wk_result.scalars().all()
     ]
 
-    # ── Subscriptions ──
+    # -- Subscriptions --
     sub_result = await session.execute(
         select(Subscription).where(Subscription.user_id == user_id).order_by(Subscription.created_at.desc())
     )
@@ -389,7 +834,7 @@ async def export_my_data(
         for s in sub_result.scalars().all()
     ]
 
-    # ── Feedback ──
+    # -- Feedback --
     fb_result = await session.execute(
         select(Feedback).where(Feedback.user_id == user_id).order_by(Feedback.created_at.desc())
     )
@@ -407,8 +852,8 @@ async def export_my_data(
     ]
 
     export = {
-        "export_version": "1.1",
-        "exported_at": datetime.utcnow().isoformat(),
+        "export_version": "1.2",
+        "exported_at": datetime.now(timezone.utc).isoformat(),
         "user": profile_data,
         "onboarding_profile": onboarding_data,
         "nutrition_profile": nutrition_data,
@@ -425,7 +870,7 @@ async def export_my_data(
 
     # Return as downloadable JSON file
     json_bytes = json.dumps(export, indent=2, ensure_ascii=False).encode("utf-8")
-    filename = f"fitsi_export_{user_id}_{datetime.utcnow().strftime('%Y%m%d')}.json"
+    filename = f"fitsi_export_{user_id}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
 
     return StreamingResponse(
         io.BytesIO(json_bytes),
@@ -434,7 +879,7 @@ async def export_my_data(
     )
 
 
-# ─── Legacy CSV export (food logs, no date filter) ──────────────────────────
+# ---- Legacy CSV export (food logs, no date filter) ----
 
 _LEGACY_CSV_COLUMNS = [
     "id", "food_name", "calories", "carbs_g", "protein_g", "fats_g",
@@ -445,23 +890,34 @@ _LEGACY_CSV_COLUMNS = [
 
 @router.get("/my-data/csv")
 async def export_my_data_csv(
+    request: Request,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """
     Export user's food logs as a CSV file (legacy endpoint, no date filtering).
 
-    For date-filtered exports, use GET /api/export/csv instead.
+    For date-filtered exports, use GET /api/export/food-logs instead.
+    Excludes soft-deleted records. Includes UTF-8 BOM for Excel compatibility.
+
+    Rate limited to 1 export per minute per user.
     """
+    await _check_export_rate_limit(current_user.id)
+
     user_id = current_user.id
 
     result = await session.execute(
-        select(AIFoodLog).where(AIFoodLog.user_id == user_id).order_by(AIFoodLog.logged_at.desc())
+        select(AIFoodLog)
+        .where(AIFoodLog.user_id == user_id, AIFoodLog.deleted_at.is_(None))
+        .order_by(AIFoodLog.logged_at.desc())
     )
     logs = result.scalars().all()
 
-    output = io.StringIO()
-    writer = csv.writer(output)
+    output = io.BytesIO()
+    output.write(_UTF8_BOM)
+
+    text_buf = io.StringIO()
+    writer = csv.writer(text_buf)
     writer.writerow(_LEGACY_CSV_COLUMNS)
 
     for log in logs:
@@ -483,13 +939,15 @@ async def export_my_data_csv(
             log.was_edited,
         ])
 
-    csv_bytes = output.getvalue().encode("utf-8")
-    filename = f"fitsi_food_logs_{user_id}_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    output.write(text_buf.getvalue().encode("utf-8"))
+    output.seek(0)
 
-    logger.info("CSV food log export: user_id=%s rows=%d", user_id, len(logs))
+    filename = f"fitsi_food_logs_{user_id}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"
+
+    logger.info("Legacy CSV food log export: user_id=%s rows=%d", user_id, len(logs))
 
     return StreamingResponse(
-        io.BytesIO(csv_bytes),
-        media_type="text/csv",
+        output,
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

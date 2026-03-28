@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius, useLayout } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import ScrollPicker from '../../components/onboarding/ScrollPicker';
@@ -56,13 +57,59 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps, o
     updateMany({ unitSystem: newUnit });
   };
 
+  // ── Validation: Catch extreme/unrealistic values ──────────────────────────
+  const validation = useMemo(() => {
+    const h = data.heightCm;
+    const w = data.weightKg;
+    const bmi = w / Math.pow(h / 100, 2);
+
+    if (h < 130 || h > 230) {
+      return { valid: false, warning: 'Verifica tu altura. El rango normal es 130-230 cm.' };
+    }
+    if (w < 35 || w > 200) {
+      return { valid: false, warning: 'Verifica tu peso. El rango normal es 35-200 kg.' };
+    }
+    if (bmi < 13) {
+      return { valid: false, warning: 'La combinacion de altura y peso parece inusual. Verifica tus datos.' };
+    }
+    if (bmi > 50) {
+      return { valid: false, warning: 'La combinacion de altura y peso parece inusual. Verifica tus datos.' };
+    }
+    return { valid: true, warning: '' };
+  }, [data.heightCm, data.weightKg]);
+
+  // ── Summary line showing BMI context ─────────────────────────────────────
+  const summaryText = useMemo(() => {
+    if (unit === 'imperial') {
+      const lbDisplay = kgToLb(data.weightKg);
+      const { ft: fDisplay, inch: iDisplay } = cmToFtIn(data.heightCm);
+      return `${fDisplay}'${iDisplay}" y ${lbDisplay} lb`;
+    }
+    return `${data.heightCm} cm y ${data.weightKg} kg`;
+  }, [data.heightCm, data.weightKg, unit]);
+
   return (
     <OnboardingLayout
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
       onSkip={onSkip}
-      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+      footer={
+        <View>
+          {validation.warning ? (
+            <View style={styles.warningRow}>
+              <Ionicons name="alert-circle-outline" size={16} color="#D97706" />
+              <Text style={styles.warningText}>{validation.warning}</Text>
+            </View>
+          ) : (
+            <View style={styles.summaryRow}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+              <Text style={styles.summaryText}>{summaryText}</Text>
+            </View>
+          )}
+          <PrimaryButton label="Continuar" onPress={onNext} disabled={!validation.valid} />
+        </View>
+      }
     >
       <Text style={styles.title}>Tu altura y peso</Text>
       <Text style={styles.subtitle}>
@@ -182,4 +229,29 @@ const styles = StyleSheet.create({
   pickerPair: { flexDirection: 'row', gap: spacing.xs },
   pickerLabel: { ...typography.label, color: colors.black },
   divider: { width: 1, height: 200, backgroundColor: colors.grayLight, marginTop: 28 },
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: '#FEF3C7',
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  warningText: {
+    ...typography.caption,
+    color: '#92400E',
+    flex: 1,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  summaryText: {
+    ...typography.label,
+    color: colors.gray,
+  },
 });

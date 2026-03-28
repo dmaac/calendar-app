@@ -4,6 +4,9 @@
  * Sprint 5: "Recomendadas para ti" section based on remaining daily macros.
  * Sprint 6: Recommendations moved to top of screen (before search/filters),
  *           horizontal FlatList, limited to 3 smart picks.
+ * Sprint 7: Inline "Save to favorites" heart button on recipe cards.
+ *           "Postres" filter chip added (maps to snack meal type).
+ *           Favorites state loaded once on mount for all cards.
  */
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
@@ -27,17 +30,21 @@ import { useAnalytics } from '../../hooks/useAnalytics';
 import FitsiMascot from '../../components/FitsiMascot';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import * as foodService from '../../services/food.service';
+import * as favoritesService from '../../services/favorites.service';
 import { useOnboardingSafe } from '../../context/OnboardingContext';
+import { showNotification } from '../../components/InAppNotification';
 import { DailySummary } from '../../types';
 
-type MealFilter = 'all' | MealType;
+// "Postres" is a display-only alias for the snack meal type (closest match in data model)
+type MealFilter = 'all' | MealType | 'dessert';
 
-const MEAL_FILTERS: { key: MealFilter; label: string }[] = [
+const MEAL_FILTERS: { key: MealFilter; label: string; mealType?: MealType }[] = [
   { key: 'all', label: 'Todos' },
-  { key: 'breakfast', label: 'Desayuno' },
-  { key: 'lunch', label: 'Almuerzo' },
-  { key: 'dinner', label: 'Cena' },
-  { key: 'snack', label: 'Snack' },
+  { key: 'breakfast', label: 'Desayuno', mealType: 'breakfast' },
+  { key: 'lunch', label: 'Almuerzo', mealType: 'lunch' },
+  { key: 'dinner', label: 'Cena', mealType: 'dinner' },
+  { key: 'snack', label: 'Snack', mealType: 'snack' },
+  { key: 'dessert', label: 'Postres', mealType: 'snack' },
 ];
 
 const DIET_FILTERS: { key: DietType | 'all'; label: string }[] = [
@@ -176,17 +183,23 @@ function getSmartRecommendations(
 
 // ─── Recipe Card ──────────────────────────────────────────────────────────────
 
-// Memoized to prevent re-render when sibling cards or filter state changes
+// Memoized to prevent re-render when sibling cards or filter state changes.
+// isFavorited and onToggleFavorite are passed from parent so the favorites Set
+// is managed once per screen mount rather than one async check per card.
 const RecipeCard = React.memo(function RecipeCard({
   recipe,
   onPress,
   c,
   badge,
+  isFavorited,
+  onToggleFavorite,
 }: {
   recipe: Recipe;
   onPress: () => void;
   c: ReturnType<typeof useThemeColors>;
   badge?: string;
+  isFavorited: boolean;
+  onToggleFavorite: (recipe: Recipe) => void;
 }) {
   const pressAnim = useRef(new Animated.Value(0)).current;
 
@@ -243,6 +256,24 @@ const RecipeCard = React.memo(function RecipeCard({
             </Text>
           </View>
         </View>
+        {/* Inline favorite button — avoids navigating to detail just to save */}
+        <TouchableOpacity
+          style={cardStyles.heartBtn}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onToggleFavorite(recipe);
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel={isFavorited ? `Quitar ${recipe.name} de favoritos` : `Guardar ${recipe.name} en favoritos`}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isFavorited }}
+        >
+          <Ionicons
+            name={isFavorited ? 'heart' : 'heart-outline'}
+            size={20}
+            color={isFavorited ? '#EF4444' : c.gray}
+          />
+        </TouchableOpacity>
       </Animated.View>
     </Pressable>
   );
@@ -251,6 +282,7 @@ const RecipeCard = React.memo(function RecipeCard({
 const cardStyles = StyleSheet.create({
   card: {
     flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: spacing.md,
@@ -287,6 +319,12 @@ const cardStyles = StyleSheet.create({
     ...typography.caption,
     fontWeight: '700',
     fontSize: 10,
+  },
+  heartBtn: {
+    paddingLeft: spacing.sm,
+    paddingVertical: spacing.xs,
+    alignSelf: 'flex-start',
+    marginTop: 2,
   },
 });
 
@@ -414,6 +452,9 @@ export default function RecipesScreen({ navigation }: any) {
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const [loadingRecs, setLoadingRecs] = useState(true);
 
+  // Favorites state — one async load for all cards; Set for O(1) lookups
+  const [favoritedNames, setFavoritedNames] = useState<Set<string>>(new Set());
+
   // Get user diet preference from onboarding (safe — returns null outside provider)
   const onboardingCtx = useOnboardingSafe();
   const dietPreference = onboardingCtx
@@ -436,6 +477,45 @@ export default function RecipesScreen({ navigation }: any) {
     return () => { cancelled = true; };
   }, []);
 
+  // Load favorites once on mount so all cards know their initial heart state
+  useEffect(() => {
+    let cancelled = false;
+    favoritesService.getFavorites().then((favs) => {
+      if (!cancelled) {
+        setFavoritedNames(new Set(favs.map((f) => f.name.toLowerCase())));
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Inline toggle — optimistic update so the heart flips instantly
+  const handleToggleFavorite = useCallback(async (recipe: Recipe) => {
+    haptics.light();
+    const nameLower = recipe.name.toLowerCase();
+    const wasAdded = await favoritesService.toggleFavorite({
+      name: recipe.name,
+      calories: recipe.calories,
+      protein_g: recipe.protein,
+      carbs_g: recipe.carbs,
+      fats_g: recipe.fat,
+      emoji: recipe.image,
+    });
+    setFavoritedNames((prev) => {
+      const next = new Set(prev);
+      if (wasAdded) next.add(nameLower);
+      else next.delete(nameLower);
+      return next;
+    });
+    showNotification({
+      message: wasAdded
+        ? `${recipe.name} guardado en favoritos`
+        : `${recipe.name} eliminado de favoritos`,
+      type: wasAdded ? 'success' : 'info',
+      icon: wasAdded ? 'heart' : 'heart-dislike',
+    });
+    track('recipe_favorited', { recipe_name: recipe.name, added: wasAdded });
+  }, [track]);
+
   // Compute macro gap and smart recommendations
   const recommendations = useMemo(() => {
     if (!dailySummary) return [];
@@ -456,7 +536,9 @@ export default function RecipesScreen({ navigation }: any) {
   const filtered = useMemo(() => {
     let result = recipes;
     if (mealFilter !== 'all') {
-      result = result.filter((r) => r.mealType === mealFilter);
+      // 'dessert' is a display alias for the snack meal type
+      const resolvedType: MealType = mealFilter === 'dessert' ? 'snack' : (mealFilter as MealType);
+      result = result.filter((r) => r.mealType === resolvedType);
     }
     if (dietFilter !== 'all') {
       result = result.filter((r) => r.dietType === dietFilter);
@@ -475,10 +557,17 @@ export default function RecipesScreen({ navigation }: any) {
     navigation.navigate('RecipeDetail', { recipe });
   }, [navigation, track]);
 
-  // Memoized renderItem avoids anonymous closure per render cycle
+  // Memoized renderItem avoids anonymous closure per render cycle.
+  // isFavorited derived from Set for O(1) — no per-render async call.
   const renderRecipeItem = useCallback(({ item }: { item: Recipe }) => (
-    <RecipeCard recipe={item} onPress={() => handleRecipePress(item)} c={c} />
-  ), [handleRecipePress, c]);
+    <RecipeCard
+      recipe={item}
+      onPress={() => handleRecipePress(item)}
+      c={c}
+      isFavorited={favoritedNames.has(item.name.toLowerCase())}
+      onToggleFavorite={handleToggleFavorite}
+    />
+  ), [handleRecipePress, c, favoritedNames, handleToggleFavorite]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>

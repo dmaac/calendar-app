@@ -116,6 +116,7 @@ async def _build_user_context(user_id: int, session: AsyncSession) -> dict:
         AIFoodLog.user_id == user_id,
         AIFoodLog.logged_at >= today_start,
         AIFoodLog.logged_at <= today_end,
+        AIFoodLog.deleted_at.is_(None),
     )
     food_result = await session.execute(food_stmt)
     food_row = food_result.one()
@@ -127,6 +128,7 @@ async def _build_user_context(user_id: int, session: AsyncSession) -> dict:
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
         .order_by(AIFoodLog.logged_at.desc())
         .limit(5)

@@ -1,0 +1,745 @@
+{
+  "timestamp": "2026-03-23T01:18:18.278614Z",
+  "base_url": "http://127.0.0.1:8000",
+  "reference_limits": {
+    "free_tier_rpm": 30,
+    "free_burst": 10,
+    "free_effective": 40,
+    "login_per_min": 10,
+    "register_per_min": 5,
+    "lockout_after_failures": 5
+  },
+  "results": [
+    {
+      "test_name": "brute_force_flood",
+      "description": "50 login attempts from same IP; expect 429 after ~10 requests",
+      "verdict": "PASS",
+      "total_requests": 50,
+      "status_200": 10,
+      "status_401": 0,
+      "status_409": 0,
+      "status_422": 0,
+      "status_429": 40,
+      "status_other": 0,
+      "first_429_at": 11,
+      "expected_429_at": 11,
+      "headers_present": false,
+      "retry_after_present": false,
+      "duration_seconds": 17.87814983300086,
+      "notes": [
+        "X-RateLimit-* headers missing from responses"
+      ],
+      "requests": [
+        {
+          "i": 1,
+          "s": 200,
+          "ms": 1930.3,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 2,
+          "s": 200,
+          "ms": 1532.9,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 3,
+          "s": 200,
+          "ms": 1652.0,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 4,
+          "s": 200,
+          "ms": 1902.4,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 5,
+          "s": 200,
+          "ms": 1606.2,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 6,
+          "s": 200,
+          "ms": 2153.3,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 7,
+          "s": 200,
+          "ms": 1678.0,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 8,
+          "s": 200,
+          "ms": 1658.0,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 9,
+          "s": 200,
+          "ms": 1612.4,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 10,
+          "s": 200,
+          "ms": 1788.2,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 11,
+          "s": 429,
+          "ms": 14.0,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 12,
+          "s": 429,
+          "ms": 10.0,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 13,
+          "s": 429,
+          "ms": 10.2,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 14,
+          "s": 429,
+          "ms": 8.6,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 15,
+          "s": 429,
+          "ms": 8.0,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 16,
+          "s": 429,
+          "ms": 8.6,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 17,
+          "s": 429,
+          "ms": 7.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 18,
+          "s": 429,
+          "ms": 7.3,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 19,
+          "s": 429,
+          "ms": 8.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 20,
+          "s": 429,
+          "ms": 7.7,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 21,
+          "s": 429,
+          "ms": 8.4,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 22,
+          "s": 429,
+          "ms": 7.6,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 23,
+          "s": 429,
+          "ms": 7.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 24,
+          "s": 429,
+          "ms": 8.2,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 25,
+          "s": 429,
+          "ms": 7.7,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 26,
+          "s": 429,
+          "ms": 7.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 27,
+          "s": 429,
+          "ms": 8.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 28,
+          "s": 429,
+          "ms": 7.8,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 29,
+          "s": 429,
+          "ms": 8.2,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 30,
+          "s": 429,
+          "ms": 7.3,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 31,
+          "s": 429,
+          "ms": 7.3,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 32,
+          "s": 429,
+          "ms": 8.1,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 33,
+          "s": 429,
+          "ms": 7.6,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 34,
+          "s": 429,
+          "ms": 7.6,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 35,
+          "s": 429,
+          "ms": 8.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 36,
+          "s": 429,
+          "ms": 7.4,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 37,
+          "s": 429,
+          "ms": 8.1,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 38,
+          "s": 429,
+          "ms": 7.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 39,
+          "s": 429,
+          "ms": 7.3,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 40,
+          "s": 429,
+          "ms": 8.0,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 41,
+          "s": 429,
+          "ms": 7.4,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 42,
+          "s": 429,
+          "ms": 7.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 43,
+          "s": 429,
+          "ms": 12.1,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 44,
+          "s": 429,
+          "ms": 7.8,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 45,
+          "s": 429,
+          "ms": 8.2,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 46,
+          "s": 429,
+          "ms": 7.7,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 47,
+          "s": 429,
+          "ms": 8.4,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 48,
+          "s": 429,
+          "ms": 7.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 49,
+          "s": 429,
+          "ms": 7.6,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 50,
+          "s": 429,
+          "ms": 8.7,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        }
+      ]
+    },
+    {
+      "test_name": "brute_force_lockout",
+      "description": "10 wrong-password logins; expect 429 (locked) after 5 failures",
+      "verdict": "PASS",
+      "total_requests": 10,
+      "status_200": 0,
+      "status_401": 0,
+      "status_409": 0,
+      "status_422": 0,
+      "status_429": 10,
+      "status_other": 0,
+      "first_429_at": 1,
+      "expected_429_at": 6,
+      "headers_present": false,
+      "retry_after_present": false,
+      "duration_seconds": 0.14310666600067634,
+      "notes": [
+        "First 5 attempts returned 401: 0/5"
+      ],
+      "requests": [
+        {
+          "i": 1,
+          "s": 429,
+          "ms": 7.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 2,
+          "s": 429,
+          "ms": 7.8,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 3,
+          "s": 429,
+          "ms": 8.9,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 4,
+          "s": 429,
+          "ms": 8.0,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 5,
+          "s": 429,
+          "ms": 8.3,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 6,
+          "s": 429,
+          "ms": 7.6,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 7,
+          "s": 429,
+          "ms": 7.5,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 8,
+          "s": 429,
+          "ms": 53.8,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 9,
+          "s": 429,
+          "ms": 9.6,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        },
+        {
+          "i": 10,
+          "s": 429,
+          "ms": 8.3,
+          "rl": null,
+          "ra": null,
+          "xff": null
+        }
+      ]
+    },
+    {
+      "test_name": "brute_force_xff_bypass",
+      "description": "20 login attempts, each with a different X-Forwarded-For; check if rate limit resets",
+      "verdict": "FAIL",
+      "total_requests": 20,
+      "status_200": 20,
+      "status_401": 0,
+      "status_409": 0,
+      "status_422": 0,
+      "status_429": 0,
+      "status_other": 0,
+      "first_429_at": null,
+      "expected_429_at": 11,
+      "headers_present": false,
+      "retry_after_present": false,
+      "duration_seconds": 32.704488041999866,
+      "notes": [
+        "SECURITY: No 429 received with rotating X-Forwarded-For -- IP spoofing bypasses rate limiting entirely"
+      ],
+      "requests": [
+        {
+          "i": 1,
+          "s": 200,
+          "ms": 1619.8,
+          "rl": null,
+          "ra": null,
+          "xff": "10.37.66.41"
+        },
+        {
+          "i": 2,
+          "s": 200,
+          "ms": 1600.9,
+          "rl": null,
+          "ra": null,
+          "xff": "10.152.129.92"
+        },
+        {
+          "i": 3,
+          "s": 200,
+          "ms": 1760.5,
+          "rl": null,
+          "ra": null,
+          "xff": "10.195.156.93"
+        },
+        {
+          "i": 4,
+          "s": 200,
+          "ms": 1695.8,
+          "rl": null,
+          "ra": null,
+          "xff": "10.102.170.70"
+        },
+        {
+          "i": 5,
+          "s": 200,
+          "ms": 1663.1,
+          "rl": null,
+          "ra": null,
+          "xff": "10.210.65.224"
+        },
+        {
+          "i": 6,
+          "s": 200,
+          "ms": 1623.0,
+          "rl": null,
+          "ra": null,
+          "xff": "10.29.120.68"
+        },
+        {
+          "i": 7,
+          "s": 200,
+          "ms": 1796.8,
+          "rl": null,
+          "ra": null,
+          "xff": "10.118.95.75"
+        },
+        {
+          "i": 8,
+          "s": 200,
+          "ms": 1559.5,
+          "rl": null,
+          "ra": null,
+          "xff": "10.2.157.95"
+        },
+        {
+          "i": 9,
+          "s": 200,
+          "ms": 1564.4,
+          "rl": null,
+          "ra": null,
+          "xff": "10.127.89.83"
+        },
+        {
+          "i": 10,
+          "s": 200,
+          "ms": 1504.1,
+          "rl": null,
+          "ra": null,
+          "xff": "10.241.174.68"
+        },
+        {
+          "i": 11,
+          "s": 200,
+          "ms": 1523.6,
+          "rl": null,
+          "ra": null,
+          "xff": "10.215.92.122"
+        },
+        {
+          "i": 12,
+          "s": 200,
+          "ms": 1535.5,
+          "rl": null,
+          "ra": null,
+          "xff": "10.237.228.144"
+        },
+        {
+          "i": 13,
+          "s": 200,
+          "ms": 1589.9,
+          "rl": null,
+          "ra": null,
+          "xff": "10.32.124.181"
+        },
+        {
+          "i": 14,
+          "s": 200,
+          "ms": 1963.6,
+          "rl": null,
+          "ra": null,
+          "xff": "10.72.230.72"
+        },
+        {
+          "i": 15,
+          "s": 200,
+          "ms": 1609.9,
+          "rl": null,
+          "ra": null,
+          "xff": "10.191.33.236"
+        },
+        {
+          "i": 16,
+          "s": 200,
+          "ms": 1686.4,
+          "rl": null,
+          "ra": null,
+          "xff": "10.95.57.199"
+        },
+        {
+          "i": 17,
+          "s": 200,
+          "ms": 1648.3,
+          "rl": null,
+          "ra": null,
+          "xff": "10.196.137.83"
+        },
+        {
+          "i": 18,
+          "s": 200,
+          "ms": 1511.3,
+          "rl": null,
+          "ra": null,
+          "xff": "10.148.244.139"
+        },
+        {
+          "i": 19,
+          "s": 200,
+          "ms": 1574.1,
+          "rl": null,
+          "ra": null,
+          "xff": "10.212.245.229"
+        },
+        {
+          "i": 20,
+          "s": 200,
+          "ms": 1650.1,
+          "rl": null,
+          "ra": null,
+          "xff": "10.153.212.82"
+        }
+      ]
+    },
+    {
+      "test_name": "redis_failure_mode",
+      "description": "Documents that the rate limiter is fail-open when Redis is unavailable",
+      "verdict": "WARN",
+      "total_requests": 0,
+      "status_200": 0,
+      "status_401": 0,
+      "status_409": 0,
+      "status_422": 0,
+      "status_429": 0,
+      "status_other": 0,
+      "first_429_at": null,
+      "expected_429_at": null,
+      "headers_present": false,
+      "retry_after_present": false,
+      "duration_seconds": 0.0,
+      "notes": [
+        "FINDING: RateLimiterMiddleware.dispatch() catches all Redis exceptions and calls `call_next(request)` -- fail OPEN.",
+        "FINDING: token_store.check_user_rate_limit() returns True (allow) on Redis failure.",
+        "IMPACT: If Redis goes down or is unreachable, ALL rate limiting is disabled. An attacker who can cause Redis downtime gets unlimited API access.",
+        "CONTRAST: Token validation functions (is_refresh_token_valid, is_access_token_blacklisted, is_login_locked) correctly fail CLOSED.",
+        "RECOMMENDATION: Consider a local in-memory fallback (e.g., a simple counter dict with TTL) so that rate limiting degrades gracefully rather than disappearing entirely."
+      ],
+      "requests": []
+    }
+  ]
+}

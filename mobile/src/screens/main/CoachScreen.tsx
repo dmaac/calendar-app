@@ -3,16 +3,22 @@
  *
  * Real chat interface powered by the backend AI coach API.
  * Features:
- *   - Bubble-style messages: user (right, accent) + coach (left, surface)
+ *   - Inverted FlatList for proper chat UX (newest message at bottom)
+ *   - Bubble-style messages: user (right, solid accent) + coach (left, surface)
  *   - Auto-loads daily insight on first open (empty history)
- *   - 3 quick-suggestion chips for common questions
- *   - Fitsi mascot avatar on coach messages
- *   - Loading indicator while waiting for response
- *   - Message history persisted via useCoach hook
+ *   - Horizontal-scrollable quick-suggestion chips
+ *   - Fitsi mascot avatar on coach messages with "thinking" animation
+ *   - Animated three-dot typing indicator while AI responds
+ *   - KeyboardAvoidingView with correct platform offset
+ *   - Error banner with dismiss + retry last message
+ *   - Message history persisted via useCoach hook (AsyncStorage)
+ *   - Long-press bubble to copy text
+ *   - Clear history option in header menu
  *   - Human support fallback link
  *   - Dark mode compatible via theme system
+ *   - Full accessibility labels on all interactive elements
  */
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -22,67 +28,103 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  Animated,
   Linking,
+  ScrollView,
+  Alert,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, radius, useLayout, useThemeColors } from '../../theme';
+import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { useCoach, CoachMessage } from '../../hooks/useCoach';
 import FitsiMascot from '../../components/FitsiMascot';
 
-// ─── Quick suggestion chips ─────────────────────────────────────────────────
+// ─── Quick suggestion chips ──────────────────────────────────────────────────
 
 const SUGGESTIONS = [
   { label: 'Que como de almuerzo?', icon: 'restaurant-outline' as const },
-  { label: 'Como voy hoy?', icon: 'trending-up-outline' as const },
-  { label: 'Sugiere un snack', icon: 'cafe-outline' as const },
-];
+  { label: 'Como voy hoy?',         icon: 'trending-up-outline' as const },
+  { label: 'Sugiere un snack',       icon: 'cafe-outline' as const },
+  { label: 'Cuantas calorias me quedan?', icon: 'flame-outline' as const },
+  { label: 'Ideas para cenar',       icon: 'moon-outline' as const },
+] as const;
 
-// ─── Chat bubble (memoized) ─────────────────────────────────────────────────
+// ─── Animated typing dots ─────────────────────────────────────────────────────
 
-const ChatBubble = React.memo(function ChatBubble({
-  message,
-  c,
-}: {
-  message: CoachMessage;
-  c: ReturnType<typeof useThemeColors>;
-}) {
+const TypingDots = React.memo(function TypingDots({ color }: { color: string }) {
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animateDot = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, {
+            toValue: -5,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(dot, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.delay(600),
+        ]),
+      );
+
+    const a1 = animateDot(dot1, 0);
+    const a2 = animateDot(dot2, 150);
+    const a3 = animateDot(dot3, 300);
+
+    a1.start();
+    a2.start();
+    a3.start();
+
+    return () => {
+      a1.stop();
+      a2.stop();
+      a3.stop();
+    };
+  }, [dot1, dot2, dot3]);
+
   return (
-    <View
-      style={[
-        styles.bubbleRow,
-        message.isUser ? styles.bubbleRowUser : styles.bubbleRowCoach,
-      ]}
-    >
-      {!message.isUser && (
-        <View style={[styles.avatarContainer, { backgroundColor: c.surface }]}>
-          <FitsiMascot expression="neutral" size="small" animation="none" disableTouch />
-        </View>
-      )}
-      <View
-        style={[
-          styles.bubble,
-          message.isUser
-            ? [styles.bubbleUser, { backgroundColor: c.accent + '20' }]
-            : [styles.bubbleCoach, { backgroundColor: c.surface }],
-        ]}
-        accessibilityLabel={`${message.isUser ? 'Tu' : 'Coach'}: ${message.text}`}
-      >
-        <Text style={[styles.bubbleText, { color: c.black }]}>
-          {message.text}
-        </Text>
-        <Text style={[styles.timestamp, { color: c.disabled }]}>
-          {formatTime(message.timestamp)}
-        </Text>
-      </View>
+    <View style={dotsStyles.row} accessibilityLabel="El coach esta escribiendo">
+      {([dot1, dot2, dot3] as Animated.Value[]).map((dot, i) => (
+        <Animated.View
+          key={i}
+          style={[
+            dotsStyles.dot,
+            { backgroundColor: color, transform: [{ translateY: dot }] },
+          ]}
+        />
+      ))}
     </View>
   );
 });
 
-// ─── Typing indicator (memoized) ────────────────────────────────────────────
+const dotsStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 4,
+    height: 20,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    opacity: 0.7,
+  },
+});
+
+// ─── Typing indicator bubble (memoized) ──────────────────────────────────────
 
 const TypingIndicator = React.memo(function TypingIndicator({
   c,
@@ -101,15 +143,77 @@ const TypingIndicator = React.memo(function TypingIndicator({
           styles.typingBubble,
           { backgroundColor: c.surface },
         ]}
+        accessibilityLabel="Coach escribiendo"
+        accessibilityRole="text"
       >
-        <ActivityIndicator size="small" color={c.gray} />
-        <Text style={[styles.typingText, { color: c.gray }]}>Pensando...</Text>
+        <TypingDots color={c.gray} />
       </View>
     </View>
   );
 });
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Chat bubble (memoized) ───────────────────────────────────────────────────
+
+const ChatBubble = React.memo(function ChatBubble({
+  message,
+  c,
+  onLongPress,
+}: {
+  message: CoachMessage;
+  c: ReturnType<typeof useThemeColors>;
+  onLongPress: (text: string) => void;
+}) {
+  return (
+    <View
+      style={[
+        styles.bubbleRow,
+        message.isUser ? styles.bubbleRowUser : styles.bubbleRowCoach,
+      ]}
+    >
+      {!message.isUser && (
+        <View style={[styles.avatarContainer, { backgroundColor: c.surface }]}>
+          <FitsiMascot expression="neutral" size="small" animation="none" disableTouch />
+        </View>
+      )}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onLongPress={() => onLongPress(message.text)}
+        accessibilityLabel={`${message.isUser ? 'Tu mensaje' : 'Mensaje del coach'}: ${message.text}`}
+        accessibilityRole="text"
+        accessibilityHint="Manten presionado para compartir"
+        delayLongPress={400}
+      >
+        <View
+          style={[
+            styles.bubble,
+            message.isUser
+              ? [styles.bubbleUser, { backgroundColor: c.accent }]
+              : [styles.bubbleCoach, { backgroundColor: c.surface }],
+          ]}
+        >
+          <Text
+            style={[
+              styles.bubbleText,
+              { color: message.isUser ? colors.white : c.black },
+            ]}
+          >
+            {message.text}
+          </Text>
+          <Text
+            style={[
+              styles.timestamp,
+              { color: message.isUser ? 'rgba(255,255,255,0.65)' : c.disabled },
+            ]}
+          >
+            {formatTime(message.timestamp)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatTime(timestamp: number): string {
   const d = new Date(timestamp);
@@ -118,7 +222,7 @@ function formatTime(timestamp: number): string {
   return `${h}:${m}`;
 }
 
-// ─── Main component ─────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CoachScreen({ navigation }: { navigation: { goBack: () => void } }) {
   const insets = useSafeAreaInsets();
@@ -127,8 +231,10 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
   const { track } = useAnalytics('Coach');
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
-  const [inputText, setInputText] = React.useState('');
+  const [inputText, setInputText] = useState('');
+  const [showMenu, setShowMenu] = useState(false);
   const insightLoadedRef = useRef(false);
+  const lastMessageTextRef = useRef<string>('');
 
   const {
     messages,
@@ -136,34 +242,23 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
     error,
     sendMessage,
     loadInsight,
+    clearHistory,
     dismissError,
   } = useCoach();
 
-  // ── Load daily insight on first open (only if no history) ─────────────────
+  // ── Load daily insight on first open (only if no history) ──────────────────
 
   useEffect(() => {
     if (insightLoadedRef.current) return;
     insightLoadedRef.current = true;
 
-    // Only auto-load insight if conversation is empty
     if (messages.length === 0) {
       loadInsight();
       track('coach_insight_loaded');
     }
   }, [messages.length, loadInsight, track]);
 
-  // ── Auto-scroll on new messages or loading state ──────────────────────────
-
-  useEffect(() => {
-    if (flatListRef.current && messages.length > 0) {
-      const timer = setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [messages, loading]);
-
-  // ── Send handler ──────────────────────────────────────────────────────────
+  // ── Send handler ────────────────────────────────────────────────────────────
 
   const handleSend = useCallback(
     async (text: string) => {
@@ -172,14 +267,25 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
 
       haptics.light();
       track('coach_message_sent', { message_length: trimmed.length });
+      lastMessageTextRef.current = trimmed;
       setInputText('');
       await sendMessage(trimmed);
-      haptics.light();
     },
     [loading, sendMessage, track],
   );
 
-  // ── Suggestion chip handler ───────────────────────────────────────────────
+  // ── Retry last message ──────────────────────────────────────────────────────
+
+  const handleRetry = useCallback(() => {
+    haptics.light();
+    dismissError();
+    if (lastMessageTextRef.current) {
+      track('coach_retry');
+      sendMessage(lastMessageTextRef.current);
+    }
+  }, [dismissError, sendMessage, track]);
+
+  // ── Suggestion chip handler ─────────────────────────────────────────────────
 
   const handleSuggestion = useCallback(
     (text: string) => {
@@ -190,47 +296,91 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
     [handleSend, track],
   );
 
-  // ── Dismiss error on tap ──────────────────────────────────────────────────
+  // ── Dismiss error ───────────────────────────────────────────────────────────
 
   const handleDismissError = useCallback(() => {
     haptics.light();
     dismissError();
   }, [dismissError]);
 
-  // ── FlatList callbacks (stable refs) ──────────────────────────────────────
+  // ── Share bubble text on long press ─────────────────────────────────────────
+
+  const handleBubbleLongPress = useCallback(
+    async (text: string) => {
+      haptics.light();
+      track('coach_message_shared');
+      try {
+        await Share.share({ message: text });
+      } catch {
+        // User cancelled or share not supported — silent fail
+      }
+    },
+    [track],
+  );
+
+  // ── Clear history ───────────────────────────────────────────────────────────
+
+  const handleClearHistory = useCallback(() => {
+    setShowMenu(false);
+    Alert.alert(
+      'Borrar historial',
+      'Se eliminara toda la conversacion con el coach. Esta accion no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar',
+          style: 'destructive',
+          onPress: async () => {
+            haptics.medium();
+            track('coach_history_cleared');
+            await clearHistory();
+            insightLoadedRef.current = false;
+            lastMessageTextRef.current = '';
+            loadInsight();
+          },
+        },
+      ],
+    );
+  }, [clearHistory, loadInsight, track]);
+
+  // ── FlatList callbacks (stable refs) ───────────────────────────────────────
 
   const renderChatItem = useCallback(
-    ({ item }: { item: CoachMessage }) => <ChatBubble message={item} c={c} />,
-    [c],
+    ({ item }: { item: CoachMessage }) => (
+      <ChatBubble message={item} c={c} onLongPress={handleBubbleLongPress} />
+    ),
+    [c, handleBubbleLongPress],
   );
 
   const chatKeyExtractor = useCallback((item: CoachMessage) => item.id, []);
 
-  const handleContentSizeChange = useCallback(() => {
-    flatListRef.current?.scrollToEnd({ animated: true });
-  }, []);
-
-  // ── Sanitize input on change ──────────────────────────────────────────────
+  // ── Sanitize input on change ────────────────────────────────────────────────
 
   const handleInputChange = useCallback((t: string) => {
     setInputText(t.replace(/<[^>]*>/g, '').slice(0, 500));
   }, []);
 
-  // ── Determine if suggestions should show ──────────────────────────────────
+  // ── Determine if suggestions should show ───────────────────────────────────
 
-  const showSuggestions = messages.length <= 1 && !loading;
+  const showSuggestions = messages.length <= 2 && !loading;
+
+  // Inverted FlatList: data must be reversed so newest is at index 0
+  const invertedMessages = [...messages].reverse();
 
   return (
     <KeyboardAvoidingView
-      style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
+      style={[styles.screen, { backgroundColor: c.bg }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 44 : 0}
     >
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ── Safe area top ───────────────────────────────────────────────────── */}
+      <View style={{ height: insets.top, backgroundColor: c.bg }} />
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <View
         style={[
           styles.header,
-          { paddingHorizontal: sidePadding, borderBottomColor: c.border },
+          { paddingHorizontal: sidePadding, borderBottomColor: c.border, backgroundColor: c.bg },
         ]}
       >
         <TouchableOpacity
@@ -238,77 +388,172 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
             haptics.light();
             navigation.goBack();
           }}
-          style={[styles.backBtn, { backgroundColor: c.surface }]}
-          accessibilityLabel="Volver"
+          style={[styles.headerBtn, { backgroundColor: c.surface }]}
+          accessibilityLabel="Volver a la pantalla anterior"
           accessibilityRole="button"
-          accessibilityHint="Regresa a la pantalla anterior"
+          accessibilityHint="Cierra el chat del coach"
         >
           <Ionicons name="chevron-back" size={22} color={c.black} />
         </TouchableOpacity>
+
         <View style={styles.headerCenter}>
           <View style={styles.headerTitleRow}>
             <View style={[styles.onlineDot, { backgroundColor: c.success }]} />
-            <Text style={[styles.headerTitle, { color: c.black }]}>AI Coach</Text>
+            <Text style={[styles.headerTitle, { color: c.black }]} accessibilityRole="header">
+              AI Coach
+            </Text>
           </View>
           <Text style={[styles.headerSubtitle, { color: c.gray }]}>
             Nutricion personalizada
           </Text>
         </View>
-        <View style={styles.backBtn} />
+
+        {/* Menu button */}
+        <TouchableOpacity
+          onPress={() => {
+            haptics.light();
+            setShowMenu((v) => !v);
+          }}
+          style={[styles.headerBtn, { backgroundColor: c.surface }]}
+          accessibilityLabel="Menu de opciones del chat"
+          accessibilityRole="button"
+          accessibilityHint="Abre opciones como borrar historial"
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color={c.black} />
+        </TouchableOpacity>
       </View>
 
-      {/* ── Messages ───────────────────────────────────────────────────────── */}
+      {/* ── Dropdown menu ───────────────────────────────────────────────────── */}
+      {showMenu && (
+        <View
+          style={[
+            styles.dropdownMenu,
+            shadows.md,
+            { backgroundColor: c.surface, borderColor: c.border, right: sidePadding },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              setShowMenu(false);
+              haptics.light();
+              track('coach_human_support_tapped');
+              Linking.openURL('mailto:support@fitsi.app?subject=Soporte%20Fitsi%20App');
+            }}
+            accessibilityLabel="Contactar soporte humano"
+            accessibilityRole="button"
+          >
+            <Ionicons name="headset-outline" size={16} color={c.accent} />
+            <Text style={[styles.menuItemText, { color: c.black }]}>Soporte humano</Text>
+          </TouchableOpacity>
+
+          <View style={[styles.menuDivider, { backgroundColor: c.border }]} />
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={handleClearHistory}
+            accessibilityLabel="Borrar historial de conversacion"
+            accessibilityRole="button"
+          >
+            <Ionicons name="trash-outline" size={16} color={c.protein} />
+            <Text style={[styles.menuItemText, { color: c.protein }]}>Borrar historial</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Tap-away to close menu */}
+      {showMenu && (
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          onPress={() => setShowMenu(false)}
+          activeOpacity={1}
+          accessibilityLabel="Cerrar menu"
+        />
+      )}
+
+      {/* ── Messages (inverted FlatList) ────────────────────────────────────── */}
       <FlatList
         ref={flatListRef}
-        data={messages}
+        data={invertedMessages}
         keyExtractor={chatKeyExtractor}
         renderItem={renderChatItem}
+        inverted
         contentContainerStyle={[
           styles.messageList,
           { paddingHorizontal: sidePadding },
         ]}
         showsVerticalScrollIndicator={false}
-        removeClippedSubviews={true}
+        removeClippedSubviews
         scrollEventThrottle={16}
-        bounces={true}
+        bounces
         overScrollMode="never"
-        ListFooterComponent={loading ? <TypingIndicator c={c} /> : null}
-        onContentSizeChange={handleContentSizeChange}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        ListHeaderComponent={loading ? <TypingIndicator c={c} /> : null}
         initialNumToRender={20}
         maxToRenderPerBatch={10}
         windowSize={7}
-        ListEmptyComponent={
-          loading ? null : (
+        ListFooterComponent={
+          messages.length === 0 && !loading ? (
             <View style={styles.emptyContainer}>
-              <FitsiMascot expression="happy" size="small" animation="wave" disableTouch />
+              <FitsiMascot expression="happy" size="medium" animation="wave" disableTouch />
+              <Text style={[styles.emptyTitle, { color: c.black }]}>
+                Hola! Soy tu coach de nutricion
+              </Text>
               <Text style={[styles.emptyText, { color: c.gray }]}>
-                Tu coach de nutricion esta listo para ayudarte
+                Preguntame sobre comidas, recetas, tu progreso o cualquier duda de alimentacion.
               </Text>
             </View>
-          )
+          ) : null
         }
       />
 
-      {/* ── Error banner ───────────────────────────────────────────────────── */}
+      {/* ── Error banner ─────────────────────────────────────────────────────── */}
       {error && (
-        <TouchableOpacity
-          style={[styles.errorBanner, { backgroundColor: c.surface }]}
-          onPress={handleDismissError}
-          activeOpacity={0.7}
-          accessibilityLabel="Descartar error"
-          accessibilityRole="button"
+        <View
+          style={[
+            styles.errorBanner,
+            { backgroundColor: c.surface, marginHorizontal: sidePadding },
+          ]}
+          accessibilityRole="alert"
+          accessibilityLabel={`Error: ${error}`}
         >
           <Ionicons name="warning-outline" size={16} color={c.protein} />
           <Text style={[styles.errorText, { color: c.protein }]} numberOfLines={2}>
             {error}
           </Text>
-          <Ionicons name="close" size={14} color={c.gray} />
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleRetry}
+            style={[styles.retryBtn, { backgroundColor: c.accent + '18' }]}
+            accessibilityLabel="Reintentar enviar mensaje"
+            accessibilityRole="button"
+          >
+            <Text style={[styles.retryText, { color: c.accent }]}>Reintentar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDismissError}
+            accessibilityLabel="Descartar error"
+            accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close" size={16} color={c.gray} />
+          </TouchableOpacity>
+        </View>
       )}
 
-      {/* ── Quick suggestions ──────────────────────────────────────────────── */}
+      {/* ── Quick suggestions (horizontal scroll) ────────────────────────────── */}
       {showSuggestions && (
-        <View style={[styles.suggestionsRow, { paddingHorizontal: sidePadding }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.suggestionsRow,
+            { paddingHorizontal: sidePadding },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          accessibilityLabel="Sugerencias rapidas"
+          accessibilityRole="scrollbar"
+        >
           {SUGGESTIONS.map((s) => (
             <TouchableOpacity
               key={s.label}
@@ -317,9 +562,9 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
                 { backgroundColor: c.surface, borderColor: c.grayLight },
               ]}
               onPress={() => handleSuggestion(s.label)}
-              accessibilityLabel={s.label}
+              accessibilityLabel={`Sugerencia: ${s.label}`}
               accessibilityRole="button"
-              accessibilityHint="Envia esta pregunta sugerida al coach"
+              accessibilityHint="Envia esta pregunta al coach"
               activeOpacity={0.7}
             >
               <Ionicons name={s.icon} size={14} color={c.accent} />
@@ -328,32 +573,10 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       )}
 
-      {/* ── Human support link ─────────────────────────────────────────────── */}
-      <TouchableOpacity
-        style={[
-          styles.humanSupportBtn,
-          { borderTopColor: c.border, backgroundColor: c.bg },
-        ]}
-        onPress={() => {
-          haptics.light();
-          track('coach_human_support_tapped');
-          Linking.openURL('mailto:support@fitsi.app?subject=Soporte%20Fitsi%20App');
-        }}
-        activeOpacity={0.7}
-        accessibilityLabel="Hablar con soporte humano"
-        accessibilityRole="button"
-        accessibilityHint="Abre tu email para contactar al equipo de soporte"
-      >
-        <Ionicons name="headset-outline" size={16} color={c.accent} />
-        <Text style={[styles.humanSupportText, { color: c.accent }]}>
-          Hablar con soporte humano
-        </Text>
-      </TouchableOpacity>
-
-      {/* ── Input bar ──────────────────────────────────────────────────────── */}
+      {/* ── Input bar ────────────────────────────────────────────────────────── */}
       <View
         style={[
           styles.inputContainer,
@@ -368,7 +591,14 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
         <View style={styles.inputRow}>
           <TextInput
             ref={inputRef}
-            style={[styles.input, { backgroundColor: c.surface, color: c.black }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: c.surface,
+                color: c.black,
+                borderColor: inputText.length > 0 ? c.accent + '60' : 'transparent',
+              },
+            ]}
             value={inputText}
             onChangeText={handleInputChange}
             placeholder="Escribe tu pregunta..."
@@ -379,41 +609,47 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
             onSubmitEditing={() => handleSend(inputText)}
             blurOnSubmit={false}
             editable={!loading}
-            accessibilityLabel="Campo de mensaje"
-            accessibilityHint="Escribe una pregunta para tu coach de nutricion"
+            accessibilityLabel="Campo de mensaje al coach"
+            accessibilityHint="Escribe tu pregunta de nutricion aqui"
           />
           <TouchableOpacity
             onPress={() => handleSend(inputText)}
             style={[
               styles.sendBtn,
               {
-                backgroundColor:
-                  inputText.trim() && !loading ? c.accent : c.surface,
+                backgroundColor: inputText.trim() && !loading ? c.accent : c.surface,
               },
             ]}
             disabled={!inputText.trim() || loading}
-            accessibilityLabel="Enviar mensaje"
+            accessibilityLabel="Enviar mensaje al coach"
             accessibilityRole="button"
-            accessibilityHint="Envia tu pregunta al coach de nutricion"
+            accessibilityHint="Envia tu pregunta de nutricion"
+            accessibilityState={{ disabled: !inputText.trim() || loading }}
             activeOpacity={0.7}
           >
-            {loading ? (
-              <ActivityIndicator size="small" color={c.disabled} />
-            ) : (
-              <Ionicons
-                name="send"
-                size={18}
-                color={inputText.trim() ? colors.white : c.disabled}
-              />
-            )}
+            <Ionicons
+              name="send"
+              size={18}
+              color={inputText.trim() && !loading ? colors.white : c.disabled}
+            />
           </TouchableOpacity>
         </View>
+
+        {/* Character counter — shown only when approaching limit */}
+        {inputText.length > 400 && (
+          <Text
+            style={[styles.charCounter, { color: inputText.length > 480 ? c.protein : c.disabled }]}
+            accessibilityLabel={`${500 - inputText.length} caracteres restantes`}
+          >
+            {500 - inputText.length} restantes
+          </Text>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   screen: {
@@ -425,9 +661,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: spacing.sm,
+    zIndex: 10,
   },
-  backBtn: {
+  headerBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -456,10 +694,36 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  // Messages
+  // Dropdown menu
+  dropdownMenu: {
+    position: 'absolute',
+    top: 68,
+    minWidth: 200,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    zIndex: 100,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
+  },
+  menuItemText: {
+    ...typography.bodyMd,
+  },
+  menuDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.md,
+  },
+
+  // Messages list
   messageList: {
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
+    flexGrow: 1,
   },
   bubbleRow: {
     flexDirection: 'row',
@@ -473,15 +737,16 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   avatarContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.xs,
+    overflow: 'hidden',
   },
   bubble: {
-    maxWidth: '75%',
+    maxWidth: '78%',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     borderRadius: radius.xl,
@@ -503,27 +768,31 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 
-  // Typing indicator
+  // Typing indicator bubble
   typingBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  typingText: {
-    ...typography.caption,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
 
   // Empty state
+  // Note: ListFooterComponent in inverted FlatList renders at the top of the screen.
+  // scaleY: -1 counter-rotates text to appear upright.
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxl,
     gap: spacing.md,
+    transform: [{ scaleY: -1 }],
+  },
+  emptyTitle: {
+    ...typography.titleSm,
+    textAlign: 'center',
   },
   emptyText: {
     ...typography.subtitle,
     textAlign: 'center',
-    maxWidth: 240,
+    maxWidth: 260,
+    lineHeight: 20,
   },
 
   // Error banner
@@ -531,23 +800,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginHorizontal: spacing.lg,
     marginBottom: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     borderRadius: radius.md,
   },
   errorText: {
     ...typography.caption,
     flex: 1,
   },
+  retryBtn: {
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  retryText: {
+    ...typography.label,
+  },
 
   // Suggestions
   suggestionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingRight: spacing.md,
   },
   suggestionChip: {
     flexDirection: 'row',
@@ -563,23 +838,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Human support
-  humanSupportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs + 2,
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-  },
-  humanSupportText: {
-    ...typography.caption,
-    fontWeight: '600',
-  },
-
-  // Input
+  // Input bar
   inputContainer: {
-    borderTopWidth: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: spacing.sm,
   },
   inputRow: {
@@ -590,17 +851,25 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     borderRadius: radius.xl,
+    borderWidth: 1.5,
     paddingHorizontal: spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? spacing.sm + 2 : spacing.sm,
+    paddingTop: Platform.OS === 'ios' ? spacing.sm + 2 : spacing.sm,
+    paddingBottom: Platform.OS === 'ios' ? spacing.sm + 2 : spacing.sm,
     ...typography.body,
-    maxHeight: 100,
-    minHeight: 40,
+    maxHeight: 120,
+    minHeight: 44,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  charCounter: {
+    ...typography.caption,
+    textAlign: 'right',
+    marginTop: spacing.xs,
+    marginRight: spacing.xs,
   },
 });

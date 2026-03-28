@@ -55,6 +55,18 @@ from app.models.nutrition_tip import NutritionTip
 from app.models.recipe import Recipe
 
 
+# ─── SQLite ↔ PostgreSQL compatibility ────────────────────────────────────────
+# AuditLog and AdminActionLog use JSONB (PostgreSQL-only).
+# Patch columns once at import time so SQLite can render them as JSON.
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+from sqlalchemy import JSON as SA_JSON
+
+for _tbl in SQLModel.metadata.tables.values():
+    for _col in _tbl.columns:
+        if isinstance(_col.type, PG_JSONB):
+            _col.type = SA_JSON()
+
+
 # ─── Async test engine ────────────────────────────────────────────────────────
 
 TEST_ASYNC_URL = "sqlite+aiosqlite:///:memory:"
@@ -118,14 +130,15 @@ async def client_fixture(async_engine) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_session] = _override_get_session
 
-    # Patch Redis calls to prevent connection errors in tests
+    # Patch Redis calls to prevent connection errors in tests.
+    # cache._redis() imports get_redis from token_store internally, so
+    # patching token_store.get_redis is sufficient for both modules.
     with patch("app.core.token_store.get_redis") as mock_redis:
         redis_mock = _create_redis_mock()
         mock_redis.return_value = redis_mock
-        with patch("app.core.cache.get_redis", return_value=redis_mock):
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                yield ac
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
 
     app.dependency_overrides.clear()
 

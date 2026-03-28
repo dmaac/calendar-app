@@ -38,6 +38,26 @@ from .progress import (
     UserRewardRedemption,
 )
 from .food_recommendation import MealTemplate, MealIngredient, UserMealRecommendation
+from .notification_schedule import NotificationSchedule
+from .notification_log import NotificationLog
+from .calorie_adjustment import CalorieAdjustment, WeightLog
+from .audit_log import AuditLog
+from .mixins import SoftDeleteMixin
+from .data_integrity_snapshot import DataIntegritySnapshot
+from .backup_registry import BackupRegistry
+from .coach_conversation import CoachConversation
+from .coach_cost_log import CoachCostLog
+from .admin_error_log import AdminErrorLog
+from .admin_action_log import AdminActionLog
+
+# Register soft-delete protected models so the recovery API can find them.
+from ..services.data_protection_service import register_protected_model as _reg
+_reg(AIFoodLog)
+_reg(DailyNutritionSummary)
+_reg(OnboardingProfile)
+_reg(UserFoodFavorite)
+_reg(WeightLog)
+del _reg
 
 __all__ = [
     "User",
@@ -81,4 +101,15 @@ __all__ = [
     "MealTemplate",
     "MealIngredient",
     "UserMealRecommendation",
+    "NotificationSchedule",
+    "NotificationLog",
+    "CalorieAdjustment",
+    "WeightLog",
+    "AuditLog",
+    "DataIntegritySnapshot",
+    "BackupRegistry",
+    "CoachConversation",
+    "CoachCostLog",
+    "AdminErrorLog",
+    "AdminActionLog",
 ]

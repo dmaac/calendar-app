@@ -421,6 +421,13 @@ export interface WaterLogResponse {
  * IMPORTANT: Field names use _g suffix for macros (e.g. total_protein_g, target_fats_g).
  * This differs from legacy DailySummaryResponse which uses total_protein, target_fat etc.
  */
+export interface DashboardExerciseEntry {
+  name: string;
+  duration: number;
+  calories: number;
+  workout_type: string;
+}
+
 export interface DashboardResponse {
   date: string;                      // YYYY-MM-DD
   total_calories: number;
@@ -434,6 +441,14 @@ export interface DashboardResponse {
   meals_logged: number;
   streak_days: number;
   water_ml: number;
+  /** Calories burned through exercise today. */
+  calories_burned_exercise: number;
+  /** target - consumed + burned. */
+  calories_remaining: number;
+  /** consumed - burned. */
+  net_calories: number;
+  /** List of exercises performed today. */
+  exercises_today: DashboardExerciseEntry[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

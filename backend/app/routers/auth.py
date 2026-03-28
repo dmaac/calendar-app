@@ -9,6 +9,7 @@ from ..core.security import create_access_token, verify_token, validate_password
 from ..models.user import User, UserCreate, UserRead
 from ..services.user_service import UserService
 from ..schemas.auth import Token, RefreshRequest, AppleAuthRequest, GoogleAuthRequest
+from ..schemas.api_responses import AuthTokenResponse, LogoutResponse, AccountDeletedResponse
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,13 @@ _is_testing = _os.getenv("ENV", "").lower() in ("test", "testing")
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address
-    _limiter = Limiter(key_func=get_remote_address)
+    # SEC: Use in-memory storage as default so rate limiting works even when
+    # Redis is unavailable. slowapi defaults to in-memory when no storage
+    # backend is configured, which is the correct fail-closed behavior.
+    _limiter = Limiter(
+        key_func=get_remote_address,
+        storage_uri="memory://",
+    )
     _rate_limit_enabled = not _is_testing
 except ImportError:
     _rate_limit_enabled = False
@@ -45,6 +52,9 @@ async def get_current_user(
         raise credentials_exception
 
     # SEC: Async blacklist check — verify access token JTI is not revoked
+    # FAIL-CLOSED: if blacklist check fails (e.g. Redis down), deny access.
+    # The token_store.is_access_token_blacklisted already returns True on
+    # Redis errors, but we also guard against JWT decode or import failures.
     try:
         from jose import jwt
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
@@ -56,7 +66,8 @@ async def get_current_user(
     except HTTPException:
         raise
     except Exception:
-        pass  # SEC: Redis unavailable — degrade gracefully
+        logger.warning("Blacklist check failed — denying access (fail-closed)")
+        raise credentials_exception
 
     user_service = UserService(session)
     # sub is always the numeric user.id (since unified login)
@@ -77,7 +88,22 @@ async def get_current_user(
     return user
 
 
-@router.post("/register", response_model=UserRead)
+@router.post(
+    "/register",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user account",
+    description=(
+        "Create a new user account with email and password. "
+        "Password must meet strength requirements (min 8 chars, mixed case, digit). "
+        "Rate limited to 5 requests per minute per IP."
+    ),
+    responses={
+        201: {"description": "User created successfully"},
+        409: {"description": "Email already in use"},
+        422: {"description": "Validation error (weak password or invalid input)"},
+    },
+)
 @_rl("5/minute")  # SEC: Rate limit registration to prevent enumeration/spam
 async def register_user(
     request: Request,
@@ -104,20 +130,41 @@ async def register_user(
             detail="Unable to create account. Please try again or use a different email.",
         )
 
-    user = await user_service.create_user(user_create)
+    try:
+        user = await user_service.create_user(user_create)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("User registration failed for email=%s", user_create.email)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed. Please try again later.",
+        )
     return user
 
 
 def _get_client_ip(request: Request) -> str:
-    """Extract real client IP, respecting X-Forwarded-For from trusted proxies."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    """Extract real client IP, only trusting X-Forwarded-For from known proxies."""
+    from ..core.ip_utils import get_client_ip
+    return get_client_ip(request)
 
 
-@router.post("/login", response_model=Token)
-@_rl("10/minute")  # SEC: Rate limit login to mitigate brute force
+@router.post(
+    "/login",
+    response_model=AuthTokenResponse,
+    summary="Authenticate with email and password",
+    description=(
+        "Authenticate using OAuth2 password flow. Returns access and refresh tokens. "
+        "After 5 failed attempts the account is locked for 15 minutes. "
+        "Rate limited to 5 requests per minute per IP."
+    ),
+    responses={
+        200: {"description": "Login successful, tokens returned"},
+        401: {"description": "Invalid credentials"},
+        429: {"description": "Account locked due to too many failed attempts"},
+    },
+)
+@_rl("5/minute")  # SEC: Rate limit login to mitigate brute force (matches register)
 async def login_user(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -204,7 +251,21 @@ async def login_user(
     }
 
 
-@router.post("/refresh")
+@router.post(
+    "/refresh",
+    response_model=AuthTokenResponse,
+    summary="Refresh access token",
+    description=(
+        "Exchange a valid refresh token for a new access/refresh token pair. "
+        "Implements rolling refresh: the old refresh token is revoked. "
+        "Reuse of a revoked refresh token triggers revocation of ALL user tokens "
+        "(token theft detection). Rate limited to 20 requests per minute per IP."
+    ),
+    responses={
+        200: {"description": "New token pair issued"},
+        401: {"description": "Invalid or revoked refresh token"},
+    },
+)
 @_rl("20/minute")  # SEC: Rate limit refresh to prevent token stuffing
 async def refresh_token(
     request: Request,
@@ -243,7 +304,19 @@ async def refresh_token(
     return {"access_token": access_token, "refresh_token": new_refresh, "token_type": "bearer"}
 
 
-@router.post("/logout")
+@router.post(
+    "/logout",
+    response_model=LogoutResponse,
+    summary="Log out and revoke tokens",
+    description=(
+        "Invalidate both the current access token and the provided refresh token. "
+        "The access token is blacklisted so it cannot be reused. "
+        "Best-effort: returns success even if Redis is temporarily unavailable."
+    ),
+    responses={
+        200: {"description": "Logout successful"},
+    },
+)
 async def logout(
     body: RefreshRequest,
     token: str = Depends(oauth2_scheme),
@@ -273,7 +346,19 @@ async def logout(
     return {"message": "Logged out successfully"}
 
 
-@router.post("/apple")
+@router.post(
+    "/apple",
+    response_model=AuthTokenResponse,
+    summary="Sign in with Apple",
+    description=(
+        "Authenticate or register using an Apple identity token (Sign in with Apple). "
+        "Creates the user account on first login. Rate limited to 10 requests per minute per IP."
+    ),
+    responses={
+        200: {"description": "Authentication successful, tokens returned"},
+        401: {"description": "Invalid Apple identity token"},
+    },
+)
 @_rl("10/minute")
 async def apple_login(
     request: Request,
@@ -284,18 +369,31 @@ async def apple_login(
     from ..core.security import create_access_token, create_refresh_token, verify_refresh_token
     from ..core.token_store import save_refresh_token
 
-    claims = await verify_apple_token(body.identity_token)
+    try:
+        claims = await verify_apple_token(body.identity_token)
+    except Exception:
+        logger.exception("Apple token verification error")
+        raise HTTPException(status_code=401, detail="Apple authentication failed")
     if not claims:
         raise HTTPException(status_code=401, detail="Invalid Apple token")
 
-    user = await upsert_oauth_user(
-        session=session,
-        provider="apple",
-        provider_id=claims["sub"],
-        email=claims.get("email", ""),
-        first_name=body.first_name,
-        last_name=body.last_name,
-    )
+    try:
+        user = await upsert_oauth_user(
+            session=session,
+            provider="apple",
+            provider_id=claims["sub"],
+            email=claims.get("email", ""),
+            first_name=body.first_name,
+            last_name=body.last_name,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Apple OAuth user upsert failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication failed. Please try again later.",
+        )
 
     access_token = create_access_token({"sub": str(user.id)})
     refresh_token_str = create_refresh_token({"sub": str(user.id)})
@@ -308,7 +406,19 @@ async def apple_login(
     return {"access_token": access_token, "refresh_token": refresh_token_str, "token_type": "bearer", "user_id": user.id}
 
 
-@router.post("/google")
+@router.post(
+    "/google",
+    response_model=AuthTokenResponse,
+    summary="Sign in with Google",
+    description=(
+        "Authenticate or register using a Google ID token (Google Sign-In). "
+        "Creates the user account on first login. Rate limited to 10 requests per minute per IP."
+    ),
+    responses={
+        200: {"description": "Authentication successful, tokens returned"},
+        401: {"description": "Invalid Google ID token"},
+    },
+)
 @_rl("10/minute")
 async def google_login(
     request: Request,
@@ -319,18 +429,31 @@ async def google_login(
     from ..core.security import create_access_token, create_refresh_token, verify_refresh_token
     from ..core.token_store import save_refresh_token
 
-    claims = await verify_google_token(body.id_token, settings.google_client_id)
+    try:
+        claims = await verify_google_token(body.id_token, settings.google_client_id)
+    except Exception:
+        logger.exception("Google token verification error")
+        raise HTTPException(status_code=401, detail="Google authentication failed")
     if not claims:
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
-    user = await upsert_oauth_user(
-        session=session,
-        provider="google",
-        provider_id=claims.get("sub", claims.get("user_id", "")),
-        email=claims.get("email", ""),
-        first_name=claims.get("given_name"),
-        last_name=claims.get("family_name"),
-    )
+    try:
+        user = await upsert_oauth_user(
+            session=session,
+            provider="google",
+            provider_id=claims.get("sub", claims.get("user_id", "")),
+            email=claims.get("email", ""),
+            first_name=claims.get("given_name"),
+            last_name=claims.get("family_name"),
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Google OAuth user upsert failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication failed. Please try again later.",
+        )
 
     access_token = create_access_token({"sub": str(user.id)})
     refresh_token_str = create_refresh_token({"sub": str(user.id)})
@@ -343,28 +466,81 @@ async def google_login(
     return {"access_token": access_token, "refresh_token": refresh_token_str, "token_type": "bearer", "user_id": user.id}
 
 
-@router.get("/me", response_model=UserRead)
+@router.get(
+    "/me",
+    response_model=UserRead,
+    summary="Get current user profile",
+    description="Return the profile of the currently authenticated user.",
+    responses={
+        200: {"description": "User profile"},
+        401: {"description": "Not authenticated or token expired"},
+    },
+)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.delete("/me", status_code=status.HTTP_200_OK)
+@router.delete(
+    "/me",
+    response_model=AccountDeletedResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Delete own account (GDPR Art. 17)",
+    description=(
+        "Soft-delete the authenticated user's account. Deactivates the account, "
+        "scrubs PII (email, name, password, provider ID), and marks the record as deleted. "
+        "Actual data purge happens via a background job within 30 days."
+    ),
+    responses={
+        200: {"description": "Account deactivated and PII scrubbed"},
+        500: {"description": "Deletion failed"},
+    },
+)
 async def delete_account(
     current_user: User = Depends(get_current_user),
+    token: str = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_session),
 ):
     """
-    GDPR Article 17 — Right to erasure.
-    Deactivates account and scrubs PII. Actual data purge can be done
-    via a background job within 30 days (legal retention period).
+    GDPR Article 17 -- Right to erasure.
+    Deactivates account, scrubs PII, and revokes all tokens.
+    Actual data purge can be done via a background job within 30 days
+    (legal retention period).
     """
-    current_user.is_active = False
-    current_user.email = f"deleted_{current_user.id}@removed.fitsiai.com"
-    current_user.first_name = None
-    current_user.last_name = None
-    current_user.hashed_password = None
-    current_user.provider_id = None
-    session.add(current_user)
-    await session.commit()
+    try:
+        current_user.is_active = False
+        current_user.email = f"deleted_{current_user.id}@removed.fitsiai.com"
+        current_user.first_name = None
+        current_user.last_name = None
+        current_user.hashed_password = None
+        current_user.provider_id = None
+        session.add(current_user)
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        logger.exception("Account deletion failed for user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Account deletion failed. Please try again later.",
+        )
+
+    # SEC: Revoke all tokens so no existing JWT can access the deleted account
+    try:
+        from ..core.token_store import revoke_all_user_tokens, blacklist_access_token
+        await revoke_all_user_tokens(current_user.id)
+        # Also blacklist the current access token for its remaining lifetime
+        from jose import jwt as jose_jwt
+        try:
+            access_payload = jose_jwt.decode(
+                token, settings.secret_key, algorithms=[settings.algorithm]
+            )
+            access_jti = access_payload.get("jti")
+            if access_jti:
+                ttl = settings.access_token_expire_minutes * 60
+                await blacklist_access_token(access_jti, ttl_seconds=ttl)
+        except Exception:
+            pass  # Token may already be expired
+    except Exception:
+        logger.warning("Could not revoke tokens for deleted user_id=%s (Redis unavailable)", current_user.id)
+
     logger.info("Account %s deleted (soft) per user request", current_user.id)
     return {"detail": "Account deleted successfully"}

@@ -1,13 +1,24 @@
 {
   "hooks": {
-    "SessionStart": [
+    "PreToolUse": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/marco/calendar-app/.claude/scripts/session-start.sh 2>/dev/null || true",
-            "timeout": 10,
-            "statusMessage": "Cargando estado y memoria compartida..."
+            "command": "python3 /Users/miguelignaciovalenzuelaparada/apps/fitsi/agent-dashboard/agent_hook.py pre_tool",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/miguelignaciovalenzuelaparada/apps/fitsi/agent-dashboard/agent_hook.py post_tool",
+            "timeout": 3
           }
         ]
       }
@@ -17,22 +28,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/marco/calendar-app/.claude/scripts/session-stop.sh 2>/dev/null || true",
-            "timeout": 10,
-            "statusMessage": "Guardando checkpoint de sesión..."
+            "command": "python3 /Users/miguelignaciovalenzuelaparada/apps/fitsi/agent-dashboard/agent_hook.py stop",
+            "timeout": 3
           }
         ]
       }
     ],
-    "PostToolUse": [
+    "SubagentStop": [
       {
-        "matcher": "Bash|Write|Edit|Read|Glob|Grep|Agent",
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/marco/calendar-app/.claude/scripts/token-tracker.sh 2>/dev/null || true",
-            "timeout": 5,
-            "async": true
+            "command": "python3 /Users/miguelignaciovalenzuelaparada/apps/fitsi/agent-dashboard/agent_hook.py subagent_stop",
+            "timeout": 3
           }
         ]
       }

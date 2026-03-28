@@ -7,7 +7,7 @@
 
 export interface AnalyticsEvent {
   event: string;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -16,12 +16,12 @@ const MAX_BUFFER_SIZE = 100;
 class AnalyticsService {
   private buffer: AnalyticsEvent[] = [];
   private userId: string | null = null;
-  private userTraits: Record<string, any> = {};
+  private userTraits: Record<string, unknown> = {};
 
   // ── Core API ───────────────────────────────────────────────────────────────
 
   /** Track a named event with optional properties */
-  track(event: string, properties?: Record<string, any>): void {
+  track(event: string, properties?: Record<string, unknown>): void {
     const entry: AnalyticsEvent = {
       event,
       properties: {
@@ -36,7 +36,7 @@ class AnalyticsService {
   }
 
   /** Identify a user for all subsequent events */
-  identify(userId: string, traits?: Record<string, any>): void {
+  identify(userId: string, traits?: Record<string, unknown>): void {
     this.userId = userId;
     if (traits) {
       this.userTraits = { ...this.userTraits, ...traits };
@@ -50,7 +50,7 @@ class AnalyticsService {
   }
 
   /** Track a screen view */
-  screen(screenName: string, properties?: Record<string, any>): void {
+  screen(screenName: string, properties?: Record<string, unknown>): void {
     this.track('screen_viewed', { screen_name: screenName, ...properties });
   }
 

@@ -39,12 +39,19 @@ async def send_notification_async(user_id: int, title: str, body: str):
 
 
 # ─── Daily summary aggregation ──────────────────────────────────────────────
+# DEPRECATED: For batch processing, prefer nightly_daily_summaries() in
+# app.services.batch_jobs which aggregates ALL users in a single SQL query.
+# This per-user function is kept for inline use from routes (e.g., after
+# a food log is created).
 
 async def calculate_daily_summary_async(user_id: int, summary_date: date):
-    """Aggregate food logs into a daily nutrition summary.
+    """Aggregate food logs into a daily nutrition summary for a single user.
 
     Computes totals for calories, macros, and meal count, then upserts
     into the daily_nutrition_summary table. Also updates the cache.
+
+    For nightly batch processing, use ``app.services.batch_jobs.nightly_daily_summaries``
+    which handles all users in a single GROUP BY query.
     """
     from app.core.database import AsyncSessionLocal
     from app.core.cache import cache_set, daily_summary_key, CACHE_TTL
@@ -181,3 +188,52 @@ async def start_periodic_cleanup(interval_hours: int = 24):
     while True:
         await asyncio.sleep(interval_hours * 3600)
         await cleanup_expired_tokens_async()
+
+
+async def start_nightly_batch_jobs(run_hour_utc: int = 4):
+    """Run all nightly batch jobs once per day at *run_hour_utc* (default 04:00 UTC).
+
+    Designed to be launched as a background coroutine from app lifespan::
+
+        import asyncio
+        asyncio.create_task(start_nightly_batch_jobs(run_hour_utc=4))
+
+    Jobs executed (in order):
+    1. Daily nutrition summary aggregation (single SQL, all users)
+    2. Nutrition risk/adherence recalculation
+    3. Streak evaluation (timezone-aware)
+    4. Smart notification dispatch
+
+    Each job has its own timeout, error isolation, dead letter queue,
+    and metrics tracking. See ``app.services.batch_jobs`` for details.
+    """
+    import asyncio
+    from datetime import datetime as dt, timezone as tz
+
+    while True:
+        now = dt.now(tz.utc)
+        # Calculate seconds until the next run_hour_utc
+        target = now.replace(hour=run_hour_utc, minute=0, second=0, microsecond=0)
+        if now >= target:
+            target += __import__("datetime").timedelta(days=1)
+        wait_seconds = (target - now).total_seconds()
+
+        logger.info(
+            "NIGHTLY: next batch run at %s (in %.0f seconds)",
+            target.isoformat(), wait_seconds,
+        )
+        await asyncio.sleep(wait_seconds)
+
+        logger.info("NIGHTLY: starting batch run")
+        try:
+            from app.core.database import AsyncSessionLocal
+            from app.services.batch_jobs import run_all_nightly_jobs
+
+            async with AsyncSessionLocal() as session:
+                report = await run_all_nightly_jobs(session)
+                logger.info(
+                    "NIGHTLY: batch run complete in %.1fms",
+                    report.get("total_duration_ms", 0),
+                )
+        except Exception as exc:
+            logger.error("NIGHTLY: batch run failed -- %s", exc)

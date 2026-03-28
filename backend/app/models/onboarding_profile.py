@@ -1,16 +1,27 @@
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, ForeignKey, Integer
 from typing import Optional, TYPE_CHECKING
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+
+from .mixins import SoftDeleteMixin
 
 if TYPE_CHECKING:
     from .user import User
 
 
-class OnboardingProfile(SQLModel, table=True):
+class OnboardingProfile(SoftDeleteMixin, SQLModel, table=True):
     __tablename__ = "onboarding_profile"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", unique=True, index=True)
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+            unique=True,
+            index=True,
+        ),
+    )
 
     # Step 3 - Gender
     gender: Optional[str] = Field(default=None)
@@ -69,8 +80,18 @@ class OnboardingProfile(SQLModel, table=True):
     daily_fats_g: Optional[int] = Field(default=None)
     health_score: Optional[float] = Field(default=None)
 
+    # Fasting & intervention controls
+    fasting_allowed: bool = Field(default=False)
+    interventions_paused: bool = Field(default=False)
+
     completed_at: Optional[datetime] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     user: "User" = Relationship(back_populates="onboarding_profile")
+
+    def __repr__(self) -> str:
+        return (
+            f"<OnboardingProfile id={self.id} user={self.user_id} "
+            f"goal={self.goal!r} completed={self.completed_at is not None}>"
+        )

@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-03-23T01:18:23.887992+00:00",
+  "base_url": "http://127.0.0.1:8000",
+  "tests_run": [
+    "admin_boundary_check"
+  ],
+  "total_vulnerabilities": 0,
+  "results": [
+    {
+      "name": "admin_boundary_check",
+      "passed": false,
+      "duration_seconds": 0.06453195799986133,
+      "total_requests": 1,
+      "successful_requests": 0,
+      "failed_requests": 0,
+      "vulnerabilities": [],
+      "details": {},
+      "errors": [
+        "Could not login as regular user for admin boundary test"
+      ]
+    }
+  ]
+}

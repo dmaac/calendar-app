@@ -655,6 +655,7 @@ function FoodSearchInner({ onLogged, mealType = 'snack', inline = false }: FoodS
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           style={s.resultsList}
           contentContainerStyle={s.resultsContent}
           ListEmptyComponent={
