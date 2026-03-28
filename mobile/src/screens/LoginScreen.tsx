@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography, spacing, radius, useLayout } from '../theme';
-import FitsiMascot from '../components/FitsiMascot';
+// FitsiMascot removed — using Ionicons icon instead
 
 interface LoginScreenProps {
   navigation: any;
@@ -63,7 +63,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       >
         {/* Logo + título */}
         <View style={styles.header}>
-          <FitsiMascot expression="strong" size="hero" animation="bounce" />
+          <Ionicons name="nutrition" size={64} color={colors.accent} style={{ marginBottom: 12 }} />
           <Text style={styles.appName}>Fitsi AI</Text>
           <Text style={styles.appTagline}>Tu asistente de nutrición con IA</Text>
         </View>
