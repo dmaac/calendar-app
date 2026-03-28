@@ -39,6 +39,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import type { HomeStackScreenProps } from '../../navigation/types';
 import {
   lookupBarcode,
   BarcodeProduct,
@@ -160,7 +161,7 @@ function getTimeAgo(isoDate: string): string {
 
 // ─── Main component ─────────────────────────────────────────────────────────
 
-export default function BarcodeScreen({ navigation, route }: any) {
+export default function BarcodeScreen({ navigation, route }: HomeStackScreenProps<'Barcode'>) {
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
   const c = useThemeColors();
@@ -170,7 +171,7 @@ export default function BarcodeScreen({ navigation, route }: any) {
   const [state, setState] = useState<ScreenState>('scanning');
   const [product, setProduct] = useState<BarcodeProduct | null>(null);
   const [servings, setServings] = useState(1);
-  const [selectedMeal, setSelectedMeal] = useState<MealType>(route?.params?.mealType ?? 'lunch');
+  const [selectedMeal, setSelectedMeal] = useState<MealType>((route?.params?.mealType as MealType) ?? 'lunch');
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
@@ -339,7 +340,7 @@ export default function BarcodeScreen({ navigation, route }: any) {
         calories: Math.round(product.calories * servings),
       });
       confirmTimerRef.current = setTimeout(() => {
-        navigation.navigate('Registro');
+        navigation.navigate('Registro', { screen: 'LogMain' });
       }, 1800);
     } catch {
       haptics.error();

@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
-import FitsiMascot from '../../components/FitsiMascot';
 
 // ─── FAQ Data ───────────────────────────────────────────────────────────────
 
@@ -164,16 +163,6 @@ export default function HelpScreen({ navigation }: any) {
         overScrollMode="never"
         contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
       >
-        {/* Fitsi greeting */}
-        <View style={styles.mascotRow}>
-          <FitsiMascot expression="doctor" size="small" animation="idle" />
-          <View style={styles.mascotBubble}>
-            <Text style={[styles.mascotText, { color: c.black, backgroundColor: c.surface }]}>
-              En que puedo ayudarte?
-            </Text>
-          </View>
-        </View>
-
         {/* Quick actions */}
         <View style={styles.actionsRow}>
           <TouchableOpacity

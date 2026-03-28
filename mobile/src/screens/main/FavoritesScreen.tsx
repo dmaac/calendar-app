@@ -29,7 +29,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout, mealColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
-import FitsiMascot from '../../components/FitsiMascot';
 import { showNotification } from '../../components/InAppNotification';
 import SwipeableRow, { SwipeableRowProvider } from '../../components/SwipeableRow';
 import * as favoritesService from '../../services/favorites.service';
@@ -517,7 +516,6 @@ export default function FavoritesScreen({ navigation }: any) {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: c.black }]}>Mis Favoritos</Text>
-          <FitsiMascot expression="love" size="small" />
         </View>
         <View style={{ width: 36 }} />
       </View>
@@ -585,7 +583,6 @@ export default function FavoritesScreen({ navigation }: any) {
       {/* Content */}
       {favorites.length === 0 && !loading ? (
         <View style={styles.emptyState}>
-          <FitsiMascot expression="wink" size="medium" />
           <Text style={[styles.emptyTitle, { color: c.black }]}>
             No favorites yet
           </Text>

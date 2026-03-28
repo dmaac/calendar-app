@@ -26,7 +26,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
-import FitsiMascot from '../../components/FitsiMascot';
 import GroceryList from '../../components/GroceryList';
 import { recipes, Recipe, MealType as RecipeMealType } from '../../data/recipes';
 
@@ -644,7 +643,6 @@ export default function MealPlanScreen({ navigation }: any) {
             <Ionicons name="refresh-outline" size={20} color={c.accent} />
           </Animated.View>
         </TouchableOpacity>
-        <FitsiMascot expression="chef" size="small" animation="idle" />
       </View>
 
       {/* Day selector */}

@@ -14,6 +14,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  Alert,
 } from 'react-native';
 import Svg, { Circle, Rect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -322,6 +323,25 @@ export default function WaterTracker({ waterMl, onAdd, goal: goalProp, weightKg 
   const bounceAnim = useRef(new Animated.Value(1)).current;
 
   const handleAdd = useCallback((ml: number) => {
+    const newTotal = waterMl + ml;
+    // Warn if exceeding 150% of goal
+    if (newTotal > goal * 1.5) {
+      Alert.alert(
+        'Agua muy alta',
+        `Ya llevas ${(waterMl / 1000).toFixed(1)}L de ${(goal / 1000).toFixed(1)}L. Beber demasiada agua puede ser peligroso. Seguro que quieres agregar ${ml}ml mas?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Agregar',
+            onPress: () => {
+              haptics.medium();
+              onAdd(ml);
+            },
+          },
+        ],
+      );
+      return;
+    }
     haptics.medium();
     bounceAnim.setValue(1.08);
     Animated.spring(bounceAnim, {
@@ -331,7 +351,7 @@ export default function WaterTracker({ waterMl, onAdd, goal: goalProp, weightKg 
       useNativeDriver: true,
     }).start();
     onAdd(ml);
-  }, [onAdd, bounceAnim]);
+  }, [onAdd, bounceAnim, waterMl, goal]);
 
   // ─── Goal reached haptic ───────────────────────────────────────────
 

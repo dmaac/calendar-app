@@ -31,7 +31,6 @@ import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import ScrollPicker from '../../components/onboarding/ScrollPicker';
 import RulerSlider from '../../components/onboarding/RulerSlider';
 import OptionCard from '../../components/onboarding/OptionCard';
-import FitsiMascot, { FitsiExpression } from '../../components/FitsiMascot';
 
 const TOTAL_STEPS = 7;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -120,17 +119,6 @@ const DEFAULT_PROFILE: OnboardingProfileRead = {
   created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
 };
 
-// ─── Fitsi config per step ───────────────────────────────────────────────────
-const STEP_FITSI: { expression: FitsiExpression; message: string }[] = [
-  { expression: 'wink',     message: 'Revisemos tu perfil juntos!' },
-  { expression: 'neutral',  message: 'Vamos a actualizar tus medidas' },
-  { expression: 'excited',  message: 'Cual es tu objetivo?' },
-  { expression: 'muscle',   message: 'Define tu meta de peso!' },
-  { expression: 'thinking', message: 'A que ritmo quieres avanzar?' },
-  { expression: 'chef',     message: 'Que tipo de dieta sigues?' },
-  { expression: 'party',    message: 'Listo! Revisa tus cambios' },
-];
-
 // ─── Speed helper ────────────────────────────────────────────────────────────
 function clampSpeed(v: number) {
   return Math.max(SPEED_MIN, Math.min(SPEED_MAX, Math.round(v / SPEED_STEP) * SPEED_STEP));
@@ -189,14 +177,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
   const isImperial = unitSystem === 'imperial';
   const { ft, inch } = cmToFtIn(heightCm);
-
-  // ─── Fitsi expression for step 4 (target weight) ──────────────────────────
-  const targetFitsiExpression: FitsiExpression = useMemo(() => {
-    const diff = Math.abs(targetWeightKg - weightKg);
-    if (diff > 20) return 'muscle';
-    if (diff > 5) return 'excited';
-    return 'zen';
-  }, [targetWeightKg, weightKg]);
 
   // ─── Navigation ────────────────────────────────────────────────────────────
   const animateTransition = useCallback((toStep: number) => {
@@ -326,13 +306,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
   const renderStep1BasicData = () => (
     <View style={styles.stepContainer}>
-      <FitsiMascot
-        expression={STEP_FITSI[0].expression}
-        size="medium"
-        animation="wave"
-        message={STEP_FITSI[0].message}
-        style={styles.fitsi}
-      />
       <Text style={[styles.title, { color: c.black }]}>Tus datos basicos</Text>
       <Text style={[styles.subtitle, { color: c.gray }]}>
         Confirma tu nombre para personalizar tu experiencia.
@@ -372,13 +345,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
   const renderStep2Measurements = () => (
     <View style={styles.stepContainer}>
-      <FitsiMascot
-        expression={STEP_FITSI[1].expression}
-        size="medium"
-        animation="idle"
-        message={STEP_FITSI[1].message}
-        style={styles.fitsi}
-      />
       <Text style={[styles.title, { color: c.black }]}>Tu altura y peso</Text>
       <Text style={[styles.subtitle, { color: c.gray }]}>
         Con estos datos calculamos tu metabolismo basal.
@@ -461,13 +427,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
   const renderStep3Goal = () => (
     <View style={styles.stepContainer}>
-      <FitsiMascot
-        expression={STEP_FITSI[2].expression}
-        size="medium"
-        animation="bounce"
-        message={STEP_FITSI[2].message}
-        style={styles.fitsi}
-      />
       <Text style={[styles.title, { color: c.black }]}>Cual es tu objetivo?</Text>
       <Text style={[styles.subtitle, { color: c.gray }]}>
         Esto define tu plan de calorias diarias.
@@ -500,13 +459,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
     return (
       <View style={styles.stepContainer}>
-        <FitsiMascot
-          expression={targetFitsiExpression}
-          size="medium"
-          animation="idle"
-          message={weightDiff}
-          style={styles.fitsi}
-        />
         <Text style={[styles.title, { color: c.black }]}>
           Cual es tu{'\n'}peso deseado?
         </Text>
@@ -527,13 +479,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
   const renderStep5Speed = () => (
     <View style={styles.stepContainer}>
-      <FitsiMascot
-        expression={STEP_FITSI[4].expression}
-        size="medium"
-        animation="thinking"
-        message={STEP_FITSI[4].message}
-        style={styles.fitsi}
-      />
       <Text style={[styles.title, { color: c.black }]}>
         Que tan rapido quieres{'\n'}alcanzar tu objetivo?
       </Text>
@@ -576,13 +521,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
   const renderStep6Diet = () => (
     <View style={styles.stepContainer}>
-      <FitsiMascot
-        expression={STEP_FITSI[5].expression}
-        size="medium"
-        animation="idle"
-        message={STEP_FITSI[5].message}
-        style={styles.fitsi}
-      />
       <Text style={[styles.title, { color: c.black }]}>
         Sigues alguna{'\n'}dieta especifica?
       </Text>
@@ -632,13 +570,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
     return (
       <View style={styles.stepContainer}>
-        <FitsiMascot
-          expression={STEP_FITSI[6].expression}
-          size="medium"
-          animation={changes.length > 0 ? 'celebrate' : 'idle'}
-          message={changes.length > 0 ? 'Excelente! Veamos tus cambios' : 'Todo se ve bien!'}
-          style={styles.fitsi}
-        />
         <Text style={[styles.title, { color: c.black }]}>Resumen de cambios</Text>
 
         {changes.length > 0 ? (

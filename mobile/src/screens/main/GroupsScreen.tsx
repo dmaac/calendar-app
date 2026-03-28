@@ -24,12 +24,11 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
-import FitsiMascot from '../../components/FitsiMascot';
+import type { MainTabScreenProps } from '../../navigation/types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -365,7 +364,6 @@ function EmptyGroups({
 }) {
   return (
     <View style={[s.emptyContainer, { backgroundColor: colors.surface }]}>
-      <FitsiMascot expression="wink" size="medium" animation="wave" />
       <Text style={[s.emptyTitle, { color: colors.black, marginTop: spacing.sm }]}>
         Unete a tu primer grupo!
       </Text>
@@ -406,10 +404,9 @@ function NoResults({ query, colors }: { query: string; colors: ReturnType<typeof
 
 // ─── Main Screen ────────────────────────────────────────────────────────────
 
-export default function GroupsScreen() {
+export default function GroupsScreen({ navigation }: MainTabScreenProps<'Groups'>) {
   const insets = useSafeAreaInsets();
   const c = useThemeColors();
-  const navigation = useNavigation<any>();
   const { track } = useAnalytics('Groups');
   const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');

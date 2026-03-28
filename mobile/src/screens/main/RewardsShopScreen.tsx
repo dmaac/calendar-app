@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
-import FitsiMascot from '../../components/FitsiMascot';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -172,7 +171,6 @@ export default function RewardsShopScreen({ navigation }: any) {
 
       {/* Balance card */}
       <View style={[styles.balanceCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
-        <FitsiMascot expression="cool" size="small" animation="idle" />
         <View style={styles.balanceInfo}>
           <Text style={[styles.balanceLabel, { color: c.gray }]}>Tu saldo</Text>
           <View style={styles.balanceRow}>

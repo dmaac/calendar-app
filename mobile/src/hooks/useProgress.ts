@@ -27,15 +27,26 @@ interface ProgressProfile {
 }
 
 interface MissionResponse {
-  id: string;
+  id?: string;
+  mission_id?: number;
+  code?: string;
   name: string;
   description: string;
   xp_reward: number;
   coins_reward: number;
-  current_progress: number;
-  target_progress: number;
+  current_progress?: number;
+  target_progress?: number;
+  progress_value?: number;
+  difficulty?: string;
   completed: boolean;
-  icon: string;
+  completed_at?: string | null;
+  icon?: string;
+}
+
+/** Backend wraps missions in { date, missions } */
+interface MissionsApiResponse {
+  date: string;
+  missions: MissionResponse[];
 }
 
 interface ChallengeResponse {
@@ -90,16 +101,22 @@ const MOCK_CHALLENGE: ChallengeResponse = {
 // ─── Helper: map API response to component types ────────────────────────────
 
 function mapMission(m: MissionResponse): Mission {
+  // Backend uses mission_id + progress_value; mock uses id + current_progress/target_progress
+  const missionId = m.id ?? String(m.mission_id ?? '');
+  // Map difficulty to target: easy=1, medium=target, hard=target
+  const target = m.target_progress ?? (m.difficulty === 'easy' ? 1 : 3);
+  const current = m.current_progress ?? m.progress_value ?? 0;
+
   return {
-    id: m.id,
+    id: missionId,
     name: m.name,
-    description: m.description,
+    description: m.description ?? '',
     xpReward: m.xp_reward,
     coinsReward: m.coins_reward,
-    currentProgress: m.current_progress,
-    targetProgress: m.target_progress,
+    currentProgress: current,
+    targetProgress: target,
     completed: m.completed,
-    icon: m.icon,
+    icon: m.icon ?? (m.code?.includes('meal') ? 'camera' : m.code?.includes('protein') ? 'fitness' : 'flag'),
   };
 }
 
@@ -156,18 +173,38 @@ export default function useProgress(): UseProgressReturn {
     try {
       const [profileRes, missionsRes, challengeRes] = await Promise.allSettled([
         apiClient.get<ProgressProfile>('/api/progress/profile'),
-        apiClient.get<MissionResponse[]>('/api/progress/missions/today'),
-        apiClient.get<ChallengeResponse>('/api/progress/challenge/week'),
+        apiClient.get<MissionsApiResponse>('/api/progress/missions/today'),
+        apiClient.get<any>('/api/progress/challenge/week'),
       ]);
 
       if (profileRes.status === 'fulfilled') {
         setProfile(profileRes.value.data);
       }
       if (missionsRes.status === 'fulfilled') {
-        setMissions(missionsRes.value.data.map(mapMission));
+        // Backend wraps missions in { date, missions: [...] }
+        const raw = missionsRes.value.data;
+        const missionList = Array.isArray(raw) ? raw : (raw.missions ?? []);
+        setMissions(missionList.map(mapMission));
       }
       if (challengeRes.status === 'fulfilled') {
-        setChallenge(mapChallenge(challengeRes.value.data));
+        // Backend wraps challenge in { week_start, challenge: {...}, progress, ... }
+        const raw = challengeRes.value.data;
+        const ch = raw.challenge ?? raw;
+        if (ch && ch.name) {
+          setChallenge(mapChallenge({
+            id: ch.id ?? 'wc',
+            name: ch.name,
+            description: ch.description ?? '',
+            icon: ch.icon ?? 'trophy',
+            current_progress: raw.progress ?? ch.current_progress ?? 0,
+            target_progress: ch.condition_value ?? ch.target_progress ?? 5,
+            unit: ch.unit ?? 'dias',
+            xp_reward: ch.xp_reward ?? 0,
+            coins_reward: ch.coins_reward ?? 0,
+            days_remaining: raw.days_remaining ?? 7,
+            completed: raw.completed ?? false,
+          }));
+        }
       }
 
       // If all failed, fall back to mock data

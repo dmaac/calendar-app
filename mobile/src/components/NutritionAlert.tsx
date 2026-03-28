@@ -26,7 +26,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography, spacing, radius, shadows } from '../theme';
 import { haptics } from '../hooks/useHaptics';
 import type { NutritionAlertData } from '../hooks/useNutritionAlerts';
-import FitsiMascot from './FitsiMascot';
 
 // Enable LayoutAnimation on Android
 if (
@@ -268,9 +267,6 @@ function CriticalOverlay({ alert, visible, onDismiss }: CriticalOverlayProps) {
             },
           ]}
         >
-          {/* Fitsi mascot "sick" expression */}
-          <FitsiMascot expression="sick" size="large" animation="bounce" />
-
           <View style={s.criticalTextBlock}>
             <Ionicons name="alert-circle" size={48} color="#FFFFFF" />
             <Text style={s.criticalTitle}>{alert.title}</Text>

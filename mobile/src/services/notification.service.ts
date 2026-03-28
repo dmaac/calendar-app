@@ -13,6 +13,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './api';
 import { showNotification } from '../components/InAppNotification';
 
@@ -60,6 +61,32 @@ export interface NotificationPreferences {
   water_reminders_enabled: boolean;
   water_reminder_interval_hours: number;
 }
+
+const DEFAULT_PREFS: NotificationPreferences = {
+  notifications_enabled: true,
+  meal_reminders_enabled: true,
+  breakfast_reminder_hour: 8,
+  breakfast_reminder_minute: 0,
+  lunch_reminder_hour: 13,
+  lunch_reminder_minute: 0,
+  dinner_reminder_hour: 19,
+  dinner_reminder_minute: 0,
+  snack_reminder_hour: 16,
+  snack_reminder_minute: 0,
+  use_predicted_times: true,
+  reminder_lead_minutes: 15,
+  evening_summary_enabled: true,
+  evening_summary_hour: 21,
+  evening_summary_minute: 0,
+  streak_alerts_enabled: true,
+  streak_risk_hour: 18,
+  streak_risk_minute: 0,
+  streak_celebrations_enabled: true,
+  inactivity_nudge_enabled: true,
+  inactivity_days_threshold: 2,
+  water_reminders_enabled: false,
+  water_reminder_interval_hours: 2,
+};
 
 export interface NotificationIntent {
   type: string;
@@ -375,18 +402,36 @@ function _mapNotificationIcon(type?: string): string {
  * Get user's notification preferences from backend.
  */
 export async function getNotificationPreferences(): Promise<NotificationPreferences> {
-  const response = await api.get('/api/smart-notifications/preferences');
-  return response.data;
+  try {
+    const response = await api.get('/api/smart-notifications/preferences');
+    return response.data;
+  } catch {
+    // Backend not available — load from local storage or return defaults
+    const stored = await AsyncStorage.getItem('@fitsi_notification_prefs');
+    if (stored) return JSON.parse(stored);
+    return DEFAULT_PREFS;
+  }
 }
 
 /**
- * Update user's notification preferences on backend.
+ * Update user's notification preferences. Saves locally and attempts backend sync.
  */
 export async function updateNotificationPreferences(
   updates: Partial<NotificationPreferences>,
 ): Promise<NotificationPreferences> {
-  const response = await api.put('/api/smart-notifications/preferences', updates);
-  return response.data;
+  // Always save locally first
+  const stored = await AsyncStorage.getItem('@fitsi_notification_prefs');
+  const current: NotificationPreferences = stored ? JSON.parse(stored) : DEFAULT_PREFS;
+  const merged = { ...current, ...updates };
+  await AsyncStorage.setItem('@fitsi_notification_prefs', JSON.stringify(merged));
+
+  // Try to sync with backend (best-effort)
+  try {
+    const response = await api.put('/api/smart-notifications/preferences', updates);
+    return response.data;
+  } catch {
+    return merged;
+  }
 }
 
 /**
@@ -412,11 +457,24 @@ export async function sendTestNotification(
   title?: string,
   body?: string,
 ): Promise<void> {
-  await api.post('/api/smart-notifications/send-test', {
-    title: title ?? 'Test Fitsi',
-    body: body ?? 'Esta es una notificacion de prueba desde Fitsi IA',
-    notification_type: 'test',
-  });
+  const testTitle = title ?? 'Test Fitsi';
+  const testBody = body ?? 'Esta es una notificacion de prueba desde Fitsi IA';
+
+  try {
+    await api.post('/api/smart-notifications/send-test', {
+      title: testTitle,
+      body: testBody,
+      notification_type: 'test',
+    });
+  } catch {
+    // Backend unavailable — send local notification instead
+    if (Platform.OS !== 'web') {
+      await Notifications.scheduleNotificationAsync({
+        content: { title: testTitle, body: testBody, sound: true },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 2 } as any,
+      });
+    }
+  }
 }
 
 /**

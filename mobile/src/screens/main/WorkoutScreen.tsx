@@ -35,7 +35,6 @@ import { useThemeColors, typography, spacing, radius, shadows, useLayout } from 
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import useFadeIn from '../../hooks/useFadeIn';
-import FitsiMascot from '../../components/FitsiMascot';
 import BottomSheet from '../../components/BottomSheet';
 import {
   Exercise,
@@ -1300,7 +1299,6 @@ export default function WorkoutScreen({ navigation }: any) {
             >
               {recentWorkouts.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <FitsiMascot expression="muscle" size="medium" animation="idle" />
                   <Text style={[styles.emptyTitle, { color: c.black }]}>
                     Sin workouts recientes
                   </Text>

@@ -405,6 +405,8 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
   const streakDays = summary?.streak_days ?? 0;
   const mealsToday = summary?.meals_logged ?? 0;
   const caloriesToday = summary?.total_calories ?? 0;
+  const waterMl = summary?.water_ml ?? 0;
+  const waterL = (waterMl / 1000).toFixed(1);
 
   const badges = buildBadges(summary, profile, c);
   const unlockedCount = badges.filter((b) => b.unlocked).length;
@@ -485,9 +487,10 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
         {/* ---- Today's stats ---- */}
         {profile && (
           <View style={styles.statsRow} accessible={false} accessibilityRole="none">
-            <StatCard icon="flame-outline" label="Target" value={targetCal} color={c.accent} colors={c} delay={0} />
-            <StatCard icon="restaurant-outline" label="Today" value={`${Math.round(caloriesToday)} kcal`} color={caloriesToday > 0 ? '#10B981' : c.gray} colors={c} delay={100} />
-            <StatCard icon="nutrition-outline" label="Meals" value={`${mealsToday}`} colors={c} delay={200} />
+            <StatCard icon="flame-outline" label="Meta" value={targetCal} color={c.accent} colors={c} delay={0} />
+            <StatCard icon="restaurant-outline" label="Hoy" value={`${Math.round(caloriesToday)} kcal`} color={caloriesToday > 0 ? '#10B981' : c.gray} colors={c} delay={100} />
+            <StatCard icon="nutrition-outline" label="Comidas" value={`${mealsToday}`} colors={c} delay={200} />
+            <StatCard icon="water-outline" label="Agua" value={`${waterL} L`} color="#3B82F6" colors={c} delay={300} />
           </View>
         )}
 

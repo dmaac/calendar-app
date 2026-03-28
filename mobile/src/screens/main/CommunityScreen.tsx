@@ -35,6 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import type { MainTabScreenProps } from '../../navigation/types';
 import SkeletonLoader from '../../components/SkeletonLoader';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -800,7 +801,7 @@ function PaginationFooter({ loading }: { loading: boolean }) {
 
 // ─── Main screen ────────────────────────────────────────────────────────────
 
-export default function CommunityScreen() {
+export default function CommunityScreen(_props: MainTabScreenProps<'Community'>) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
   const c = useThemeColors();

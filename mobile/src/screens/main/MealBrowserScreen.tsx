@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
+import type { HomeStackScreenProps } from '../../navigation/types';
 import { apiClient } from '../../services/apiClient';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -383,7 +384,7 @@ const modalStyles = StyleSheet.create({
 
 // ─── Main screen ────────────────────────────────────────────────────────────
 
-export default function MealBrowserScreen({ navigation }: any) {
+export default function MealBrowserScreen({ navigation }: HomeStackScreenProps<'MealBrowser'>) {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
@@ -443,11 +444,8 @@ export default function MealBrowserScreen({ navigation }: any) {
 
   const onRegister = useCallback((meal: BrowseMeal) => {
     haptics.medium();
-    // Navigate to AddFood or Scan with pre-filled data
-    navigation.navigate('Inicio', {
-      screen: 'Scan',
-      params: { prefill: { food_name: meal.name, calories: meal.calories, protein_g: meal.protein_g, carbs_g: meal.carbs_g, fats_g: meal.fats_g } },
-    });
+    // Navigate to Scan -- MealBrowserScreen is already inside HomeStack
+    navigation.navigate('Scan');
   }, [navigation]);
 
   const onBack = useCallback(() => {

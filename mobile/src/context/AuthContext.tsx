@@ -110,12 +110,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setIsOnboardingComplete(onboardingFlag === 'true');
 
-      if (!accessToken) return;
+      if (!accessToken) {
+        // DEV: auto-login when no session exists
+        if (__DEV__ && process.env.EXPO_PUBLIC_DEV_EMAIL && process.env.EXPO_PUBLIC_DEV_PASSWORD) {
+          console.log('[AuthContext] DEV auto-login...');
+          await devBypassInternal();
+        }
+        return;
+      }
 
       // If access token expired, try refresh first
       if (authService.isTokenExpired(accessToken)) {
         const newTokens = await authService.refreshSession();
-        if (!newTokens) return; // refresh failed → stay logged out
+        if (!newTokens) {
+          // DEV: auto-login when refresh fails
+          if (__DEV__ && process.env.EXPO_PUBLIC_DEV_EMAIL && process.env.EXPO_PUBLIC_DEV_PASSWORD) {
+            console.log('[AuthContext] DEV auto-login (refresh failed)...');
+            await devBypassInternal();
+          }
+          return;
+        }
       }
 
       // Load user profile
@@ -136,6 +150,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       // Session invalid — clear and start fresh
       await authService.clearTokens();
+      // DEV: auto-login on any session error
+      if (__DEV__ && process.env.EXPO_PUBLIC_DEV_EMAIL && process.env.EXPO_PUBLIC_DEV_PASSWORD) {
+        console.log('[AuthContext] DEV auto-login (session error)...');
+        await devBypassInternal();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -247,12 +266,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(prev => prev ? { ...prev, is_premium: isPremium } : prev);
   }, []);
 
-  // ── DEV BYPASS: register+login a dev user so all APIs work with real tokens ─
-  const devBypass = useCallback(async () => {
-    if (!__DEV__) {
-      return;
-    }
-
+  // ── DEV BYPASS (internal, callable from loadStoredSession) ──────────────────
+  const devBypassInternal = async () => {
     const devEmail = process.env.EXPO_PUBLIC_DEV_EMAIL;
     const devPassword = process.env.EXPO_PUBLIC_DEV_PASSWORD;
 
@@ -281,7 +296,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
     } catch (err) {
       // Fallback: if backend is unreachable, use offline mock (no API calls will work)
-      // DevBypass: backend unreachable, using offline mock
       const mockUser: User = {
         id: 999,
         email: devEmail,
@@ -297,6 +311,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsOnboardingComplete(true);
       setUser(mockUser);
     }
+  };
+
+  // ── DEV BYPASS: public wrapper ────────────────────────────────────────────
+  const devBypass = useCallback(async () => {
+    if (!__DEV__) return;
+    await devBypassInternal();
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────

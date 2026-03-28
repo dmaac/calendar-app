@@ -68,7 +68,9 @@ const RecoveryPlanCard = React.memo(function RecoveryPlanCard({
     outputRange: ['0deg', '180deg'],
   });
 
-  const { meals, water_ml, motivational_text } = plan;
+  const meals = plan?.meals ?? [];
+  const water_ml = plan?.water_ml ?? 0;
+  const motivational_text = plan?.motivational_text ?? '';
 
   return (
     <View

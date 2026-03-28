@@ -39,6 +39,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import * as foodService from '../../services/food.service';
 import { FoodScanResult } from '../../types';
+import type { HomeStackScreenProps } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { haptics } from '../../hooks/useHaptics';
@@ -46,7 +47,6 @@ import usePulse from '../../hooks/usePulse';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import SuccessCheckmark from '../../components/SuccessCheckmark';
 import HealthScore from '../../components/HealthScore';
-import FitsiMascot from '../../components/FitsiMascot';
 import ErrorFallback from '../../components/ErrorFallback';
 import { cacheScanResult, markScanSynced, cleanOldScans } from '../../services/scanCache.service';
 import * as favoritesService from '../../services/favorites.service';
@@ -118,7 +118,7 @@ function MacroPill({
 }) {
   return (
     <View
-      style={[styles.macroPill, { borderColor: color + '40', backgroundColor: color + '10' }]}
+      style={[styles.macroPill, { borderColor: color + '20', backgroundColor: color + '10' }]}
       accessibilityLabel={`${label}: ${Math.round(value)} ${unit}`}
     >
       <Text style={[styles.macroPillValue, { color }]}>{Math.round(value)}{unit}</Text>
@@ -151,7 +151,7 @@ function DailyProgressBar({
 
   return (
     <View
-      style={[styles.dailyProgressContainer, { backgroundColor: surfaceColor }]}
+      style={[styles.dailyProgressContainer, { backgroundColor: surfaceColor, borderWidth: 1, borderColor: surfaceColor === '#1A1A2E' ? '#2E2E45' : '#E0E0E0' }]}
       accessibilityLabel={t(isOver ? 'scan.overDailyGoal' : 'scan.fitsInYourDay')}
     >
       <View style={styles.dailyProgressHeader}>
@@ -358,7 +358,7 @@ const scanAnimStyles = StyleSheet.create({
 });
 
 // ---- Main screen ----
-export default function ScanScreen({ navigation }: any) {
+export default function ScanScreen({ navigation }: HomeStackScreenProps<'Scan'>) {
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
   const { isPremium } = useAuth();
@@ -771,7 +771,7 @@ export default function ScanScreen({ navigation }: any) {
       setImageUri(null);
       setResult(null);
       setIsEditing(false);
-      navigation.navigate('Registro');
+      navigation.navigate('Registro', { screen: 'LogMain' });
     }, 2200);
   };
 
@@ -840,7 +840,7 @@ export default function ScanScreen({ navigation }: any) {
             <View style={{ flex: 1 }}>
               {isEditing ? (
                 <TextInput
-                  style={[styles.editNameInput, { color: c.black, borderColor: c.accent, backgroundColor: c.surface }]}
+                  style={[styles.editNameInput, { color: c.black, borderColor: c.grayLight, backgroundColor: c.surface }]}
                   value={editValues.food_name}
                   onChangeText={(v) => setEditValues((p) => ({ ...p, food_name: v }))}
                   accessibilityLabel="Nombre del alimento"
@@ -927,7 +927,7 @@ export default function ScanScreen({ navigation }: any) {
             {isEditing ? (
               <View style={styles.editCalorieRow}>
                 <TextInput
-                  style={[styles.editCalorieInput, { color: c.black, borderColor: c.accent, backgroundColor: c.bg }]}
+                  style={[styles.editCalorieInput, { color: c.black, borderColor: c.grayLight, backgroundColor: c.surface }]}
                   value={editValues.calories}
                   onChangeText={(v) => setEditValues((p) => ({ ...p, calories: v.replace(/[^0-9]/g, '') }))}
                   keyboardType="number-pad"
@@ -957,7 +957,7 @@ export default function ScanScreen({ navigation }: any) {
                 ] as const).map((m) => (
                   <View
                     key={m.key}
-                    style={[styles.macroPill, { borderColor: m.color + '40', backgroundColor: m.color + '10' }]}
+                    style={[styles.macroPill, { borderColor: m.color + '20', backgroundColor: m.color + '10' }]}
                   >
                     <TextInput
                       style={[styles.editMacroInput, { color: m.color }]}
@@ -1041,15 +1041,15 @@ export default function ScanScreen({ navigation }: any) {
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <TouchableOpacity
-              style={[styles.confirmBtn, { backgroundColor: c.black, flex: 1 }]}
+              style={[styles.confirmBtn, { backgroundColor: c.accent, flex: 1 }]}
               onPress={handleConfirm}
               activeOpacity={0.85}
               accessibilityLabel={isEditing ? t('scan.saveChanges') : t('scan.saveToLog')}
               accessibilityRole="button"
               accessibilityHint="Confirma y guarda este alimento en tu diario"
             >
-              <Ionicons name="checkmark-circle" size={20} color={c.white} />
-              <Text style={[styles.confirmBtnText, { color: c.white }]}>
+              <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+              <Text style={[styles.confirmBtnText, { color: '#FFFFFF' }]}>
                 {isEditing ? t('scan.saveChanges') : t('scan.saveToLog')}
               </Text>
             </TouchableOpacity>
@@ -1069,7 +1069,7 @@ export default function ScanScreen({ navigation }: any) {
           </View>
 
           <TouchableOpacity
-            style={[styles.editMacrosBtn, { backgroundColor: isEditing ? c.accent + '15' : c.surface, borderColor: c.accent + '30' }]}
+            style={[styles.editMacrosBtn, { backgroundColor: isEditing ? c.accent + '15' : c.surface, borderColor: c.grayLight }]}
             onPress={handleToggleEdit}
             activeOpacity={0.7}
             accessibilityLabel={isEditing ? t('scan.cancelEdit') : t('scan.editMacros')}
@@ -1083,14 +1083,14 @@ export default function ScanScreen({ navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.retryBtn, { backgroundColor: c.surface }]}
+            style={[styles.retryBtn, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.grayLight }]}
             onPress={handleRetry}
             activeOpacity={0.7}
             accessibilityLabel={t('scan.scanAnother')}
             accessibilityRole="button"
           >
-            <Ionicons name="refresh-outline" size={18} color={c.black} />
-            <Text style={[styles.retryBtnText, { color: c.black }]}>{t('scan.scanAnother')}</Text>
+            <Ionicons name="refresh-outline" size={18} color={c.gray} />
+            <Text style={[styles.retryBtnText, { color: c.gray }]}>{t('scan.scanAnother')}</Text>
           </TouchableOpacity>
 
           <View style={{ height: spacing.xl }} />
@@ -1106,7 +1106,6 @@ export default function ScanScreen({ navigation }: any) {
         style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg, opacity: stateOpacity }]}
         accessibilityLabel="Comida registrada exitosamente. Redirigiendo a tu registro."
       >
-        <FitsiMascot expression="party" size="large" animation="bounce" />
         <SuccessCheckmark size={64} showParticles={true} />
         <Text style={[styles.successText, { color: c.black }]}>{t('scan.logged')}</Text>
         <Text style={[styles.successHint, { color: c.gray }]}>{t('scan.redirecting')}</Text>
@@ -1167,8 +1166,6 @@ export default function ScanScreen({ navigation }: any) {
         style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg, opacity: stateOpacity }]}
         accessibilityLiveRegion="assertive"
       >
-        <FitsiMascot expression={errorIcon} size="medium" animation={errorAnimation} />
-
         {/* Error type icon */}
         <View style={[styles.errorTypeIcon, { backgroundColor: c.surface }]}>
           <Ionicons name={errorIonIcon as any} size={28} color={c.accent} />
@@ -1278,12 +1275,9 @@ export default function ScanScreen({ navigation }: any) {
     >
       {/* Header with Fitsi */}
       <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <FitsiMascot expression="star" size="small" animation="wave" />
-          <View>
-            <Text style={[styles.title, { color: c.black }]} accessibilityRole="header">{t('scan.title')}</Text>
-            <Text style={[styles.subtitle, { color: c.gray }]}>{t('scan.subtitle')}</Text>
-          </View>
+        <View>
+          <Text style={[styles.title, { color: c.black }]} accessibilityRole="header">{t('scan.title')}</Text>
+          <Text style={[styles.subtitle, { color: c.gray }]}>{t('scan.subtitle')}</Text>
         </View>
       </View>
 

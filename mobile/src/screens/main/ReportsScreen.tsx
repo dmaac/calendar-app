@@ -37,7 +37,6 @@ import Svg, {
 } from 'react-native-svg';
 import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
-import FitsiMascot from '../../components/FitsiMascot';
 import { shareWeeklySummary } from '../../components/ShareableCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -832,22 +831,6 @@ export default function ReportsScreen({ navigation }: any) {
               </TouchableOpacity>
             );
           })}
-        </View>
-
-        {/* Fitsi mascot */}
-        <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
-          <FitsiMascot
-            expression={summary.adherence >= 80 ? 'fire' : summary.adherence < 50 ? 'sad' : 'neutral'}
-            size="small"
-            animation={summary.adherence >= 80 ? 'celebrate' : 'idle'}
-            message={
-              summary.adherence >= 80
-                ? 'On fire!'
-                : summary.adherence < 50
-                ? 'Podemos mejorar!'
-                : undefined
-            }
-          />
         </View>
 
         {/* Average calories hero + adherence ring */}

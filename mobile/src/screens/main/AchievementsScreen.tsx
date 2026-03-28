@@ -28,7 +28,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
-import FitsiMascot from '../../components/FitsiMascot';
 import ShareableCard from '../../components/ShareableCard';
 
 // ─── Achievement category definitions ───────────────────────────────────────
@@ -452,6 +451,7 @@ function BadgeCard({
   progress,
   index,
   c,
+  cardWidth,
   onShare,
   onCelebrate,
 }: {
@@ -460,6 +460,7 @@ function BadgeCard({
   progress: number; // 0..1
   index: number;
   c: ReturnType<typeof useThemeColors>;
+  cardWidth?: number;
   onShare?: (achievement: Achievement) => void;
   onCelebrate?: (achievement: Achievement) => void;
 }) {
@@ -534,6 +535,7 @@ function BadgeCard({
       <Animated.View
         style={[
           styles.badgeCard,
+          cardWidth ? { width: cardWidth } : undefined,
           { backgroundColor: c.surface, borderColor: unlocked ? achievement.color + '40' : c.border },
           !unlocked && styles.badgeCardLocked,
           { transform: [{ scale: scaleAnim }, { rotate: rotateInterp }] },
@@ -566,13 +568,13 @@ function BadgeCard({
         </View>
         <Text
           style={[styles.badgeTitle, { color: c.black }, !unlocked && { color: c.gray }]}
-          numberOfLines={1}
+          numberOfLines={2}
         >
           {achievement.title}
         </Text>
         <Text
           style={[styles.badgeDesc, { color: c.gray }, !unlocked && { color: c.disabled }]}
-          numberOfLines={2}
+          numberOfLines={3}
         >
           {achievement.description}
         </Text>
@@ -676,7 +678,7 @@ function CategoryPill({
 
 export default function AchievementsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { sidePadding } = useLayout();
+  const { sidePadding, innerWidth } = useLayout();
   const c = useThemeColors();
   const { track } = useAnalytics('Achievements');
   const stats = useUserStats();
@@ -730,12 +732,6 @@ export default function AchievementsScreen({ navigation }: any) {
             {totalUnlocked} de {ACHIEVEMENTS.length} desbloqueados
           </Text>
         </View>
-        <FitsiMascot
-          expression={totalUnlocked === ACHIEVEMENTS.length ? 'crown' : totalUnlocked > 0 ? 'proud' : 'muscle'}
-          size="medium"
-          animation={totalUnlocked > 0 ? 'celebrate' : 'idle'}
-          message={totalUnlocked === ACHIEVEMENTS.length ? 'Todos desbloqueados!' : totalUnlocked > 0 ? 'Felicidades!' : 'A desbloquear logros!'}
-        />
       </View>
 
       {/* Overall progress bar */}
@@ -801,32 +797,38 @@ export default function AchievementsScreen({ navigation }: any) {
       </View>
 
       {/* Badge grid */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        bounces={true}
-        overScrollMode="never"
-        contentContainerStyle={[styles.grid, { paddingHorizontal: sidePadding }]}
-      >
-        {filteredAchievements.map((achievement, index) => {
-          const statValue = stats[achievement.conditionKey as keyof typeof stats] ?? 0;
-          const unlocked = statValue >= achievement.conditionValue;
-          const progress = unlocked ? 1 : statValue / achievement.conditionValue;
+      {(() => {
+        const cardWidth = Math.floor((innerWidth - CARD_GAP) / NUM_COLUMNS);
+        return (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={true}
+            overScrollMode="never"
+            contentContainerStyle={[styles.grid, { paddingHorizontal: sidePadding }]}
+          >
+            {filteredAchievements.map((achievement, index) => {
+              const statValue = stats[achievement.conditionKey as keyof typeof stats] ?? 0;
+              const unlocked = statValue >= achievement.conditionValue;
+              const progress = unlocked ? 1 : statValue / achievement.conditionValue;
 
-          return (
-            <BadgeCard
-              key={achievement.id}
-              achievement={achievement}
-              unlocked={unlocked}
-              progress={progress}
-              index={index}
-              c={c}
-              onShare={unlocked ? handleShareBadge : undefined}
-              onCelebrate={unlocked ? handleCelebrate : undefined}
-            />
-          );
-        })}
-        <View style={{ height: spacing.xl }} />
-      </ScrollView>
+              return (
+                <BadgeCard
+                  key={achievement.id}
+                  achievement={achievement}
+                  unlocked={unlocked}
+                  progress={progress}
+                  index={index}
+                  c={c}
+                  cardWidth={cardWidth}
+                  onShare={unlocked ? handleShareBadge : undefined}
+                  onCelebrate={unlocked ? handleCelebrate : undefined}
+                />
+              );
+            })}
+            <View style={{ height: spacing.xl }} />
+          </ScrollView>
+        );
+      })()}
 
       {/* Celebration overlay */}
       <CelebrationOverlay
@@ -945,7 +947,7 @@ const celebStyles = StyleSheet.create({
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
 const CARD_GAP = spacing.sm;
-const NUM_COLUMNS = 3;
+const NUM_COLUMNS = 2;
 
 const styles = StyleSheet.create({
   screen: {
@@ -1045,10 +1047,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   badgeCard: {
-    width: `${(100 - (NUM_COLUMNS - 1) * 2) / NUM_COLUMNS}%` as any,
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: spacing.sm + 2,
+    padding: spacing.md,
     alignItems: 'center',
     gap: spacing.xs,
     ...shadows.sm,

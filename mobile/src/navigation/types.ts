@@ -103,20 +103,6 @@ export type ProfileStackParamList = {
   About: undefined;
 };
 
-// ─── Scan Stack ─────────────────────────────────────────────────────────────
-
-export type ScanStackParamList = {
-  ScanMain: undefined;
-  Barcode: { onScan?: (data: string) => void; mealType?: string } | undefined;
-};
-
-// ─── Recipes Stack ──────────────────────────────────────────────────────────
-
-export type RecipesStackParamList = {
-  RecipesMain: undefined;
-  RecipeDetail: { recipe: NavigationRecipe };
-};
-
 // ─── Tab Navigator ──────────────────────────────────────────────────────────
 
 export type MainTabParamList = {
@@ -155,20 +141,6 @@ export type LogStackScreenProps<T extends keyof LogStackParamList> =
 export type ProfileStackScreenProps<T extends keyof ProfileStackParamList> =
   CompositeScreenProps<
     StackScreenProps<ProfileStackParamList, T>,
-    BottomTabScreenProps<MainTabParamList>
-  >;
-
-/** Props for screens inside ScanStack */
-export type ScanStackScreenProps<T extends keyof ScanStackParamList> =
-  CompositeScreenProps<
-    StackScreenProps<ScanStackParamList, T>,
-    BottomTabScreenProps<MainTabParamList>
-  >;
-
-/** Props for screens inside RecipesStack */
-export type RecipesStackScreenProps<T extends keyof RecipesStackParamList> =
-  CompositeScreenProps<
-    StackScreenProps<RecipesStackParamList, T>,
     BottomTabScreenProps<MainTabParamList>
   >;
 

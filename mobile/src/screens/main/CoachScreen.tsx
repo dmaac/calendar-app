@@ -40,7 +40,6 @@ import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { useCoach, CoachMessage } from '../../hooks/useCoach';
-import FitsiMascot from '../../components/FitsiMascot';
 
 // ─── Quick suggestion chips ──────────────────────────────────────────────────
 
@@ -133,8 +132,8 @@ const TypingIndicator = React.memo(function TypingIndicator({
 }) {
   return (
     <View style={[styles.bubbleRow, styles.bubbleRowCoach]}>
-      <View style={[styles.avatarContainer, { backgroundColor: c.surface }]}>
-        <FitsiMascot expression="thinking" size="small" animation="thinking" disableTouch />
+      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="chatbubble-ellipses" size={18} color={c.accent} />
       </View>
       <View
         style={[
@@ -171,8 +170,8 @@ const ChatBubble = React.memo(function ChatBubble({
       ]}
     >
       {!message.isUser && (
-        <View style={[styles.avatarContainer, { backgroundColor: c.surface }]}>
-          <FitsiMascot expression="neutral" size="small" animation="none" disableTouch />
+        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="chatbubble-ellipses" size={18} color={c.accent} />
         </View>
       )}
       <TouchableOpacity
@@ -496,7 +495,6 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
         ListFooterComponent={
           messages.length === 0 && !loading ? (
             <View style={styles.emptyContainer}>
-              <FitsiMascot expression="happy" size="medium" animation="wave" disableTouch />
               <Text style={[styles.emptyTitle, { color: c.black }]}>
                 Hola! Soy tu coach de nutricion
               </Text>

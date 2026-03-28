@@ -328,9 +328,8 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
       ]);
       setPrefs(prefsData);
       setPredictions(predsData);
-    } catch (error) {
-      console.error('[NotificationPreferences] Failed to load:', error);
-      // Use defaults if backend unavailable
+    } catch {
+      // Backend unavailable — use defaults (preferences saved locally)
       setPrefs({
         notifications_enabled: true,
         meal_reminders_enabled: true,
@@ -376,10 +375,9 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
 
         // Reschedule local notifications
         await scheduleLocalNotifications(updatedPrefs);
-      } catch (error) {
-        console.error('[NotificationPreferences] Failed to update:', error);
-        // Revert on error
-        setPrefs(prefs);
+      } catch {
+        // Backend sync failed — local prefs already saved by service
+        // No revert needed since updateNotificationPreferences saves locally first
       } finally {
         setSaving(false);
       }

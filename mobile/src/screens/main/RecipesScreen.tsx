@@ -27,7 +27,6 @@ import { typography, spacing, radius, shadows, useLayout, useThemeColors } from 
 import { recipes, Recipe, MealType, DietType } from '../../data/recipes';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
-import FitsiMascot from '../../components/FitsiMascot';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import * as foodService from '../../services/food.service';
 import * as favoritesService from '../../services/favorites.service';
@@ -691,7 +690,6 @@ export default function RecipesScreen({ navigation }: any) {
         updateCellsBatchingPeriod={50}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <FitsiMascot expression="thinking" size="medium" animation="thinking" />
             <Text style={[styles.emptyText, { color: c.black }]}>No encontre recetas con ese nombre</Text>
             <Text style={[styles.emptyHint, { color: c.gray }]}>Intenta cambiar los filtros o buscar otro plato</Text>
           </View>

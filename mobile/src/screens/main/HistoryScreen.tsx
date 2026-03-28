@@ -30,7 +30,6 @@ import {
 } from '../../theme';
 import * as foodService from '../../services/food.service';
 import { AIFoodLog, DailySummary } from '../../types';
-import FitsiMascot from '../../components/FitsiMascot';
 import { haptics } from '../../hooks/useHaptics';
 import { useAppTheme } from '../../context/ThemeContext';
 
@@ -1120,7 +1119,6 @@ export default function HistoryScreen({ navigation }: any) {
               ListHeaderComponent={ListHeader}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <FitsiMascot expression="question" size="medium" animation="thinking" />
                   <Text style={[styles.emptyTitle, { color: c.black }]}>No hay datos para este dia</Text>
                   <Text style={[styles.emptyText, { color: c.gray }]}>Parece que no registraste nada. Vuelve al dia de hoy para empezar.</Text>
                 </View>

@@ -44,7 +44,6 @@ import Svg, {
 } from 'react-native-svg';
 import { typography, spacing, radius, useThemeColors, useLayout } from '../../theme';
 import { useAppTheme } from '../../context/ThemeContext';
-import FitsiMascot from '../../components/FitsiMascot';
 import ShareProgressCard from '../../components/ShareProgressCard';
 import WeeklySummary from '../../components/WeeklySummary';
 import ProgressPhotos from '../../components/ProgressPhotos';
@@ -56,6 +55,7 @@ import CalendarHeatmap from '../../components/CalendarHeatmap';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import useStreak from '../../hooks/useStreak';
+import type { MainTabScreenProps } from '../../navigation/types';
 
 // ─── Theme-aware color palette ───────────────────────────────────────────────
 
@@ -677,7 +677,7 @@ const msStyles = StyleSheet.create({
 
 async function handleShareProgress(streak: number) {
   try {
-    await Share.share({
+    const result = await Share.share({
       message:
         `Mi progreso en Fitsi IA:\n` +
         `Peso actual: ${MOCK.currentWeight} kg\n` +
@@ -686,14 +686,15 @@ async function handleShareProgress(streak: number) {
         `Meta: ${MOCK.goalWeight} kg para ${MOCK.goalDate}`,
       title: 'Mi progreso en Fitsi IA',
     });
+    // result.action will be Share.sharedAction or Share.dismissedAction
   } catch {
-    // user dismissed share sheet
+    Alert.alert('Error', 'No se pudo compartir. Intenta de nuevo.');
   }
 }
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
-export default function ProgressScreen() {
+export default function ProgressScreen(_props: MainTabScreenProps<'Progress'>) {
   const insets = useSafeAreaInsets();
   const { track } = useAnalytics('Progress');
   const C = useProgressColors();
@@ -783,7 +784,7 @@ export default function ProgressScreen() {
             style={[s.topCard, { backgroundColor: C.card, borderColor: C.cardBorder }]}
             accessibilityLabel={`Racha de ${displayStreak} dias${hasFreezeAvailable ? ', congelamiento disponible' : ''}`}
           >
-            <FitsiMascot expression="muscle" size="small" animation="idle" />
+            <Ionicons name="flame" size={28} color="#FF6B35" />
             <Text style={[s.topCardValue, { color: C.textPrimary }]}>{displayStreak}</Text>
             <Text style={[s.topCardLabel, { color: C.textSecondary }]}>
               {'Dia de racha'}

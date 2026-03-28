@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
-import FitsiMascot from '../../components/FitsiMascot';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -281,7 +280,6 @@ export default function CalendarViewScreen({ navigation }: any) {
           </TouchableOpacity>
         ) : (
           <View style={styles.hintBox}>
-            <FitsiMascot expression="cute" size="small" animation="idle" />
             <Text style={[styles.hintText, { color: c.gray }]}>
               Selecciona un dia para ver tus registros
             </Text>

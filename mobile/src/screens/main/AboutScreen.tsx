@@ -13,7 +13,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography, spacing, radius, useThemeColors } from '../../theme';
-import FitsiMascot from '../../components/FitsiMascot';
 
 const APP_VERSION = '1.0.0';
 const BUILD_NUMBER = '1';
@@ -48,9 +47,7 @@ export default function AboutScreen({ navigation }: any) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        {/* Logo / Mascot */}
         <View style={styles.logoSection}>
-          <FitsiMascot expression="happy" size="large" />
           <Text style={[styles.appName, { color: c.black }]}>Fitsi IA</Text>
           <Text style={[styles.version, { color: c.gray }]}>
             Version {APP_VERSION} ({BUILD_NUMBER})

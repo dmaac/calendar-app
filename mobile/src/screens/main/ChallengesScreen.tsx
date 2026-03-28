@@ -24,7 +24,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
-import FitsiMascot from '../../components/FitsiMascot';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -528,12 +527,6 @@ export default function ChallengesScreen() {
             {totalCompleted}/{ALL_CHALLENGES.length} completados
           </Text>
         </View>
-        <FitsiMascot
-          expression={featuredCompleted ? 'proud' : 'muscle'}
-          size="medium"
-          animation={featuredCompleted ? 'celebrate' : 'idle'}
-          message={featuredCompleted ? 'Desafio completado!' : 'Tu puedes!'}
-        />
       </View>
 
       <ScrollView

@@ -37,7 +37,6 @@ import useDaySwipe, { toDateStr } from '../../hooks/useDaySwipe';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import DateNavigator from '../../components/DateNavigator';
 import WaterTracker from '../../components/WaterTracker';
-import FitsiMascot from '../../components/FitsiMascot';
 import ConfettiEffect from '../../components/ConfettiEffect';
 import BottomSheet from '../../components/BottomSheet';
 import QuickLog from '../../components/QuickLog';
@@ -47,6 +46,7 @@ import { SwipeableRowProvider } from '../../components/SwipeableRow';
 import FoodLogItem from '../../components/FoodLogItem';
 import FoodComparison from '../../components/FoodComparison';
 import FoodDiary from '../../components/FoodDiary';
+import type { LogStackScreenProps } from '../../navigation/types';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import * as favoritesService from '../../services/favorites.service';
 import NutritionAlerts from '../../components/NutritionAlert';
@@ -319,7 +319,7 @@ interface MealSection {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
-export default function LogScreen({ navigation }: any) {
+export default function LogScreen({ navigation }: LogStackScreenProps<'LogMain'>) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
   const c = useThemeColors();
@@ -595,14 +595,14 @@ export default function LogScreen({ navigation }: any) {
     const mt = modalMeal;
     track('meal_logged_manual', { meal_type: mt });
     closeModal();
-    navigation.navigate('AddFood', { mealType: mt });
+    navigation.navigate('AddFood', { mealType: mt ?? undefined });
   }, [modalMeal, closeModal, navigation, track]);
 
   const handleSearch = useCallback(() => {
     haptics.light();
     const mt = modalMeal;
     closeModal();
-    navigation.navigate('FoodSearch', { mealType: mt });
+    navigation.navigate('FoodSearch', { mealType: mt ?? undefined });
   }, [modalMeal, closeModal, navigation]);
 
   const handleDeleteAllToday = useCallback(() => {

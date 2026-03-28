@@ -17,8 +17,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import { useThemeColors, typography, spacing, radius, useLayout } from '../../theme';
+import type { HomeStackScreenProps } from '../../navigation/types';
 import useNutritionRisk from '../../hooks/useNutritionRisk';
 import NutritionSemaphore from '../../components/NutritionSemaphore';
 import CalorieComparisonCard from '../../components/CalorieComparisonCard';
@@ -29,11 +29,10 @@ import { apiClient } from '../../services/apiClient';
 import { haptics } from '../../hooks/useHaptics';
 import * as foodService from '../../services/food.service';
 
-export default function RiskDetailScreen() {
+export default function RiskDetailScreen({ navigation }: HomeStackScreenProps<'RiskDetail'>) {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
-  const navigation = useNavigation();
 
   const {
     riskScore,
@@ -93,7 +92,7 @@ export default function RiskDetailScreen() {
 
   const onRegisterFood = useCallback(() => {
     haptics.light();
-    (navigation as any).navigate('Scan');
+    navigation.navigate('Scan');
   }, [navigation]);
 
   const logged = summary?.total_calories ?? 0;

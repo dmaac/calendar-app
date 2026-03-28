@@ -47,7 +47,6 @@ import { AIFoodLog, DailySummary } from '../../types';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import AnimatedNumber from '../../components/AnimatedNumber';
 import StreakBadge from '../../components/StreakBadge';
-import FitsiMascot from '../../components/FitsiMascot';
 import useFadeIn from '../../hooks/useFadeIn';
 import usePulse from '../../hooks/usePulse';
 import { haptics } from '../../hooks/useHaptics';
@@ -918,13 +917,13 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
 
   // Nutrition alert action handler — navigates based on backend action_route
   const onAlertAction = useCallback((route: string) => {
-    // Routes that live in the current HomeStack
     switch (route) {
       case '/scan':
         navigation.navigate('Scan');
         break;
       case '/dashboard':
-        navigation.navigate('HomeMain');
+        // "Ver detalle/resumen/macros" → navigate to Registro to see today's food log
+        navigation.navigate('Registro', { screen: 'LogMain' });
         break;
       case '/log':
       case '/water':
@@ -936,7 +935,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
         navigation.navigate('Registro', { screen: 'FoodSearch' });
         break;
       default:
-        navigation.navigate('HomeMain');
+        navigation.navigate('Registro', { screen: 'LogMain' });
         break;
     }
   }, [navigation]);
@@ -994,11 +993,6 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
       {/* Header with parallax */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
         <Animated.View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, transform: [{ translateY: headerTranslateY }], opacity: headerOpacity }}>
-          <FitsiMascot
-            expression="strong"
-            size="small"
-            animation="idle"
-          />
           <View accessibilityRole="header" accessible={true} accessibilityLabel={`${greetingText}, ${user?.first_name || t('profile.user')}`}>
             <Text style={[styles.greeting, { color: c.gray }]} allowFontScaling>{greetingText},</Text>
             <Text style={[styles.userName, { color: c.black }]} allowFontScaling>{user?.first_name || t('profile.user')}</Text>
@@ -1123,7 +1117,6 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
               accessibilityRole="alert"
               accessibilityLabel={`Te echamos de menos. Llevas ${daysSinceLastLog} dias sin registrar. Fitsi te espera para retomar tu seguimiento.`}
             >
-              <FitsiMascot expression="sad" size="small" animation="sad" />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.reengageTitle, { color: isDark ? c.protein : '#991B1B' }]} allowFontScaling>Te echamos de menos!</Text>
                 <Text style={[styles.reengageMsg, { color: isDark ? c.protein : '#991B1B' }]} allowFontScaling>
@@ -1387,7 +1380,6 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
                   accessibilityRole="alert"
                   accessibilityLabel="Aun no has registrado comida hoy. Tu cuerpo necesita combustible. Registra lo que has comido para mantener tu seguimiento al dia."
                 >
-                  <FitsiMascot expression="hungry" size="small" animation="sad" />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.motivationalTitle, { color: isDark ? c.carbs : '#92400E' }]} allowFontScaling>
                       Aun no has registrado comida hoy!

@@ -23,6 +23,7 @@ import {
   Platform,
   Animated,
   Easing,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -167,14 +168,16 @@ export default function ShareProgressCard({
     const message = lines.join('\n');
 
     try {
-      await Share.share(
+      const result = await Share.share(
         Platform.OS === 'ios'
           ? { message }
           : { message, title: 'Fitsi IA - Mi Progreso' },
       );
-      onShareComplete?.();
-    } catch {
-      // User cancelled or share failed -- no action needed.
+      if (result.action === Share.sharedAction) {
+        onShareComplete?.();
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'No se pudo compartir. Intenta de nuevo.');
     }
   };
 
