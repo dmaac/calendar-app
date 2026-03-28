@@ -917,24 +917,34 @@ export default function HomeScreen({ navigation }: any) {
 
   // Nutrition alert action handler — navigates based on backend action_route
   const onAlertAction = useCallback((route: string) => {
-    const routeMap: Record<string, string> = {
-      '/log': 'Registro',
+    // Routes that live in the current HomeStack
+    const homeRoutes: Record<string, string> = {
       '/scan': 'Scan',
       '/dashboard': 'HomeMain',
-      '/water': 'Registro',
-      '/foods': 'FoodSearch',
-      '/foods?category=protein': 'FoodSearch',
-      '/foods?category=healthy': 'FoodSearch',
     };
-    const screen = routeMap[route] || 'HomeMain';
-    navigation.navigate(screen);
+    // Routes that need cross-tab navigation
+    const tabRoutes: Record<string, { tab: string; screen?: string }> = {
+      '/log': { tab: 'Registro' },
+      '/water': { tab: 'Registro' },
+      '/foods': { tab: 'Registro', screen: 'FoodSearch' },
+      '/foods?category=protein': { tab: 'Registro', screen: 'FoodSearch' },
+      '/foods?category=healthy': { tab: 'Registro', screen: 'FoodSearch' },
+    };
+    if (homeRoutes[route]) {
+      navigation.navigate(homeRoutes[route]);
+    } else if (tabRoutes[route]) {
+      const { tab, screen } = tabRoutes[route];
+      navigation.navigate(tab as any, screen ? { screen } : undefined);
+    } else {
+      navigation.navigate('HomeMain');
+    }
   }, [navigation]);
 
   // ---- QuickAction navigation callbacks (stable refs) ----
   const onQuickScan = useCallback(() => { haptics.light(); navigation.navigate('Scan'); }, [navigation]);
-  const onQuickWater = useCallback(() => { haptics.light(); navigation.navigate('Registro'); }, [navigation]);
+  const onQuickWater = useCallback(() => { haptics.light(); (navigation as any).navigate('Registro'); }, [navigation]);
   const onQuickFavorites = useCallback(() => { haptics.light(); navigation.navigate('Favorites'); }, [navigation]);
-  const onQuickReports = useCallback(() => { haptics.light(); navigation.navigate('Reports'); }, [navigation]);
+  const onQuickReports = useCallback(() => { haptics.light(); (navigation as any).navigate('Progress'); }, [navigation]);
 
   // ---- Risk-adaptive QuickAction callbacks ----
   const onQuickLog = useCallback(() => { haptics.light(); navigation.navigate('Registro'); }, [navigation]);
