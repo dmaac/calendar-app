@@ -83,21 +83,21 @@ _ANALYSIS_WINDOW = 7                  # days
 
 async def _get_user_weight(user_id: int, session: AsyncSession) -> Optional[float]:
     """Best-effort weight retrieval from profiles."""
-    result = await session.exec(
+    result = await session.execute(
         select(UserNutritionProfile.weight_kg).where(
             UserNutritionProfile.user_id == user_id,
         )
     )
-    weight = result.first()
+    weight = result.scalar()
     if weight is not None:
         return float(weight)
 
-    result = await session.exec(
+    result = await session.execute(
         select(OnboardingProfile.weight_kg).where(
             OnboardingProfile.user_id == user_id,
         )
     )
-    weight = result.first()
+    weight = result.scalar()
     if weight is not None:
         return float(weight)
 
@@ -105,21 +105,21 @@ async def _get_user_weight(user_id: int, session: AsyncSession) -> Optional[floa
 
 
 async def _get_calorie_goal(user_id: int, session: AsyncSession) -> float:
-    result = await session.exec(
+    result = await session.execute(
         select(UserNutritionProfile.target_calories).where(
             UserNutritionProfile.user_id == user_id,
         )
     )
-    target = result.first()
+    target = result.scalar()
     if target is not None:
         return float(target)
 
-    result = await session.exec(
+    result = await session.execute(
         select(OnboardingProfile.daily_calories).where(
             OnboardingProfile.user_id == user_id,
         )
     )
-    target = result.first()
+    target = result.scalar()
     if target is not None:
         return float(target)
 
@@ -151,6 +151,7 @@ async def _get_daily_aggregates(
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= since_dt,
             AIFoodLog.logged_at <= until_dt,
+            AIFoodLog.deleted_at.is_(None),
         )
         .group_by(func.date(AIFoodLog.logged_at))
     )

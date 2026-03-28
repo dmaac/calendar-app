@@ -49,10 +49,10 @@ async def _get_user_family(
     """Return the membership and family group for an authenticated user.
     Raises 404 if the user is not in any family.
     """
-    result = await session.exec(
+    result = await session.execute(
         select(FamilyMembership).where(FamilyMembership.user_id == user.id)
     )
-    membership = result.first()
+    membership = result.scalars().first()
     if not membership:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -86,7 +86,7 @@ async def _get_today_stats(user_id: int, session: AsyncSession) -> dict:
     today_start = datetime.combine(today, dt_time.min)
     today_end = datetime.combine(today, dt_time.max)
 
-    result = await session.exec(
+    result = await session.execute(
         select(
             func.coalesce(func.sum(AIFoodLog.calories), 0).label("calories"),
             func.coalesce(func.sum(AIFoodLog.protein_g), 0).label("protein"),
@@ -97,6 +97,7 @@ async def _get_today_stats(user_id: int, session: AsyncSession) -> dict:
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     row = result.one()
@@ -120,10 +121,10 @@ async def create_family(
 ):
     """Create a new family group. The authenticated user becomes the owner."""
     # Check: user must not already belong to a family
-    existing = await session.exec(
+    existing = await session.execute(
         select(FamilyMembership).where(FamilyMembership.user_id == current_user.id)
     )
-    if existing.first():
+    if existing.scalars().first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="You already belong to a family group. Leave it before creating a new one.",
@@ -176,12 +177,12 @@ async def invite_member(
     _, family = await _require_family_owner(current_user, session)
 
     # Check member count limit
-    count_result = await session.exec(
+    count_result = await session.execute(
         select(func.count(FamilyMembership.id)).where(
             FamilyMembership.family_group_id == family.id
         )
     )
-    current_count = count_result.one() or 0
+    current_count = count_result.scalar_one() or 0
     if current_count >= _MAX_FAMILY_MEMBERS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -191,10 +192,10 @@ async def invite_member(
     email_str = str(body.email).strip().lower()
 
     # Find the user
-    user_result = await session.exec(
+    user_result = await session.execute(
         select(User).where(User.email == email_str)
     )
-    invitee = user_result.first()
+    invitee = user_result.scalars().first()
     if not invitee:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -202,10 +203,10 @@ async def invite_member(
         )
 
     # Check if already in any family
-    existing = await session.exec(
+    existing = await session.execute(
         select(FamilyMembership).where(FamilyMembership.user_id == invitee.id)
     )
-    if existing.first():
+    if existing.scalars().first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This user already belongs to a family group.",
@@ -242,12 +243,12 @@ async def list_members(
     _, family = await _get_user_family(current_user, session)
 
     # Get all memberships
-    members_result = await session.exec(
+    members_result = await session.execute(
         select(FamilyMembership).where(
             FamilyMembership.family_group_id == family.id
         )
     )
-    memberships = list(members_result.all())
+    memberships = list(members_result.scalars().all())
 
     if not memberships:
         return FamilyMembersResponse(
@@ -258,17 +259,17 @@ async def list_members(
 
     # Batch-load all users in a single query instead of N+1 individual gets
     member_user_ids = [m.user_id for m in memberships]
-    users_result = await session.exec(
+    users_result = await session.execute(
         select(User).where(User.id.in_(member_user_ids))  # type: ignore[attr-defined]
     )
-    users_map = {u.id: u for u in users_result.all()}
+    users_map = {u.id: u for u in users_result.scalars().all()}
 
     # Batch-load today's nutrition stats for all members in a single query
     today = date.today()
     today_start = datetime.combine(today, dt_time.min)
     today_end = datetime.combine(today, dt_time.max)
 
-    batch_stats_result = await session.exec(
+    batch_stats_result = await session.execute(
         select(
             AIFoodLog.user_id,
             func.coalesce(func.sum(AIFoodLog.calories), 0).label("calories"),
@@ -280,6 +281,7 @@ async def list_members(
             AIFoodLog.user_id.in_(member_user_ids),  # type: ignore[attr-defined]
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         ).group_by(AIFoodLog.user_id)
     )
     stats_map = {}
@@ -333,12 +335,12 @@ async def family_summary(
     _, family = await _get_user_family(current_user, session)
 
     # Get all member user_ids
-    members_result = await session.exec(
+    members_result = await session.execute(
         select(FamilyMembership.user_id).where(
             FamilyMembership.family_group_id == family.id
         )
     )
-    member_user_ids: List[int] = list(members_result.all())
+    member_user_ids: List[int] = list(members_result.scalars().all())
     total_members = len(member_user_ids)
 
     today = date.today()
@@ -360,17 +362,18 @@ async def family_summary(
         )
 
     # Members who logged today
-    logged_result = await session.exec(
+    logged_result = await session.execute(
         select(func.count(func.distinct(AIFoodLog.user_id))).where(
             AIFoodLog.user_id.in_(member_user_ids),  # type: ignore[attr-defined]
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
-    members_who_logged = logged_result.one() or 0
+    members_who_logged = logged_result.scalar_one() or 0
 
     # Averages
-    avg_result = await session.exec(
+    avg_result = await session.execute(
         select(
             func.avg(AIFoodLog.calories),
             func.avg(AIFoodLog.protein_g),
@@ -380,6 +383,7 @@ async def family_summary(
             AIFoodLog.user_id.in_(member_user_ids),  # type: ignore[attr-defined]
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     avg_row = avg_result.one()
@@ -389,12 +393,13 @@ async def family_summary(
     avg_fats = round(float(avg_row[3] or 0), 1)
 
     # Top foods today
-    top_result = await session.exec(
+    top_result = await session.execute(
         select(AIFoodLog.food_name, func.count(AIFoodLog.id).label("cnt"))
         .where(
             AIFoodLog.user_id.in_(member_user_ids),  # type: ignore[attr-defined]
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
         .group_by(AIFoodLog.food_name)
         .order_by(func.count(AIFoodLog.id).desc())
@@ -433,13 +438,13 @@ async def remove_member(
     my_membership, family = await _get_user_family(current_user, session)
 
     # Find the target membership
-    target_result = await session.exec(
+    target_result = await session.execute(
         select(FamilyMembership).where(
             FamilyMembership.family_group_id == family.id,
             FamilyMembership.user_id == member_user_id,
         )
     )
-    target_membership = target_result.first()
+    target_membership = target_result.scalars().first()
     if not target_membership:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

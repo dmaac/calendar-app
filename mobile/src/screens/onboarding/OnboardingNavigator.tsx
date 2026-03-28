@@ -53,11 +53,11 @@ interface OnboardingNavigatorProps {
 export const TOTAL_STEPS = 30;
 
 /**
- * Fast Track: 8 essential steps that collect the minimum data needed
+ * Fast Track: 9 essential steps that collect the minimum data needed
  * to compute a nutrition plan and get the user started immediately.
  *
  * Route: Splash -> Welcome -> Gender -> Goal -> HeightWeight ->
- *        Workouts (activity) -> Diet -> Notifications -> PlanBuilding -> Complete
+ *        Workouts (activity) -> Diet -> Notifications -> Account -> PlanBuilding -> Complete
  */
 export const FAST_TRACK_STEPS = [
   1,   // Step01Splash (auto-advance)
@@ -68,6 +68,7 @@ export const FAST_TRACK_STEPS = [
   4,   // Step04Workouts (activity level)
   16,  // Step16Diet (dietary restrictions)
   23,  // Step23Notifications (permissions)
+  25,  // Step25Account (account creation — required to persist data)
 ] as const;
 
 export const FAST_TRACK_TOTAL = FAST_TRACK_STEPS.length;

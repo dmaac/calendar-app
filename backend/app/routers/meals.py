@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 from datetime import date
 from enum import Enum
@@ -5,7 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, func, col
 from ..core.database import get_session
-from ..core.cache import cache_get, cache_set, cache_delete, daily_summary_key, CACHE_TTL
+from ..core.cache import (
+    cache_get, cache_set, cache_delete,
+    daily_summary_key, weekly_summary_key, invalidate_daily_summary,
+    CACHE_TTL,
+)
 from ..core.pagination import PaginatedResponse, build_paginated_response, paginate_params
 from ..models.user import User
 from ..models.meal_log import MealLog, MealLogCreate, MealLogRead, MealType
@@ -13,7 +18,10 @@ from ..services.meal_service import MealService
 from ..services.nutrition_service import NutritionService
 from ..schemas.nutrition import DailySummaryResponse
 from ..schemas.nutrition import PaginatedResponse as LegacyPaginatedResponse
+from ..schemas.api_responses import MessageResponse, WaterUpdateResponse
 from .auth import get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/meals", tags=["meals"])
 
@@ -29,21 +37,30 @@ class SortOrder(str, Enum):
     desc = "desc"
 
 
-@router.post("/", response_model=MealLogRead)
+@router.post(
+    "/",
+    response_model=MealLogRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log a meal",
+    description="Log a new meal entry from the food database with serving size and meal type.",
+    responses={
+        201: {"description": "Meal logged successfully"},
+        400: {"description": "Invalid meal data (e.g. food not found)"},
+    },
+)
 async def log_meal(
     meal_create: MealLogCreate,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Log a new meal entry from the food database."""
     meal_service = MealService(session)
 
     try:
         meal_log = await meal_service.log_meal(meal_create, current_user.id)
 
-        # Invalidate daily summary cache for this date
+        # Invalidate daily and weekly summary caches for this date
         try:
-            await cache_delete(daily_summary_key(current_user.id, meal_create.date.isoformat()))
+            await invalidate_daily_summary(current_user.id, meal_create.date.isoformat())
         except Exception:
             pass
 
@@ -76,13 +93,20 @@ async def log_meal(
         )
 
 
-@router.get("/summary", response_model=DailySummaryResponse)
+@router.get(
+    "/summary",
+    response_model=DailySummaryResponse,
+    summary="Get daily nutrition summary",
+    description="Get daily nutrition summary with macro totals vs targets for a specific date.",
+    responses={
+        200: {"description": "Daily summary with consumed and target macros"},
+    },
+)
 async def get_daily_summary(
     target_date: date = Query(..., description="Date to get summary for (YYYY-MM-DD)"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Get daily nutrition summary with macro totals vs targets."""
     # Try cache first
     cache_key = daily_summary_key(current_user.id, target_date.isoformat())
     try:
@@ -137,18 +161,41 @@ async def get_daily_summary(
     return response
 
 
-@router.get("/weekly-summary", response_model=List[DailySummaryResponse])
+@router.get(
+    "/weekly-summary",
+    response_model=List[DailySummaryResponse],
+    summary="Get weekly nutrition summary",
+    description="Get 7-day nutrition summary ending on the specified end date. Cached for 3 minutes.",
+    responses={
+        200: {"description": "Array of 7 daily summaries"},
+    },
+)
 async def get_weekly_summary(
     end_date: date = Query(..., description="End date for weekly summary (YYYY-MM-DD)"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Get 7-day nutrition summary ending on end_date."""
+    # Try cache first
+    w_cache_key = weekly_summary_key(current_user.id, end_date.isoformat())
+    try:
+        cached = await cache_get(w_cache_key)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass
+
     meal_service = MealService(session)
     nutrition_service = NutritionService(session)
-    profile = await nutrition_service.get_profile(current_user.id)
 
-    summaries = await meal_service.get_weekly_summary(current_user.id, end_date)
+    try:
+        profile = await nutrition_service.get_profile(current_user.id)
+        summaries = await meal_service.get_weekly_summary(current_user.id, end_date)
+    except Exception:
+        logger.exception("Weekly summary query failed: user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load weekly summary. Please try again.",
+        )
 
     result = []
     for data in summaries:
@@ -170,21 +217,42 @@ async def get_weekly_summary(
             )
         )
 
+    # Cache the weekly summary
+    try:
+        serializable = [r.model_dump(mode="json") for r in result]
+        await cache_set(w_cache_key, serializable, CACHE_TTL["weekly_summary"])
+    except Exception:
+        pass
+
     return result
 
 
-@router.get("/history", response_model=List[DailySummaryResponse])
+@router.get(
+    "/history",
+    response_model=List[DailySummaryResponse],
+    summary="Get nutrition history",
+    description="Get daily nutrition summaries for the last N days (1-90). Defaults to 7 days.",
+    responses={
+        200: {"description": "Array of daily summaries"},
+    },
+)
 async def get_history(
     days: int = Query(7, ge=1, le=90, description="Number of days of history"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Get daily nutrition summaries for the last N days."""
     meal_service = MealService(session)
     nutrition_service = NutritionService(session)
-    profile = await nutrition_service.get_profile(current_user.id)
 
-    summaries = await meal_service.get_history(current_user.id, days)
+    try:
+        profile = await nutrition_service.get_profile(current_user.id)
+        summaries = await meal_service.get_history(current_user.id, days)
+    except Exception:
+        logger.exception("History query failed: user_id=%s days=%d", current_user.id, days)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load history. Please try again.",
+        )
 
     result = []
     for data in summaries:
@@ -209,7 +277,18 @@ async def get_history(
     return result
 
 
-@router.get("/list", response_model=PaginatedResponse[MealLogRead])
+@router.get(
+    "/list",
+    response_model=PaginatedResponse[MealLogRead],
+    summary="List meal logs (paginated)",
+    description=(
+        "List meal logs with page-based pagination, date range filters, "
+        "meal type filter, and sorting."
+    ),
+    responses={
+        200: {"description": "Paginated list of meal logs"},
+    },
+)
 async def list_meals_paginated(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -257,15 +336,29 @@ async def list_meals_paginated(
         query = query.order_by(col(sort_col).asc())  # type: ignore
 
     # Get total count
-    total_result = await session.exec(count_query)
-    total = total_result.one()
+    try:
+        total_result = await session.execute(count_query)
+        total = total_result.scalar_one()
+    except Exception:
+        logger.exception("Meals count query failed: user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load meals. Please try again.",
+        )
 
     # Apply pagination
     offset, limit = paginate_params(page, page_size)
     query = query.offset(offset).limit(limit)
 
-    result = await session.exec(query)
-    meals = list(result.all())
+    try:
+        result = await session.execute(query)
+        meals = list(result.scalars().all())
+    except Exception:
+        logger.exception("Meals list query failed: user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load meals. Please try again.",
+        )
 
     # Batch-fetch food names
     from ..services.food_service import FoodService
@@ -299,7 +392,15 @@ async def list_meals_paginated(
     return build_paginated_response(items=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/", response_model=LegacyPaginatedResponse[MealLogRead])
+@router.get(
+    "/",
+    response_model=LegacyPaginatedResponse[MealLogRead],
+    summary="Get meals by date",
+    description="Get meals for a specific date with offset-based pagination (legacy).",
+    responses={
+        200: {"description": "Paginated list of meals for the given date"},
+    },
+)
 async def get_meals(
     target_date: date = Query(..., description="Date to get meals for (YYYY-MM-DD)"),
     offset: int = Query(0, ge=0, description="Number of items to skip"),
@@ -307,10 +408,16 @@ async def get_meals(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Get meals for a specific date (offset-based pagination)."""
     meal_service = MealService(session)
-    total = await meal_service.count_meals_by_date(current_user.id, target_date)
-    meals = await meal_service.get_meals_by_date(current_user.id, target_date, offset=offset, limit=limit)
+    try:
+        total = await meal_service.count_meals_by_date(current_user.id, target_date)
+        meals = await meal_service.get_meals_by_date(current_user.id, target_date, offset=offset, limit=limit)
+    except Exception:
+        logger.exception("Get meals by date failed: user_id=%s date=%s", current_user.id, target_date)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load meals. Please try again.",
+        )
 
     from ..services.food_service import FoodService
     food_service = FoodService(session)
@@ -344,13 +451,21 @@ async def get_meals(
     return LegacyPaginatedResponse(items=items, total=total, offset=offset, limit=limit)
 
 
-@router.delete("/{meal_id}")
+@router.delete(
+    "/{meal_id}",
+    response_model=MessageResponse,
+    summary="Delete a meal log",
+    description="Delete a meal log entry by its ID. Only deletes meals owned by the authenticated user.",
+    responses={
+        200: {"description": "Meal deleted successfully"},
+        404: {"description": "Meal log not found"},
+    },
+)
 async def delete_meal(
     meal_id: int,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Delete a meal log entry."""
     meal_service = MealService(session)
 
     # SEC: Fetch meal with user_id filter to prevent IDOR timing leak
@@ -363,30 +478,45 @@ async def delete_meal(
             detail="Meal log not found",
         )
 
-    # Invalidate daily summary cache
+    # Invalidate daily and weekly summary caches
     if meal_date:
         try:
-            await cache_delete(daily_summary_key(current_user.id, meal_date.isoformat()))
+            await invalidate_daily_summary(current_user.id, meal_date.isoformat())
         except Exception:
             pass
 
     return {"message": "Meal log deleted successfully"}
 
 
-@router.post("/water")
+@router.post(
+    "/water",
+    response_model=WaterUpdateResponse,
+    summary="Update water intake",
+    description="Set water intake (in ml) for a specific date.",
+    responses={
+        200: {"description": "Water intake updated"},
+        500: {"description": "Failed to update water intake"},
+    },
+)
 async def update_water(
     target_date: date = Query(..., description="Date (YYYY-MM-DD)"),
-    water_ml: float = Query(..., ge=0, description="Water intake in ml"),
+    water_ml: float = Query(..., ge=0, le=20000, description="Water intake in ml (0-20000)"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Update water intake for a specific date."""
     meal_service = MealService(session)
-    summary = await meal_service.update_water(current_user.id, target_date, water_ml)
-
-    # Invalidate daily summary cache
     try:
-        await cache_delete(daily_summary_key(current_user.id, target_date.isoformat()))
+        summary = await meal_service.update_water(current_user.id, target_date, water_ml)
+    except Exception:
+        logger.exception("Water update failed: user_id=%s date=%s", current_user.id, target_date)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update water intake. Please try again.",
+        )
+
+    # Invalidate daily and weekly summary caches
+    try:
+        await invalidate_daily_summary(current_user.id, target_date.isoformat())
     except Exception:
         pass
 

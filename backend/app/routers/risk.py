@@ -212,10 +212,10 @@ async def get_daily_adherence(
     """Calculate and return today's adherence record (timezone-aware)."""
     _t0 = time_mod.perf_counter()
     # Resolve user timezone from onboarding profile
-    profile_result = await session.exec(
+    profile_result = await session.execute(
         select(OnboardingProfile).where(OnboardingProfile.user_id == current_user.id)
     )
-    profile = profile_result.first()
+    profile = profile_result.scalars().first()
     if profile and profile.timezone:
         try:
             user_tz = ZoneInfo(profile.timezone)
@@ -295,8 +295,8 @@ async def get_adherence_history(
 
     query = query.order_by(DailyNutritionAdherence.date.desc())
 
-    result = await session.exec(query)
-    records = list(result.all())
+    result = await session.execute(query)
+    records = list(result.scalars().all())
     response.headers["X-Risk-Calc-Time"] = f"{(time_mod.perf_counter() - _t0) * 1000:.1f}"
 
     return [
@@ -658,14 +658,15 @@ async def copy_yesterday(
     yesterday_end = datetime.combine(yesterday, datetime.max.time())
 
     # Fetch yesterday's food logs
-    result = await session.exec(
+    result = await session.execute(
         select(AIFoodLog).where(
             AIFoodLog.user_id == current_user.id,
             AIFoodLog.logged_at >= yesterday_start,
             AIFoodLog.logged_at <= yesterday_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
-    yesterday_logs = list(result.all())
+    yesterday_logs = list(result.scalars().all())
 
     if not yesterday_logs:
         raise HTTPException(
@@ -675,7 +676,7 @@ async def copy_yesterday(
 
     total_calories = 0
     total_protein = 0
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     for log in yesterday_logs:
         new_log = AIFoodLog(
@@ -726,7 +727,7 @@ async def quick_add_protein(
     Adds a Greek yogurt entry: 180 kcal, 20g protein, 8g carbs, 5g fats.
     """
     _t0 = time_mod.perf_counter()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     new_log = AIFoodLog(
         user_id=current_user.id,

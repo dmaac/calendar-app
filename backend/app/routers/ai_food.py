@@ -12,7 +12,7 @@ GET  /api/dashboard/today  — daily summary for authenticated user
 import logging
 from datetime import date as date_type, datetime, time
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -31,11 +31,24 @@ from ..services.ai_scan_service import (
     get_food_logs,
     get_daily_summary,
 )
-from ..core.cache import cache_get, cache_set, cache_delete, daily_summary_key, CACHE_TTL
+from ..core.cache import (
+    cache_get, cache_set, cache_delete,
+    daily_summary_key, invalidate_daily_summary,
+    CACHE_TTL,
+)
 from ..services.nutrition_risk_service import invalidate_risk_cache
 from ..services.celebration_engine import process_post_meal_events
 from ..services.mission_engine import update_mission_progress
 from pydantic import BaseModel, Field
+from ..schemas.api_responses import (
+    FoodLogItemResponse,
+    FoodScanResponse,
+    WaterLogResponse,
+    FrequentFoodItem,
+    FoodSearchResult,
+    FoodLogUpdateResponse,
+    FoodLogDeleteResponse,
+)
 
 
 class FoodLogSortBy(str, Enum):
@@ -61,29 +74,39 @@ except ImportError:
     _rate_limit_enabled = False
 
 
+# SEC: Strict enum for meal types prevents arbitrary string injection
+class MealTypeEnum(str, Enum):
+    breakfast = "breakfast"
+    lunch = "lunch"
+    dinner = "dinner"
+    snack = "snack"
+
+
 # SEC: Numeric bounds prevent absurd values from reaching the database
+# Calories: 0-10000 kcal (a single food item cannot exceed 10000 kcal)
+# Macros: 0-2000g (physiologically impossible to consume >2000g of a single macro in one meal)
 class ManualFoodLog(BaseModel):
-    food_name: str = Field(..., min_length=1, max_length=500)
-    calories: float = Field(..., ge=0, le=99999)
-    carbs_g: float = Field(..., ge=0, le=99999)
-    protein_g: float = Field(..., ge=0, le=99999)
-    fats_g: float = Field(..., ge=0, le=99999)
-    fiber_g: Optional[float] = Field(None, ge=0, le=99999)
-    serving_size: Optional[str] = Field(None, max_length=200)
-    meal_type: str = "snack"
+    food_name: str = Field(..., min_length=1, max_length=500, description="Name of the food item")
+    calories: float = Field(..., ge=0, le=10000, description="Calories (kcal), 0-10000")
+    carbs_g: float = Field(..., ge=0, le=2000, description="Carbohydrates (g), 0-2000")
+    protein_g: float = Field(..., ge=0, le=2000, description="Protein (g), 0-2000")
+    fats_g: float = Field(..., ge=0, le=2000, description="Fat (g), 0-2000")
+    fiber_g: Optional[float] = Field(None, ge=0, le=500, description="Fiber (g), 0-500")
+    serving_size: Optional[str] = Field(None, max_length=200, description="Serving size description")
+    meal_type: MealTypeEnum = Field(MealTypeEnum.snack, description="Meal type: breakfast, lunch, dinner, snack")
 
 
 class UpdateFoodLog(BaseModel):
-    food_name: Optional[str] = Field(None, min_length=1, max_length=500)
-    calories: Optional[float] = Field(None, ge=0, le=99999)
-    carbs_g: Optional[float] = Field(None, ge=0, le=99999)
-    protein_g: Optional[float] = Field(None, ge=0, le=99999)
-    fats_g: Optional[float] = Field(None, ge=0, le=99999)
-    meal_type: Optional[str] = None
+    food_name: Optional[str] = Field(None, min_length=1, max_length=500, description="Name of the food item")
+    calories: Optional[float] = Field(None, ge=0, le=10000, description="Calories (kcal), 0-10000")
+    carbs_g: Optional[float] = Field(None, ge=0, le=2000, description="Carbohydrates (g), 0-2000")
+    protein_g: Optional[float] = Field(None, ge=0, le=2000, description="Protein (g), 0-2000")
+    fats_g: Optional[float] = Field(None, ge=0, le=2000, description="Fat (g), 0-2000")
+    meal_type: Optional[MealTypeEnum] = Field(None, description="Meal type: breakfast, lunch, dinner, snack")
 
 
 class WaterLog(BaseModel):
-    ml: int = Field(..., ge=0, le=20000)  # SEC: Cap at 20L to prevent absurd values
+    ml: int = Field(..., ge=0, le=20000, description="Water intake in ml, 0-20000 (max 20L)")  # SEC: Cap at 20L to prevent absurd values
 
 # ─── Free-tier scan quota (server-side enforcement) ──────────────────────────
 # This MUST match the client-side constant in ScanScreen.tsx (FREE_SCAN_LIMIT).
@@ -94,26 +117,34 @@ router = APIRouter(prefix="/api", tags=["ai-food"])
 
 # ─── Scan ─────────────────────────────────────────────────────────────────────
 
-@router.post("/food/scan")
+@router.post(
+    "/food/scan",
+    response_model=FoodScanResponse,
+    summary="Scan food photo with AI",
+    description=(
+        "Upload a food photo (JPEG, PNG, WebP, HEIC; max 10 MB). "
+        "AI identifies the food and logs the nutritional breakdown automatically. "
+        "Free users are limited to 3 scans per day; premium users have unlimited scans. "
+        "Rate limited to 10 requests per minute per IP."
+    ),
+    responses={
+        200: {"description": "Food identified and logged successfully"},
+        413: {"description": "Image exceeds 10 MB size limit"},
+        415: {"description": "Unsupported image format"},
+        422: {"description": "Invalid meal_type or image validation error"},
+        429: {"description": "Daily scan limit reached (free tier) or rate limit exceeded"},
+        502: {"description": "AI service temporarily unavailable"},
+    },
+)
 @(_limiter.limit("10/minute") if _rate_limit_enabled else lambda f: f)
 async def scan_food(
     request: Request,
     image: UploadFile = File(..., description="Food photo (JPEG/PNG, max 10MB)"),
-    meal_type: str = Form("snack", description="breakfast | lunch | dinner | snack"),
+    meal_type: MealTypeEnum = Form(MealTypeEnum.snack, description="breakfast | lunch | dinner | snack"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """
-    Upload a food photo → AI identifies nutrients → auto-logged for the user.
-    Returns full nutrition breakdown + cache_hit flag.
-    """
-    # Validate meal_type
-    valid_types = {"breakfast", "lunch", "dinner", "snack"}
-    if meal_type not in valid_types:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"meal_type must be one of: {', '.join(valid_types)}",
-        )
+    # meal_type is validated by MealTypeEnum at the Pydantic/FastAPI layer
 
     # Validate content type (MIME check; also catches missing Content-Type)
     _ACCEPTED_TYPES = {
@@ -130,12 +161,22 @@ async def scan_food(
             detail="Unsupported image type. Accepted formats: JPEG, PNG, WebP, HEIC",
         )
 
-    # Read image bytes then enforce 10 MB limit
+    # Read image bytes then enforce size limits
     image_bytes = await image.read()
+    if len(image_bytes) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Empty image file. Please upload a photo of your food.",
+        )
+    if len(image_bytes) < 1024:  # 1 KB minimum
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Image file too small. Please upload a clear photo of your food.",
+        )
     if len(image_bytes) > 10 * 1024 * 1024:  # 10 MB
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Image file too large. Maximum allowed size is 10 MB",
+            detail="Image file too large. Maximum allowed size is 10 MB.",
         )
 
     # ── Server-side free-tier scan quota ────────────────────────────────────
@@ -149,6 +190,7 @@ async def scan_food(
                 AIFoodLog.logged_at >= today_start,
                 AIFoodLog.logged_at <= today_end,
                 AIFoodLog.ai_provider != "manual",
+                AIFoodLog.deleted_at.is_(None),
             )
         )
         today_scan_count = scan_count_result.scalar() or 0
@@ -177,21 +219,32 @@ async def scan_food(
         result = await scan_and_log_food(
             user_id=current_user.id,
             image_bytes=image_bytes,
-            meal_type=meal_type,
+            meal_type=meal_type.value,
             session=session,
         )
     except ValueError as e:
-        logger.error("Food scan failed: user_id=%s error=%s", current_user.id, e)
+        error_msg = str(e)[:200] if str(e) else ""
+        # Distinguish image validation errors (user's fault) from AI service errors
+        if any(keyword in error_msg.lower() for keyword in ["image too small", "image too large", "minimum dimensions"]):
+            logger.warning("Image validation failed: user_id=%s error=%s", current_user.id, error_msg)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_msg,
+            )
+        logger.error("Food scan failed: user_id=%s error=%s", current_user.id, error_msg)
         # SEC: The ai_scan_service already produces user-safe error messages in ValueError.
         # We pass them through but cap length to avoid any accidental data leakage.
-        safe_msg = str(e)[:200] if str(e) else "AI scan failed. Please try again."
+        safe_msg = error_msg or "AI scan failed. Please try again."
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=safe_msg)
     except Exception as e:
         logger.error("Food scan unexpected error: user_id=%s type=%s error=%s", current_user.id, type(e).__name__, e)
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI scanning is temporarily unavailable. Please try again.")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI scanning is temporarily unavailable. Please try again in a few seconds.",
+        )
 
     try:
-        await cache_delete(daily_summary_key(current_user.id, date_type.today().isoformat()))
+        await invalidate_daily_summary(current_user.id, date_type.today().isoformat())
     except Exception:
         pass
 
@@ -221,26 +274,31 @@ async def scan_food(
 
 # ─── Manual Log ───────────────────────────────────────────────────────────────
 
-@router.post("/food/manual", status_code=201)
+@router.post(
+    "/food/manual",
+    response_model=FoodScanResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log food manually",
+    description=(
+        "Log a food entry manually without a photo. "
+        "The user provides food name, calories, and macronutrient values. "
+        "Useful when the user already knows the nutritional information."
+    ),
+    responses={
+        201: {"description": "Food logged successfully"},
+        422: {"description": "Invalid input or meal_type"},
+    },
+)
 async def manual_food_log(
     body: ManualFoodLog,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """
-    Log food manually (no photo required).
-    Useful when the user knows the nutritional info and doesn't want to scan.
-    """
-    valid_types = {"breakfast", "lunch", "dinner", "snack"}
-    if body.meal_type not in valid_types:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"meal_type must be one of: {', '.join(valid_types)}",
-        )
+    # meal_type is validated by MealTypeEnum at the Pydantic layer
 
     log = AIFoodLog(
         user_id=current_user.id,
-        meal_type=body.meal_type,
+        meal_type=body.meal_type.value,
         food_name=body.food_name,
         calories=body.calories,
         carbs_g=body.carbs_g,
@@ -253,11 +311,19 @@ async def manual_food_log(
         was_edited=False,
     )
     session.add(log)
-    await session.commit()
-    await session.refresh(log)
+    try:
+        await session.commit()
+        await session.refresh(log)
+    except Exception:
+        await session.rollback()
+        logger.exception("Manual food log commit failed: user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save food log. Please try again.",
+        )
 
     try:
-        await cache_delete(daily_summary_key(current_user.id, date_type.today().isoformat()))
+        await invalidate_daily_summary(current_user.id, date_type.today().isoformat())
     except Exception:
         pass
 
@@ -298,13 +364,26 @@ async def manual_food_log(
 
 # ─── Water Tracking ───────────────────────────────────────────────────────────
 
-@router.post("/food/water")
+@router.post(
+    "/food/water",
+    response_model=WaterLogResponse,
+    summary="Log water intake",
+    description=(
+        "Add water intake (in ml) to today's daily nutrition summary. "
+        "The amount is additive: each call adds to the running total. "
+        "Maximum single entry is 20,000 ml."
+    ),
+    responses={
+        200: {"description": "Water intake updated, current total returned"},
+        422: {"description": "Invalid ml value"},
+        500: {"description": "Failed to update water intake"},
+    },
+)
 async def log_water(
     body: WaterLog,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Add water intake (ml) to today's daily summary."""
     from datetime import date as date_type
     from sqlmodel import select as sm_select
     from ..models.daily_nutrition_summary import DailyNutritionSummary
@@ -312,13 +391,13 @@ async def log_water(
     today = date_type.today()
 
     # Fetch existing summary for today
-    result = await session.exec(
+    result = await session.execute(
         sm_select(DailyNutritionSummary).where(
             DailyNutritionSummary.user_id == current_user.id,
             DailyNutritionSummary.date == today,
         )
     )
-    summary = result.first()
+    summary = result.scalars().first()
 
     if summary:
         summary.water_ml = (summary.water_ml or 0) + body.ml
@@ -337,13 +416,13 @@ async def log_water(
     except Exception:
         # Handle race condition: another request may have created the row
         await session.rollback()
-        result = await session.exec(
+        result = await session.execute(
             sm_select(DailyNutritionSummary).where(
                 DailyNutritionSummary.user_id == current_user.id,
                 DailyNutritionSummary.date == today,
             )
         )
-        summary = result.first()
+        summary = result.scalars().first()
         if summary:
             summary.water_ml = (summary.water_ml or 0) + body.ml
             session.add(summary)
@@ -356,7 +435,7 @@ async def log_water(
             )
 
     try:
-        await cache_delete(daily_summary_key(current_user.id, today.isoformat()))
+        await invalidate_daily_summary(current_user.id, today.isoformat())
     except Exception:
         pass
 
@@ -365,7 +444,20 @@ async def log_water(
 
 # ─── Food Logs ────────────────────────────────────────────────────────────────
 
-@router.get("/food/logs")
+@router.get(
+    "/food/logs",
+    response_model=PaginatedResponse[FoodLogItemResponse],
+    summary="List food logs",
+    description=(
+        "List the authenticated user's food logs with pagination, date range filters, "
+        "meal type filter, and sorting. Supports both page-based (page/page_size) "
+        "and legacy offset/limit pagination."
+    ),
+    responses={
+        200: {"description": "Paginated list of food logs"},
+        422: {"description": "Invalid date format or filter value"},
+    },
+)
 async def list_food_logs(
     date: Optional[str] = Query(None, description="Filter by single date YYYY-MM-DD (legacy)"),
     date_from: Optional[str] = Query(None, description="Filter: start date YYYY-MM-DD (inclusive)"),
@@ -391,9 +483,9 @@ async def list_food_logs(
     - `GET /api/food/logs?date_from=2026-03-01&date_to=2026-03-15&meal_type=breakfast`
     - `GET /api/food/logs?sort_by=calories&order=desc`
     """
-    # Build base query
-    query = select(AIFoodLog).where(AIFoodLog.user_id == current_user.id)
-    count_query = select(func.count()).select_from(AIFoodLog).where(AIFoodLog.user_id == current_user.id)
+    # Build base query -- exclude soft-deleted records
+    query = select(AIFoodLog).where(AIFoodLog.user_id == current_user.id, AIFoodLog.deleted_at.is_(None))
+    count_query = select(func.count()).select_from(AIFoodLog).where(AIFoodLog.user_id == current_user.id, AIFoodLog.deleted_at.is_(None))
 
     # Apply date filter (legacy single-date or new range)
     if date is not None and date_from is None and date_to is None:
@@ -441,8 +533,15 @@ async def list_food_logs(
         query = query.order_by(col(sort_col).asc())  # type: ignore
 
     # Get total count
-    total_result = await session.execute(count_query)
-    total = total_result.scalar() or 0
+    try:
+        total_result = await session.execute(count_query)
+        total = total_result.scalar() or 0
+    except Exception:
+        logger.exception("Food logs count query failed: user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load food logs. Please try again.",
+        )
 
     # Determine pagination mode: prefer page-based when page > 1 or legacy params are default
     use_page_based = (page > 1) or (offset == 0 and limit == 0)
@@ -454,8 +553,15 @@ async def list_food_logs(
         effective_limit = limit if limit > 0 else 50
         query = query.offset(offset).limit(effective_limit)
 
-    result = await session.execute(query)
-    logs = result.scalars().all()
+    try:
+        result = await session.execute(query)
+        logs = result.scalars().all()
+    except Exception:
+        logger.exception("Food logs query failed: user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load food logs. Please try again.",
+        )
 
     items = [
         {
@@ -485,17 +591,26 @@ async def list_food_logs(
     return items
 
 
-@router.get("/food/logs/{log_id}")
+@router.get(
+    "/food/logs/{log_id}",
+    response_model=FoodLogItemResponse,
+    summary="Get food log detail",
+    description="Retrieve a single food log entry by its ID. Only returns logs owned by the authenticated user.",
+    responses={
+        200: {"description": "Food log entry"},
+        404: {"description": "Food log not found or belongs to another user"},
+    },
+)
 async def get_food_log(
     log_id: int,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Get a single food log entry."""
     result = await session.execute(
         select(AIFoodLog).where(
             AIFoodLog.id == log_id,
             AIFoodLog.user_id == current_user.id,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     log = result.scalar_one_or_none()
@@ -521,18 +636,31 @@ async def get_food_log(
     }
 
 
-@router.put("/food/logs/{log_id}")
+@router.put(
+    "/food/logs/{log_id}",
+    response_model=FoodLogUpdateResponse,
+    summary="Edit a food log entry",
+    description=(
+        "Update one or more fields of an existing food log. "
+        "Automatically sets was_edited=True. Invalidates the cached daily summary."
+    ),
+    responses={
+        200: {"description": "Log updated successfully"},
+        404: {"description": "Food log not found"},
+        422: {"description": "Invalid meal_type or field value"},
+    },
+)
 async def update_food_log(
     log_id: int,
     body: UpdateFoodLog,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Edit a food log entry (marks was_edited=True)."""
     result = await session.execute(
         select(AIFoodLog).where(
             AIFoodLog.id == log_id,
             AIFoodLog.user_id == current_user.id,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     log = result.scalar_one_or_none()
@@ -550,16 +678,23 @@ async def update_food_log(
     if body.fats_g is not None:
         log.fats_g = body.fats_g
     if body.meal_type is not None:
-        if body.meal_type not in {"breakfast", "lunch", "dinner", "snack"}:
-            raise HTTPException(status_code=422, detail="Invalid meal_type")
-        log.meal_type = body.meal_type
+        # meal_type is validated by MealTypeEnum at the Pydantic layer
+        log.meal_type = body.meal_type.value
 
     log.was_edited = True
     session.add(log)
-    await session.commit()
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        logger.exception("Food log update commit failed: log_id=%s user_id=%s", log_id, current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update food log. Please try again.",
+        )
 
     try:
-        await cache_delete(daily_summary_key(current_user.id, log.logged_at.date().isoformat()))
+        await invalidate_daily_summary(current_user.id, log.logged_at.date().isoformat())
     except Exception:
         pass
 
@@ -568,25 +703,37 @@ async def update_food_log(
     return {"message": "Updated", "id": log.id}
 
 
-@router.delete("/food/logs/{log_id}")
+@router.delete(
+    "/food/logs/{log_id}",
+    response_model=FoodLogDeleteResponse,
+    summary="Delete a food log entry",
+    description=(
+        "Soft-delete a food log entry. The record is retained for 30 days "
+        "and can be recovered via the recovery endpoints."
+    ),
+    responses={
+        200: {"description": "Log soft-deleted, recoverable for 30 days"},
+        404: {"description": "Food log not found"},
+    },
+)
 async def delete_food_log(
     log_id: int,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Delete a food log entry."""
-    result = await session.execute(
-        select(AIFoodLog).where(
-            AIFoodLog.id == log_id,
-            AIFoodLog.user_id == current_user.id,
-        )
+    from ..services.data_protection_service import soft_delete
+
+    record = await soft_delete(
+        session,
+        AIFoodLog,
+        record_id=log_id,
+        user_id=current_user.id,
     )
-    log = result.scalar_one_or_none()
-    if not log:
+
+    if record is None:
         raise HTTPException(status_code=404, detail="Food log not found")
 
-    log_date = log.logged_at.date().isoformat()
-    await session.delete(log)
+    log_date = record.logged_at.date().isoformat()
     await session.commit()
 
     try:
@@ -596,15 +743,246 @@ async def delete_food_log(
 
     invalidate_risk_cache(current_user.id)
 
-    return {"message": "Deleted"}
+    return {"message": "Deleted", "recoverable": True}
+
+
+# ─── Frequent Foods (Quick Log) ──────────────────────────────────────────────
+
+@router.get(
+    "/food/frequent",
+    response_model=List[FrequentFoodItem],
+    summary="Get frequently logged foods",
+    description=(
+        "Return the user's most frequently logged foods, ordered by log count descending. "
+        "Used by the Quick Log feature for rapid re-logging of common meals."
+    ),
+    responses={
+        200: {"description": "List of frequent foods with log counts"},
+    },
+)
+async def get_frequent_foods(
+    limit: int = Query(10, ge=1, le=50, description="Number of frequent foods to return"),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        result = await session.execute(
+            text(
+                "SELECT food_name, calories, protein_g, carbs_g, fats_g, "
+                "fiber_g, sugar_g, sodium_mg, serving_size, meal_type, "
+                "COUNT(*) as log_count, MAX(logged_at) as last_logged "
+                "FROM ai_food_log "
+                "WHERE user_id = :uid AND deleted_at IS NULL "
+                "GROUP BY food_name, calories, protein_g, carbs_g, fats_g, "
+                "fiber_g, sugar_g, sodium_mg, serving_size, meal_type "
+                "ORDER BY log_count DESC, last_logged DESC "
+                "LIMIT :limit"
+            ),
+            {"uid": current_user.id, "limit": limit},
+        )
+        rows = result.mappings().all()
+    except Exception:
+        logger.exception("Frequent foods query failed: user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load frequent foods. Please try again.",
+        )
+    return [
+        {
+            "food_name": row["food_name"],
+            "calories": row["calories"],
+            "protein_g": row["protein_g"],
+            "carbs_g": row["carbs_g"],
+            "fats_g": row["fats_g"],
+            "fiber_g": row["fiber_g"],
+            "sugar_g": row["sugar_g"],
+            "sodium_mg": row["sodium_mg"],
+            "serving_size": row["serving_size"],
+            "meal_type": row["meal_type"],
+            "log_count": row["log_count"],
+            "last_logged": row["last_logged"].isoformat() if row["last_logged"] else None,
+        }
+        for row in rows
+    ]
+
+
+# ─── Quick Log (re-log a previous food) ─────────────────────────────────────
+
+class QuickLogRequest(BaseModel):
+    """Re-log a food by copying data from a previous food log."""
+    food_log_id: Optional[int] = Field(None, gt=0, description="ID of an existing food log to copy")
+    food_name: Optional[str] = Field(None, min_length=1, max_length=500, description="Food name (if not using food_log_id)")
+    calories: Optional[float] = Field(None, ge=0, le=10000, description="Calories (kcal), 0-10000")
+    protein_g: Optional[float] = Field(None, ge=0, le=2000, description="Protein (g), 0-2000")
+    carbs_g: Optional[float] = Field(None, ge=0, le=2000, description="Carbohydrates (g), 0-2000")
+    fats_g: Optional[float] = Field(None, ge=0, le=2000, description="Fat (g), 0-2000")
+    fiber_g: Optional[float] = Field(None, ge=0, le=500, description="Fiber (g), 0-500")
+    sugar_g: Optional[float] = Field(None, ge=0, le=2000, description="Sugar (g), 0-2000")
+    sodium_mg: Optional[float] = Field(None, ge=0, le=50000, description="Sodium (mg), 0-50000")
+    serving_size: Optional[str] = Field(None, max_length=200, description="Serving size description")
+    meal_type: MealTypeEnum = Field(MealTypeEnum.snack, description="Meal type: breakfast, lunch, dinner, snack")
+
+
+@router.post(
+    "/food/quick-log",
+    response_model=FoodScanResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Quick-log a food",
+    description=(
+        "Re-log a food to today in a single request. Two modes: "
+        "(1) By food_log_id -- copy all macros from an existing food log; "
+        "(2) By food data -- provide food_name + macros directly."
+    ),
+    responses={
+        201: {"description": "Food re-logged successfully"},
+        404: {"description": "Source food log not found (mode 1)"},
+        422: {"description": "Invalid input"},
+    },
+)
+async def quick_log_food(
+    body: QuickLogRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Re-log a food to today in a single request.
+
+    Two modes:
+    1. **By food_log_id**: Copy all macros from an existing food log (the user's own).
+    2. **By food data**: Provide food_name + macros directly (used by the frequent foods list).
+
+    Creates a new AIFoodLog entry for today with the same nutritional data.
+    """
+    # meal_type is validated by MealTypeEnum at the Pydantic layer
+
+    if body.food_log_id is not None:
+        # Mode 1: Copy from existing food log (exclude soft-deleted)
+        result = await session.execute(
+            select(AIFoodLog).where(
+                AIFoodLog.id == body.food_log_id,
+                AIFoodLog.user_id == current_user.id,
+                AIFoodLog.deleted_at.is_(None),
+            )
+        )
+        source_log = result.scalar_one_or_none()
+        if not source_log:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Food log not found",
+            )
+
+        new_log = AIFoodLog(
+            user_id=current_user.id,
+            meal_type=body.meal_type.value,
+            food_name=source_log.food_name,
+            calories=source_log.calories,
+            carbs_g=source_log.carbs_g,
+            protein_g=source_log.protein_g,
+            fats_g=source_log.fats_g,
+            fiber_g=source_log.fiber_g,
+            sugar_g=source_log.sugar_g,
+            sodium_mg=source_log.sodium_mg,
+            serving_size=source_log.serving_size,
+            ai_provider="quick_log",
+            ai_confidence=1.0,
+            was_edited=False,
+        )
+    elif body.food_name is not None and body.calories is not None:
+        # Mode 2: Direct food data (from frequent foods list)
+        new_log = AIFoodLog(
+            user_id=current_user.id,
+            meal_type=body.meal_type.value,
+            food_name=body.food_name,
+            calories=body.calories,
+            carbs_g=body.carbs_g or 0.0,
+            protein_g=body.protein_g or 0.0,
+            fats_g=body.fats_g or 0.0,
+            fiber_g=body.fiber_g,
+            sugar_g=body.sugar_g,
+            sodium_mg=body.sodium_mg,
+            serving_size=body.serving_size,
+            ai_provider="quick_log",
+            ai_confidence=1.0,
+            was_edited=False,
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Provide either food_log_id or food_name + calories",
+        )
+
+    session.add(new_log)
+    try:
+        await session.commit()
+        await session.refresh(new_log)
+    except Exception:
+        await session.rollback()
+        logger.exception("Quick log commit failed: user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save food log. Please try again.",
+        )
+
+    try:
+        await invalidate_daily_summary(current_user.id, date_type.today().isoformat())
+    except Exception:
+        pass
+
+    invalidate_risk_cache(current_user.id)
+
+    # Process post-meal celebrations and mission progress
+    celebrations = []
+    try:
+        celebrations = await process_post_meal_events(current_user.id, session)
+        completed_missions = await update_mission_progress(current_user.id, session)
+        for mission in completed_missions:
+            celebrations.append({
+                "trigger": "mission_completed",
+                "message": f"Mision completada: {mission['name']}! +{mission['xp_reward']} XP",
+                "emoji": "\u2705",
+                "intensity": "subtle",
+                "data": mission,
+            })
+        await session.commit()
+    except Exception as exc:
+        logger.debug("Celebration processing failed (non-blocking): %s", exc)
+
+    return {
+        "id": new_log.id,
+        "food_name": new_log.food_name,
+        "calories": new_log.calories,
+        "carbs_g": new_log.carbs_g,
+        "protein_g": new_log.protein_g,
+        "fats_g": new_log.fats_g,
+        "fiber_g": new_log.fiber_g,
+        "sugar_g": new_log.sugar_g,
+        "sodium_mg": new_log.sodium_mg,
+        "serving_size": new_log.serving_size,
+        "meal_type": new_log.meal_type,
+        "logged_at": new_log.logged_at.isoformat(),
+        "was_edited": new_log.was_edited,
+        "cache_hit": False,
+        "celebrations": celebrations,
+    }
 
 
 # ─── Food Search ──────────────────────────────────────────────────────────────
 
-@router.get("/food/search")
+@router.get(
+    "/food/search",
+    response_model=List[FoodSearchResult],
+    summary="Search food history",
+    description=(
+        "Search the user's previous food logs by name (autocomplete). "
+        "Returns distinct foods ordered by frequency. Query must be 2+ characters."
+    ),
+    responses={
+        200: {"description": "Matching foods with log counts"},
+    },
+)
 async def search_food_history(
-    q: str = Query(..., description="Search query (min 2 chars)"),
-    limit: int = Query(10, ge=1, le=20),
+    q: str = Query(..., min_length=2, max_length=200, description="Search query (2-200 chars)"),
+    limit: int = Query(10, ge=1, le=20, description="Number of results (1-20)"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -619,18 +997,25 @@ async def search_food_history(
     # SEC: Escape SQL LIKE wildcards in user input to prevent wildcard injection
     escaped_q = q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
-    result = await session.execute(
-        text(
-            "SELECT food_name, calories, protein_g, carbs_g, fats_g, COUNT(*) as count "
-            "FROM ai_food_log "
-            "WHERE user_id = :uid AND LOWER(food_name) LIKE LOWER(:q) "
-            "GROUP BY food_name, calories, protein_g, carbs_g, fats_g "
-            "ORDER BY count DESC "
-            "LIMIT :limit"
-        ),
-        {"uid": current_user.id, "q": f"%{escaped_q}%", "limit": limit},
-    )
-    rows = result.mappings().all()
+    try:
+        result = await session.execute(
+            text(
+                "SELECT food_name, calories, protein_g, carbs_g, fats_g, COUNT(*) as count "
+                "FROM ai_food_log "
+                "WHERE user_id = :uid AND LOWER(food_name) LIKE LOWER(:q) AND deleted_at IS NULL "
+                "GROUP BY food_name, calories, protein_g, carbs_g, fats_g "
+                "ORDER BY count DESC "
+                "LIMIT :limit"
+            ),
+            {"uid": current_user.id, "q": f"%{escaped_q}%", "limit": limit},
+        )
+        rows = result.mappings().all()
+    except Exception:
+        logger.exception("Food search query failed: user_id=%s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Search failed. Please try again.",
+        )
     return [
         {
             "food_name": row["food_name"],
@@ -646,16 +1031,24 @@ async def search_food_history(
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
 
-@router.get("/dashboard/today")
+@router.get(
+    "/dashboard/today",
+    summary="Get daily nutrition dashboard",
+    description=(
+        "Daily nutrition summary used by the HomeScreen dashboard. "
+        "Returns macro totals vs targets, streak information, and meals logged. "
+        "Defaults to today if no date parameter is provided."
+    ),
+    responses={
+        200: {"description": "Daily nutrition summary with totals and targets"},
+        422: {"description": "Invalid date format"},
+    },
+)
 async def dashboard_today(
     date: Optional[str] = Query(None, description="Date YYYY-MM-DD, defaults to today"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """
-    Daily nutrition summary: totals vs targets, streak, meals logged.
-    Used by the HomeScreen dashboard.
-    """
     target_date = date or date_type.today().isoformat()
 
     # Basic date format validation
@@ -671,17 +1064,26 @@ async def dashboard_today(
         if cached is not None:
             return cached
     except Exception:
-        pass  # cache failure — fall through to DB
+        pass  # cache failure -- fall through to DB
 
-    result = await get_daily_summary(
-        user_id=current_user.id,
-        date=target_date,
-        session=session,
-    )
+    try:
+        result = await get_daily_summary(
+            user_id=current_user.id,
+            date=target_date,
+            session=session,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Dashboard summary failed: user_id=%s date=%s", current_user.id, target_date)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load daily summary. Please try again.",
+        )
 
     try:
         await cache_set(cache_key, result, CACHE_TTL["daily_summary"])
     except Exception:
-        pass  # cache failure — return result anyway
+        pass  # cache failure -- return result anyway
 
     return result

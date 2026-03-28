@@ -17,6 +17,13 @@ services:
   redis:
     ports:
       - "6379:6379"
+    command: >
+      redis-server
+        --save 60 1
+        --appendonly yes
+        --loglevel warning
+        --maxmemory 256mb
+        --maxmemory-policy allkeys-lru
 
   backend:
     # Override CMD to run uvicorn with hot-reload instead of gunicorn

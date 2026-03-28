@@ -9,20 +9,22 @@ import uuid as uuid_lib
 
 logger = logging.getLogger(__name__)
 
-# Use pbkdf2_sha256 instead of bcrypt for better compatibility
-# TODO:SECURITY [Medium] Consider migrating to argon2 or bcrypt for stronger resistance
-# against GPU-based attacks. Current pbkdf2 with 600k rounds is acceptable for now.
+# SEC: bcrypt with work factor 12 — GPU-resistant, OWASP recommended.
+# Passlib auto-verifies old pbkdf2_sha256 hashes and re-hashes on next login.
 pwd_context = CryptContext(
-    schemes=["pbkdf2_sha256"],
-    deprecated="auto",
-    pbkdf2_sha256__rounds=600_000,  # SEC: OWASP 2023 recommends >= 600k for PBKDF2-SHA256
+    schemes=["bcrypt", "pbkdf2_sha256"],
+    default="bcrypt",
+    deprecated=["pbkdf2_sha256"],
+    bcrypt__rounds=12,  # SEC: OWASP 2023 recommends bcrypt cost >= 10; 12 balances security/latency
+    pbkdf2_sha256__rounds=600_000,  # SEC: Legacy compat — still verifies old hashes
 )
 
 # ─── Password policy ────────────────────────────────────────────────────────
 
 _PASSWORD_MIN_LENGTH = 8
+_PASSWORD_MAX_LENGTH = 128  # SEC: Prevent bcrypt 72-byte silent truncation + DoS via huge payloads
 _PASSWORD_PATTERN = re.compile(
-    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$'
+    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?`~]).+$'
 )
 
 
@@ -32,25 +34,36 @@ def validate_password_strength(password: str) -> None:
     if the password does not meet requirements.
 
     Requirements:
-    - At least 8 characters
+    - Between 8 and 128 characters
     - At least one uppercase letter
     - At least one lowercase letter
     - At least one digit
-    # TODO:SECURITY [Low] Consider adding special character requirement or
-    # checking against breached password lists (e.g., HaveIBeenPwned API)
+    - At least one special character
     """
     min_len = getattr(settings, 'password_min_length', _PASSWORD_MIN_LENGTH)
     if len(password) < min_len:
         raise ValueError(f"Password must be at least {min_len} characters long.")
+    if len(password) > _PASSWORD_MAX_LENGTH:
+        raise ValueError(f"Password must not exceed {_PASSWORD_MAX_LENGTH} characters.")
     if not _PASSWORD_PATTERN.match(password):
         raise ValueError(
             "Password must contain at least one uppercase letter, "
-            "one lowercase letter, and one digit."
+            "one lowercase letter, one digit, and one special character."
         )
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
+
+
+def needs_rehash(hashed_password: str) -> bool:
+    """Check if a password hash uses a deprecated scheme and should be re-hashed.
+
+    When migrating from pbkdf2_sha256 to bcrypt, this returns True for any
+    hash still using the old algorithm. The caller should re-hash and persist
+    the new hash on successful login.
+    """
+    return pwd_context.needs_update(hashed_password)
 
 
 def get_password_hash(password: str) -> str:
@@ -77,9 +90,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 def verify_token(token: str):
     """Verify an access token. Returns the 'sub' claim or None.
 
-    SEC: Also checks the token blacklist in Redis (best-effort).
-    If Redis is unavailable, the token is allowed through to avoid
-    a hard dependency on Redis for every authenticated request.
+    This performs stateless JWT validation only (signature, expiry, type claim).
+    The async blacklist check (Redis) is handled by get_current_user() in the
+    auth router -- it cannot be done here because this is a sync function called
+    inside an already-running event loop.
     """
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
@@ -89,25 +103,6 @@ def verify_token(token: str):
         username: str = payload.get("sub")
         if username is None:
             return None
-
-        # SEC: Check if this access token has been blacklisted (e.g., after logout/password change)
-        jti = payload.get("jti")
-        if jti:
-            try:
-                from .token_store import is_access_token_blacklisted
-                import asyncio
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # We're inside an async context — cannot use run_until_complete.
-                    # The async check will be handled by the caller (get_current_user).
-                    pass
-                else:
-                    if loop.run_until_complete(is_access_token_blacklisted(jti)):
-                        return None
-            except Exception:
-                # SEC: Redis unavailable — degrade gracefully, allow the request
-                logger.debug("Token blacklist check skipped — Redis unavailable")
-
         return username
     except JWTError:
         return None

@@ -35,6 +35,14 @@ router = APIRouter(prefix="/api/calories", tags=["calories"])
 # Response schema
 # ---------------------------------------------------------------------------
 
+class ExerciseEntry(BaseModel):
+    """Single exercise performed today."""
+    name: str
+    duration: int
+    calories: int
+    workout_type: str
+
+
 class NetCaloriesResponse(BaseModel):
     """Daily calorie balance breakdown."""
 
@@ -45,6 +53,7 @@ class NetCaloriesResponse(BaseModel):
     goal: float
     remaining: float
     deficit_or_surplus: str  # "deficit" | "surplus" | "on_target"
+    exercises_today: list[ExerciseEntry] = []
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +74,7 @@ async def _get_consumed_calories(
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= day_start,
             AIFoodLog.logged_at <= day_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     return float(result.scalar())
@@ -91,8 +101,8 @@ async def _get_burned_calories(
         WorkoutLog.created_at >= day_start,
         WorkoutLog.created_at <= day_end,
     )
-    result = await session.exec(stmt)
-    workouts = list(result.all())
+    result = await session.execute(stmt)
+    workouts = list(result.scalars().all())
 
     total_burned = 0.0
     for w in workouts:
@@ -119,22 +129,22 @@ async def _get_calorie_goal(
       3. Hardcoded default: 2000 kcal
     """
     # Try nutrition profile first
-    result = await session.exec(
+    result = await session.execute(
         select(UserNutritionProfile.target_calories).where(
             UserNutritionProfile.user_id == user_id,
         )
     )
-    target = result.first()
+    target = result.scalar()
     if target is not None:
         return float(target)
 
     # Fallback to onboarding profile
-    result = await session.exec(
+    result = await session.execute(
         select(OnboardingProfile.daily_calories).where(
             OnboardingProfile.user_id == user_id,
         )
     )
-    target = result.first()
+    target = result.scalar()
     if target is not None:
         return float(target)
 
@@ -147,26 +157,60 @@ async def _get_user_weight(
 ) -> Optional[float]:
     """Best-effort retrieval of the user's weight in kg."""
     # Nutrition profile
-    result = await session.exec(
+    result = await session.execute(
         select(UserNutritionProfile.weight_kg).where(
             UserNutritionProfile.user_id == user_id,
         )
     )
-    weight = result.first()
+    weight = result.scalar()
     if weight is not None:
         return float(weight)
 
     # Onboarding fallback
-    result = await session.exec(
+    result = await session.execute(
         select(OnboardingProfile.weight_kg).where(
             OnboardingProfile.user_id == user_id,
         )
     )
-    weight = result.first()
+    weight = result.scalar()
     if weight is not None:
         return float(weight)
 
     return None
+
+
+async def _get_exercises_today(
+    user_id: int,
+    target_date: date,
+    session: AsyncSession,
+    weight_kg: Optional[float] = None,
+) -> list[dict]:
+    """Build a list of exercises performed on the given day."""
+    day_start = datetime.combine(target_date, dt_time.min)
+    day_end = datetime.combine(target_date, dt_time.max)
+
+    stmt = select(WorkoutLog).where(
+        WorkoutLog.user_id == user_id,
+        WorkoutLog.created_at >= day_start,
+        WorkoutLog.created_at <= day_end,
+    )
+    result = await session.execute(stmt)
+    workouts = list(result.scalars().all())
+
+    exercises = []
+    for w in workouts:
+        if w.calories_burned is not None and w.calories_burned > 0:
+            cal = int(w.calories_burned)
+        else:
+            w_kg = weight_kg or 70.0
+            cal = met_estimate(w.workout_type, w.duration_min, w_kg)
+        exercises.append({
+            "name": w.workout_type.value.capitalize(),
+            "duration": w.duration_min,
+            "calories": round(cal),
+            "workout_type": w.workout_type.value,
+        })
+    return exercises
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +243,9 @@ async def get_net_calories(
         consumed = await _get_consumed_calories(user_id, target, session)
         burned = await _get_burned_calories(user_id, target, session, weight_kg)
         goal = await _get_calorie_goal(user_id, session)
+
+        # Build exercises list for today
+        exercises_list = await _get_exercises_today(user_id, target, session, weight_kg)
     except Exception as e:
         logger.exception("Error computing net calories for user %s", user_id)
         from fastapi import HTTPException
@@ -227,4 +274,5 @@ async def get_net_calories(
         goal=round(goal, 1),
         remaining=remaining,
         deficit_or_surplus=classification,
+        exercises_today=exercises_list,
     )

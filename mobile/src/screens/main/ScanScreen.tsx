@@ -1,12 +1,20 @@
 /**
- * ScanScreen — Escaneo de alimentos con IA
- * Flujo: seleccionar imagen (camara/galeria) -> subir al backend -> ver resultado -> confirmar log
+ * ScanScreen — AI Food Scanning (core feature)
  *
- * UX Polish:
- * - Scale animation on result card appearance
- * - Haptic feedback on scan complete, confirm, meal selection
- * - Full accessibility labels and roles on all interactive elements
- * - Fade-in animation for scanning/result states
+ * Flow: idle (camera/gallery) -> permission check -> network check ->
+ *       scanning (with elapsed timer + cancel) -> result (edit inline) -> confirm -> logged
+ *
+ * Improvements over previous version:
+ * - Proper camera permission handling with "Open Settings" when permanently denied
+ * - Network connectivity check before scanning (avoids wasted wait on no connection)
+ * - Categorized error messages (network, timeout, camera, generic AI)
+ * - Elapsed timer during scan so user knows it is working
+ * - Cancel button during scan
+ * - Separate retry options: "retry same image" vs "try different photo"
+ * - Fade-out/fade-in transitions between states using Animated
+ * - Daily calorie context in result view (shows how meal fits into goal)
+ * - Improved accessibility: live regions, roles, hints on every interactive element
+ * - Haptic feedback on every meaningful interaction
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -21,8 +29,11 @@ import {
   Animated,
   Easing,
   TextInput,
+  Linking,
+  AccessibilityInfo,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Network from 'expo-network';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout } from '../../theme';
@@ -45,6 +56,7 @@ const FREE_SCAN_LIMIT = 3;
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type ScanState = 'idle' | 'scanning' | 'result' | 'error' | 'logged';
+type ErrorType = 'network' | 'timeout' | 'camera' | 'generic';
 
 const MEAL_TYPES: { value: MealType; labelKey: string; icon: string; color: string }[] = [
   { value: 'breakfast', labelKey: 'scan.breakfast', icon: 'sunny-outline',      color: '#F59E0B' },
@@ -64,14 +76,33 @@ function computeHealthScore(calories: number, proteinG: number, carbsG: number, 
   const pRatio = pCal / total;
   const cRatio = cCal / total;
   const fRatio = fCal / total;
-  // Distance from ideal ratios (lower is better)
   const dist = Math.abs(pRatio - 0.3) + Math.abs(cRatio - 0.4) + Math.abs(fRatio - 0.3);
-  // Map 0..1 distance to 10..1 score
   const raw = 10 - dist * 10;
   return Math.max(1, Math.min(10, Math.round(raw)));
 }
 
-// ─── Macro pill ───────────────────────────────────────────────────────────────
+/** Classify an error into a user-friendly category. */
+function classifyError(err: any): ErrorType {
+  if (!err) return 'generic';
+
+  // Timeout errors
+  if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) return 'timeout';
+
+  // Network errors (no connectivity, DNS failure, etc)
+  if (
+    err.code === 'ERR_NETWORK' ||
+    err.message?.includes('Network Error') ||
+    err.message?.includes('Failed to fetch') ||
+    !err.response
+  ) return 'network';
+
+  // Camera-specific errors
+  if (err.message?.includes('camera') || err.message?.includes('Camera')) return 'camera';
+
+  return 'generic';
+}
+
+// ---- Macro pill ----
 function MacroPill({
   label,
   value,
@@ -96,22 +127,98 @@ function MacroPill({
   );
 }
 
-// ─── Scanning animation — rotates through analysis steps ──────────────────
-const SCAN_ANALYSIS_STEPS = [
-  { icon: 'eye-outline', text: 'Identificando alimentos...' },
-  { icon: 'nutrition-outline', text: 'Calculando nutrientes...' },
-  { icon: 'analytics-outline', text: 'Estimando porciones...' },
-  { icon: 'checkmark-circle-outline', text: 'Verificando resultados...' },
+// ---- Daily progress bar ----
+function DailyProgressBar({
+  currentCal,
+  goalCal,
+  mealCal,
+  accentColor,
+  grayColor,
+  surfaceColor,
+  t,
+}: {
+  currentCal: number;
+  goalCal: number;
+  mealCal: number;
+  accentColor: string;
+  grayColor: string;
+  surfaceColor: string;
+  t: (key: string, opts?: Record<string, any>) => string;
+}) {
+  const totalAfter = currentCal + mealCal;
+  const progress = Math.min(totalAfter / (goalCal || 1), 1);
+  const isOver = totalAfter > goalCal;
+
+  return (
+    <View
+      style={[styles.dailyProgressContainer, { backgroundColor: surfaceColor }]}
+      accessibilityLabel={t(isOver ? 'scan.overDailyGoal' : 'scan.fitsInYourDay')}
+    >
+      <View style={styles.dailyProgressHeader}>
+        <Ionicons
+          name={isOver ? 'warning-outline' : 'checkmark-circle-outline'}
+          size={14}
+          color={isOver ? '#F59E0B' : '#34A853'}
+        />
+        <Text style={[styles.dailyProgressHint, { color: grayColor }]}>
+          {t(isOver ? 'scan.overDailyGoal' : 'scan.fitsInYourDay')}
+        </Text>
+      </View>
+      <View style={[styles.dailyProgressTrack, { backgroundColor: grayColor + '20' }]}>
+        {/* Existing progress (before this meal) */}
+        <View
+          style={[
+            styles.dailyProgressFill,
+            {
+              width: `${Math.min((currentCal / (goalCal || 1)) * 100, 100)}%`,
+              backgroundColor: accentColor + '60',
+            },
+          ]}
+        />
+        {/* This meal's contribution */}
+        <View
+          style={[
+            styles.dailyProgressMealFill,
+            {
+              width: `${Math.min((mealCal / (goalCal || 1)) * 100, 100 - Math.min((currentCal / (goalCal || 1)) * 100, 100))}%`,
+              backgroundColor: isOver ? '#F59E0B' : accentColor,
+              left: `${Math.min((currentCal / (goalCal || 1)) * 100, 100)}%`,
+            },
+          ]}
+        />
+      </View>
+      <Text style={[styles.dailyProgressText, { color: grayColor }]}>
+        {t('scan.dailyProgress', { current: Math.round(totalAfter), goal: Math.round(goalCal) })}
+      </Text>
+    </View>
+  );
+}
+
+// ---- Scanning animation -- rotates through analysis steps ----
+const SCAN_ANALYSIS_STEPS_KEYS = [
+  { icon: 'eye-outline', key: 'scan.identifying' },
+  { icon: 'nutrition-outline', key: 'scan.calculatingNutrients' },
+  { icon: 'analytics-outline', key: 'scan.estimatingPortions' },
+  { icon: 'checkmark-circle-outline', key: 'scan.verifyingResults' },
 ];
 
-function ScanningAnimation({ shimmerOpacity }: { shimmerOpacity: Animated.Value }) {
+function ScanningAnimation({
+  shimmerOpacity,
+  elapsedSeconds,
+  onCancel,
+  t,
+}: {
+  shimmerOpacity: Animated.Value;
+  elapsedSeconds: number;
+  onCancel: () => void;
+  t: (key: string, opts?: Record<string, any>) => string;
+}) {
   const [stepIdx, setStepIdx] = useState(0);
   const textOpacity = useRef(new Animated.Value(1)).current;
   const ringScale = useRef(new Animated.Value(1)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Pulsing ring around the spinner
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(ringScale, { toValue: 1.15, duration: 700, useNativeDriver: true }),
@@ -120,7 +227,6 @@ function ScanningAnimation({ shimmerOpacity }: { shimmerOpacity: Animated.Value 
     );
     pulse.start();
 
-    // Continuous spinner rotation
     const spin = Animated.loop(
       Animated.timing(spinAnim, {
         toValue: 1,
@@ -131,10 +237,9 @@ function ScanningAnimation({ shimmerOpacity }: { shimmerOpacity: Animated.Value 
     );
     spin.start();
 
-    // Rotate through analysis steps with crossfade
     const interval = setInterval(() => {
       Animated.timing(textOpacity, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-        setStepIdx((prev) => (prev + 1) % SCAN_ANALYSIS_STEPS.length);
+        setStepIdx((prev) => (prev + 1) % SCAN_ANALYSIS_STEPS_KEYS.length);
         Animated.timing(textOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
       });
     }, 2200);
@@ -146,7 +251,7 @@ function ScanningAnimation({ shimmerOpacity }: { shimmerOpacity: Animated.Value 
     };
   }, []);
 
-  const currentStep = SCAN_ANALYSIS_STEPS[stepIdx];
+  const currentStep = SCAN_ANALYSIS_STEPS_KEYS[stepIdx];
 
   return (
     <View style={scanAnimStyles.container}>
@@ -169,11 +274,31 @@ function ScanningAnimation({ shimmerOpacity }: { shimmerOpacity: Animated.Value 
       {/* Rotating step text */}
       <Animated.View style={[scanAnimStyles.textRow, { opacity: textOpacity }]}>
         <Ionicons name={currentStep.icon as any} size={16} color="#FFFFFF" />
-        <Text style={scanAnimStyles.stepText}>{currentStep.text}</Text>
+        <Text style={scanAnimStyles.stepText}>{t(currentStep.key)}</Text>
       </Animated.View>
       <Animated.Text style={[scanAnimStyles.hint, { opacity: shimmerOpacity }]}>
-        Analizando tu comida...
+        {t('scan.analyzingYourFood')}
       </Animated.Text>
+
+      {/* Elapsed timer */}
+      <View style={scanAnimStyles.timerRow}>
+        <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.6)" />
+        <Text style={scanAnimStyles.timerText}>
+          {t('scan.elapsedTime', { seconds: elapsedSeconds })}
+        </Text>
+      </View>
+
+      {/* Cancel button */}
+      <TouchableOpacity
+        style={scanAnimStyles.cancelBtn}
+        onPress={onCancel}
+        activeOpacity={0.7}
+        accessibilityLabel={t('scan.cancelScan')}
+        accessibilityRole="button"
+      >
+        <Ionicons name="close-circle-outline" size={16} color="rgba(255,255,255,0.8)" />
+        <Text style={scanAnimStyles.cancelText}>{t('scan.cancelScan')}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -204,9 +329,35 @@ const scanAnimStyles = StyleSheet.create({
   },
   stepText: { ...typography.titleSm, color: '#FFFFFF' },
   hint: { ...typography.caption, color: 'rgba(255,255,255,0.7)' },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xs,
+  },
+  timerText: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.6)',
+    fontVariant: ['tabular-nums'],
+  },
+  cancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    minHeight: 40,
+  },
+  cancelText: {
+    ...typography.label,
+    color: 'rgba(255,255,255,0.8)',
+  },
 });
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
+// ---- Main screen ----
 export default function ScanScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
@@ -222,6 +373,8 @@ export default function ScanScreen({ navigation }: any) {
   const [scansLoading, setScansLoading] = useState(false);
   const [scansError, setScansError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [errorHint, setErrorHint] = useState('');
+  const [errorType, setErrorType] = useState<ErrorType>('generic');
   const [isEditing, setIsEditing] = useState(false);
   const [editValues, setEditValues] = useState({
     food_name: '',
@@ -231,7 +384,14 @@ export default function ScanScreen({ navigation }: any) {
     fats_g: '',
   });
   const [isFavorited, setIsFavorited] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [dailyCalories, setDailyCalories] = useState<{ current: number; goal: number } | null>(null);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scanAbortRef = useRef(false);
+
+  // Transition opacity for smooth state changes
+  const stateOpacity = useRef(new Animated.Value(1)).current;
 
   // Check if scanned food is already a favorite
   useEffect(() => {
@@ -239,6 +399,22 @@ export default function ScanScreen({ navigation }: any) {
       favoritesService.isFavorite(result.food_name).then(setIsFavorited).catch(() => {});
     }
   }, [result?.food_name]);
+
+  // Load daily calories context for progress bar in result view
+  useEffect(() => {
+    if (scanState === 'idle') {
+      foodService.getDailySummary().then((summary) => {
+        if (summary && typeof summary.total_calories === 'number') {
+          setDailyCalories({
+            current: summary.total_calories,
+            goal: summary.target_calories ?? 2000,
+          });
+        }
+      }).catch(() => {
+        // Best-effort - do not block the scan flow
+      });
+    }
+  }, [scanState]);
 
   const handleToggleFavorite = useCallback(async () => {
     if (!result) return;
@@ -280,11 +456,27 @@ export default function ScanScreen({ navigation }: any) {
     }
   }, [scanState]);
 
+  // Elapsed timer during scanning
+  useEffect(() => {
+    if (scanState === 'scanning') {
+      setElapsedSeconds(0);
+      elapsedRef.current = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+      return () => {
+        if (elapsedRef.current) clearInterval(elapsedRef.current);
+      };
+    } else {
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+    }
+  }, [scanState]);
+
   // Cleanup timer on unmount + prune old cached scans
   useEffect(() => {
     cleanOldScans().catch(() => {});
     return () => {
       if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
     };
   }, []);
 
@@ -310,46 +502,118 @@ export default function ScanScreen({ navigation }: any) {
     }
   }, [scanState]);
 
-  // Cargar conteo de escaneos al entrar y cuando volvemos a idle despues de un scan
+  // Load scan count for free users
   React.useEffect(() => {
     if (!isPremium && scanState === 'idle') {
       setScansLoading(true);
       setScansError(false);
       foodService.getFoodLogs().then((logs) => {
-        // Count AI scans only (exclude manual entries) — matches server quota logic
         const aiScans = logs.filter((l) => l.ai_confidence !== null && l.ai_confidence < 1.0);
         setTodayScans(aiScans.length);
       }).catch(() => {
         setScansError(true);
-        // Default to 0 so free users can still scan when offline
         setTodayScans(0);
       }).finally(() => {
         setScansLoading(false);
       });
     }
-  }, [isPremium, scanState]); // solo cuando idle (carga inicial + despues de confirmar)
+  }, [isPremium, scanState]);
 
-  const requestPermission = async (type: 'camera' | 'library') => {
-    if (Platform.OS === 'web') return true;
+  // ---- Permission handling with "Open Settings" support ----
+  const requestPermission = async (type: 'camera' | 'library'): Promise<'granted' | 'denied' | 'blocked'> => {
+    if (Platform.OS === 'web') return 'granted';
+
     if (type === 'camera') {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      return status === 'granted';
+      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status === 'granted') return 'granted';
+      return canAskAgain ? 'denied' : 'blocked';
     } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      return status === 'granted';
+      const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status === 'granted') return 'granted';
+      return canAskAgain ? 'denied' : 'blocked';
     }
   };
 
+  const showPermissionBlockedAlert = (type: 'camera' | 'library') => {
+    const message = type === 'camera'
+      ? t('scan.cameraPermissionSettings')
+      : t('scan.galleryPermissionSettings');
+
+    Alert.alert(
+      t('scan.permissionDenied'),
+      message,
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('scan.openSettings'),
+          onPress: () => {
+            if (Platform.OS === 'ios') {
+              Linking.openURL('app-settings:');
+            } else {
+              Linking.openSettings();
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // ---- Network connectivity check ----
+  const checkNetwork = async (): Promise<boolean> => {
+    try {
+      const state = await Network.getNetworkStateAsync();
+      return state.isConnected === true && state.isInternetReachable !== false;
+    } catch {
+      // If check fails, allow the scan to proceed (optimistic)
+      return true;
+    }
+  };
+
+  // ---- Smooth state transition ----
+  const transitionTo = useCallback((nextState: ScanState) => {
+    Animated.timing(stateOpacity, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
+      setScanState(nextState);
+      Animated.timing(stateOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [stateOpacity]);
+
   const pickImage = async (source: 'camera' | 'library') => {
     haptics.light();
-    const ok = await requestPermission(source);
-    if (!ok) {
+
+    const permissionResult = await requestPermission(source);
+
+    if (permissionResult === 'blocked') {
+      showPermissionBlockedAlert(source);
+      track('permission_blocked', { type: source });
+      return;
+    }
+
+    if (permissionResult === 'denied') {
       Alert.alert(
-        'Permiso denegado',
-        source === 'camera'
-          ? 'Necesitamos acceso a la camara para escanear tu comida.'
-          : 'Necesitamos acceso a la galeria para seleccionar fotos.',
+        t('scan.permissionDenied'),
+        source === 'camera' ? t('scan.cameraPermission') : t('scan.galleryPermission'),
       );
+      track('permission_denied', { type: source });
+      return;
+    }
+
+    // Check network before proceeding
+    const hasNetwork = await checkNetwork();
+    if (!hasNetwork) {
+      haptics.error();
+      setErrorMsg(t('scan.noConnection'));
+      setErrorHint(t('scan.noConnectionHint'));
+      setErrorType('network');
+      transitionTo('error');
+      track('scan_no_network');
       return;
     }
 
@@ -361,22 +625,40 @@ export default function ScanScreen({ navigation }: any) {
       exif: false,
     };
 
-    const res =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync(options)
-        : await ImagePicker.launchImageLibraryAsync(options);
+    try {
+      const res =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync(options)
+          : await ImagePicker.launchImageLibraryAsync(options);
 
-    if (res.canceled || !res.assets?.[0]) return;
+      if (res.canceled || !res.assets?.[0]) return;
 
-    const uri = res.assets[0].uri;
-    setImageUri(uri);
-    await scanImage(uri);
+      const uri = res.assets[0].uri;
+      setImageUri(uri);
+      await scanImage(uri);
+    } catch (err: any) {
+      haptics.error();
+      setErrorMsg(t('scan.cameraError'));
+      setErrorHint(t('scan.cameraErrorHint'));
+      setErrorType('camera');
+      transitionTo('error');
+      track('camera_error', { error: err?.message });
+    }
   };
 
   const scanImage = async (uri: string) => {
-    setScanState('scanning');
+    scanAbortRef.current = false;
+    transitionTo('scanning');
+
     try {
       const data = await foodService.scanFood(uri, selectedMeal);
+
+      // If user cancelled during the scan, discard result
+      if (scanAbortRef.current) {
+        setScanState('idle');
+        return;
+      }
+
       setResult(data);
       setIsEditing(false);
       setEditValues({
@@ -386,12 +668,20 @@ export default function ScanScreen({ navigation }: any) {
         carbs_g: String(Math.round(data.carbs_g)),
         fats_g: String(Math.round(data.fats_g)),
       });
-      setScanState('result');
+      transitionTo('result');
+
+      // Announce result to screen readers
+      AccessibilityInfo.announceForAccessibility(
+        `${data.food_name}, ${Math.round(data.calories)} kcal`
+      );
+
       track('food_scanned', {
         meal_type: selectedMeal,
         confidence: data.ai_confidence,
         food_name: data.food_name,
+        elapsed_seconds: elapsedSeconds,
       });
+
       // Cache scan result locally for offline access
       cacheScanResult({
         id: String(data.id),
@@ -406,15 +696,51 @@ export default function ScanScreen({ navigation }: any) {
           ai_provider: data.ai_provider ?? 'unknown',
         },
         timestamp: new Date().toISOString(),
-        synced: true, // Already saved on backend via scanFood
-      }).catch(() => {}); // Best-effort cache
+        synced: true,
+      }).catch(() => {});
     } catch (err: any) {
+      if (scanAbortRef.current) {
+        setScanState('idle');
+        return;
+      }
+
       haptics.error();
-      const msg = err?.response?.data?.detail || 'No pudimos analizar la imagen. Intenta con otra foto.';
-      setErrorMsg(msg);
-      setScanState('error');
+      const type = classifyError(err);
+      setErrorType(type);
+
+      switch (type) {
+        case 'network':
+          setErrorMsg(t('scan.networkError'));
+          setErrorHint(t('scan.networkErrorHint'));
+          break;
+        case 'timeout':
+          setErrorMsg(t('scan.timeoutError'));
+          setErrorHint(t('scan.timeoutErrorHint'));
+          break;
+        case 'camera':
+          setErrorMsg(t('scan.cameraError'));
+          setErrorHint(t('scan.cameraErrorHint'));
+          break;
+        default: {
+          const serverMsg = err?.response?.data?.detail;
+          setErrorMsg(serverMsg || t('scan.couldNotAnalyze'));
+          setErrorHint(t('scan.networkErrorHint'));
+          break;
+        }
+      }
+
+      transitionTo('error');
+      track('scan_error', { type, elapsed_seconds: elapsedSeconds, message: err?.message });
     }
   };
+
+  const handleCancelScan = useCallback(() => {
+    haptics.light();
+    scanAbortRef.current = true;
+    setScanState('idle');
+    setImageUri(null);
+    track('scan_cancelled', { elapsed_seconds: elapsedSeconds });
+  }, [elapsedSeconds]);
 
   const handleConfirm = async () => {
     haptics.medium();
@@ -429,7 +755,7 @@ export default function ScanScreen({ navigation }: any) {
           fats_g: Number(editValues.fats_g) || 0,
         });
       } catch {
-        // Best-effort save — log was already created by the backend scan
+        // Best-effort save -- log was already created by the backend scan
       }
     }
     track('food_logged_from_scan', {
@@ -438,7 +764,7 @@ export default function ScanScreen({ navigation }: any) {
       calories: isEditing ? Number(editValues.calories) : result?.calories,
       was_edited: isEditing,
     });
-    setScanState('logged');
+    transitionTo('logged');
     // Navigate to log after a moment
     confirmTimerRef.current = setTimeout(() => {
       setScanState('idle');
@@ -472,6 +798,7 @@ export default function ScanScreen({ navigation }: any) {
     setResult(null);
     setIsEditing(false);
     setErrorMsg('');
+    setErrorHint('');
   };
 
   const handleRetryFromError = () => {
@@ -483,7 +810,7 @@ export default function ScanScreen({ navigation }: any) {
     }
   };
 
-  // ─── Result view ────────────────────────────────────────────────────────────
+  // ---- Result view ----
   if (scanState === 'result' && result) {
     const confidence = Math.round((result.ai_confidence ?? 0) * 100);
     const displayName = isEditing ? editValues.food_name : result.food_name;
@@ -493,7 +820,7 @@ export default function ScanScreen({ navigation }: any) {
     const displayFats = isEditing ? Number(editValues.fats_g) || 0 : result.fats_g;
 
     return (
-      <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
+      <Animated.View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg, opacity: stateOpacity }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scroll, { paddingHorizontal: sidePadding }]}
@@ -517,6 +844,7 @@ export default function ScanScreen({ navigation }: any) {
                   value={editValues.food_name}
                   onChangeText={(v) => setEditValues((p) => ({ ...p, food_name: v }))}
                   accessibilityLabel="Nombre del alimento"
+                  accessibilityHint={t('scan.editHint')}
                   autoFocus
                 />
               ) : (
@@ -586,7 +914,7 @@ export default function ScanScreen({ navigation }: any) {
             </View>
           )}
 
-          {/* Result card — animated scale entrance */}
+          {/* Result card -- animated scale entrance */}
           <Animated.View
             style={[
               styles.resultCard,
@@ -604,6 +932,8 @@ export default function ScanScreen({ navigation }: any) {
                   onChangeText={(v) => setEditValues((p) => ({ ...p, calories: v.replace(/[^0-9]/g, '') }))}
                   keyboardType="number-pad"
                   accessibilityLabel="Calorias"
+                  accessibilityHint={t('scan.editHint')}
+                  selectTextOnFocus
                 />
                 <Text style={[styles.calorieUnit, { color: c.gray }]}>kcal</Text>
               </View>
@@ -617,7 +947,7 @@ export default function ScanScreen({ navigation }: any) {
               </View>
             )}
 
-            {/* Macros — editable or display */}
+            {/* Macros -- editable or display */}
             {isEditing ? (
               <View style={styles.macroRow}>
                 {([
@@ -635,6 +965,8 @@ export default function ScanScreen({ navigation }: any) {
                       onChangeText={(v) => setEditValues((p) => ({ ...p, [m.key]: v.replace(/[^0-9]/g, '') }))}
                       keyboardType="number-pad"
                       accessibilityLabel={m.label}
+                      accessibilityHint={t('scan.editHint')}
+                      selectTextOnFocus
                     />
                     <Text style={[styles.macroPillLabel, { color: c.gray }]}>{m.label}</Text>
                   </View>
@@ -680,6 +1012,19 @@ export default function ScanScreen({ navigation }: any) {
             })()}
           </Animated.View>
 
+          {/* Daily progress bar -- shows how this meal fits into goal */}
+          {dailyCalories && !isEditing && (
+            <DailyProgressBar
+              currentCal={dailyCalories.current}
+              goalCal={dailyCalories.goal}
+              mealCal={displayCal}
+              accentColor={c.accent}
+              grayColor={c.gray}
+              surfaceColor={c.surface}
+              t={t}
+            />
+          )}
+
           {/* High calorie tip */}
           {displayCal > 800 && (
             <View
@@ -699,13 +1044,13 @@ export default function ScanScreen({ navigation }: any) {
               style={[styles.confirmBtn, { backgroundColor: c.black, flex: 1 }]}
               onPress={handleConfirm}
               activeOpacity={0.85}
-              accessibilityLabel={isEditing ? 'Guardar cambios' : 'Guardar en mi registro'}
+              accessibilityLabel={isEditing ? t('scan.saveChanges') : t('scan.saveToLog')}
               accessibilityRole="button"
               accessibilityHint="Confirma y guarda este alimento en tu diario"
             >
               <Ionicons name="checkmark-circle" size={20} color={c.white} />
               <Text style={[styles.confirmBtnText, { color: c.white }]}>
-                {isEditing ? 'Guardar cambios' : t('scan.saveToLog')}
+                {isEditing ? t('scan.saveChanges') : t('scan.saveToLog')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -727,13 +1072,13 @@ export default function ScanScreen({ navigation }: any) {
             style={[styles.editMacrosBtn, { backgroundColor: isEditing ? c.accent + '15' : c.surface, borderColor: c.accent + '30' }]}
             onPress={handleToggleEdit}
             activeOpacity={0.7}
-            accessibilityLabel={isEditing ? 'Cancelar edicion' : 'Editar macros'}
+            accessibilityLabel={isEditing ? t('scan.cancelEdit') : t('scan.editMacros')}
             accessibilityRole="button"
-            accessibilityHint="Corrige las calorias o macros si la IA no fue precisa"
+            accessibilityHint={isEditing ? '' : t('scan.editHint')}
           >
             <Ionicons name={isEditing ? 'close-outline' : 'create-outline'} size={18} color={c.accent} />
             <Text style={[styles.editMacrosBtnText, { color: c.accent }]}>
-              {isEditing ? 'Cancelar edicion' : t('scan.editMacros')}
+              {isEditing ? t('scan.cancelEdit') : t('scan.editMacros')}
             </Text>
           </TouchableOpacity>
 
@@ -741,7 +1086,7 @@ export default function ScanScreen({ navigation }: any) {
             style={[styles.retryBtn, { backgroundColor: c.surface }]}
             onPress={handleRetry}
             activeOpacity={0.7}
-            accessibilityLabel="Escanear otra foto"
+            accessibilityLabel={t('scan.scanAnother')}
             accessibilityRole="button"
           >
             <Ionicons name="refresh-outline" size={18} color={c.black} />
@@ -750,41 +1095,48 @@ export default function ScanScreen({ navigation }: any) {
 
           <View style={{ height: spacing.xl }} />
         </ScrollView>
-      </View>
+      </Animated.View>
     );
   }
 
-  // ─── Logged confirmation — Fitsi party + confetti ────────────────────────
+  // ---- Logged confirmation -- Fitsi party + confetti ----
   if (scanState === 'logged') {
     return (
-      <View
-        style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg }]}
+      <Animated.View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg, opacity: stateOpacity }]}
         accessibilityLabel="Comida registrada exitosamente. Redirigiendo a tu registro."
       >
         <FitsiMascot expression="party" size="large" animation="bounce" />
         <SuccessCheckmark size={64} showParticles={true} />
-        <Text style={[styles.successText, { color: c.black }]}>Comida registrada!</Text>
+        <Text style={[styles.successText, { color: c.black }]}>{t('scan.logged')}</Text>
         <Text style={[styles.successHint, { color: c.gray }]}>{t('scan.redirecting')}</Text>
-      </View>
+      </Animated.View>
     );
   }
 
-  // ─── Scanning loader — multi-step analysis animation ─────────────────────
+  // ---- Scanning loader -- multi-step analysis animation ----
   if (scanState === 'scanning') {
     return (
-      <View
-        style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg }]}
+      <Animated.View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top, backgroundColor: c.bg, opacity: stateOpacity }]}
         accessibilityLabel="Analizando imagen con inteligencia artificial. Esto puede tardar hasta 60 segundos."
+        accessibilityLiveRegion="polite"
       >
         {imageUri && (
           <Image
             source={{ uri: imageUri }}
             style={styles.scanningPreview}
             resizeMode="cover"
+            accessibilityElementsHidden
           />
         )}
         <View style={styles.scanningOverlay}>
-          <ScanningAnimation shimmerOpacity={scanShimmer} />
+          <ScanningAnimation
+            shimmerOpacity={scanShimmer}
+            elapsedSeconds={elapsedSeconds}
+            onCancel={handleCancelScan}
+            t={t}
+          />
           {/* Shimmer skeleton preview of result card */}
           <Animated.View style={[styles.shimmerCard, { opacity: scanShimmer }]}>
             <View style={styles.shimmerLine} />
@@ -796,23 +1148,56 @@ export default function ScanScreen({ navigation }: any) {
             </View>
           </Animated.View>
         </View>
-      </View>
+      </Animated.View>
     );
   }
 
-  // ─── Error state — Fitsi "sick" + ErrorFallback + retry ─────────────────
+  // ---- Error state -- categorized errors + dual retry options ----
   if (scanState === 'error') {
+    const errorIcon: 'sad' | 'sick' = errorType === 'network' ? 'sad' : 'sick';
+    const errorAnimation: 'sad' | 'sad' = 'sad';
+    const errorIonIcon =
+      errorType === 'network' ? 'cloud-offline-outline' :
+      errorType === 'timeout' ? 'hourglass-outline' :
+      errorType === 'camera' ? 'camera-outline' :
+      'alert-circle-outline';
+
     return (
-      <View
-        style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg }]}
+      <Animated.View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg, opacity: stateOpacity }]}
+        accessibilityLiveRegion="assertive"
       >
-        <FitsiMascot expression="sick" size="medium" animation="sad" />
+        <FitsiMascot expression={errorIcon} size="medium" animation={errorAnimation} />
+
+        {/* Error type icon */}
+        <View style={[styles.errorTypeIcon, { backgroundColor: c.surface }]}>
+          <Ionicons name={errorIonIcon as any} size={28} color={c.accent} />
+        </View>
+
         <ErrorFallback
-          message={errorMsg || 'No pudimos analizar la imagen'}
-          hint="Intenta con otra foto o agrega manualmente."
+          message={errorMsg || t('scan.couldNotAnalyze')}
+          hint={errorHint || t('scan.networkErrorHint')}
           onRetry={handleRetryFromError}
-          retryLabel="Reintentar"
+          retryLabel={imageUri ? t('scan.retryWithSameImage') : t('scan.retry')}
         />
+
+        {/* Additional option: try a different photo (only when retry same is available) */}
+        {imageUri && (
+          <TouchableOpacity
+            style={[styles.manualFallbackBtn, { backgroundColor: c.surface, marginTop: spacing.xs }]}
+            onPress={() => {
+              haptics.light();
+              handleRetry();
+            }}
+            activeOpacity={0.7}
+            accessibilityLabel={t('scan.tryDifferentPhoto')}
+            accessibilityRole="button"
+          >
+            <Ionicons name="camera-outline" size={16} color={c.black} />
+            <Text style={[styles.manualFallbackText, { color: c.black }]}>{t('scan.tryDifferentPhoto')}</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={[styles.manualFallbackBtn, { backgroundColor: c.surface, marginTop: spacing.sm }]}
           onPress={() => {
@@ -820,12 +1205,14 @@ export default function ScanScreen({ navigation }: any) {
             navigation.navigate('Registro', { screen: 'AddFood', params: { mealType: selectedMeal } });
           }}
           activeOpacity={0.7}
-          accessibilityLabel="Agregar alimento manualmente"
+          accessibilityLabel={t('scan.addManually')}
           accessibilityRole="button"
+          accessibilityHint="Agregar un alimento manualmente sin usar la camara"
         >
           <Ionicons name="create-outline" size={16} color={c.black} />
-          <Text style={[styles.manualFallbackText, { color: c.black }]}>Agregar manualmente</Text>
+          <Text style={[styles.manualFallbackText, { color: c.black }]}>{t('scan.addManually')}</Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.retryBtn, { backgroundColor: 'transparent', marginTop: spacing.xs }]}
           onPress={handleRetry}
@@ -836,18 +1223,17 @@ export default function ScanScreen({ navigation }: any) {
           <Ionicons name="arrow-back-outline" size={16} color={c.gray} />
           <Text style={[styles.retryBtnText, { color: c.gray }]}>Volver</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     );
   }
 
-  // ─── Paywall gate — limite de escaneos gratuitos ─────────────────────────
-  // Only block after the scan count has finished loading to avoid a false gate.
+  // ---- Paywall gate -- free scan limit ----
   if (!isPremium && !scansLoading && todayScans >= FREE_SCAN_LIMIT) {
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg }]}>
         <View
           style={[styles.limitIcon, { backgroundColor: c.black }]}
-          accessibilityLabel="Limite diario alcanzado"
+          accessibilityLabel={t('scan.limitReached')}
         >
           <Ionicons name="lock-closed" size={36} color={c.white} />
         </View>
@@ -862,7 +1248,7 @@ export default function ScanScreen({ navigation }: any) {
             navigation.navigate('Perfil', { screen: 'Paywall' });
           }}
           activeOpacity={0.85}
-          accessibilityLabel="Ver planes Premium"
+          accessibilityLabel={t('scan.viewPremiumPlans')}
           accessibilityRole="button"
           accessibilityHint="Navega a la pantalla de suscripciones Premium"
         >
@@ -875,7 +1261,7 @@ export default function ScanScreen({ navigation }: any) {
             navigation.navigate('Registro', { screen: 'AddFood', params: { mealType: selectedMeal } });
           }}
           activeOpacity={0.7}
-          accessibilityLabel="Anadir alimento manualmente"
+          accessibilityLabel={t('scan.addManually')}
           accessibilityRole="button"
         >
           <Ionicons name="create-outline" size={16} color={c.black} />
@@ -885,9 +1271,11 @@ export default function ScanScreen({ navigation }: any) {
     );
   }
 
-  // ─── Idle — main scan UI ─────────────────────────────────────────────────
+  // ---- Idle -- main scan UI ----
   return (
-    <View style={[styles.screen, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg }]}>
+    <Animated.View
+      style={[styles.screen, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg, opacity: stateOpacity }]}
+    >
       {/* Header with Fitsi */}
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -904,7 +1292,7 @@ export default function ScanScreen({ navigation }: any) {
         style={[styles.viewfinder, { width: contentWidth - sidePadding * 2 }]}
         onPress={() => pickImage('camera')}
         activeOpacity={0.85}
-        accessibilityLabel="Abrir camara para escanear comida"
+        accessibilityLabel={t('scan.tapToOpenCamera')}
         accessibilityRole="button"
         accessibilityHint="Toma una foto de tu alimento para analizar sus nutrientes con IA"
       >
@@ -924,7 +1312,7 @@ export default function ScanScreen({ navigation }: any) {
           style={[styles.actionBtn, { backgroundColor: c.surface }]}
           onPress={() => pickImage('library')}
           activeOpacity={0.7}
-          accessibilityLabel="Elegir foto de la galeria"
+          accessibilityLabel={t('scan.gallery')}
           accessibilityRole="button"
           accessibilityHint="Selecciona una foto existente de tu galeria"
         >
@@ -939,7 +1327,7 @@ export default function ScanScreen({ navigation }: any) {
             navigation.navigate('Barcode', { mealType: selectedMeal });
           }}
           activeOpacity={0.7}
-          accessibilityLabel="Escanear codigo de barras"
+          accessibilityLabel={t('scan.barcode')}
           accessibilityRole="button"
           accessibilityHint="Abre el escaner de codigos de barras para buscar productos"
         >
@@ -978,7 +1366,6 @@ export default function ScanScreen({ navigation }: any) {
       {/* Banner plan gratuito */}
       {!isPremium && (
         scansError ? (
-          // Error state — tapping retries the count fetch
           <TouchableOpacity
             style={[styles.freeBanner, { backgroundColor: c.accent + '22' }]}
             onPress={() => {
@@ -991,7 +1378,7 @@ export default function ScanScreen({ navigation }: any) {
                 .finally(() => setScansLoading(false));
             }}
             activeOpacity={0.8}
-            accessibilityLabel="Error al verificar limite de escaneos. Toca para reintentar."
+            accessibilityLabel={t('scan.scanLimitError')}
             accessibilityRole="button"
           >
             <Ionicons name="wifi-outline" size={14} color={c.accent} />
@@ -1007,7 +1394,7 @@ export default function ScanScreen({ navigation }: any) {
               navigation.navigate('Perfil', { screen: 'Paywall' });
             }}
             activeOpacity={0.8}
-            accessibilityLabel={scansLoading ? 'Cargando conteo de escaneos' : `Plan gratuito: ${todayScans} de ${FREE_SCAN_LIMIT} escaneos usados hoy. Toca para ver planes Premium.`}
+            accessibilityLabel={scansLoading ? t('scan.loadingScans') : t('scan.freePlan', { used: todayScans, limit: FREE_SCAN_LIMIT })}
             accessibilityRole="button"
           >
             <Ionicons name="flash-outline" size={14} color={c.badgeText} />
@@ -1022,11 +1409,11 @@ export default function ScanScreen({ navigation }: any) {
       )}
 
       {/* Info */}
-      <View style={styles.infoRow} accessibilityLabel="IA de ultima generacion. Resultados en segundos.">
+      <View style={styles.infoRow} accessibilityLabel={t('scan.aiPowered')}>
         <Ionicons name="shield-checkmark-outline" size={14} color={c.gray} />
         <Text style={[styles.infoText, { color: c.gray }]}>{t('scan.aiPowered')}</Text>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -1243,6 +1630,13 @@ const styles = StyleSheet.create({
   },
   manualFallbackText: { ...typography.label },
 
+  // Error type icon
+  errorTypeIcon: {
+    width: 56, height: 56, borderRadius: 28,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+
   // Shimmer skeleton
   shimmerCard: {
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -1294,5 +1688,46 @@ const styles = StyleSheet.create({
     ...typography.caption,
     flex: 1,
     lineHeight: 18,
+  },
+
+  // Daily progress
+  dailyProgressContainer: {
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  dailyProgressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  dailyProgressHint: {
+    ...typography.caption,
+    flex: 1,
+  },
+  dailyProgressTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  dailyProgressFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: '100%',
+    borderRadius: 3,
+  },
+  dailyProgressMealFill: {
+    position: 'absolute',
+    top: 0,
+    height: '100%',
+    borderRadius: 3,
+  },
+  dailyProgressText: {
+    ...typography.caption,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
 });

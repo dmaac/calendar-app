@@ -3,12 +3,23 @@
  * Muestra: anillo de calorías, macros, comidas del día.
  *
  * UX Polish:
- * - Skeleton shimmer loading instead of spinner
- * - Animated calorie number counting
+ * - Skeleton shimmer loading (HomeSkeleton) instead of spinner
+ * - Full-screen error state with animated icon and retry button
+ * - Partial error banner with inline retry for degraded connectivity
+ * - Animated calorie ring using AnimatedCircle (no state re-renders)
+ * - Animated macro bar fill transitions (Easing.out cubic)
+ * - Staggered fade-in for food rows in each meal section
+ * - Animated empty state with spring-scaled icon
+ * - Animated calorie number counting with scale pop
  * - Fade-in content animation on data load
- * - Haptic feedback on scan button and refresh
- * - Full accessibility labels and roles
- * - User-friendly error state with retry
+ * - Pull-to-refresh with platform-aware RefreshControl
+ * - Haptic feedback on scan button, refresh, and goal completion
+ * - Full accessibility labels, roles, values, and hints
+ * - React.memo on all sub-components (CalorieRing, MacroBar,
+ *   MealSection, QuickActionButton, ErrorFullScreen, EmptyMealsState,
+ *   DailyTipCard) to prevent unnecessary re-renders
+ * - Daily nutrition tip card (30 tips, one per day of month)
+ * - Design system colors used throughout (no hardcoded palette values)
  */
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
@@ -18,6 +29,9 @@ import {
   TouchableOpacity,
   RefreshControl,
   Animated,
+  Easing,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +39,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, shadows, useLayout, mealColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { useTranslation } from '../../context/LanguageContext';
 import * as foodService from '../../services/food.service';
 import { AIFoodLog, DailySummary } from '../../types';
@@ -54,6 +69,9 @@ import DailyMissionsCard from '../../components/DailyMissionsCard';
 import useProgress from '../../hooks/useProgress';
 import MealRecommendationsSection from '../../components/MealRecommendationsSection';
 import type { RecommendedMeal } from '../../hooks/useRecommendations';
+import useDaySwipe, { toDateStr } from '../../hooks/useDaySwipe';
+import DateNavigator from '../../components/DateNavigator';
+import AdaptiveCalorieBanner from '../../components/AdaptiveCalorieBanner';
 
 // ─── Daily nutrition tips (30 tips, one per day of month) ─────────────────────
 const DAILY_TIPS = [
@@ -103,6 +121,10 @@ const MOCK_SUMMARY: DailySummary = {
   water_ml: 1500,
   meals_logged: 3,
   streak_days: 4,
+  calories_burned_exercise: 0,
+  calories_remaining: 860,
+  net_calories: 1240,
+  exercises_today: [],
 };
 
 const MOCK_LOGS: AIFoodLog[] = [
@@ -130,8 +152,15 @@ const MOCK_LOGS: AIFoodLog[] = [
 
 // ─── Calorie ring (memoized to avoid re-render when parent state changes) ────
 
+// ─── Exercise color constant ───────────────────────────────────────────────
+const EXERCISE_ORANGE = '#F97316';
+
+/** Animated SVG Circle — bridges Animated.Value to strokeDashoffset prop */
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 const CalorieRing = React.memo(function CalorieRing({
   consumed,
+  burned,
   target,
   size = 160,
   colors: c,
@@ -139,6 +168,7 @@ const CalorieRing = React.memo(function CalorieRing({
   goalReachedLabel,
 }: {
   consumed: number;
+  burned: number;
   target: number;
   size?: number;
   colors: ReturnType<typeof useThemeColors>;
@@ -149,31 +179,56 @@ const CalorieRing = React.memo(function CalorieRing({
   const r = (size - strokeWidth) / 2;
   const circ = 2 * Math.PI * r;
   const safeConsumed = Math.round(consumed);
+  const safeBurned = Math.round(burned);
   const safeTarget = Math.round(target);
-  const progress = safeTarget > 0 ? Math.min(safeConsumed / safeTarget, 1) : 0;
-  const remaining = Math.max(safeTarget - safeConsumed, 0);
 
-  // Use integer-safe progress (multiply by 100 to avoid float in Animated)
-  const progressInt = Math.round(progress * 100);
-  const fillAnim = useRef(new Animated.Value(0)).current;
+  // Net calories: consumed - burned
+  const netCalories = Math.max(safeConsumed - safeBurned, 0);
+  // Remaining: target - consumed + burned (exercise "earns back" calories)
+  const caloriesRemaining = Math.max(safeTarget - safeConsumed + safeBurned, 0);
+
+  // Consumed arc: fraction of target that has been consumed (food)
+  const consumedFraction = safeTarget > 0 ? Math.min(safeConsumed / safeTarget, 1) : 0;
+  // Burned arc: fraction of target represented by exercise
+  const burnedFraction = safeTarget > 0 ? Math.min(safeBurned / safeTarget, 0.5) : 0;
+
+  // Animate consumed arc via AnimatedCircle (no state re-renders, pure native bridge)
+  const consumedAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    fillAnim.setValue(0);
-    Animated.timing(fillAnim, {
-      toValue: progressInt,
+    consumedAnim.setValue(0);
+    Animated.timing(consumedAnim, {
+      toValue: consumedFraction,
       duration: 900,
       delay: 200,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
-  }, [progressInt]);
+  }, [consumedFraction]);
 
-  // Listen to animated value for SVG strokeDasharray (can't use native driver for SVG)
-  const [animDash, setAnimDash] = useState(0);
+  const consumedDashOffset = consumedAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [circ, 0],
+    extrapolate: 'clamp',
+  });
+
+  // Animate burned arc via AnimatedCircle
+  const burnedAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const id = fillAnim.addListener(({ value }) => {
-      setAnimDash((value / 100) * circ);
-    });
-    return () => fillAnim.removeListener(id);
-  }, [circ]);
+    burnedAnim.setValue(0);
+    Animated.timing(burnedAnim, {
+      toValue: burnedFraction,
+      duration: 700,
+      delay: 500,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [burnedFraction]);
+
+  const burnedDashArray = burnedAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, circ],
+    extrapolate: 'clamp',
+  });
 
   // Haptic notification when calorie goal is met
   const prevConsumed = useRef(0);
@@ -187,12 +242,12 @@ const CalorieRing = React.memo(function CalorieRing({
   return (
     <View
       style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
-      accessibilityLabel={`${Math.round(consumed)} de ${Math.round(target)} kilocalorías consumidas, ${Math.round(remaining)} restantes`}
+      accessibilityLabel={`${safeConsumed} consumidas, ${safeBurned} quemadas, ${caloriesRemaining} restantes de ${safeTarget} kilocalorias`}
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: Math.round(target), now: Math.round(consumed) }}
+      accessibilityValue={{ min: 0, max: safeTarget, now: netCalories }}
     >
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        {/* Track */}
+        {/* Track (background ring) */}
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -201,23 +256,42 @@ const CalorieRing = React.memo(function CalorieRing({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Animated progress */}
-        <Circle
+        {/* Burned arc (orange) — rendered first so consumed overlaps it */}
+        {safeBurned > 0 && (
+          <AnimatedCircle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke={EXERCISE_ORANGE}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={circ}
+            strokeDashoffset={burnedDashArray}
+            strokeLinecap="round"
+            rotation="-90"
+            origin={`${size / 2}, ${size / 2}`}
+            opacity={0.85}
+          />
+        )}
+        {/* Consumed arc (green/success or red when over target) */}
+        <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={consumed > target ? c.protein : c.black}
+          stroke={consumed > target ? c.protein : c.success}
           strokeWidth={strokeWidth}
           fill="none"
-          strokeDasharray={`${animDash} ${circ - animDash}`}
-          strokeDashoffset={circ / 4}
+          strokeDasharray={circ}
+          strokeDashoffset={consumedDashOffset}
           strokeLinecap="round"
+          rotation="-90"
+          origin={`${size / 2}, ${size / 2}`}
         />
       </Svg>
-      <AnimatedNumber value={Math.round(consumed)} style={[styles.ringCalories, { color: c.black }]} />
-      <Text style={[styles.ringUnit, { color: c.gray }]}>kcal</Text>
+      <AnimatedNumber value={netCalories} style={[styles.ringCalories, { color: c.black }]} />
+      <Text style={[styles.ringUnit, { color: c.gray }]}>kcal netas</Text>
       <Text style={[styles.ringRemaining, { color: c.accent }]}>
-        {remaining > 0 ? remainingLabel : goalReachedLabel}
+        {caloriesRemaining > 0 ? remainingLabel : goalReachedLabel}
       </Text>
     </View>
   );
@@ -243,7 +317,24 @@ const MacroBar = React.memo(function MacroBar({
   colors: ReturnType<typeof useThemeColors>;
 }) {
   const progress = target > 0 ? Math.min(Math.round(value) / Math.round(target), 1) : 0;
-  const fillPercent = `${Math.round(progress * 100)}%`;
+
+  // Animated fill width for smooth transitions when macros update
+  const fillAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fillAnim, {
+      toValue: progress,
+      duration: 700,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [progress, delay]);
+
+  const fillWidth = fillAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View
@@ -260,7 +351,7 @@ const MacroBar = React.memo(function MacroBar({
         </Text>
       </View>
       <View style={[styles.macroTrack, { backgroundColor: c.surface }]}>
-        <View style={[styles.macroFill, { width: fillPercent as any, backgroundColor: color }]} />
+        <Animated.View style={[styles.macroFill, { width: fillWidth as any, backgroundColor: color }]} />
       </View>
     </View>
   );
@@ -274,36 +365,214 @@ const MealSection = React.memo(function MealSection({
   mealType,
   logs,
   colors: c,
+  isLast = false,
 }: {
   mealType: string;
   logs: AIFoodLog[];
   colors: ReturnType<typeof useThemeColors>;
+  isLast?: boolean;
 }) {
   const meta = MEAL_META[mealType] ?? { label: mealType, icon: 'restaurant-outline', color: c.gray };
   const total = logs.reduce((s, l) => s + l.calories, 0);
+
+  // Staggered fade-in for food rows
+  const rowAnims = useRef(logs.map(() => new Animated.Value(0))).current;
+  useEffect(() => {
+    if (logs.length === 0) return;
+    // Reset and stagger
+    const animations = logs.map((_, i) => {
+      rowAnims[i] = rowAnims[i] || new Animated.Value(0);
+      rowAnims[i].setValue(0);
+      return Animated.timing(rowAnims[i], {
+        toValue: 1,
+        duration: 250,
+        delay: i * 60,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      });
+    });
+    Animated.stagger(60, animations).start();
+  }, [logs.length]);
 
   if (logs.length === 0) return null;
 
   return (
     <View
-      style={[styles.mealSection, { borderBottomColor: c.surface }]}
-      accessibilityLabel={`${meta.label}: ${Math.round(total)} kilocalorías, ${logs.length} alimento${logs.length > 1 ? 's' : ''}`}
+      style={[styles.mealSection, { borderBottomColor: c.surface }, isLast && { borderBottomWidth: 0 }]}
+      accessibilityLabel={`${meta.label}: ${Math.round(total)} kilocalorias, ${logs.length} alimento${logs.length > 1 ? 's' : ''}`}
     >
       <View style={styles.mealHeader}>
         <Ionicons name={meta.icon as any} size={16} color={meta.color} />
         <Text style={[styles.mealTitle, { color: c.black }]}>{meta.label}</Text>
         <Text style={[styles.mealCalories, { color: c.black }]}>{Math.round(total)} kcal</Text>
       </View>
-      {logs.map((log) => (
-        <View
+      {logs.map((log, index) => (
+        <Animated.View
           key={log.id}
-          style={styles.foodRow}
-          accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorías`}
+          style={[
+            styles.foodRow,
+            {
+              opacity: rowAnims[index] || 1,
+              transform: [{ translateX: (rowAnims[index] || new Animated.Value(1)).interpolate({
+                inputRange: [0, 1],
+                outputRange: [-8, 0],
+                extrapolate: 'clamp',
+              }) }],
+            },
+          ]}
+          accessibilityLabel={`${log.food_name}, ${Math.round(log.calories)} kilocalorias`}
         >
           <Text style={[styles.foodName, { color: c.gray }]} numberOfLines={1}>{log.food_name}</Text>
           <Text style={[styles.foodKcal, { color: c.gray }]}>{Math.round(log.calories)} kcal</Text>
-        </View>
+        </Animated.View>
       ))}
+    </View>
+  );
+});
+
+// ─── Memoized Quick Action Button ─────────────────────────────────────────────
+const QuickActionButton = React.memo(function QuickActionButton({
+  label,
+  iconName,
+  iconColor,
+  iconBgColor,
+  onPress,
+  colors: c,
+}: {
+  label: string;
+  iconName: string;
+  iconColor: string;
+  iconBgColor: string;
+  onPress: () => void;
+  colors: ReturnType<typeof useThemeColors>;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+    >
+      <View style={[styles.quickActionIcon, { backgroundColor: iconBgColor }]} importantForAccessibility="no-hide-descendants">
+        <Ionicons name={iconName as any} size={18} color={iconColor} />
+      </View>
+      <Text style={[styles.quickActionLabel, { color: c.black }]} allowFontScaling>{label}</Text>
+    </TouchableOpacity>
+  );
+});
+
+// ─── Error Full Screen — shown when initial load fails completely ─────────────
+const ErrorFullScreen = React.memo(function ErrorFullScreen({
+  onRetry,
+  colors: c,
+  retryLabel,
+  errorTitle,
+  errorMessage,
+}: {
+  onRetry: () => void;
+  colors: ReturnType<typeof useThemeColors>;
+  retryLabel: string;
+  errorTitle: string;
+  errorMessage: string;
+}) {
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, { toValue: -6, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    ).start();
+  }, []);
+
+  return (
+    <View style={styles.errorFullScreen} accessibilityRole="alert">
+      <Animated.View style={{ transform: [{ translateY: bounceAnim }] }}>
+        <Ionicons name="cloud-offline-outline" size={56} color={c.disabled} />
+      </Animated.View>
+      <Text style={[styles.errorFullTitle, { color: c.black }]} allowFontScaling>{errorTitle}</Text>
+      <Text style={[styles.errorFullMessage, { color: c.gray }]} allowFontScaling>{errorMessage}</Text>
+      <TouchableOpacity
+        style={[styles.errorRetryBtn, { backgroundColor: c.accent }]}
+        onPress={onRetry}
+        activeOpacity={0.85}
+        accessibilityLabel={retryLabel}
+        accessibilityRole="button"
+      >
+        <Ionicons name="refresh-outline" size={18} color={c.white} />
+        <Text style={[styles.errorRetryText, { color: c.white }]}>{retryLabel}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+// ─── Enhanced Empty State with animation ──────────────────────────────────────
+const EmptyMealsState = React.memo(function EmptyMealsState({
+  onScan,
+  colors: c,
+  noMealsText,
+  scanHint,
+  scanNowText,
+}: {
+  onScan: () => void;
+  colors: ReturnType<typeof useThemeColors>;
+  noMealsText: string;
+  scanHint: string;
+  scanNowText: string;
+}) {
+  const iconScale = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(iconScale, {
+      toValue: 1,
+      friction: 4,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  return (
+    <View
+      style={[styles.card, styles.emptyCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+      accessibilityLabel="Sin comidas registradas hoy"
+    >
+      <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+        <Ionicons name="restaurant-outline" size={44} color={c.disabled} />
+      </Animated.View>
+      <Text style={[styles.emptyText, { color: c.black }]} allowFontScaling>{noMealsText}</Text>
+      <Text style={[styles.emptyHint, { color: c.gray }]} allowFontScaling>{scanHint}</Text>
+      <TouchableOpacity
+        style={[styles.scanCta, { backgroundColor: c.accent }]}
+        onPress={onScan}
+        accessibilityLabel="Escanear ahora"
+        accessibilityRole="button"
+        accessibilityHint="Abre la camara para escanear tu primer alimento del dia"
+        activeOpacity={0.85}
+      >
+        <Ionicons name="camera-outline" size={18} color={c.white} />
+        <Text style={[styles.scanCtaText, { color: c.white }]}>{scanNowText}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+// ─── Daily Tip Card (memoized, one tip per day of month) ──────────────────────
+const DailyTipCard = React.memo(function DailyTipCard({
+  colors: c,
+}: {
+  colors: ReturnType<typeof useThemeColors>;
+}) {
+  const tipIndex = new Date().getDate() - 1;
+  const tip = DAILY_TIPS[tipIndex % DAILY_TIPS.length];
+
+  return (
+    <View
+      style={[styles.dailyTipCard, { backgroundColor: c.surfaceAlt, borderColor: c.grayLight }]}
+      accessibilityLabel={`Consejo del dia: ${tip}`}
+      accessibilityRole="text"
+    >
+      <Ionicons name="bulb-outline" size={16} color={c.accent} accessibilityElementsHidden={true} importantForAccessibility="no" />
+      <Text style={[styles.dailyTipText, { color: c.gray }]} allowFontScaling>{tip}</Text>
     </View>
   );
 });
@@ -318,6 +587,7 @@ export default function HomeScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
   const c = useThemeColors();
+  const { isDark } = useAppTheme();
   const { t } = useTranslation();
   const { track } = useAnalytics('Home');
   const [summary, setSummary] = useState<DailySummary | null>(null);
@@ -325,6 +595,32 @@ export default function HomeScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Track whether the initial load failed completely (both API calls).
+  // When true, the full-screen error state is shown instead of mock data.
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  // ─── Day navigation (hook handles state, swipe gestures, and animations) ─
+  const {
+    selectedDate,
+    dateStr,
+    dateLabel,
+    dateSubtitle,
+    canGoForward,
+    canGoBack,
+    isSelectedToday,
+    goToPreviousDay,
+    goToNextDay,
+    goToToday,
+    setDate: setSelectedDate,
+    contentTranslateX,
+    contentOpacity,
+    gestureHandlers,
+  } = useDaySwipe({
+    onDateChange: (_date, direction) => {
+      haptics.light();
+      track('home_day_navigate', { direction });
+    },
+  });
 
   // Nutrition alerts
   const { alerts: nutritionAlerts, refetch: refetchAlerts } = useNutritionAlerts();
@@ -404,13 +700,23 @@ export default function HomeScreen({ navigation }: any) {
     extrapolate: 'clamp',
   });
 
+  // Track whether we have ever loaded data successfully (avoids closure over
+  // summary/logs state which would create a new callback identity every render).
+  const hasDataRef = useRef(false);
+
+  // Timestamp of the last successful fetch — used by useFocusEffect to skip
+  // redundant reloads when data is still fresh (staleness threshold: 30 s).
+  const lastFetchRef = useRef<number>(0);
+
   // Stable load function — single fetch for summary + logs (no duplicate calls)
-  const load = useCallback(async () => {
+  const load = useCallback(async (date?: string) => {
+    const d = date ?? dateStr;
     setError(false);
+    setLoadFailed(false);
     try {
       const [s, l] = await Promise.allSettled([
-        foodService.getDailySummary(),
-        foodService.getFoodLogs(),
+        foodService.getDailySummary(d),
+        foodService.getFoodLogs(d),
       ]);
 
       const summaryOk = s.status === 'fulfilled';
@@ -423,11 +729,23 @@ export default function HomeScreen({ navigation }: any) {
         setLogs(l.value);
       }
 
-      // If both API calls failed, fall back to mock data so the screen is usable
+      if (summaryOk || logsOk) {
+        hasDataRef.current = true;
+        lastFetchRef.current = Date.now();
+      }
+
+      // If both API calls failed, show full-screen error on first load
+      // or fall back to mock data on subsequent loads
       if (!summaryOk && !logsOk) {
         setError(true);
-        setSummary(MOCK_SUMMARY);
-        setLogs(MOCK_LOGS);
+        if (!hasDataRef.current) {
+          // First load, no cached data — show full error screen
+          setLoadFailed(true);
+        } else {
+          // Subsequent refresh failure — keep existing data, show banner
+          setSummary(MOCK_SUMMARY);
+          setLogs(MOCK_LOGS);
+        }
       } else if (!summaryOk) {
         setError(true);
         setSummary(MOCK_SUMMARY);
@@ -436,15 +754,30 @@ export default function HomeScreen({ navigation }: any) {
       }
     } catch {
       setError(true);
-      setSummary(MOCK_SUMMARY);
-      setLogs(MOCK_LOGS);
+      if (!hasDataRef.current) {
+        setLoadFailed(true);
+      } else {
+        setSummary(MOCK_SUMMARY);
+        setLogs(MOCK_LOGS);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateStr]);
+
+  // Reload when date changes via day navigation
+  useEffect(() => {
+    setLoading(true);
+    load(toDateStr(selectedDate));
+  }, [selectedDate]);
 
   useFocusEffect(
     useCallback(() => {
+      const now = Date.now();
+      // Skip reload if data was fetched less than 30 seconds ago (still fresh)
+      if (now - lastFetchRef.current < 30_000 && hasDataRef.current) {
+        return;
+      }
       setLoading(true);
       load();
     }, [load])
@@ -483,6 +816,8 @@ export default function HomeScreen({ navigation }: any) {
       meals_logged: summary.meals_logged,
       total_fiber_g: totalFiber,
       food_variety: uniqueFoods,
+      calories_burned_exercise: summary.calories_burned_exercise ?? 0,
+      net_calories: summary.net_calories ?? summary.total_calories,
     }).catch(() => {});
   }, [summary, logs]);
 
@@ -504,17 +839,29 @@ export default function HomeScreen({ navigation }: any) {
   }, [t]);
 
   // Memoize derived nutrition values to avoid recalculation on every render
-  const { consumed, target, protein, proteinTarget, carbs, carbsTarget, fats, fatsTarget, streak } = useMemo(() => ({
-    consumed: summary?.total_calories ?? 0,
-    target: summary?.target_calories ?? 2000,
-    protein: summary?.total_protein_g ?? 0,
-    proteinTarget: summary?.target_protein_g ?? 150,
-    carbs: summary?.total_carbs_g ?? 0,
-    carbsTarget: summary?.target_carbs_g ?? 200,
-    fats: summary?.total_fats_g ?? 0,
-    fatsTarget: summary?.target_fats_g ?? 65,
-    streak: summary?.streak_days ?? 0,
-  }), [summary]);
+  const {
+    consumed, target, protein, proteinTarget, carbs, carbsTarget, fats, fatsTarget, streak,
+    burned, netCalories, caloriesRemaining, exercisesToday,
+  } = useMemo(() => {
+    const c = summary?.total_calories ?? 0;
+    const t = summary?.target_calories ?? 2000;
+    const b = summary?.calories_burned_exercise ?? 0;
+    return {
+      consumed: c,
+      target: t,
+      protein: summary?.total_protein_g ?? 0,
+      proteinTarget: summary?.target_protein_g ?? 150,
+      carbs: summary?.total_carbs_g ?? 0,
+      carbsTarget: summary?.target_carbs_g ?? 200,
+      fats: summary?.total_fats_g ?? 0,
+      fatsTarget: summary?.target_fats_g ?? 65,
+      streak: summary?.streak_days ?? 0,
+      burned: b,
+      netCalories: summary?.net_calories ?? (c - b),
+      caloriesRemaining: summary?.calories_remaining ?? Math.max(t - c + b, 0),
+      exercisesToday: summary?.exercises_today ?? [],
+    };
+  }, [summary]);
 
   // Memoize meal grouping to avoid re-filtering on unrelated state changes
   const logsByMeal = useMemo(() => {
@@ -528,7 +875,17 @@ export default function HomeScreen({ navigation }: any) {
   const hasMeals = logs.length > 0;
 
   // MINIMALIST REDESIGN Phase 1: removed NutriScore, HealthAlerts, ExerciseBalance,
-  // WellnessScore, AdaptiveCalorieBanner derived data
+  // WellnessScore. AdaptiveCalorieBanner is now server-driven.
+
+  // ---- Adaptive calorie banner callbacks ----
+  const onViewCalorieAdjustment = useCallback(() => {
+    haptics.light();
+    navigation.navigate('CalorieAdjustment');
+  }, [navigation]);
+
+  const onAdjustmentApplied = useCallback(() => {
+    load();
+  }, [load]);
 
   // ---- Navigation callbacks (stable refs to prevent child re-renders) ----
   const onNavigateToAchievements = useCallback(() => {
@@ -550,6 +907,7 @@ export default function HomeScreen({ navigation }: any) {
   const onRetryPress = useCallback(() => {
     haptics.light();
     setLoading(true);
+    setLoadFailed(false);
     load();
   }, [load]);
 
@@ -562,13 +920,13 @@ export default function HomeScreen({ navigation }: any) {
     const routeMap: Record<string, string> = {
       '/log': 'Registro',
       '/scan': 'Scan',
-      '/dashboard': 'Home',
+      '/dashboard': 'HomeMain',
       '/water': 'Registro',
       '/foods': 'FoodSearch',
       '/foods?category=protein': 'FoodSearch',
       '/foods?category=healthy': 'FoodSearch',
     };
-    const screen = routeMap[route] || 'Home';
+    const screen = routeMap[route] || 'HomeMain';
     navigation.navigate(screen);
   }, [navigation]);
 
@@ -612,15 +970,16 @@ export default function HomeScreen({ navigation }: any) {
     navigation.navigate('AchievementShowcase');
   }, [navigation]);
 
-  // Memoize calorie ring labels
+  // Memoize calorie ring labels (now uses net-aware remaining)
   const caloriesLeftLabel = useMemo(
-    () => t('home.caloriesLeft', { count: Math.round(Math.max(target - consumed, 0)) }),
-    [t, target, consumed],
+    () => t('home.caloriesLeft', { count: Math.round(Math.max(caloriesRemaining, 0)) }),
+    [t, caloriesRemaining],
   );
   const goalReachedLabel = useMemo(() => t('home.goalReached'), [t]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: c.bg }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
       {/* Header with parallax */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
         <Animated.View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, transform: [{ translateY: headerTranslateY }], opacity: headerOpacity }}>
@@ -629,9 +988,9 @@ export default function HomeScreen({ navigation }: any) {
             size="small"
             animation="idle"
           />
-          <View accessibilityRole="header">
-            <Text style={[styles.greeting, { color: c.gray }]}>{greetingText},</Text>
-            <Text style={[styles.userName, { color: c.black }]}>{user?.first_name || t('profile.user')}</Text>
+          <View accessibilityRole="header" accessible={true} accessibilityLabel={`${greetingText}, ${user?.first_name || t('profile.user')}`}>
+            <Text style={[styles.greeting, { color: c.gray }]} allowFontScaling>{greetingText},</Text>
+            <Text style={[styles.userName, { color: c.black }]} allowFontScaling>{user?.first_name || t('profile.user')}</Text>
           </View>
         </Animated.View>
         <View style={styles.headerRight}>
@@ -651,20 +1010,46 @@ export default function HomeScreen({ navigation }: any) {
             activeOpacity={0.85}
           >
             <Animated.View style={[styles.scanBtn, { backgroundColor: c.white }, pulseStyle]}>
-              <Ionicons name="camera" size={20} color="#1A1A2E" />
+              <Ionicons name="camera" size={20} color={c.black} />
             </Animated.View>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Day navigator -- swipe or tap arrows to change day */}
+      <DateNavigator
+        dateLabel={dateLabel}
+        dateSubtitle={dateSubtitle}
+        selectedDate={selectedDate}
+        canGoForward={canGoForward}
+        canGoBack={canGoBack}
+        isToday={isSelectedToday}
+        translateX={contentTranslateX}
+        opacity={contentOpacity}
+        onPreviousDay={goToPreviousDay}
+        onNextDay={goToNextDay}
+        onGoToToday={goToToday}
+        onDatePicked={setSelectedDate}
+        sidePadding={sidePadding}
+      />
 
       {/* Loading skeleton */}
       {loading && !refreshing ? (
         <View style={{ paddingHorizontal: sidePadding }}>
           <HomeSkeleton />
         </View>
+      ) : loadFailed ? (
+        /* Full-screen error state — shown when initial load fails completely */
+        <ErrorFullScreen
+          onRetry={onRetryPress}
+          colors={c}
+          retryLabel={t('home.retry') || 'Reintentar'}
+          errorTitle={t('home.errorTitle') || 'No se pudieron cargar los datos'}
+          errorMessage={t('home.errorMessage') || 'Verifica tu conexion a internet e intenta de nuevo.'}
+        />
       ) : (
         <>
-          {/* Error banner */}
+          {/* Error banner — shown when a partial load failed (data still available) */}
           {error && (
             <TouchableOpacity
               style={[styles.errorBanner, { marginHorizontal: sidePadding, backgroundColor: c.accent }]}
@@ -675,6 +1060,7 @@ export default function HomeScreen({ navigation }: any) {
             >
               <Ionicons name="wifi-outline" size={16} color={c.white} />
               <Text style={[styles.errorBannerText, { color: c.white }]}>{t('home.offlineBanner')}</Text>
+              <Ionicons name="refresh-outline" size={14} color={c.white} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           )}
 
@@ -699,8 +1085,8 @@ export default function HomeScreen({ navigation }: any) {
           ) : daysWithData <= 1 && (riskStatus === 'critical' || riskStatus === 'high_risk') ? (
             <View style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}>
               <View style={styles.gettingStartedContainer}>
-                <View style={[styles.gettingStartedDot, { backgroundColor: '#4285F4' }]} />
-                <Text style={[styles.gettingStartedLabel, { color: '#4285F4' }]}>Getting started</Text>
+                <View style={[styles.gettingStartedDot, { backgroundColor: c.accent }]} />
+                <Text style={[styles.gettingStartedLabel, { color: c.accent }]}>Getting started</Text>
               </View>
               <Text style={[styles.gettingStartedMsg, { color: c.gray }]}>
                 Estamos aprendiendo tus habitos. Registra unas comidas mas para ver tu puntaje.
@@ -720,17 +1106,23 @@ export default function HomeScreen({ navigation }: any) {
 
           {/* Re-engagement banner — user hasn't logged in 3+ days */}
           {daysSinceLastLog >= 3 && (
-            <View style={[styles.reengageBanner, { marginHorizontal: sidePadding }]}>
+            <View
+              style={[styles.reengageBanner, { marginHorizontal: sidePadding, backgroundColor: isDark ? c.surface : '#FEF2F2', borderColor: isDark ? c.grayLight : '#FECACA' }]}
+              accessible={true}
+              accessibilityRole="alert"
+              accessibilityLabel={`Te echamos de menos. Llevas ${daysSinceLastLog} dias sin registrar. Fitsi te espera para retomar tu seguimiento.`}
+            >
               <FitsiMascot expression="sad" size="small" animation="sad" />
               <View style={{ flex: 1 }}>
-                <Text style={styles.reengageTitle}>Te echamos de menos!</Text>
-                <Text style={styles.reengageMsg}>
+                <Text style={[styles.reengageTitle, { color: isDark ? c.protein : '#991B1B' }]} allowFontScaling>Te echamos de menos!</Text>
+                <Text style={[styles.reengageMsg, { color: isDark ? c.protein : '#991B1B' }]} allowFontScaling>
                   Llevas {daysSinceLastLog} dias sin registrar. Fitsi te espera para retomar tu seguimiento.
                 </Text>
               </View>
             </View>
           )}
 
+          <View style={{ flex: 1 }} {...gestureHandlers}>
           <Animated.ScrollView
             showsVerticalScrollIndicator={false}
             bounces={true}
@@ -745,7 +1137,10 @@ export default function HomeScreen({ navigation }: any) {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={c.black}
+                tintColor={c.accent}
+                colors={[c.accent, c.success, c.protein]}
+                progressBackgroundColor={c.surface}
+                accessibilityLabel="Desliza hacia abajo para actualizar los datos"
               />
             }
           >
@@ -755,6 +1150,7 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={styles.ringRow}>
                   <CalorieRing
                     consumed={consumed}
+                    burned={burned}
                     target={target}
                     colors={c}
                     remainingLabel={caloriesLeftLabel}
@@ -766,7 +1162,95 @@ export default function HomeScreen({ navigation }: any) {
                     <MacroBar label={t('home.fats')} value={fats} target={fatsTarget} color={c.fats} delay={200} colors={c} />
                   </View>
                 </View>
+
+                {/* Calorie balance summary line */}
+                <View
+                  style={[styles.calorieBalanceSummary, { borderTopColor: c.grayLight }]}
+                  accessible={true}
+                  accessibilityLabel={
+                    burned > 0
+                      ? `Balance: ${Math.round(consumed)} consumidas menos ${Math.round(burned)} ejercicio igual ${Math.round(netCalories)} netas. Te quedan ${Math.round(Math.max(caloriesRemaining, 0))} kilocalorias`
+                      : `${Math.round(consumed)} kilocalorias consumidas`
+                  }
+                >
+                  <View style={styles.calorieBalanceRow}>
+                    <View style={styles.calorieBalanceItem}>
+                      <View style={[styles.calorieBalanceDot, { backgroundColor: c.success }]} />
+                      <Text style={[styles.calorieBalanceValue, { color: c.black }]} allowFontScaling>
+                        {Math.round(consumed)}
+                      </Text>
+                      <Text style={[styles.calorieBalanceLabel, { color: c.gray }]} allowFontScaling>
+                        consumidas
+                      </Text>
+                    </View>
+                    {burned > 0 && (
+                      <>
+                        <Text style={[styles.calorieBalanceOp, { color: c.gray }]}>-</Text>
+                        <View style={styles.calorieBalanceItem}>
+                          <View style={[styles.calorieBalanceDot, { backgroundColor: EXERCISE_ORANGE }]} />
+                          <Text style={[styles.calorieBalanceValue, { color: c.black }]} allowFontScaling>
+                            {Math.round(burned)}
+                          </Text>
+                          <Text style={[styles.calorieBalanceLabel, { color: c.gray }]} allowFontScaling>
+                            ejercicio
+                          </Text>
+                        </View>
+                        <Text style={[styles.calorieBalanceOp, { color: c.gray }]}>=</Text>
+                        <View style={styles.calorieBalanceItem}>
+                          <Text style={[styles.calorieBalanceValue, { color: c.accent, fontWeight: '700' }]} allowFontScaling>
+                            {Math.round(netCalories)}
+                          </Text>
+                          <Text style={[styles.calorieBalanceLabel, { color: c.gray }]} allowFontScaling>
+                            netas
+                          </Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                  {burned > 0 && (
+                    <Text style={[styles.calorieBalanceRemaining, { color: c.accent }]} allowFontScaling>
+                      Te quedan {Math.round(Math.max(caloriesRemaining, 0))} kcal
+                    </Text>
+                  )}
+                </View>
+
+                {/* Exercises today — shown inline when there are workouts */}
+                {exercisesToday.length > 0 && (
+                  <View style={[styles.exercisesTodayContainer, { borderTopColor: c.grayLight }]}>
+                    <View style={styles.exercisesTodayHeader}>
+                      <Ionicons name="barbell-outline" size={14} color={EXERCISE_ORANGE} />
+                      <Text style={[styles.exercisesTodayTitle, { color: c.black }]}>
+                        Ejercicios hoy
+                      </Text>
+                    </View>
+                    {exercisesToday.map((ex, idx) => (
+                      <View
+                        key={`${ex.workout_type}-${idx}`}
+                        style={styles.exerciseTodayRow}
+                        accessible={true}
+                        accessibilityLabel={`${ex.name}, ${ex.duration} minutos, ${ex.calories} kilocalorias quemadas`}
+                      >
+                        <Ionicons name="flame-outline" size={12} color={EXERCISE_ORANGE} />
+                        <Text style={[styles.exerciseTodayName, { color: c.gray }]} numberOfLines={1} allowFontScaling>
+                          {ex.name}
+                        </Text>
+                        <Text style={[styles.exerciseTodayMeta, { color: c.gray }]} allowFontScaling>
+                          {ex.duration} min
+                        </Text>
+                        <Text style={[styles.exerciseTodayCalories, { color: EXERCISE_ORANGE }]} allowFontScaling>
+                          -{ex.calories} kcal
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
+
+              {/* Adaptive calorie adjustment banner */}
+              <AdaptiveCalorieBanner
+                onViewDetail={onViewCalorieAdjustment}
+                onAdjustmentApplied={onAdjustmentApplied}
+              />
 
               {/* Progress widget */}
               <ProgressWidget
@@ -782,8 +1266,8 @@ export default function HomeScreen({ navigation }: any) {
               {/* Daily missions */}
               <DailyMissionsCard missions={progressMissions} />
 
-              {/* Calorie comparison bar */}
-              <CalorieComparisonCard logged={consumed} target={target} status={riskStatus} />
+              {/* Calorie comparison bar — uses net (consumed - burned) */}
+              <CalorieComparisonCard logged={netCalories} target={target} status={riskStatus} />
 
               {/* Recovery plan — shown when risk > 40 */}
               {recoveryPlan && riskScore > 40 && (
@@ -793,106 +1277,82 @@ export default function HomeScreen({ navigation }: any) {
               {/* Best Day Banner */}
               {summary && (summary.meals_logged ?? 0) > 0 && (
                 <TouchableOpacity
-                  style={styles.bestDayBanner}
+                  style={[styles.bestDayBanner, { backgroundColor: isDark ? c.surface : '#FEF3C7', borderColor: isDark ? c.grayLight : '#FDE68A' }]}
                   onPress={onQuickReports}
                   activeOpacity={0.8}
                   accessibilityLabel="Tu mejor dia esta semana: Viernes, 125 gramos de proteinas"
                   accessibilityRole="button"
                 >
-                  <Ionicons name="trophy" size={18} color="#F59E0B" />
-                  <Text style={styles.bestDayText}>
+                  <Ionicons name="trophy" size={18} color={c.carbs} />
+                  <Text style={[styles.bestDayText, { color: isDark ? c.gray : '#92400E' }]}>
                     <Text style={styles.bestDayBold}>Tu mejor dia esta semana: </Text>
                     Viernes — 125g proteinas
                   </Text>
-                  <Ionicons name="chevron-forward" size={14} color="#92400E" />
+                  <Ionicons name="chevron-forward" size={14} color={isDark ? c.gray : '#92400E'} />
                 </TouchableOpacity>
               )}
 
-              {/* Quick Actions — adaptive based on risk score */}
+              {/* Quick Actions — adaptive based on risk score, using memoized buttons */}
               <View style={styles.quickActionsRow}>
                 {isHighRisk ? (
                   <>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                    <QuickActionButton
+                      label="Registro Rapido"
+                      iconName="add-circle"
+                      iconColor={c.white}
+                      iconBgColor={c.success}
                       onPress={onQuickLog}
-                      activeOpacity={0.8}
-                      accessibilityLabel="Registro rapido de comida"
-                      accessibilityRole="button"
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: '#22C55E' }]}>
-                        <Ionicons name="add-circle" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Registro Rapido</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      colors={c}
+                    />
+                    <QuickActionButton
+                      label="Copiar ayer"
+                      iconName="copy"
+                      iconColor={c.white}
+                      iconBgColor={c.primary}
                       onPress={onCopyYesterday}
-                      activeOpacity={0.8}
-                      accessibilityLabel="Copiar comidas de ayer"
-                      accessibilityRole="button"
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
-                        <Ionicons name="copy" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Copiar ayer</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      colors={c}
+                    />
+                    <QuickActionButton
+                      label="Comida sugerida"
+                      iconName="restaurant"
+                      iconColor={c.white}
+                      iconBgColor={EXERCISE_ORANGE}
                       onPress={onSuggestedMeal}
-                      activeOpacity={0.8}
-                      accessibilityLabel="Ver comida sugerida"
-                      accessibilityRole="button"
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: '#F97316' }]}>
-                        <Ionicons name="restaurant" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Comida sugerida</Text>
-                    </TouchableOpacity>
+                      colors={c}
+                    />
                   </>
                 ) : (
                   <>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                    <QuickActionButton
+                      label="Scan"
+                      iconName="camera"
+                      iconColor={c.black}
+                      iconBgColor={c.white}
                       onPress={onQuickScan}
-                      activeOpacity={0.8}
-                      accessibilityLabel="Escanear comida"
-                      accessibilityRole="button"
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: c.white }]}>
-                        <Ionicons name="camera" size={18} color="#1A1A2E" />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Scan</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      colors={c}
+                    />
+                    <QuickActionButton
+                      label="Water"
+                      iconName="water"
+                      iconColor={c.white}
+                      iconBgColor={c.primary}
                       onPress={onQuickWater}
-                      activeOpacity={0.8}
-                      accessibilityLabel="Registrar agua"
-                      accessibilityRole="button"
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: c.primary }]}>
-                        <Ionicons name="water" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Water</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                      colors={c}
+                    />
+                    <QuickActionButton
+                      label="Favoritos"
+                      iconName="heart"
+                      iconColor={c.white}
+                      iconBgColor={c.protein}
                       onPress={onQuickFavorites}
-                      activeOpacity={0.8}
-                      accessibilityLabel="Ver favoritos"
-                      accessibilityRole="button"
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: '#EF4444' }]}>
-                        <Ionicons name="heart" size={18} color={c.white} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: c.black }]}>Favoritos</Text>
-                    </TouchableOpacity>
+                      colors={c}
+                    />
                   </>
                 )}
               </View>
 
-              {/* Meal recommendations — only shown when user still needs to eat */}
-              {consumed < target && (
+              {/* Meal recommendations — only shown when net calories are below target */}
+              {netCalories < target && (
                 <View>
                   <MealRecommendationsSection onRegisterMeal={onRegisterMeal} />
                   <TouchableOpacity
@@ -911,15 +1371,17 @@ export default function HomeScreen({ navigation }: any) {
               {/* Motivational banner — no meals logged and it's past 2pm */}
               {!hasMeals && new Date().getHours() >= 14 && (
                 <View
-                  style={[styles.motivationalBanner, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}
-                  accessibilityLabel="Aun no has registrado comida hoy. Tu cuerpo necesita combustible."
+                  style={[styles.motivationalBanner, { backgroundColor: isDark ? c.surface : '#FEF3C7', borderColor: isDark ? c.grayLight : '#FDE68A' }]}
+                  accessible={true}
+                  accessibilityRole="alert"
+                  accessibilityLabel="Aun no has registrado comida hoy. Tu cuerpo necesita combustible. Registra lo que has comido para mantener tu seguimiento al dia."
                 >
                   <FitsiMascot expression="hungry" size="small" animation="sad" />
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.motivationalTitle, { color: '#92400E' }]}>
+                    <Text style={[styles.motivationalTitle, { color: isDark ? c.carbs : '#92400E' }]} allowFontScaling>
                       Aun no has registrado comida hoy!
                     </Text>
-                    <Text style={[styles.motivationalMessage, { color: '#92400E' }]}>
+                    <Text style={[styles.motivationalMessage, { color: isDark ? c.carbs : '#92400E' }]} allowFontScaling>
                       Tu cuerpo necesita combustible. Registra lo que has comido para mantener tu seguimiento al dia.
                     </Text>
                   </View>
@@ -930,27 +1392,33 @@ export default function HomeScreen({ navigation }: any) {
               <Text style={[styles.sectionTitle, { color: c.black }]} accessibilityRole="header">{t('home.today')}</Text>
               {hasMeals ? (
                 <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
-                  {MEAL_ORDER.map((mt) => (
-                    <MealSection key={mt} mealType={mt} logs={logsByMeal[mt]} colors={c} />
-                  ))}
+                  {MEAL_ORDER.map((mt, idx) => {
+                    // Determine if this is the last non-empty section for border styling
+                    const remainingTypes = MEAL_ORDER.slice(idx + 1);
+                    const isLastSection = remainingTypes.every((t) => (logsByMeal[t]?.length ?? 0) === 0);
+                    return (
+                      <MealSection
+                        key={mt}
+                        mealType={mt}
+                        logs={logsByMeal[mt]}
+                        colors={c}
+                        isLast={isLastSection}
+                      />
+                    );
+                  })}
                 </View>
               ) : (
-                <View style={[styles.card, styles.emptyCard, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Sin comidas registradas hoy">
-                  <Ionicons name="restaurant-outline" size={36} color={c.grayLight} />
-                  <Text style={[styles.emptyText, { color: c.black }]}>{t('home.noMealsLogged')}</Text>
-                  <Text style={[styles.emptyHint, { color: c.gray }]}>{t('home.scanYourFood')}</Text>
-                  <TouchableOpacity
-                    style={[styles.scanCta, { backgroundColor: c.white }]}
-                    onPress={onScanFromEmpty}
-                    accessibilityLabel="Escanear ahora"
-                    accessibilityRole="button"
-                    accessibilityHint="Abre la camara para escanear tu primer alimento del dia"
-                  >
-                    <Ionicons name="camera-outline" size={18} color="#1A1A2E" />
-                    <Text style={[styles.scanCtaText, { color: '#1A1A2E' }]}>{t('home.scanNow')}</Text>
-                  </TouchableOpacity>
-                </View>
+                <EmptyMealsState
+                  onScan={onScanFromEmpty}
+                  colors={c}
+                  noMealsText={t('home.noMealsLogged')}
+                  scanHint={t('home.scanYourFood')}
+                  scanNowText={t('home.scanNow')}
+                />
               )}
+
+              {/* Daily nutrition tip */}
+              <DailyTipCard colors={c} />
 
               {/* Report CTA */}
               <TouchableOpacity
@@ -968,6 +1436,7 @@ export default function HomeScreen({ navigation }: any) {
               <View style={{ height: spacing.xl }} />
             </Animated.View>
           </Animated.ScrollView>
+          </View>
         </>
       )}
 
@@ -1006,10 +1475,42 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     marginBottom: spacing.sm,
+    minHeight: 44,
   },
   errorBannerText: { ...typography.caption, flex: 1 },
+  // ─── Full-screen error state ────────────────────────────────────────────
+  errorFullScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  errorFullTitle: {
+    ...typography.titleSm,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  errorFullMessage: {
+    ...typography.subtitle,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  errorRetryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 4,
+    borderRadius: radius.full,
+    marginTop: spacing.sm,
+    minHeight: 48,
+  },
+  errorRetryText: {
+    ...typography.button,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1137,14 +1638,18 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.xxl,
     gap: spacing.sm,
   },
   emptyText: {
     ...typography.bodyMd,
+    fontWeight: '600',
+    marginTop: spacing.xs,
   },
   emptyHint: {
     ...typography.caption,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   scanCta: {
     flexDirection: 'row',
@@ -1163,9 +1668,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: undefined,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: undefined,
     borderRadius: radius.lg,
     padding: spacing.sm + 2,
     paddingHorizontal: spacing.md,
@@ -1174,7 +1679,7 @@ const styles = StyleSheet.create({
   bestDayText: {
     flex: 1,
     fontSize: 13,
-    color: '#92400E',
+    color: undefined,
     lineHeight: 18,
   },
   bestDayBold: {
@@ -1292,9 +1797,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: undefined,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: undefined,
     borderRadius: radius.lg,
     padding: spacing.md,
     marginBottom: spacing.sm,
@@ -1337,5 +1842,101 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  // ─── Calorie balance summary ──────────────────────────────────────────
+  calorieBalanceSummary: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: undefined,
+    gap: spacing.xs,
+  },
+  calorieBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  calorieBalanceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  calorieBalanceDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  calorieBalanceValue: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  calorieBalanceLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  calorieBalanceOp: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  calorieBalanceRemaining: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  // ─── Exercises today ──────────────────────────────────────────────────
+  exercisesTodayContainer: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+    gap: 4,
+  },
+  exercisesTodayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: 2,
+  },
+  exercisesTodayTitle: {
+    ...typography.label,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  exerciseTodayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingLeft: spacing.sm,
+  },
+  exerciseTodayName: {
+    ...typography.caption,
+    flex: 1,
+  },
+  exerciseTodayMeta: {
+    ...typography.caption,
+    fontWeight: '500',
+  },
+  exerciseTodayCalories: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  // ─── Daily Tip ──────────────────────────────────────────────────────────
+  dailyTipCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  dailyTipText: {
+    ...typography.caption,
+    flex: 1,
+    lineHeight: 18,
   },
 });

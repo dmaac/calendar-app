@@ -1,6 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from enum import Enum
+from pydantic import BaseModel, Field
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -15,14 +16,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
 
+class PushPlatform(str, Enum):
+    ios = "ios"
+    android = "android"
+
+
 class RegisterTokenRequest(BaseModel):
-    token: str
-    platform: str  # "ios" or "android"
+    token: str = Field(..., min_length=1, max_length=500, description="Push notification token")
+    platform: PushPlatform = Field(..., description="Platform: ios or android")
 
 
 class SendTestRequest(BaseModel):
-    title: str = "Test notification"
-    body: str = "This is a test push from Fitsi IA"
+    title: str = Field("Test notification", min_length=1, max_length=200, description="Notification title")
+    body: str = Field("This is a test push from Fitsi IA", min_length=1, max_length=2000, description="Notification body")
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -31,25 +37,21 @@ async def register_push_token(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    if body.platform not in ("ios", "android"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Platform must be 'ios' or 'android'",
-        )
+    # platform is validated by PushPlatform enum at the Pydantic layer
 
     # Check if this token already exists for this user
     statement = select(PushToken).where(
         PushToken.user_id == current_user.id,
         PushToken.token == body.token,
     )
-    result = await session.exec(statement)
-    existing = result.first()
+    result = await session.execute(statement)
+    existing = result.scalars().first()
 
     if existing:
         # Reactivate if it was deactivated
         if not existing.is_active:
             existing.is_active = True
-            existing.platform = body.platform
+            existing.platform = body.platform.value
             session.add(existing)
             await session.commit()
         return {"detail": "Push token registered"}
@@ -57,7 +59,7 @@ async def register_push_token(
     push_token = PushToken(
         user_id=current_user.id,
         token=body.token,
-        platform=body.platform,
+        platform=body.platform.value,
     )
     session.add(push_token)
     await session.commit()
@@ -74,8 +76,8 @@ async def unregister_push_token(
         PushToken.user_id == current_user.id,
         PushToken.token == body.token,
     )
-    result = await session.exec(statement)
-    existing = result.first()
+    result = await session.execute(statement)
+    existing = result.scalars().first()
 
     if not existing:
         raise HTTPException(
@@ -102,6 +104,9 @@ async def send_test_notification(
             body.title,
             body.body,
             data={"type": "test"},
+            notification_type="test",
+            category="transactional",
+            respect_quiet_hours=False,
         )
     except Exception as e:
         logger.error("Failed to send test notification: %s", e)

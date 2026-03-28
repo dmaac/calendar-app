@@ -4,13 +4,16 @@ All endpoints require authentication + admin privileges.
 
 Sections:
   1. Dashboard API      -- KPIs, user metrics
-  2. User Management    -- list, detail, toggle premium, gift, notify
-  3. Revenue            -- MRR, churn, LTV, plan breakdown
-  4. System Health      -- DB size, cache stats, error log
-  5. Content Management -- CRUD for nutrition tips and recipes
-  6. Broadcast          -- notifications to all users
-  7. Export             -- CSV user export
-  8. Feedback           -- feedback summary
+  2. User Management    -- list, search, detail, toggle premium, gift, notify
+  3. Subscription Mgmt  -- view, extend, cancel for a user
+  4. Food Log Moderation-- view/delete flagged logs
+  5. Revenue            -- MRR, churn, LTV, plan breakdown
+  6. System Health      -- DB pool, response times, error rates, cache stats
+  7. Error Log          -- DB-backed error log (replaces in-memory ring buffer)
+  8. Content Management -- CRUD for nutrition tips and recipes
+  9. Broadcast          -- notifications to all users
+  10. Export            -- CSV user export
+  11. Feedback          -- feedback summary
 """
 import csv
 import io
@@ -18,9 +21,7 @@ import logging
 import sys
 import time
 import traceback
-from collections import deque
-from datetime import date, datetime, time as dt_time, timedelta
-from threading import Lock
+from datetime import date, datetime, time as dt_time, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -39,6 +40,8 @@ from ..models.feedback import Feedback, FeedbackType, FeedbackStatus
 from ..models.food import Food
 from ..models.nutrition_tip import NutritionTip
 from ..models.recipe import Recipe
+from ..models.admin_error_log import AdminErrorLog
+from ..models.admin_action_log import AdminActionLog
 from ..routers.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -46,38 +49,83 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-# ─── In-memory error log (ring buffer) ─────────────────────────────────────
-# Captures the last N application errors for the /api/admin/errors endpoint.
-# This avoids requiring an external log aggregation service for early-stage ops.
-
-_MAX_ERROR_LOG = 100
-_error_log: deque[dict] = deque(maxlen=_MAX_ERROR_LOG)
-_error_lock = Lock()
+def _escape_like(s: str) -> str:
+    """Escape special SQL LIKE/ILIKE metacharacters so they match literally."""
+    return s.replace("%", "\\%").replace("_", "\\_")
 
 
-def record_error(exc: Exception, context: str = "") -> None:
-    """Record an exception into the admin error ring buffer.
+# ─── DB-backed error logging ────────────────────────────────────────────────
+# record_error() is called from exception handlers, middleware, or background
+# tasks.  Errors are persisted to the admin_error_log table and pruned
+# periodically.
 
-    Call this from exception handlers, middleware, or background tasks
-    to make errors visible in the admin panel.
+_MAX_ERROR_LOG_ROWS = 10_000  # Pruning threshold
+
+
+async def record_error(
+    exc: Exception,
+    context: str = "",
+    severity: str = "error",
+    user_id: Optional[int] = None,
+    endpoint: Optional[str] = None,
+    request_id: Optional[str] = None,
+) -> None:
+    """Persist an exception to the admin_error_log table.
+
+    This function obtains its own session so it can be called from anywhere
+    (middleware, background tasks, etc.) without requiring a caller-provided
+    session.  Failures are logged but never propagated.
     """
-    tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
-    entry = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "type": type(exc).__name__,
-        "message": str(exc),
-        "context": context,
-        "stack_trace": "".join(tb),
-    }
-    with _error_lock:
-        _error_log.append(entry)
+    try:
+        from ..core.database import AsyncSessionLocal
+
+        tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+        entry = AdminErrorLog(
+            error_type=type(exc).__name__,
+            message=str(exc)[:2000],
+            context=context[:500] if context else "",
+            stack_trace="".join(tb)[:10000],
+            severity=severity,
+            user_id=user_id,
+            endpoint=endpoint,
+            request_id=request_id,
+        )
+        async with AsyncSessionLocal() as session:
+            session.add(entry)
+            await session.commit()
+    except Exception:
+        # Never let error-logging crash the application
+        logger.warning("Failed to persist error to admin_error_log", exc_info=True)
+
+
+async def _log_admin_action(
+    session: AsyncSession,
+    admin_id: int,
+    action: str,
+    reason: Optional[str] = None,
+    target_user_id: Optional[int] = None,
+    details: Optional[dict] = None,
+) -> None:
+    """Record an admin action to the admin_action_log table."""
+    entry = AdminActionLog(
+        admin_id=admin_id,
+        action=action,
+        reason=reason,
+        target_user_id=target_user_id,
+        details=details,
+    )
+    session.add(entry)
 
 
 # ─── Admin guard ────────────────────────────────────────────────────────────
 
 async def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    """Dependency that enforces admin access."""
-    if not current_user.is_admin:
+    """Dependency that enforces admin access.
+
+    Checks both authentication (via get_current_user) and the is_admin flag.
+    Returns the admin User object for use in endpoint handlers.
+    """
+    if not getattr(current_user, "is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required.",
@@ -96,7 +144,10 @@ class GiftPremiumRequest(BaseModel):
 
 class TogglePremiumRequest(BaseModel):
     is_premium: bool
-    reason: Optional[str] = None
+    reason: str = PydanticField(
+        ..., min_length=1, max_length=1000,
+        description="Reason for granting/revoking premium (required for audit)",
+    )
 
 
 class SendNotificationRequest(BaseModel):
@@ -202,10 +253,28 @@ class RevenueResponse(BaseModel):
 
 # ─── System health schema ──────────────────────────────────────────────────
 
+class DBPoolStats(BaseModel):
+    pool_size: int = 0
+    checked_out: int = 0
+    overflow: int = 0
+    checked_in: int = 0
+
+
+class APIResponseTimeStats(BaseModel):
+    total_requests: int = 0
+    total_errors: int = 0
+    error_rate_pct: float = 0.0
+    slow_requests: int = 0
+    active_connections: int = 0
+    active_users_24h: int = 0
+
+
 class SystemHealthResponse(BaseModel):
     db_size_mb: Optional[float] = None
     db_connected: bool
     db_table_count: int = 0
+    db_pool: DBPoolStats = DBPoolStats()
+    api_stats: APIResponseTimeStats = APIResponseTimeStats()
     redis_connected: bool
     redis_keys: int = 0
     cache_hits: int = 0
@@ -213,15 +282,80 @@ class SystemHealthResponse(BaseModel):
     cache_hit_ratio: float = 0.0
     uptime_seconds: float = 0.0
     python_version: str
-    error_count_recent: int = 0
+    error_count_24h: int = 0
 
 
 class ErrorLogEntry(BaseModel):
+    id: int
     timestamp: str
-    type: str
+    error_type: str
     message: str
     context: str
-    stack_trace: str
+    severity: str
+    stack_trace: Optional[str] = None
+    user_id: Optional[int] = None
+    endpoint: Optional[str] = None
+
+
+class PaginatedErrorLog(BaseModel):
+    items: list[ErrorLogEntry]
+    total: int
+    page: int
+    page_size: int
+
+
+# ─── Subscription management schemas ─────────────────────────────────────
+
+class SubscriptionDetail(BaseModel):
+    id: int
+    plan: str
+    status: str
+    price_paid: Optional[float] = None
+    currency: str
+    store: Optional[str] = None
+    trial_ends_at: Optional[datetime] = None
+    current_period_ends_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExtendSubscriptionRequest(BaseModel):
+    days: int = PydanticField(..., ge=1, le=3650)
+    reason: str = PydanticField(..., min_length=1, max_length=1000)
+
+
+class CancelSubscriptionRequest(BaseModel):
+    reason: str = PydanticField(..., min_length=1, max_length=1000)
+
+
+# ─── Food log moderation schemas ─────────────────────────────────────────
+
+class FoodLogModerationItem(BaseModel):
+    id: int
+    user_id: int
+    food_name: str
+    calories: float
+    protein_g: float
+    carbs_g: float
+    fats_g: float
+    meal_type: str
+    ai_provider: Optional[str] = None
+    ai_confidence: Optional[float] = None
+    was_edited: bool
+    logged_at: datetime
+    image_url: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class PaginatedFoodLogs(BaseModel):
+    items: list[FoodLogModerationItem]
+    total: int
+    page: int
+    page_size: int
+
+
+class DeleteFoodLogRequest(BaseModel):
+    reason: str = PydanticField(..., min_length=1, max_length=1000)
 
 
 # ─── Content schemas ────────────────────────────────────────────────────────
@@ -344,6 +478,25 @@ class FeedbackSummary(BaseModel):
     latest: list[FeedbackSummaryItem]
 
 
+# ─── Admin action log schema ─────────────────────────────────────────────
+
+class AdminActionLogEntry(BaseModel):
+    id: int
+    admin_id: int
+    action: str
+    reason: Optional[str] = None
+    target_user_id: Optional[int] = None
+    details: Optional[dict] = None
+    created_at: datetime
+
+
+class PaginatedAdminActions(BaseModel):
+    items: list[AdminActionLogEntry]
+    total: int
+    page: int
+    page_size: int
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. DASHBOARD API
 # ═══════════════════════════════════════════════════════════════════════════
@@ -369,6 +522,7 @@ async def admin_dashboard(
         select(func.count(func.distinct(AIFoodLog.user_id))).where(
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     dau = dau_result.scalar() or 0
@@ -380,31 +534,29 @@ async def admin_dashboard(
     premium_count = premium_result.scalar() or 0
     premium_pct = round((premium_count / total_users * 100) if total_users > 0 else 0.0, 1)
 
-    # Average NutriScore -- approximated as (protein_g * 2 + fiber contribution - sugar penalty)
-    # normalized to 0-100. We use a simplified version: avg ratio of protein intake to total cals.
-    # In practice this is a placeholder until a dedicated NutriScore column is added.
+    # Average NutriScore -- approximated as protein ratio, scaled
     nutri_result = await session.execute(
         select(
             func.avg(AIFoodLog.protein_g),
             func.avg(AIFoodLog.calories),
         ).where(
             AIFoodLog.logged_at >= week_ago,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     row = nutri_result.one_or_none()
     avg_protein = float(row[0] or 0) if row else 0.0
     avg_cals = float(row[1] or 0) if row else 0.0
-    # Simple score: protein_pct * 100 capped at 100
     if avg_cals > 0:
-        protein_cal_ratio = (avg_protein * 4) / avg_cals  # protein cals / total cals
-        avg_nutri_score = round(min(protein_cal_ratio * 100 * 3, 100), 1)  # scale up
+        protein_cal_ratio = (avg_protein * 4) / avg_cals
+        avg_nutri_score = round(min(protein_cal_ratio * 100 * 3, 100), 1)
     else:
         avg_nutri_score = 0.0
 
     # Top 10 logged foods (last 7 days)
     top_foods_result = await session.execute(
         select(AIFoodLog.food_name, func.count(AIFoodLog.id).label("cnt"))
-        .where(AIFoodLog.logged_at >= week_ago)
+        .where(AIFoodLog.logged_at >= week_ago, AIFoodLog.deleted_at.is_(None))
         .group_by(AIFoodLog.food_name)
         .order_by(func.count(AIFoodLog.id).desc())
         .limit(10)
@@ -430,7 +582,7 @@ async def admin_dashboard(
     new_users_this_week = new_week_result.scalar() or 0
 
     # Total food logs
-    total_logs_result = await session.execute(select(func.count(AIFoodLog.id)))
+    total_logs_result = await session.execute(select(func.count(AIFoodLog.id)).where(AIFoodLog.deleted_at.is_(None)))
     total_food_logs = total_logs_result.scalar() or 0
 
     # Total food logs today
@@ -438,6 +590,7 @@ async def admin_dashboard(
         select(func.count(AIFoodLog.id)).where(
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     total_food_logs_today = today_logs_result.scalar() or 0
@@ -473,7 +626,7 @@ async def list_users(
     session: AsyncSession = Depends(get_session),
     _admin: User = Depends(require_admin),
 ):
-    """Paginated list of users with filters."""
+    """Paginated list of users with filters and search."""
     query = select(User)
 
     # Apply filters
@@ -484,19 +637,25 @@ async def list_users(
     if provider is not None:
         query = query.where(User.provider == provider)
     if search:
-        like_pattern = f"%{search}%"
+        like_pattern = f"%{_escape_like(search)}%"
         query = query.where(
             (User.email.ilike(like_pattern))
             | (User.first_name.ilike(like_pattern))
             | (User.last_name.ilike(like_pattern))
         )
 
-    # Count total
+    # Count total (uses COUNT on a subquery, never loads rows)
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await session.execute(count_query)
     total = total_result.scalar() or 0
 
-    # Sort
+    # Sort -- validate sort_by against allowed columns to prevent injection
+    _ALLOWED_SORT_COLUMNS = {
+        "created_at", "email", "first_name", "last_name",
+        "is_premium", "is_active", "id",
+    }
+    if sort_by not in _ALLOWED_SORT_COLUMNS:
+        sort_by = "created_at"
     sort_column = getattr(User, sort_by, User.created_at)
     if sort_order == "asc":
         query = query.order_by(sort_column.asc())
@@ -534,6 +693,49 @@ async def list_users(
     )
 
 
+@router.get("/users/search")
+async def search_users_by_email(
+    email: str = Query(..., min_length=1, description="Email address (exact or partial)"),
+    exact: bool = Query(False, description="Use exact match instead of partial"),
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    """Search for users by email address.
+
+    By default performs a case-insensitive partial match (ILIKE).
+    Set exact=true for exact match.  Returns up to 20 results.
+    """
+    if exact:
+        query = select(User).where(func.lower(User.email) == email.lower())
+    else:
+        query = select(User).where(User.email.ilike(f"%{_escape_like(email)}%"))
+
+    query = query.order_by(User.created_at.desc()).limit(20)
+
+    result = await session.execute(query)
+    users = result.scalars().all()
+
+    return {
+        "results": [
+            AdminUserSummary(
+                id=u.id,
+                email=u.email,
+                first_name=u.first_name,
+                last_name=u.last_name,
+                is_active=u.is_active,
+                is_premium=u.is_premium,
+                is_admin=u.is_admin,
+                provider=u.provider,
+                created_at=u.created_at,
+            )
+            for u in users
+        ],
+        "count": len(users),
+        "query": email,
+        "exact": exact,
+    }
+
+
 @router.get("/users/{user_id}/detail", response_model=AdminUserDetail)
 async def get_user_detail(
     user_id: int,
@@ -566,7 +768,7 @@ async def get_user_detail(
     today_end = datetime.combine(today, dt_time.max)
 
     total_logs_result = await session.execute(
-        select(func.count(AIFoodLog.id)).where(AIFoodLog.user_id == user_id)
+        select(func.count(AIFoodLog.id)).where(AIFoodLog.user_id == user_id, AIFoodLog.deleted_at.is_(None))
     )
     total_food_logs = total_logs_result.scalar() or 0
 
@@ -575,12 +777,13 @@ async def get_user_detail(
             AIFoodLog.user_id == user_id,
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     total_meals_today = today_logs_result.scalar() or 0
 
     last_active_result = await session.execute(
-        select(func.max(AIFoodLog.logged_at)).where(AIFoodLog.user_id == user_id)
+        select(func.max(AIFoodLog.logged_at)).where(AIFoodLog.user_id == user_id, AIFoodLog.deleted_at.is_(None))
     )
     last_active = last_active_result.scalar()
 
@@ -633,16 +836,18 @@ async def toggle_premium(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(require_admin),
 ):
-    """Toggle premium status for a user.
+    """Grant or revoke premium status for a user.
 
-    Set is_premium to True or False. When enabling, creates a subscription
-    record. When disabling, cancels all active subscriptions.
+    Requires a reason for audit trail.  When enabling, creates a subscription
+    record.  When disabling, cancels all active subscriptions.
+    All actions are logged to admin_action_log.
     """
     user = await session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
+    old_premium = user.is_premium
     user.is_premium = body.is_premium
     user.updated_at = now
     session.add(user)
@@ -675,6 +880,19 @@ async def toggle_premium(
             sub.updated_at = now
             session.add(sub)
 
+    # Log the admin action with reason
+    await _log_admin_action(
+        session,
+        admin_id=admin.id,
+        action="premium_toggle",
+        reason=body.reason,
+        target_user_id=user_id,
+        details={
+            "old_premium": old_premium,
+            "new_premium": body.is_premium,
+        },
+    )
+
     await session.commit()
 
     logger.info(
@@ -686,6 +904,7 @@ async def toggle_premium(
         "detail": f"Premium {'enabled' if body.is_premium else 'disabled'}",
         "user_id": user_id,
         "is_premium": body.is_premium,
+        "reason": body.reason,
         "toggled_by": admin.id,
     }
 
@@ -705,7 +924,7 @@ async def gift_premium(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     expires_at = now + timedelta(days=body.days)
 
     # Set premium flag
@@ -727,6 +946,16 @@ async def gift_premium(
         updated_at=now,
     )
     session.add(gift_sub)
+
+    await _log_admin_action(
+        session,
+        admin_id=admin.id,
+        action="gift_premium",
+        reason=body.reason,
+        target_user_id=user_id,
+        details={"days": body.days, "expires_at": expires_at.isoformat()},
+    )
+
     await session.commit()
 
     logger.info(
@@ -773,7 +1002,316 @@ async def send_user_notification(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 4. METRICS (legacy endpoint -- kept for backward compat)
+# 4. SUBSCRIPTION MANAGEMENT
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/users/{user_id}/subscriptions", response_model=list[SubscriptionDetail])
+async def get_user_subscriptions(
+    user_id: int,
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    """List all subscriptions for a user, ordered by creation date descending."""
+    user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    result = await session.execute(
+        select(Subscription)
+        .where(Subscription.user_id == user_id)
+        .order_by(Subscription.created_at.desc())
+    )
+    subs = result.scalars().all()
+
+    return [
+        SubscriptionDetail(
+            id=s.id,
+            plan=s.plan,
+            status=s.status,
+            price_paid=s.price_paid,
+            currency=s.currency,
+            store=s.store,
+            trial_ends_at=s.trial_ends_at,
+            current_period_ends_at=s.current_period_ends_at,
+            created_at=s.created_at,
+            updated_at=s.updated_at,
+        )
+        for s in subs
+    ]
+
+
+@router.post("/subscriptions/{subscription_id}/extend")
+async def extend_subscription(
+    subscription_id: int,
+    body: ExtendSubscriptionRequest,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(require_admin),
+):
+    """Extend an existing subscription's expiry date by N days."""
+    sub = await session.get(Subscription, subscription_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    now = datetime.now(timezone.utc)
+
+    # Calculate new expiry: extend from current expiry or from now if expired
+    current_expiry = sub.current_period_ends_at or now
+    if current_expiry < now:
+        current_expiry = now
+
+    new_expiry = current_expiry + timedelta(days=body.days)
+    old_expiry = sub.current_period_ends_at
+
+    sub.current_period_ends_at = new_expiry
+    sub.status = "active"
+    sub.updated_at = now
+    session.add(sub)
+
+    # Also ensure user has premium flag
+    user = await session.get(User, sub.user_id)
+    if user and not user.is_premium:
+        user.is_premium = True
+        user.updated_at = now
+        session.add(user)
+
+    await _log_admin_action(
+        session,
+        admin_id=admin.id,
+        action="subscription_extend",
+        reason=body.reason,
+        target_user_id=sub.user_id,
+        details={
+            "subscription_id": subscription_id,
+            "days_added": body.days,
+            "old_expiry": old_expiry.isoformat() if old_expiry else None,
+            "new_expiry": new_expiry.isoformat(),
+        },
+    )
+
+    await session.commit()
+
+    logger.info(
+        "ADMIN: user %s extended subscription %s by %d days (reason: %s)",
+        admin.id, subscription_id, body.days, body.reason,
+    )
+
+    return {
+        "detail": f"Subscription extended by {body.days} days",
+        "subscription_id": subscription_id,
+        "new_expiry": new_expiry.isoformat(),
+        "extended_by": admin.id,
+    }
+
+
+@router.post("/subscriptions/{subscription_id}/cancel")
+async def cancel_subscription(
+    subscription_id: int,
+    body: CancelSubscriptionRequest,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(require_admin),
+):
+    """Cancel an active subscription with a required reason."""
+    sub = await session.get(Subscription, subscription_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    if sub.status != "active":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Subscription is already {sub.status}, cannot cancel",
+        )
+
+    now = datetime.now(timezone.utc)
+    old_status = sub.status
+    sub.status = "canceled"
+    sub.updated_at = now
+    session.add(sub)
+
+    # Check if user has other active subscriptions
+    other_active_result = await session.execute(
+        select(func.count(Subscription.id)).where(
+            Subscription.user_id == sub.user_id,
+            Subscription.status == "active",
+            Subscription.id != subscription_id,
+        )
+    )
+    other_active_count = other_active_result.scalar() or 0
+
+    # If no other active subscriptions, revoke premium
+    if other_active_count == 0:
+        user = await session.get(User, sub.user_id)
+        if user and user.is_premium:
+            user.is_premium = False
+            user.updated_at = now
+            session.add(user)
+
+    await _log_admin_action(
+        session,
+        admin_id=admin.id,
+        action="subscription_cancel",
+        reason=body.reason,
+        target_user_id=sub.user_id,
+        details={
+            "subscription_id": subscription_id,
+            "plan": sub.plan,
+            "old_status": old_status,
+            "premium_revoked": other_active_count == 0,
+        },
+    )
+
+    await session.commit()
+
+    logger.info(
+        "ADMIN: user %s canceled subscription %s (reason: %s)",
+        admin.id, subscription_id, body.reason,
+    )
+
+    return {
+        "detail": "Subscription canceled",
+        "subscription_id": subscription_id,
+        "premium_revoked": other_active_count == 0,
+        "canceled_by": admin.id,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. FOOD LOG MODERATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/food-logs", response_model=PaginatedFoodLogs)
+async def list_food_logs_for_moderation(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
+    flagged_only: bool = Query(False, description="Only show low-confidence or edited logs"),
+    low_confidence_threshold: float = Query(
+        0.5, ge=0.0, le=1.0,
+        description="AI confidence threshold below which a log is considered flagged",
+    ),
+    meal_type: Optional[str] = Query(None, description="Filter by meal type"),
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    """List food logs for moderation, with optional flagged-only filter.
+
+    Flagged logs are those with:
+    - AI confidence below the threshold (default 0.5)
+    - Logs that were manually edited by the user (was_edited=true)
+    - Logs with suspiciously high/low calorie values
+    """
+    query = select(AIFoodLog).where(AIFoodLog.deleted_at.is_(None))
+
+    if user_id is not None:
+        query = query.where(AIFoodLog.user_id == user_id)
+    if meal_type:
+        query = query.where(AIFoodLog.meal_type == meal_type)
+
+    if flagged_only:
+        from sqlalchemy import or_
+        query = query.where(
+            or_(
+                AIFoodLog.ai_confidence < low_confidence_threshold,
+                AIFoodLog.ai_confidence.is_(None),
+                AIFoodLog.was_edited == True,  # noqa: E712
+                AIFoodLog.calories > 5000,
+                AIFoodLog.calories < 1,
+            )
+        )
+
+    # Count total
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Paginate
+    query = query.order_by(AIFoodLog.logged_at.desc())
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+
+    result = await session.execute(query)
+    logs = result.scalars().all()
+
+    return PaginatedFoodLogs(
+        items=[
+            FoodLogModerationItem(
+                id=log.id,
+                user_id=log.user_id,
+                food_name=log.food_name,
+                calories=log.calories,
+                protein_g=log.protein_g,
+                carbs_g=log.carbs_g,
+                fats_g=log.fats_g,
+                meal_type=log.meal_type,
+                ai_provider=log.ai_provider,
+                ai_confidence=log.ai_confidence,
+                was_edited=log.was_edited,
+                logged_at=log.logged_at,
+                image_url=log.image_url,
+                notes=log.notes,
+            )
+            for log in logs
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.delete("/food-logs/{log_id}")
+async def delete_food_log(
+    log_id: int,
+    body: DeleteFoodLogRequest,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(require_admin),
+):
+    """Soft-delete a food log entry with a required reason.
+
+    Uses the SoftDeleteMixin to mark the record as deleted rather than
+    physically removing it.  The deletion is logged to admin_action_log.
+    """
+    log = await session.get(AIFoodLog, log_id)
+    if not log:
+        raise HTTPException(status_code=404, detail="Food log not found")
+
+    if log.is_deleted:
+        raise HTTPException(status_code=400, detail="Food log is already deleted")
+
+    log.mark_deleted(acting_user_id=admin.id)
+    session.add(log)
+
+    await _log_admin_action(
+        session,
+        admin_id=admin.id,
+        action="food_log_delete",
+        reason=body.reason,
+        target_user_id=log.user_id,
+        details={
+            "food_log_id": log_id,
+            "food_name": log.food_name,
+            "calories": log.calories,
+            "meal_type": log.meal_type,
+            "logged_at": log.logged_at.isoformat(),
+        },
+    )
+
+    await session.commit()
+
+    logger.info(
+        "ADMIN: user %s soft-deleted food log %s (reason: %s)",
+        admin.id, log_id, body.reason,
+    )
+
+    return {
+        "detail": "Food log deleted",
+        "log_id": log_id,
+        "deleted_by": admin.id,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. METRICS (legacy endpoint -- kept for backward compat)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -813,6 +1351,7 @@ async def get_admin_metrics(
         select(func.count(func.distinct(AIFoodLog.user_id))).where(
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     dau = dau_result.scalar() or 0
@@ -821,6 +1360,7 @@ async def get_admin_metrics(
     mau_result = await session.execute(
         select(func.count(func.distinct(AIFoodLog.user_id))).where(
             AIFoodLog.logged_at >= thirty_days_ago,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     mau = mau_result.scalar() or 0
@@ -846,6 +1386,7 @@ async def get_admin_metrics(
         select(func.count(func.distinct(AIFoodLog.user_id))).where(
             AIFoodLog.logged_at >= sixty_days_ago,
             AIFoodLog.logged_at < thirty_days_ago,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
     prev_active = prev_active_result.scalar() or 0
@@ -859,6 +1400,7 @@ async def get_admin_metrics(
                 INNER JOIN ai_food_log curr ON prev.user_id = curr.user_id
                 WHERE prev.logged_at >= :sixty_ago AND prev.logged_at < :thirty_ago
                   AND curr.logged_at >= :thirty_ago
+                  AND prev.deleted_at IS NULL AND curr.deleted_at IS NULL
                 """
             ),
             {
@@ -878,6 +1420,7 @@ async def get_admin_metrics(
             select(func.count(AIFoodLog.id)).where(
                 AIFoodLog.logged_at >= today_start,
                 AIFoodLog.logged_at <= today_end,
+                AIFoodLog.deleted_at.is_(None),
             )
         )).scalar() or 0
     ) / dau, 1) if dau > 0 else 0.0
@@ -897,7 +1440,7 @@ async def get_admin_metrics(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 5. REVENUE API (enhanced)
+# 7. REVENUE API (enhanced)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -971,7 +1514,7 @@ async def get_revenue(
     )
     actual_this_month = float(month_rev_result.scalar() or 0.0)
 
-    # MRR = estimated monthly recurring revenue from active paid subscriptions
+    # MRR
     mrr = round(estimated_monthly, 2)
 
     # Churn rate (subscription-based)
@@ -1001,9 +1544,9 @@ async def get_revenue(
     else:
         churn_rate = 0.0
 
-    # LTV = ARPU / churn_rate (if churn > 0)
+    # LTV = ARPU / churn_rate
     arpu = actual_this_month / active_subs if active_subs > 0 else 0.0
-    ltv = round(arpu / churn_rate, 2) if churn_rate > 0 else round(arpu * 24, 2)  # 24-month estimate if no churn
+    ltv = round(arpu / churn_rate, 2) if churn_rate > 0 else round(arpu * 24, 2)
 
     return RevenueResponse(
         total_subscriptions=total_subs,
@@ -1019,7 +1562,7 @@ async def get_revenue(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 6. SYSTEM HEALTH API
+# 8. SYSTEM HEALTH API (enhanced with pool stats + response times)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -1028,7 +1571,7 @@ async def get_system_health(
     session: AsyncSession = Depends(get_session),
     _admin: User = Depends(require_admin),
 ):
-    """System health: DB size, cache stats, queue depth, error rate."""
+    """System health dashboard: DB pool stats, API response times, error rates, cache stats."""
     from ..core.database import async_engine
 
     # DB connection check
@@ -1039,7 +1582,7 @@ async def get_system_health(
         result = await session.execute(sa_text("SELECT 1"))
         db_connected = True
 
-        # Try to get DB size (PostgreSQL)
+        # DB size (PostgreSQL)
         try:
             size_result = await session.execute(
                 sa_text("SELECT pg_database_size(current_database())")
@@ -1048,7 +1591,6 @@ async def get_system_health(
             if size_bytes is not None:
                 db_size_mb = round(size_bytes / (1024 * 1024), 2)
         except Exception:
-            # SQLite or unsupported -- skip
             pass
 
         # Table count
@@ -1061,7 +1603,6 @@ async def get_system_health(
             )
             db_table_count = table_result.scalar() or 0
         except Exception:
-            # SQLite fallback
             try:
                 table_result = await session.execute(
                     sa_text("SELECT count(*) FROM sqlite_master WHERE type='table'")
@@ -1072,6 +1613,44 @@ async def get_system_health(
 
     except Exception as exc:
         logger.warning("System health: DB check failed -- %s", exc)
+
+    # DB connection pool statistics
+    db_pool = DBPoolStats()
+    try:
+        pool = async_engine.pool
+        db_pool = DBPoolStats(
+            pool_size=pool.size(),
+            checked_out=pool.checkedout(),
+            overflow=pool.overflow(),
+            checked_in=pool.checkedin(),
+        )
+    except Exception:
+        pass
+
+    # API response time / error rate stats from Prometheus metrics
+    api_stats = APIResponseTimeStats()
+    try:
+        from ..core.metrics import (
+            REQUEST_COUNT,
+            ERROR_COUNT,
+            SLOW_REQUEST_COUNT,
+            ACTIVE_CONNECTIONS,
+            get_active_user_count,
+        )
+        total_requests = int(REQUEST_COUNT.total())
+        total_errors = int(ERROR_COUNT.total())
+        error_rate = (total_errors / total_requests * 100) if total_requests > 0 else 0.0
+
+        api_stats = APIResponseTimeStats(
+            total_requests=total_requests,
+            total_errors=total_errors,
+            error_rate_pct=round(error_rate, 2),
+            slow_requests=int(SLOW_REQUEST_COUNT.total()),
+            active_connections=int(ACTIVE_CONNECTIONS.get()),
+            active_users_24h=get_active_user_count(),
+        )
+    except Exception:
+        pass
 
     # Redis / cache stats
     redis_connected = False
@@ -1094,14 +1673,25 @@ async def get_system_health(
     from ..main import _start_time
     uptime_seconds = round(time.time() - _start_time, 1) if _start_time else 0.0
 
-    # Recent error count
-    with _error_lock:
-        error_count_recent = len(_error_log)
+    # Error count in last 24h from DB
+    error_count_24h = 0
+    try:
+        twenty_four_hours_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+        error_count_result = await session.execute(
+            select(func.count(AdminErrorLog.id)).where(
+                AdminErrorLog.created_at >= twenty_four_hours_ago,
+            )
+        )
+        error_count_24h = error_count_result.scalar() or 0
+    except Exception:
+        pass
 
     return SystemHealthResponse(
         db_size_mb=db_size_mb,
         db_connected=db_connected,
         db_table_count=db_table_count,
+        db_pool=db_pool,
+        api_stats=api_stats,
         redis_connected=redis_connected,
         redis_keys=redis_keys,
         cache_hits=cache_hits,
@@ -1109,30 +1699,112 @@ async def get_system_health(
         cache_hit_ratio=cache_hit_ratio,
         uptime_seconds=uptime_seconds,
         python_version=sys.version,
-        error_count_recent=error_count_recent,
+        error_count_24h=error_count_24h,
     )
 
 
-@router.get("/errors", response_model=list[ErrorLogEntry])
+# ═══════════════════════════════════════════════════════════════════════════
+# 9. ERROR LOG (DB-backed)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/errors", response_model=PaginatedErrorLog)
 async def get_error_log(
-    limit: int = Query(50, ge=1, le=200),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    severity: Optional[str] = Query(None, description="Filter by severity: error, warning, critical"),
+    error_type: Optional[str] = Query(None, description="Filter by exception type"),
+    context: Optional[str] = Query(None, description="Search in context field"),
+    hours: int = Query(24, ge=1, le=720, description="Only show errors from the last N hours"),
+    session: AsyncSession = Depends(get_session),
     _admin: User = Depends(require_admin),
 ):
-    """Return the last N application errors with stack traces."""
-    with _error_lock:
-        entries = list(_error_log)
-    # Return most recent first, limited
-    entries.reverse()
-    return [
-        ErrorLogEntry(
-            timestamp=e["timestamp"],
-            type=e["type"],
-            message=e["message"],
-            context=e["context"],
-            stack_trace=e["stack_trace"],
-        )
-        for e in entries[:limit]
-    ]
+    """Return paginated, filterable application errors from the DB.
+
+    Replaces the old in-memory ring buffer with a persistent, queryable log.
+    """
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    query = select(AdminErrorLog).where(AdminErrorLog.created_at >= since)
+
+    if severity:
+        query = query.where(AdminErrorLog.severity == severity)
+    if error_type:
+        query = query.where(AdminErrorLog.error_type.ilike(f"%{_escape_like(error_type)}%"))
+    if context:
+        query = query.where(AdminErrorLog.context.ilike(f"%{_escape_like(context)}%"))
+
+    # Count
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Paginate (most recent first)
+    query = query.order_by(AdminErrorLog.created_at.desc())
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+
+    result = await session.execute(query)
+    entries = result.scalars().all()
+
+    return PaginatedErrorLog(
+        items=[
+            ErrorLogEntry(
+                id=e.id,
+                timestamp=e.created_at.isoformat(),
+                error_type=e.error_type,
+                message=e.message,
+                context=e.context,
+                severity=e.severity,
+                stack_trace=e.stack_trace,
+                user_id=e.user_id,
+                endpoint=e.endpoint,
+            )
+            for e in entries
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.delete("/errors/prune")
+async def prune_error_log(
+    keep_last: int = Query(1000, ge=100, le=50000, description="Number of recent errors to keep"),
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(require_admin),
+):
+    """Prune old error log entries, keeping only the N most recent."""
+    # Find the ID threshold
+    threshold_result = await session.execute(
+        select(AdminErrorLog.id)
+        .order_by(AdminErrorLog.created_at.desc())
+        .offset(keep_last)
+        .limit(1)
+    )
+    threshold_id = threshold_result.scalar()
+
+    if threshold_id is None:
+        return {"detail": "Nothing to prune", "deleted": 0}
+
+    # Delete older entries
+    delete_result = await session.execute(
+        sa_text("DELETE FROM admin_error_log WHERE id <= :threshold_id"),
+        {"threshold_id": threshold_id},
+    )
+    await session.commit()
+
+    deleted_count = delete_result.rowcount or 0
+
+    logger.info(
+        "ADMIN: user %s pruned error log, kept last %d, deleted %d",
+        admin.id, keep_last, deleted_count,
+    )
+
+    return {
+        "detail": f"Pruned {deleted_count} old error log entries",
+        "deleted": deleted_count,
+        "kept": keep_last,
+    }
 
 
 @router.post("/cache/clear")
@@ -1155,7 +1827,64 @@ async def clear_cache(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 7. CONTENT MANAGEMENT -- NUTRITION TIPS
+# 10. ADMIN ACTION LOG
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/actions", response_model=PaginatedAdminActions)
+async def list_admin_actions(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    admin_id: Optional[int] = Query(None, description="Filter by admin who performed the action"),
+    action: Optional[str] = Query(None, description="Filter by action type"),
+    target_user_id: Optional[int] = Query(None, description="Filter by target user"),
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    """List admin actions with filtering and pagination."""
+    query = select(AdminActionLog)
+
+    if admin_id is not None:
+        query = query.where(AdminActionLog.admin_id == admin_id)
+    if action:
+        query = query.where(AdminActionLog.action == action)
+    if target_user_id is not None:
+        query = query.where(AdminActionLog.target_user_id == target_user_id)
+
+    # Count
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Paginate
+    query = query.order_by(AdminActionLog.created_at.desc())
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+
+    result = await session.execute(query)
+    actions = result.scalars().all()
+
+    return PaginatedAdminActions(
+        items=[
+            AdminActionLogEntry(
+                id=a.id,
+                admin_id=a.admin_id,
+                action=a.action,
+                reason=a.reason,
+                target_user_id=a.target_user_id,
+                details=a.details,
+                created_at=a.created_at,
+            )
+            for a in actions
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 11. CONTENT MANAGEMENT -- NUTRITION TIPS
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -1166,7 +1895,7 @@ async def create_tip(
     admin: User = Depends(require_admin),
 ):
     """Create a new nutrition tip."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     tip = NutritionTip(
         title=body.title,
         body=body.body,
@@ -1232,7 +1961,7 @@ async def update_tip(
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(tip, field, value)
-    tip.updated_at = datetime.utcnow()
+    tip.updated_at = datetime.now(timezone.utc)
     session.add(tip)
     await session.commit()
     await session.refresh(tip)
@@ -1273,7 +2002,7 @@ def _tip_to_response(tip: NutritionTip) -> NutritionTipResponse:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 8. CONTENT MANAGEMENT -- RECIPES
+# 12. CONTENT MANAGEMENT -- RECIPES
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -1284,7 +2013,7 @@ async def create_recipe(
     admin: User = Depends(require_admin),
 ):
     """Create a new recipe."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     recipe = Recipe(
         title=body.title,
         description=body.description,
@@ -1366,7 +2095,7 @@ async def update_recipe(
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(recipe, field, value)
-    recipe.updated_at = datetime.utcnow()
+    recipe.updated_at = datetime.now(timezone.utc)
     session.add(recipe)
     await session.commit()
     await session.refresh(recipe)
@@ -1420,7 +2149,7 @@ def _recipe_to_response(recipe: Recipe) -> RecipeResponse:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 9. BROADCAST NOTIFICATIONS
+# 13. BROADCAST NOTIFICATIONS
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -1440,7 +2169,6 @@ async def broadcast_notification(
         query = query.where(User.is_premium == True)  # noqa: E712
     elif body.target == "free":
         query = query.where(User.is_premium == False)  # noqa: E712
-    # "all" = no additional filter
 
     result = await session.execute(query)
     user_ids = [row[0] for row in result.all()]
@@ -1499,7 +2227,7 @@ async def broadcast_notification_compat(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 10. EXPORT
+# 14. EXPORT
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -1551,7 +2279,7 @@ async def export_users_csv(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 11. FEEDBACK SUMMARY
+# 15. FEEDBACK SUMMARY
 # ═══════════════════════════════════════════════════════════════════════════
 
 

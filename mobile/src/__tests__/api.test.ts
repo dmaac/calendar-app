@@ -157,10 +157,10 @@ describe('ApiService', () => {
     it('posts water update', async () => {
       mockApi.post.mockResolvedValue({ data: {} });
 
-      await api.updateWater('2025-01-15', 2500);
+      await api.updateWater(2500);
 
       expect(mockApi.post).toHaveBeenCalledWith(
-        '/meals/water?target_date=2025-01-15&water_ml=2500'
+        '/api/food/water', { ml: 2500 }
       );
     });
   });

@@ -49,10 +49,10 @@ async def _get_user_company(
     """Return the membership and company for an authenticated user.
     Raises 403 if the user is not a member of any company.
     """
-    result = await session.exec(
+    result = await session.execute(
         select(CorporateMembership).where(CorporateMembership.user_id == user.id)
     )
-    membership = result.first()
+    membership = result.scalars().first()
     if not membership:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -94,20 +94,20 @@ async def register_company(
     The authenticated user becomes the company admin.
     """
     # Validate: domain must not already be registered
-    result = await session.exec(
+    result = await session.execute(
         select(CorporateCompany).where(CorporateCompany.domain == body.domain.lower())
     )
-    if result.first():
+    if result.scalars().first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Domain '{body.domain}' is already registered.",
         )
 
     # Validate: user must not already belong to a company
-    existing_membership = await session.exec(
+    existing_membership = await session.execute(
         select(CorporateMembership).where(CorporateMembership.user_id == current_user.id)
     )
-    if existing_membership.first():
+    if existing_membership.scalars().first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="You already belong to a company. Leave it before registering a new one.",
@@ -158,12 +158,12 @@ async def corporate_dashboard(
     membership, company = await _get_user_company(current_user, session)
 
     # Get all employee user_ids in this company
-    members_result = await session.exec(
+    members_result = await session.execute(
         select(CorporateMembership.user_id).where(
             CorporateMembership.company_id == company.id
         )
     )
-    member_user_ids: List[int] = list(members_result.all())
+    member_user_ids: List[int] = list(members_result.scalars().all())
     total_employees = len(member_user_ids)
 
     if total_employees == 0:
@@ -181,35 +181,38 @@ async def corporate_dashboard(
     today_end = datetime.combine(today, dt_time.max)
 
     # Active today: distinct users who logged food today
-    active_result = await session.exec(
+    active_result = await session.execute(
         select(func.count(func.distinct(AIFoodLog.user_id))).where(
             AIFoodLog.user_id.in_(member_user_ids),  # type: ignore[attr-defined]
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
-    active_today = active_result.one() or 0
+    active_today = active_result.scalar_one() or 0
 
     participation_rate = round((active_today / total_employees) * 100, 1) if total_employees > 0 else 0.0
 
     # Avg NutriScore: average total calories logged today across all employees
     # (serves as a proxy metric -- higher participation = better score)
-    avg_cal_result = await session.exec(
+    avg_cal_result = await session.execute(
         select(func.avg(AIFoodLog.calories)).where(
             AIFoodLog.user_id.in_(member_user_ids),  # type: ignore[attr-defined]
             AIFoodLog.logged_at >= today_start,
             AIFoodLog.logged_at <= today_end,
+            AIFoodLog.deleted_at.is_(None),
         )
     )
-    avg_nutriscore = round(float(avg_cal_result.one() or 0), 1)
+    avg_nutriscore = round(float(avg_cal_result.scalar_one() or 0), 1)
 
     # Popular foods: top 5 most logged food names in the last 7 days
     week_ago = datetime.combine(today - timedelta(days=7), dt_time.min)
-    popular_result = await session.exec(
+    popular_result = await session.execute(
         select(AIFoodLog.food_name, func.count(AIFoodLog.id).label("cnt"))
         .where(
             AIFoodLog.user_id.in_(member_user_ids),  # type: ignore[attr-defined]
             AIFoodLog.logged_at >= week_ago,
+            AIFoodLog.deleted_at.is_(None),
         )
         .group_by(AIFoodLog.food_name)
         .order_by(func.count(AIFoodLog.id).desc())
@@ -266,32 +269,32 @@ async def invite_employees(
             continue
 
         # Find user by email
-        user_result = await session.exec(
+        user_result = await session.execute(
             select(User).where(User.email == email_str)
         )
-        user = user_result.first()
+        user = user_result.scalars().first()
         if not user:
             not_found += 1
             details.append(f"{email_str}: user not registered in Fitsi")
             continue
 
         # Check if already a member
-        existing = await session.exec(
+        existing = await session.execute(
             select(CorporateMembership).where(
                 CorporateMembership.company_id == company.id,
                 CorporateMembership.user_id == user.id,
             )
         )
-        if existing.first():
+        if existing.scalars().first():
             already_members += 1
             details.append(f"{email_str}: already a member")
             continue
 
         # Check if user belongs to another company
-        other_membership = await session.exec(
+        other_membership = await session.execute(
             select(CorporateMembership).where(CorporateMembership.user_id == user.id)
         )
-        if other_membership.first():
+        if other_membership.scalars().first():
             details.append(f"{email_str}: already belongs to another company")
             continue
 
@@ -337,10 +340,10 @@ async def corporate_leaderboard(
     membership, company = await _get_user_company(current_user, session)
 
     # Get all teams for this company
-    teams_result = await session.exec(
+    teams_result = await session.execute(
         select(CorporateTeam).where(CorporateTeam.company_id == company.id)
     )
-    teams = list(teams_result.all())
+    teams = list(teams_result.scalars().all())
 
     if not teams:
         return CorporateLeaderboardResponse(
@@ -357,7 +360,7 @@ async def corporate_leaderboard(
     team_ids = [t.id for t in teams]
 
     # Batch-load all team memberships in a single query instead of N+1
-    all_memberships_result = await session.exec(
+    all_memberships_result = await session.execute(
         select(CorporateMembership.team_id, CorporateMembership.user_id).where(
             CorporateMembership.team_id.in_(team_ids)  # type: ignore[attr-defined]
         )
@@ -374,26 +377,28 @@ async def corporate_leaderboard(
 
     if all_member_user_ids:
         # Average calories per user over last 7 days
-        avg_result = await session.exec(
+        avg_result = await session.execute(
             select(
                 AIFoodLog.user_id,
                 func.avg(AIFoodLog.calories).label("avg_cal"),
             ).where(
                 AIFoodLog.user_id.in_(all_member_user_ids),  # type: ignore[attr-defined]
                 AIFoodLog.logged_at >= week_ago,
+                AIFoodLog.deleted_at.is_(None),
             ).group_by(AIFoodLog.user_id)
         )
         user_avg_map = {row[0]: float(row[1] or 0) for row in avg_result.all()}
 
         # Active users today
-        active_result = await session.exec(
+        active_result = await session.execute(
             select(AIFoodLog.user_id).where(
                 AIFoodLog.user_id.in_(all_member_user_ids),  # type: ignore[attr-defined]
                 AIFoodLog.logged_at >= today_start,
                 AIFoodLog.logged_at <= today_end,
+                AIFoodLog.deleted_at.is_(None),
             ).distinct()
         )
-        active_user_ids = set(row for row in active_result.all())
+        active_user_ids = set(active_result.scalars().all())
 
         # Aggregate per team
         for team in teams:

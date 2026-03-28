@@ -16,6 +16,23 @@ import Constants from 'expo-constants';
 import { api } from './api';
 import { showNotification } from '../components/InAppNotification';
 
+/**
+ * Helper to build a daily trigger input. The expo-notifications SchedulableTriggerInputTypes.DAILY
+ * type requires channelId on Android in strict mode, but the SDK fills it with the default channel
+ * when not provided. This helper casts through unknown to satisfy the compiler while preserving
+ * runtime correctness.
+ */
+function dailyTrigger(
+  hour: number,
+  minute: number,
+): Notifications.NotificationTriggerInput {
+  return {
+    type: Notifications.SchedulableTriggerInputTypes.DAILY,
+    hour,
+    minute,
+  } as unknown as Notifications.NotificationTriggerInput;
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface NotificationPreferences {
@@ -49,7 +66,7 @@ export interface NotificationIntent {
   title: string;
   body: string;
   scheduled_for: string | null;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   priority: number;
 }
 
@@ -97,20 +114,34 @@ const ALLOWED_NOTIFICATION_SCREENS = new Set([
   // Tab screens
   'Inicio', 'Registro', 'Progress', 'Groups', 'Community', 'Perfil',
   // Scan stack
-  'ScanMain',
+  'Scan',
   // Recipes stack
-  'RecipesMain',
+  'Recipes',
 ]);
 
 function isAllowedScreen(screen: string): boolean {
   return ALLOWED_NOTIFICATION_SCREENS.has(screen);
 }
 
+/** Shape of the `data` field in notification content. */
+interface NotificationData {
+  type?: string;
+  screen?: string;
+  params?: Record<string, unknown>;
+  meal_type?: string;
+  [key: string]: unknown;
+}
+
 // ─── Navigation reference (set by AppNavigator) ────────────────────────────
 
-let _navigationRef: any = null;
+/** Minimal navigation interface to avoid importing the full navigation package. */
+interface NavigationRef {
+  navigate(screen: string, params?: Record<string, unknown>): void;
+}
 
-export function setNavigationRef(ref: any): void {
+let _navigationRef: NavigationRef | null = null;
+
+export function setNavigationRef(ref: NavigationRef): void {
   _navigationRef = ref;
 }
 
@@ -147,8 +178,14 @@ export async function registerForPushNotifications(): Promise<string | null> {
   // Get Expo push token
   try {
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    // Skip push token registration when projectId is missing or placeholder
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!projectId || !uuidRegex.test(projectId)) {
+      console.warn('[Notifications] No valid EAS projectId configured — skipping push token registration');
+      return null;
+    }
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: projectId ?? undefined,
+      projectId,
     });
     const token = tokenData.data;
 
@@ -208,8 +245,10 @@ export async function unregisterPushToken(): Promise<void> {
 
   try {
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!projectId || !uuidRegex.test(projectId)) return;
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: projectId ?? undefined,
+      projectId,
     });
     await api.delete('/api/notifications/unregister', {
       data: { token: tokenData.data, platform: Platform.OS },
@@ -234,7 +273,7 @@ export function startNotificationListeners(): () => void {
   _foregroundSubscription = Notifications.addNotificationReceivedListener(
     (notification) => {
       const { title, body } = notification.request.content;
-      const data = notification.request.content.data as Record<string, any> | undefined;
+      const data = notification.request.content.data as NotificationData | undefined;
 
       // Show in-app notification banner
       showNotification({
@@ -249,7 +288,7 @@ export function startNotificationListeners(): () => void {
   // Response: user tapped the notification -> navigate to screen
   _responseSubscription = Notifications.addNotificationResponseReceivedListener(
     (response) => {
-      const data = response.notification.request.content.data as Record<string, any> | undefined;
+      const data = response.notification.request.content.data as NotificationData | undefined;
       if (data?.screen && _navigationRef) {
         if (!isAllowedScreen(data.screen)) {
           console.warn('[Notifications] Blocked navigation to unknown screen:', data.screen);
@@ -279,7 +318,7 @@ export function startNotificationListeners(): () => void {
 export async function handleInitialNotification(): Promise<void> {
   const response = await Notifications.getLastNotificationResponseAsync();
   if (response) {
-    const data = response.notification.request.content.data as Record<string, any> | undefined;
+    const data = response.notification.request.content.data as NotificationData | undefined;
     if (data?.screen && _navigationRef) {
       if (!isAllowedScreen(data.screen)) {
         console.warn('[Notifications] Blocked initial navigation to unknown screen:', data.screen);
@@ -425,11 +464,7 @@ export async function scheduleLocalNotifications(
           data: { type: 'meal_reminder', meal_type: meal.key, screen: 'LogMain' },
           sound: 'default',
         },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: meal.hour,
-          minute: meal.minute,
-        } as any,
+        trigger: dailyTrigger(meal.hour, meal.minute),
       });
     }
   }
@@ -443,11 +478,7 @@ export async function scheduleLocalNotifications(
         data: { type: 'evening_summary', screen: 'HomeMain' },
         sound: 'default',
       },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: prefs.evening_summary_hour,
-        minute: prefs.evening_summary_minute,
-      } as any,
+      trigger: dailyTrigger(prefs.evening_summary_hour, prefs.evening_summary_minute),
     });
   }
 
@@ -460,11 +491,7 @@ export async function scheduleLocalNotifications(
         data: { type: 'streak_at_risk', screen: 'LogMain' },
         sound: 'default',
       },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: prefs.streak_risk_hour,
-        minute: prefs.streak_risk_minute,
-      } as any,
+      trigger: dailyTrigger(prefs.streak_risk_hour, prefs.streak_risk_minute),
     });
   }
 }
@@ -486,7 +513,7 @@ export async function scheduleFromPredictedTimes(): Promise<void> {
       // Cancel meal-related local notifications
       const scheduled = await Notifications.getAllScheduledNotificationsAsync();
       for (const notif of scheduled) {
-        const data = notif.content.data as Record<string, any> | undefined;
+        const data = notif.content.data as NotificationData | undefined;
         if (data?.type === 'meal_reminder') {
           await Notifications.cancelScheduledNotificationAsync(notif.identifier);
         }
@@ -528,11 +555,7 @@ export async function scheduleFromPredictedTimes(): Promise<void> {
             },
             sound: 'default',
           },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour: reminderHour,
-            minute: reminderMinute,
-          } as any,
+          trigger: dailyTrigger(reminderHour, reminderMinute),
         });
       }
     } else {
