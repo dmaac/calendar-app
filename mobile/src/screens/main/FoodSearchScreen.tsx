@@ -29,6 +29,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, typography, spacing, radius, useLayout } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
+import type { LogStackScreenProps } from '../../navigation/types';
 import FoodSearch from '../../components/FoodSearch';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -40,11 +41,11 @@ const MEAL_FILTERS: { value: MealType; label: string; icon: string; color: strin
   { value: 'snack',     label: 'Snack',    icon: 'cafe-outline',       color: '#EC4899' },
 ];
 
-export default function FoodSearchScreen({ navigation, route }: any) {
+export default function FoodSearchScreen({ navigation, route }: LogStackScreenProps<'FoodSearch'>) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
   const c = useThemeColors();
-  const initialMealType: MealType = route?.params?.mealType ?? 'snack';
+  const initialMealType: MealType = (route?.params?.mealType as MealType) ?? 'snack';
   const [selectedMeal, setSelectedMeal] = useState<MealType>(initialMealType);
 
   const handleLogged = useCallback(() => {
@@ -59,7 +60,7 @@ export default function FoodSearchScreen({ navigation, route }: any) {
 
   const handleBarcodeScan = useCallback(() => {
     haptics.light();
-    navigation.navigate('Inicio', { screen: 'Barcode' });
+    navigation.navigate('Inicio', { screen: 'Barcode', params: { mealType: selectedMeal } });
   }, [navigation, selectedMeal]);
 
   return (
@@ -101,7 +102,7 @@ export default function FoodSearchScreen({ navigation, route }: any) {
                 style={[
                   styles.filterChip,
                   { borderColor: c.grayLight, backgroundColor: c.surface },
-                  isActive && { backgroundColor: c.black, borderColor: c.black },
+                  isActive && { backgroundColor: c.accent, borderColor: c.accent },
                 ]}
                 onPress={() => handleMealSelect(filter.value)}
                 activeOpacity={0.7}

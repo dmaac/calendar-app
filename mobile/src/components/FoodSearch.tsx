@@ -441,9 +441,11 @@ function FoodSearchInner({ onLogged, mealType = 'snack', inline = false }: FoodS
     getRecentSearches().then(setRecentSearches);
   }, []);
 
-  // Search local database
+  // Search local database — show all when no query (browsing mode)
   const localResults = useMemo<SearchResult[]>(() => {
-    if (!debouncedQuery.trim()) return [];
+    if (!debouncedQuery.trim()) {
+      return foodDatabase.slice(0, 50).map(localToResult);
+    }
     return foodDatabase
       .filter((f) => fuzzyMatch(f.name, debouncedQuery))
       .slice(0, 20)
@@ -487,7 +489,7 @@ function FoodSearchInner({ onLogged, mealType = 'snack', inline = false }: FoodS
   }, [localResults, apiResults]);
 
   const isSearching = query.trim() !== '' && (query !== debouncedQuery || apiLoading);
-  const showRecent = !query.trim() && recentSearches.length > 0;
+  const showRecent = !query.trim() && recentSearches.length > 0 && mergedResults.length === 0;
 
   // Handle selecting a food from results
   const handleSelect = useCallback((food: SearchResult) => {
@@ -647,8 +649,8 @@ function FoodSearchInner({ onLogged, mealType = 'snack', inline = false }: FoodS
       {/* Skeleton loading */}
       {isSearching && skeletons}
 
-      {/* Results list */}
-      {!isSearching && query.trim() && (
+      {/* Results list — always visible (shows all foods when no query) */}
+      {!isSearching && (
         <FlatList
           data={mergedResults}
           keyExtractor={keyExtractor}
@@ -659,13 +661,15 @@ function FoodSearchInner({ onLogged, mealType = 'snack', inline = false }: FoodS
           style={s.resultsList}
           contentContainerStyle={s.resultsContent}
           ListEmptyComponent={
-            <View style={s.emptyContainer}>
-              <Ionicons name="search-outline" size={40} color={c.grayLight} />
-              <Text style={[s.emptyText, { color: c.black }]}>No se encontraron resultados</Text>
-              <Text style={[s.emptyHint, { color: c.gray }]}>
-                Intenta con otro nombre
-              </Text>
-            </View>
+            query.trim() ? (
+              <View style={s.emptyContainer}>
+                <Ionicons name="search-outline" size={40} color={c.grayLight} />
+                <Text style={[s.emptyText, { color: c.black }]}>No se encontraron resultados</Text>
+                <Text style={[s.emptyHint, { color: c.gray }]}>
+                  Intenta con otro nombre
+                </Text>
+              </View>
+            ) : null
           }
         />
       )}
