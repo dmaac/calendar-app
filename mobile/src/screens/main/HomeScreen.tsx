@@ -708,6 +708,10 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
   // redundant reloads when data is still fresh (staleness threshold: 30 s).
   const lastFetchRef = useRef<number>(0);
 
+  // Guard: skip the first run of the selectedDate useEffect so we don't
+  // double-call load() on mount (useFocusEffect already handles the initial load).
+  const isInitialMountRef = useRef(true);
+
   // Stable load function — single fetch for summary + logs (no duplicate calls)
   const load = useCallback(async (date?: string) => {
     const d = date ?? dateStr;
@@ -765,8 +769,13 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
     }
   }, [dateStr]);
 
-  // Reload when date changes via day navigation
+  // Reload when date changes via day navigation — skip initial mount because
+  // useFocusEffect already fires load() once.  This prevents a double-fetch on startup.
   useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
     setLoading(true);
     load(toDateStr(selectedDate));
   }, [selectedDate]);
@@ -1054,78 +1063,6 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
         />
       ) : (
         <>
-          {/* Error banner — shown when a partial load failed (data still available) */}
-          {error && (
-            <TouchableOpacity
-              style={[styles.errorBanner, { marginHorizontal: sidePadding, backgroundColor: c.accent }]}
-              onPress={onRetryPress}
-              activeOpacity={0.8}
-              accessibilityLabel="Error al cargar datos. Toca para reintentar"
-              accessibilityRole="button"
-            >
-              <Ionicons name="wifi-outline" size={16} color={c.white} />
-              <Text style={[styles.errorBannerText, { color: c.white }]}>{t('home.offlineBanner')}</Text>
-              <Ionicons name="refresh-outline" size={14} color={c.white} style={{ marginLeft: 'auto' }} />
-            </TouchableOpacity>
-          )}
-
-          {/* Nutrition alerts — rendered above scroll content */}
-          {nutritionAlerts.length > 0 && (
-            <View style={{ paddingHorizontal: sidePadding }}>
-              <NutritionAlerts alerts={nutritionAlerts} onAction={onAlertAction} />
-            </View>
-          )}
-
-          {/* Risk UI — skeleton / empty state / day-1 override / normal */}
-          {riskLoading ? (
-            <View style={{ paddingHorizontal: sidePadding }}>
-              <RiskSkeleton />
-            </View>
-          ) : daysWithData === 0 ? (
-            <View style={[styles.riskEmptyState, { paddingHorizontal: sidePadding }]}>
-              <Text style={[styles.riskEmptyText, { color: c.gray }]}>
-                Registra tu primera comida para ver tu puntaje de salud
-              </Text>
-            </View>
-          ) : daysWithData <= 1 && (riskStatus === 'critical' || riskStatus === 'high_risk') ? (
-            <View style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}>
-              <View style={styles.gettingStartedContainer}>
-                <View style={[styles.gettingStartedDot, { backgroundColor: c.accent }]} />
-                <Text style={[styles.gettingStartedLabel, { color: c.accent }]}>Getting started</Text>
-              </View>
-              <Text style={[styles.gettingStartedMsg, { color: c.gray }]}>
-                Estamos aprendiendo tus habitos. Registra unas comidas mas para ver tu puntaje.
-              </Text>
-            </View>
-          ) : riskScore > 60 ? (
-            <TouchableOpacity
-              style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}
-              onPress={() => { haptics.light(); navigation.navigate('RiskDetail'); }}
-              activeOpacity={0.8}
-              accessibilityLabel="Ver detalle de riesgo nutricional"
-              accessibilityRole="button"
-            >
-              <NutritionSemaphore riskScore={riskScore} status={riskStatus} size={100} trend={riskTrend} />
-            </TouchableOpacity>
-          ) : null}
-
-          {/* Re-engagement banner — user hasn't logged in 3+ days */}
-          {daysSinceLastLog >= 3 && (
-            <View
-              style={[styles.reengageBanner, { marginHorizontal: sidePadding, backgroundColor: isDark ? c.surface : '#FEF2F2', borderColor: isDark ? c.grayLight : '#FECACA' }]}
-              accessible={true}
-              accessibilityRole="alert"
-              accessibilityLabel={`Te echamos de menos. Llevas ${daysSinceLastLog} dias sin registrar. Fitsi te espera para retomar tu seguimiento.`}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.reengageTitle, { color: isDark ? c.protein : '#991B1B' }]} allowFontScaling>Te echamos de menos!</Text>
-                <Text style={[styles.reengageMsg, { color: isDark ? c.protein : '#991B1B' }]} allowFontScaling>
-                  Llevas {daysSinceLastLog} dias sin registrar. Fitsi te espera para retomar tu seguimiento.
-                </Text>
-              </View>
-            </View>
-          )}
-
           <View style={{ flex: 1 }} {...gestureHandlers}>
           <Animated.ScrollView
             showsVerticalScrollIndicator={false}
@@ -1149,6 +1086,74 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
             }
           >
             <Animated.View style={fadeStyle}>
+              {/* Error banner — shown when a partial load failed (data still available) */}
+              {error && (
+                <TouchableOpacity
+                  style={[styles.errorBanner, { backgroundColor: c.accent }]}
+                  onPress={onRetryPress}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Error al cargar datos. Toca para reintentar"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="wifi-outline" size={16} color={c.white} />
+                  <Text style={[styles.errorBannerText, { color: c.white }]}>{t('home.offlineBanner')}</Text>
+                  <Ionicons name="refresh-outline" size={14} color={c.white} style={{ marginLeft: 'auto' }} />
+                </TouchableOpacity>
+              )}
+
+              {/* Nutrition alerts — now INSIDE ScrollView so they don't block scroll */}
+              {nutritionAlerts.length > 0 && (
+                <NutritionAlerts alerts={nutritionAlerts} onAction={onAlertAction} />
+              )}
+
+              {/* Risk UI — skeleton / empty state / day-1 override / normal */}
+              {riskLoading ? (
+                <RiskSkeleton />
+              ) : daysWithData === 0 ? (
+                <View style={styles.riskEmptyState}>
+                  <Text style={[styles.riskEmptyText, { color: c.gray }]}>
+                    Registra tu primera comida para ver tu puntaje de salud
+                  </Text>
+                </View>
+              ) : daysWithData <= 1 && (riskStatus === 'critical' || riskStatus === 'high_risk') ? (
+                <View style={styles.semaphoreContainer}>
+                  <View style={styles.gettingStartedContainer}>
+                    <View style={[styles.gettingStartedDot, { backgroundColor: c.accent }]} />
+                    <Text style={[styles.gettingStartedLabel, { color: c.accent }]}>Getting started</Text>
+                  </View>
+                  <Text style={[styles.gettingStartedMsg, { color: c.gray }]}>
+                    Estamos aprendiendo tus habitos. Registra unas comidas mas para ver tu puntaje.
+                  </Text>
+                </View>
+              ) : riskScore > 60 ? (
+                <TouchableOpacity
+                  style={styles.semaphoreContainer}
+                  onPress={() => { haptics.light(); navigation.navigate('RiskDetail'); }}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Ver detalle de riesgo nutricional"
+                  accessibilityRole="button"
+                >
+                  <NutritionSemaphore riskScore={riskScore} status={riskStatus} size={100} trend={riskTrend} />
+                </TouchableOpacity>
+              ) : null}
+
+              {/* Re-engagement banner — user hasn't logged in 3+ days */}
+              {daysSinceLastLog >= 3 && (
+                <View
+                  style={[styles.reengageBanner, { backgroundColor: isDark ? c.surface : '#FEF2F2', borderColor: isDark ? c.grayLight : '#FECACA' }]}
+                  accessible={true}
+                  accessibilityRole="alert"
+                  accessibilityLabel={`Te echamos de menos. Llevas ${daysSinceLastLog} dias sin registrar. Fitsi te espera para retomar tu seguimiento.`}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.reengageTitle, { color: isDark ? c.protein : '#991B1B' }]} allowFontScaling>Te echamos de menos!</Text>
+                    <Text style={[styles.reengageMsg, { color: isDark ? c.protein : '#991B1B' }]} allowFontScaling>
+                      Llevas {daysSinceLastLog} dias sin registrar. Fitsi te espera para retomar tu seguimiento.
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               {/* Calorie Ring + Macro Bars — the core card */}
               <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">
                 <View style={styles.ringRow}>

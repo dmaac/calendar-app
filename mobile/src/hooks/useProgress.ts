@@ -167,6 +167,8 @@ export default function useProgress(): UseProgressReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Timestamp of the last successful fetch — used to skip re-fetches when data is fresh. */
+  const lastFetchRef = useRef<number>(0);
 
   const fetchAll = useCallback(async () => {
     setError(false);
@@ -217,6 +219,8 @@ export default function useProgress(): UseProgressReturn {
         setProfile(MOCK_PROFILE);
         setMissions(MOCK_MISSIONS.map(mapMission));
         setChallenge(mapChallenge(MOCK_CHALLENGE));
+      } else {
+        lastFetchRef.current = Date.now();
       }
     } catch {
       setError(true);
@@ -225,10 +229,12 @@ export default function useProgress(): UseProgressReturn {
     }
   }, []);
 
-  // Fetch on focus
+  // Fetch on focus — skip if data was fetched less than 30s ago (still fresh)
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      if (Date.now() - lastFetchRef.current < 30_000) {
+        return;
+      }
       fetchAll();
     }, [fetchAll]),
   );
@@ -241,10 +247,10 @@ export default function useProgress(): UseProgressReturn {
     };
   }, [fetchAll]);
 
-  // Refetch when app comes to foreground
+  // Refetch when app comes to foreground — skip if data is still fresh (< 60s)
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state === 'active') {
+      if (state === 'active' && Date.now() - lastFetchRef.current > 60_000) {
         fetchAll();
       }
     });

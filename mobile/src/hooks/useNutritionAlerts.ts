@@ -53,6 +53,8 @@ export default function useNutritionAlerts(): UseNutritionAlertsResult {
   const [hasDanger, setHasDanger] = useState(false);
   const [maxLevel, setMaxLevel] = useState('none');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Timestamp of last successful fetch — used to skip redundant foreground re-fetches. */
+  const lastFetchRef = useRef<number>(0);
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -63,6 +65,7 @@ export default function useNutritionAlerts(): UseNutritionAlertsResult {
       setHasDanger(data.has_danger);
       setMaxLevel(data.max_level);
       setError(false);
+      lastFetchRef.current = Date.now();
     } catch {
       setError(true);
     } finally {
@@ -83,10 +86,10 @@ export default function useNutritionAlerts(): UseNutritionAlertsResult {
     };
   }, [fetchAlerts]);
 
-  // Re-fetch when app comes back to foreground
+  // Re-fetch when app comes back to foreground — skip if data is still fresh (< 60s)
   useEffect(() => {
     const handleAppState = (state: AppStateStatus) => {
-      if (state === 'active') {
+      if (state === 'active' && Date.now() - lastFetchRef.current > 60_000) {
         fetchAlerts();
       }
     };

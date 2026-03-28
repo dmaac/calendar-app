@@ -66,6 +66,8 @@ export default function useNutritionRisk(): UseNutritionRiskResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Timestamp of last successful fetch — used to skip redundant foreground re-fetches. */
+  const lastFetchRef = useRef<number>(0);
 
   const fetchRisk = useCallback(async () => {
     try {
@@ -80,6 +82,7 @@ export default function useNutritionRisk(): UseNutritionRiskResult {
       setDaysWithData(data.days_with_data);
       setIntervention(data.intervention);
       setError(false);
+      lastFetchRef.current = Date.now();
     } catch {
       setError(true);
     } finally {
@@ -100,10 +103,10 @@ export default function useNutritionRisk(): UseNutritionRiskResult {
     };
   }, [fetchRisk]);
 
-  // Re-fetch when app comes back to foreground
+  // Re-fetch when app comes back to foreground — skip if data is still fresh (< 60s)
   useEffect(() => {
     const handleAppState = (state: AppStateStatus) => {
-      if (state === 'active') {
+      if (state === 'active' && Date.now() - lastFetchRef.current > 60_000) {
         fetchRisk();
       }
     };
