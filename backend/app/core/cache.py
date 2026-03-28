@@ -496,7 +496,9 @@ async def invalidate_food_search_cache() -> None:
 
 
 async def invalidate_daily_summary(user_id: int, date_str: str) -> None:
-    """Invalidate daily and weekly summary caches when a meal is logged/deleted."""
+    """Invalidate daily summary, weekly summary, and alerts caches when a meal is logged/deleted."""
     await cache_delete(daily_summary_key(user_id, date_str))
     # Also invalidate any weekly summary that might include this date
     await cache_delete_pattern(f"user:{user_id}:weekly:*")
+    # Invalidate nutrition alerts — they depend on today's food totals
+    await cache_delete(f"user:{user_id}:alerts:daily")

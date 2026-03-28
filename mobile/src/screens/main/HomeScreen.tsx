@@ -712,12 +712,25 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
   // double-call load() on mount (useFocusEffect already handles the initial load).
   const isInitialMountRef = useRef(true);
 
-  // Stable load function — single fetch for summary + logs (no duplicate calls)
+  // Stable load function — tries the bundle endpoint first (1 request),
+  // then falls back to individual calls if the bundle is unavailable.
   const load = useCallback(async (date?: string) => {
     const d = date ?? dateStr;
     setError(false);
     setLoadFailed(false);
     try {
+      // Try the combined bundle endpoint first (1 round trip instead of 7+)
+      const bundle = await foodService.getHomeBundle(d);
+      if (bundle && bundle.summary) {
+        setSummary(bundle.summary);
+        setLogs(bundle.food_logs ?? []);
+        hasDataRef.current = true;
+        lastFetchRef.current = Date.now();
+        setLoading(false);
+        return;
+      }
+
+      // Fallback: individual calls (bundle not available or returned null)
       const [s, l] = await Promise.allSettled([
         foodService.getDailySummary(d),
         foodService.getFoodLogs(d),

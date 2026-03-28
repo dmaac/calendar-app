@@ -26,8 +26,14 @@ from ..models.ai_food_log import AIFoodLog
 from ..models.daily_nutrition_summary import DailyNutritionSummary
 from ..models.nutrition_profile import UserNutritionProfile
 from ..models.onboarding_profile import OnboardingProfile
+from ..core.cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
+
+# Cache TTL for alerts — 90 seconds.  Short enough that new food logs
+# surface quickly, long enough to avoid recomputation on repeated loads
+# and pull-to-refresh bursts.
+_ALERTS_CACHE_TTL = 90
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +206,19 @@ async def evaluate_daily_alerts(
     """
     Evaluate all nutrition alert rules for the given user and return
     a list of alerts sorted by severity (critical first).
+
+    PERF (2026-03-27): Results are cached for 90 seconds to avoid
+    recomputing 5+ DB queries on every HomeScreen load / pull-to-refresh.
     """
+    # --- Cache check ---
+    _cache_key = f"user:{user_id}:alerts:daily"
+    try:
+        cached = await cache_get(_cache_key)
+        if cached is not None:
+            return [NutritionAlert(**a) for a in cached]
+    except Exception:
+        pass  # cache miss or failure — recompute
+
     alerts: list[NutritionAlert] = []
 
     goals = await _get_goals(user_id, session)
@@ -406,5 +424,11 @@ async def evaluate_daily_alerts(
     # Sort by severity priority
     severity_order = {"critical": 0, "danger": 1, "warning": 2, "info": 3}
     alerts.sort(key=lambda a: severity_order.get(a.level, 99))
+
+    # --- Cache the result ---
+    try:
+        await cache_set(_cache_key, [a.model_dump() for a in alerts], _ALERTS_CACHE_TTL)
+    except Exception:
+        pass  # cache failure — return result anyway
 
     return alerts

@@ -277,6 +277,84 @@ export const getDailySummary = async (date?: string): Promise<DailySummary> => {
   }
 };
 
+// ---- Home Bundle (combined endpoint) ----------------------------------------
+
+/**
+ * Response type for the combined /api/home/bundle endpoint.
+ * Returns all data the HomeScreen needs in a single request.
+ */
+export interface HomeBundleResponse {
+  summary: DailySummary;
+  food_logs: AIFoodLog[];
+  alerts: {
+    alerts: Array<{
+      level: string;
+      title: string;
+      message: string;
+      icon: string;
+      color: string;
+      action_label: string;
+      action_route: string;
+    }>;
+    count: number;
+    has_critical: boolean;
+    has_danger: boolean;
+    max_level: string;
+  } | null;
+  risk: {
+    avg_risk_score: number;
+    avg_quality_score: number;
+    avg_calories_logged: number;
+    consecutive_no_log_days: number;
+    days_with_data: number;
+    trend: 'improving' | 'worsening' | 'stable';
+    current_status: string;
+    intervention: Record<string, unknown>;
+  } | null;
+  progress: Record<string, unknown> | null;
+  _meta: {
+    date: string;
+    elapsed_ms: number;
+  };
+}
+
+/**
+ * Fetches the combined home bundle — all HomeScreen data in a single request.
+ * Reduces 7+ round trips to 1.
+ *
+ * Falls back to individual calls on failure (e.g., if backend does not
+ * support the bundle endpoint yet).
+ */
+export const getHomeBundle = async (date?: string): Promise<HomeBundleResponse | null> => {
+  const d = date ?? localDateStr();
+  const cacheKey = `home/bundle:${d}`;
+
+  // Try in-memory cache first
+  const cached = getCachedResponse<HomeBundleResponse>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const res = await api.get(`/api/home/bundle?date=${d}`);
+    const bundle: HomeBundleResponse = res.data;
+    cacheResponse(cacheKey, bundle);
+
+    // Also populate individual caches so other screens benefit
+    if (bundle.summary) {
+      cacheResponse(CACHE_KEYS.DAILY_SUMMARY(d), bundle.summary);
+      await setCachedData('dashboard/today', bundle.summary);
+    }
+    if (bundle.food_logs) {
+      cacheResponse(CACHE_KEYS.FOOD_LOGS(d), bundle.food_logs);
+      await setCachedData('food/logs', bundle.food_logs);
+    }
+
+    return bundle;
+  } catch {
+    // Bundle endpoint not available — return null so caller falls back
+    return null;
+  }
+};
+
 // ---- Manual Food Log (offline-aware) ----------------------------------------
 
 /**

@@ -1057,6 +1057,8 @@ async def dashboard_today(
     except ValueError:
         raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
 
+    # PERF: Single cache check here; get_daily_summary skips its own cache
+    # check (_skip_cache=True) to avoid a redundant Redis round-trip.
     cache_key = daily_summary_key(current_user.id, target_date)
 
     try:
@@ -1071,6 +1073,7 @@ async def dashboard_today(
             user_id=current_user.id,
             date=target_date,
             session=session,
+            _skip_cache=True,
         )
     except HTTPException:
         raise
@@ -1081,11 +1084,8 @@ async def dashboard_today(
             detail="Failed to load daily summary. Please try again.",
         )
 
-    try:
-        await cache_set(cache_key, result, CACHE_TTL["daily_summary"])
-    except Exception:
-        pass  # cache failure -- return result anyway
-
+    # Note: get_daily_summary already calls cache_set internally, so no
+    # need to cache again here.
     return result
 
 
@@ -1203,4 +1203,198 @@ async def recover_scan(
         "meal_type": log.meal_type,
         "image_url": log.image_url,
         "recovered": True,
+    }
+
+
+# ─── Home Bundle — Combined endpoint for HomeScreen ─────────────────────────
+#
+# PERF (2026-03-27): The HomeScreen was making 7+ concurrent API calls on
+# every load.  This endpoint returns all data the HomeScreen needs in a
+# single request, eliminating mobile round-trip overhead (DNS, TLS, HTTP/2
+# stream setup) and enabling the backend to share DB sessions across the
+# sub-queries.
+#
+# Replaces:
+#   GET /api/dashboard/today        → bundle.summary
+#   GET /api/food/logs?date=...     → bundle.food_logs
+#   GET /api/alerts/daily           → bundle.alerts
+#   GET /api/risk/summary           → bundle.risk  (optional, errors swallowed)
+#   GET /api/progress/profile       → bundle.progress  (optional, errors swallowed)
+
+@router.get(
+    "/home/bundle",
+    summary="HomeScreen data bundle",
+    description=(
+        "Returns all data needed by the HomeScreen in a single request: "
+        "daily summary, food logs, nutrition alerts, risk summary, and "
+        "progress profile.  Optional sections (risk, progress) gracefully "
+        "degrade to null on failure."
+    ),
+    responses={
+        200: {"description": "Home bundle with all HomeScreen data"},
+        422: {"description": "Invalid date format"},
+    },
+)
+async def home_bundle(
+    date: Optional[str] = Query(None, description="Date YYYY-MM-DD, defaults to today"),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    import time as _perf_time
+
+    _t0 = _perf_time.perf_counter()
+
+    target_date = date or date_type.today().isoformat()
+
+    # Validate date
+    try:
+        parsed_date = date_type.fromisoformat(target_date)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
+
+    user_id: int = current_user.id  # type: ignore[assignment]
+
+    # ── 1. Daily summary (critical — fail the whole request if this fails) ──
+    summary_cache_key = daily_summary_key(user_id, target_date)
+    summary = None
+    try:
+        summary = await cache_get(summary_cache_key)
+    except Exception:
+        pass
+
+    if summary is None:
+        try:
+            summary = await get_daily_summary(
+                user_id=user_id,
+                date=target_date,
+                session=session,
+                _skip_cache=True,
+            )
+        except Exception:
+            logger.exception("Home bundle: summary failed user_id=%s", user_id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to load daily summary.",
+            )
+
+    # ── 2. Food logs for the day ────────────────────────────────────────────
+    food_logs = []
+    try:
+        day_start = datetime.combine(parsed_date, time.min)
+        day_end = datetime.combine(parsed_date, time.max)
+
+        logs_query = (
+            select(AIFoodLog)
+            .where(
+                AIFoodLog.user_id == user_id,
+                AIFoodLog.deleted_at.is_(None),
+                AIFoodLog.logged_at >= day_start,
+                AIFoodLog.logged_at <= day_end,
+            )
+            .order_by(AIFoodLog.logged_at.desc())
+            .limit(100)
+        )
+        result = await session.execute(logs_query)
+        logs = result.scalars().all()
+        food_logs = [
+            {
+                "id": log.id,
+                "food_name": log.food_name,
+                "calories": log.calories,
+                "carbs_g": log.carbs_g,
+                "protein_g": log.protein_g,
+                "fats_g": log.fats_g,
+                "fiber_g": log.fiber_g,
+                "sugar_g": log.sugar_g,
+                "sodium_mg": log.sodium_mg,
+                "serving_size": log.serving_size,
+                "meal_type": log.meal_type,
+                "logged_at": log.logged_at.isoformat(),
+                "image_url": log.image_url,
+                "ai_confidence": log.ai_confidence,
+                "was_edited": log.was_edited,
+            }
+            for log in logs
+        ]
+    except Exception:
+        logger.exception("Home bundle: food logs failed user_id=%s", user_id)
+        # Non-fatal — return empty list
+
+    # ── 3. Nutrition alerts (non-fatal) ─────────────────────────────────────
+    alerts_data = None
+    try:
+        from ..services.nutrition_alerts_service import evaluate_daily_alerts
+
+        alerts = await evaluate_daily_alerts(user_id, session)
+
+        levels = {a.level for a in alerts}
+        if "critical" in levels:
+            max_level = "critical"
+        elif "danger" in levels:
+            max_level = "danger"
+        elif "warning" in levels:
+            max_level = "warning"
+        elif "info" in levels:
+            max_level = "info"
+        else:
+            max_level = "none"
+
+        alerts_data = {
+            "alerts": [a.model_dump() for a in alerts],
+            "count": len(alerts),
+            "has_critical": "critical" in levels,
+            "has_danger": "danger" in levels,
+            "max_level": max_level,
+        }
+    except Exception:
+        logger.debug("Home bundle: alerts failed user_id=%s", user_id, exc_info=True)
+
+    # ── 4. Risk summary (non-fatal) ────────────────────────────────────────
+    risk_data = None
+    try:
+        from ..services.nutrition_risk_service import get_user_risk_summary
+
+        risk_raw = await get_user_risk_summary(user_id, session)
+        risk_data = {
+            "avg_risk_score": risk_raw["avg_risk_score"],
+            "avg_quality_score": risk_raw["avg_quality_score"],
+            "avg_calories_logged": risk_raw.get("avg_calories_logged", 0),
+            "consecutive_no_log_days": risk_raw["consecutive_no_log_days"],
+            "days_with_data": risk_raw["days_with_data"],
+            "trend": risk_raw["trend"],
+            "current_status": risk_raw["current_status"],
+            "intervention": risk_raw["intervention"],
+        }
+    except Exception:
+        logger.debug("Home bundle: risk failed user_id=%s", user_id, exc_info=True)
+
+    # ── 5. Progress profile (non-fatal) ─────────────────────────────────────
+    progress_data = None
+    try:
+        from ..core.cache import progress_profile_key
+        from ..services.progress_engine import get_user_progress
+
+        prog_cache_key = progress_profile_key(user_id)
+        progress_data = await cache_get(prog_cache_key)
+        if progress_data is None:
+            progress_data = await get_user_progress(user_id, session)
+            try:
+                await cache_set(prog_cache_key, progress_data, CACHE_TTL["progress_profile"])
+            except Exception:
+                pass
+    except Exception:
+        logger.debug("Home bundle: progress failed user_id=%s", user_id, exc_info=True)
+
+    elapsed_ms = round((_perf_time.perf_counter() - _t0) * 1000, 1)
+
+    return {
+        "summary": summary,
+        "food_logs": food_logs,
+        "alerts": alerts_data,
+        "risk": risk_data,
+        "progress": progress_data,
+        "_meta": {
+            "date": target_date,
+            "elapsed_ms": elapsed_ms,
+        },
     }

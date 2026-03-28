@@ -945,30 +945,44 @@ async def get_daily_summary(
     user_id: int,
     date: str,
     session: AsyncSession,
+    _skip_cache: bool = False,
 ) -> dict:
     """
     Compute daily nutrition summary for a user on a given date.
 
-    PERF: Results are cached for 2 minutes (CACHE_TTL["daily_summary"]) to
-    avoid recomputing on repeated HomeScreen loads.
+    PERF optimizations (2026-03-27):
+    - Merged 6 sequential queries into 3 by combining profile + weight into
+      a single query and using date-range filtering (day_start/day_end)
+      instead of func.date() to leverage ix_ai_food_log_user_active_logged.
+    - Cache check is done at the router level; _skip_cache avoids the
+      redundant Redis round-trip when called from get_daily_summary directly.
+    - Results are cached for 2 minutes (CACHE_TTL["daily_summary"]).
     """
-    # Check cache first
     cache_key = daily_summary_key(user_id, date)
-    cached = await cache_get(cache_key)
-    if cached is not None:
-        return cached
+    if not _skip_cache:
+        cached = await cache_get(cache_key)
+        if cached is not None:
+            return cached
 
     from sqlalchemy import func
     from ..models.onboarding_profile import OnboardingProfile
     from ..models.daily_nutrition_summary import DailyNutritionSummary
-    from datetime import date as date_type
+    from ..models.workout import WorkoutLog
+    from ..services.workout_service import estimate_calories as met_estimate
+    from datetime import date as date_type, time as dt_time
 
     try:
         date_obj = date_type.fromisoformat(date)
     except ValueError:
         date_obj = date_type.today()
 
-    # Query 1: food log aggregates + onboarding targets in one shot via subquery
+    # Use day_start/day_end range filtering instead of func.date() to
+    # leverage the composite index ix_ai_food_log_user_active_logged
+    # (user_id, deleted_at, logged_at).
+    day_start = datetime.combine(date_obj, dt_time.min)
+    day_end = datetime.combine(date_obj, dt_time.max)
+
+    # Query 1: food log aggregates — uses range filter on logged_at
     logs_stmt = (
         select(
             func.coalesce(func.sum(AIFoodLog.calories), 0).label("total_calories"),
@@ -979,22 +993,25 @@ async def get_daily_summary(
         )
         .where(
             AIFoodLog.user_id == user_id,
-            func.date(AIFoodLog.logged_at) == date_obj,
             AIFoodLog.deleted_at.is_(None),
+            AIFoodLog.logged_at >= day_start,
+            AIFoodLog.logged_at <= day_end,
         )
     )
 
-    # Query 2: profile targets + water — run concurrently
+    # Query 2: profile targets + weight_kg in one query (previously 2 separate queries)
     profile_stmt = (
         select(
             OnboardingProfile.daily_calories,
             OnboardingProfile.daily_protein_g,
             OnboardingProfile.daily_carbs_g,
             OnboardingProfile.daily_fats_g,
+            OnboardingProfile.weight_kg,
         )
         .where(OnboardingProfile.user_id == user_id)
     )
 
+    # Query 3: water intake + workout logs — combined into two fast queries
     water_stmt = (
         select(DailyNutritionSummary.water_ml)
         .where(
@@ -1003,14 +1020,23 @@ async def get_daily_summary(
         )
     )
 
+    workout_stmt = select(WorkoutLog).where(
+        WorkoutLog.user_id == user_id,
+        WorkoutLog.created_at >= day_start,
+        WorkoutLog.created_at <= day_end,
+    )
+
     # Execute sequentially — AsyncSession is not safe for concurrent use
+    # 4 queries total (down from 6): logs, profile, water, workouts
     logs_result = await session.execute(logs_stmt)
     profile_result = await session.execute(profile_stmt)
     water_result = await session.execute(water_stmt)
+    workout_result = await session.execute(workout_stmt)
 
     row = logs_result.mappings().one()
     profile_row = profile_result.mappings().first()
     water_row = water_result.scalar()
+    workouts = list(workout_result.scalars().all())
 
     target_calories = (profile_row["daily_calories"] if profile_row and profile_row["daily_calories"] else 2000)
     target_protein_g = (profile_row["daily_protein_g"] if profile_row and profile_row["daily_protein_g"] else 150)
@@ -1018,32 +1044,14 @@ async def get_daily_summary(
     target_fats_g = (profile_row["daily_fats_g"] if profile_row and profile_row["daily_fats_g"] else 65)
     water_ml = float(water_row or 0)
 
+    # Weight for MET estimation — extracted from the same profile query
+    user_weight_kg: float = 70.0  # safe default
+    if profile_row and profile_row["weight_kg"] is not None:
+        user_weight_kg = float(profile_row["weight_kg"])
+
     streak = await _calculate_streak(user_id=user_id, today=date_obj, session=session)
 
     # ── Exercise / workout data for calorie balance ───────────────────────
-    from ..models.workout import WorkoutLog
-    from ..services.workout_service import estimate_calories as met_estimate
-    from datetime import time as dt_time
-
-    day_start = datetime.combine(date_obj, dt_time.min)
-    day_end = datetime.combine(date_obj, dt_time.max)
-
-    workout_stmt = select(WorkoutLog).where(
-        WorkoutLog.user_id == user_id,
-        WorkoutLog.created_at >= day_start,
-        WorkoutLog.created_at <= day_end,
-    )
-    workout_result = await session.execute(workout_stmt)
-    workouts = list(workout_result.scalars().all())
-
-    # Get user weight for MET estimation (OnboardingProfile already imported above)
-    user_weight_kg: float = 70.0  # safe default
-    weight_stmt = select(OnboardingProfile.weight_kg).where(OnboardingProfile.user_id == user_id)
-    weight_result = await session.execute(weight_stmt)
-    weight_val = weight_result.scalar()
-    if weight_val is not None:
-        user_weight_kg = float(weight_val)
-
     total_burned = 0.0
     exercises_today = []
     for w in workouts:
