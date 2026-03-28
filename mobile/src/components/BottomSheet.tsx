@@ -4,12 +4,17 @@
  * Replaces plain <Modal> bottom sheets with a swipe-to-dismiss pattern.
  * Uses RN Animated (no Reanimated dependency) for broad compatibility.
  *
+ * IMPORTANT: The Modal is only mounted when visible=true. This prevents
+ * hidden Modals from interfering with touch events on sibling components
+ * (e.g., the tab bar becoming unresponsive when a screen renders hidden
+ * Modals inside a ScrollView).
+ *
  * Props:
  *  - visible: controls open/close
  *  - onClose: called when user swipes down or taps backdrop
  *  - children: bottom sheet content
  */
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -46,9 +51,14 @@ export default function BottomSheet({
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
-  // Animate in/out when visibility changes
+  // Track whether the Modal should be mounted. We keep it mounted briefly
+  // after visible becomes false so the exit animation can play out.
+  const [mounted, setMounted] = useState(visible);
+
   useEffect(() => {
     if (visible) {
+      // Mount the Modal immediately, then animate in
+      setMounted(true);
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
@@ -62,7 +72,8 @@ export default function BottomSheet({
           useNativeDriver: true,
         }),
       ]).start();
-    } else {
+    } else if (mounted) {
+      // Animate out, then unmount the Modal
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: SCREEN_HEIGHT,
@@ -74,7 +85,7 @@ export default function BottomSheet({
           duration: 200,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => setMounted(false));
     }
   }, [visible]);
 
@@ -116,6 +127,11 @@ export default function BottomSheet({
     outputRange: [0, 0, SCREEN_HEIGHT],
     extrapolate: 'clamp',
   });
+
+  // Do not render the Modal at all when not needed. This prevents
+  // hidden Modals and their GestureHandler trees from interfering
+  // with the tab bar's touch handling.
+  if (!mounted) return null;
 
   const content = (
     <GestureHandlerRootView style={styles.gestureRoot}>

@@ -406,19 +406,22 @@ export default function ProgressPhotos() {
       </View>
 
       {/* ── Full-screen Photo Viewer ── */}
-      <Modal
-        visible={fullScreenPhoto !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setFullScreenPhoto(null)}
-        statusBarTranslucent
-      >
-        <View style={s.fullScreenOverlay}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setFullScreenPhoto(null)}
-          />
-          {fullScreenPhoto && (
+      {/* Only mount the Modal when a photo is selected. Rendering hidden Modals
+          inside a ScrollView can interfere with sibling touch targets (e.g. the
+          bottom tab bar) on certain platforms. */}
+      {fullScreenPhoto !== null && (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setFullScreenPhoto(null)}
+          statusBarTranslucent
+        >
+          <View style={s.fullScreenOverlay}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => setFullScreenPhoto(null)}
+            />
             <View style={s.fullScreenContent}>
               <Image
                 source={{ uri: `data:image/jpeg;base64,${fullScreenPhoto.base64}` }}
@@ -442,84 +445,86 @@ export default function ProgressPhotos() {
                 <Ionicons name="close" size={24} color={c.black} />
               </TouchableOpacity>
             </View>
-          )}
-        </View>
-      </Modal>
+          </View>
+        </Modal>
+      )}
 
       {/* ── Side-by-Side Comparator ── */}
-      <Modal
-        visible={comparatorVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setComparatorVisible(false)}
-        statusBarTranslucent
-      >
-        <View style={[s.comparatorOverlay, { backgroundColor: isDark ? '#0D0D1AF5' : '#FFFFFFF5' }]}>
-          {/* Header */}
-          <View style={s.comparatorHeader}>
-            <TouchableOpacity
-              onPress={() => { haptics.light(); setComparatorVisible(false); }}
-              accessibilityLabel="Cerrar comparador"
-              accessibilityRole="button"
-            >
-              <Ionicons name="close" size={28} color={c.black} />
-            </TouchableOpacity>
-            <Text style={[s.comparatorTitle, { color: c.black }]}>Comparar Progreso</Text>
-            <View style={{ width: 28 }} />
-          </View>
+      {comparatorVisible && (
+        <Modal
+          visible
+          transparent
+          animationType="slide"
+          onRequestClose={() => setComparatorVisible(false)}
+          statusBarTranslucent
+        >
+          <View style={[s.comparatorOverlay, { backgroundColor: isDark ? '#0D0D1AF5' : '#FFFFFFF5' }]}>
+            {/* Header */}
+            <View style={s.comparatorHeader}>
+              <TouchableOpacity
+                onPress={() => { haptics.light(); setComparatorVisible(false); }}
+                accessibilityLabel="Cerrar comparador"
+                accessibilityRole="button"
+              >
+                <Ionicons name="close" size={28} color={c.black} />
+              </TouchableOpacity>
+              <Text style={[s.comparatorTitle, { color: c.black }]}>Comparar Progreso</Text>
+              <View style={{ width: 28 }} />
+            </View>
 
-          {/* Labels */}
-          <View style={s.comparatorLabels}>
-            <Text style={[s.comparatorLabel, { color: c.accent }]}>
-              {compareLeft ? getWeekLabel(compareLeft.date, photos.map((p) => p.date)) : ''}
+            {/* Labels */}
+            <View style={s.comparatorLabels}>
+              <Text style={[s.comparatorLabel, { color: c.accent }]}>
+                {compareLeft ? getWeekLabel(compareLeft.date, photos.map((p) => p.date)) : ''}
+              </Text>
+              <Ionicons name="arrow-forward" size={18} color={c.gray} />
+              <Text style={[s.comparatorLabel, { color: c.accent }]}>
+                {compareRight ? getWeekLabel(compareRight.date, photos.map((p) => p.date)) : 'Hoy'}
+              </Text>
+            </View>
+
+            {/* Side-by-side photos */}
+            <View style={s.comparatorBody}>
+              <ComparatorSlot
+                photo={compareLeft}
+                label={compareLeft ? formatDisplayDate(compareLeft.date) : 'Inicio'}
+                isDark={isDark}
+                colors={c}
+              />
+              <View style={[s.comparatorDivider, { backgroundColor: c.grayLight }]} />
+              <ComparatorSlot
+                photo={compareRight}
+                label={compareRight ? formatDisplayDate(compareRight.date) : 'Actual'}
+                isDark={isDark}
+                colors={c}
+              />
+            </View>
+
+            {/* Photo selector scrolls */}
+            <Text style={[s.comparatorHint, { color: c.gray }]}>
+              Toca una foto abajo para cambiar la seleccion
             </Text>
-            <Ionicons name="arrow-forward" size={18} color={c.gray} />
-            <Text style={[s.comparatorLabel, { color: c.accent }]}>
-              {compareRight ? getWeekLabel(compareRight.date, photos.map((p) => p.date)) : 'Hoy'}
-            </Text>
+            <View style={s.comparatorSelectors}>
+              <PhotoSelector
+                photos={photos}
+                selected={compareLeft}
+                onSelect={setCompareLeft}
+                label="Antes"
+                isDark={isDark}
+                colors={c}
+              />
+              <PhotoSelector
+                photos={photos}
+                selected={compareRight}
+                onSelect={setCompareRight}
+                label="Despues"
+                isDark={isDark}
+                colors={c}
+              />
+            </View>
           </View>
-
-          {/* Side-by-side photos */}
-          <View style={s.comparatorBody}>
-            <ComparatorSlot
-              photo={compareLeft}
-              label={compareLeft ? formatDisplayDate(compareLeft.date) : 'Inicio'}
-              isDark={isDark}
-              colors={c}
-            />
-            <View style={[s.comparatorDivider, { backgroundColor: c.grayLight }]} />
-            <ComparatorSlot
-              photo={compareRight}
-              label={compareRight ? formatDisplayDate(compareRight.date) : 'Actual'}
-              isDark={isDark}
-              colors={c}
-            />
-          </View>
-
-          {/* Photo selector scrolls */}
-          <Text style={[s.comparatorHint, { color: c.gray }]}>
-            Toca una foto abajo para cambiar la seleccion
-          </Text>
-          <View style={s.comparatorSelectors}>
-            <PhotoSelector
-              photos={photos}
-              selected={compareLeft}
-              onSelect={setCompareLeft}
-              label="Antes"
-              isDark={isDark}
-              colors={c}
-            />
-            <PhotoSelector
-              photos={photos}
-              selected={compareRight}
-              onSelect={setCompareRight}
-              label="Despues"
-              isDark={isDark}
-              colors={c}
-            />
-          </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
     </Animated.View>
   );
 }
