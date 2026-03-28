@@ -269,20 +269,8 @@ export default function MainNavigator() {
   return (
     <Tab.Navigator
       screenListeners={({ navigation, route }) => ({
-        tabPress: (e) => {
-          haptics.light();
-
-          // If the tab is already focused, pop its inner stack to the root.
-          // This prevents the "stuck" feeling where tapping a tab keeps you
-          // on a deep nested screen instead of returning to the tab root.
-          // Only pop-to-top for tabs that have a nested stack navigator.
-          // Tabs like Groups, Community, Progress render a single screen
-          // and dispatching popToTop on them triggers a dev warning.
-          const TABS_WITH_STACK = ['Inicio', 'Registro', 'Perfil'];
-          const isFocused = navigation.isFocused();
-          if (isFocused && TABS_WITH_STACK.includes(route.name)) {
-            navigation.dispatch(StackActions.popToTop());
-          }
+        tabPress: () => {
+          try { haptics.light(); } catch {}
         },
       })}
       screenOptions={({ route }) => ({

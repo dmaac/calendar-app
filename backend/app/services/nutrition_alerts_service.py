@@ -83,7 +83,7 @@ async def _get_goals(user_id: int, session: AsyncSession) -> dict:
             OnboardingProfile.user_id == user_id,
         )
     )
-    onboarding = result.first()
+    onboarding = result.scalars().first()
     if onboarding is not None and onboarding.daily_calories is not None:
         return {
             "calories": float(onboarding.daily_calories),
