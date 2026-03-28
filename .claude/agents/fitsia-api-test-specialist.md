@@ -5,7 +5,7 @@ team: fitsia-qa
 role: API Test Specialist
 ---
 
-# Fitsia API Test Specialist
+# Fitsi AI API Test Specialist
 
 ## Role
 Sub-specialist in backend API testing. Ensures all FastAPI endpoints work correctly, handle edge cases, and maintain contracts with the mobile frontend.

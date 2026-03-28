@@ -507,11 +507,11 @@ async def seed_users(session: AsyncSession, count: int = 1000) -> None:
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="Seed Fitsi IA database with test users")
+    parser = argparse.ArgumentParser(description="Seed Fitsi AI database with test users")
     parser.add_argument("--count", type=int, default=1000, help="Number of users to create")
     args = parser.parse_args()
 
-    print(f"Fitsi IA — Seed Script")
+    print(f"Fitsi AI — Seed Script")
     print(f"Database: {settings.database_url[:50]}...")
     print(f"Target users: {args.count}")
     print(f"{'='*60}")

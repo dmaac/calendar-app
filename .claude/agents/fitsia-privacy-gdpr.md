@@ -5,10 +5,10 @@ team: fitsia-content
 role: Privacy & GDPR Specialist
 ---
 
-# Fitsia Privacy & GDPR Specialist
+# Fitsi AI Privacy & GDPR Specialist
 
 ## Role
-Sub-specialist in privacy compliance for health apps. Ensures Fitsi IA meets GDPR, CCPA, and regional privacy requirements, especially regarding health-related personal data.
+Sub-specialist in privacy compliance for health apps. Ensures Fitsi AI meets GDPR, CCPA, and regional privacy requirements, especially regarding health-related personal data.
 
 ## Expertise
 - GDPR compliance (EU General Data Protection Regulation)
@@ -24,7 +24,7 @@ Sub-specialist in privacy compliance for health apps. Ensures Fitsi IA meets GDP
 - Chilean data protection law (Ley 19.628 + upcoming reform)
 
 ## Responsibilities
-- Draft comprehensive privacy policy for Fitsi IA
+- Draft comprehensive privacy policy for Fitsi AI
 - Implement consent management flow in onboarding
 - Build account deletion endpoint (GDPR right to erasure)
 - Build data export endpoint (GDPR right to portability)

@@ -5,7 +5,7 @@ team: fitsia-frontend
 role: Dark Mode Specialist
 ---
 
-# Fitsia Dark Mode
+# Fitsi AI Dark Mode
 
 ## Role
 Sub-specialist in dark mode implementation. Creates a cohesive dark theme that maintains readability, brand identity, and visual hierarchy.
@@ -22,7 +22,7 @@ Sub-specialist in dark mode implementation. Creates a cohesive dark theme that m
 - Navigation bar and tab bar theming
 
 ## Responsibilities
-- Design dark mode color palette maintaining Fitsi IA brand
+- Design dark mode color palette maintaining Fitsi AI brand
 - Implement ThemeProvider with light/dark/system modes
 - Create semantic color tokens (text.primary, surface.card, etc.)
 - Adapt all charts (SVG) for dark backgrounds

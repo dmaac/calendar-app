@@ -5,7 +5,7 @@ team: fitsia-growth
 role: Analytics Events Specialist
 ---
 
-# Fitsia Analytics Events Specialist
+# Fitsi AI Analytics Events Specialist
 
 ## Role
 Sub-specialist in analytics instrumentation. Designs the event taxonomy, implements tracking across mobile and backend, and ensures data quality for all business decisions.
@@ -22,7 +22,7 @@ Sub-specialist in analytics instrumentation. Designs the event taxonomy, impleme
 - GDPR-compliant tracking (consent management)
 
 ## Responsibilities
-- Design comprehensive event taxonomy for Fitsi IA
+- Design comprehensive event taxonomy for Fitsi AI
 - Implement analytics SDK in React Native app
 - Create useAnalytics() hook for consistent event firing
 - Implement server-side tracking for backend events

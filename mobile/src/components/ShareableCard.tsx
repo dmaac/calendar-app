@@ -48,15 +48,15 @@ function buildShareText(props: ShareableCardProps): string {
         `\u{1F3C6} ${props.data.title}`,
         props.data.description,
         '',
-        'Logrado en Fitsi IA',
-        '#FitsiIA #Logro',
+        'Logrado en Fitsi AI',
+        '#FitsiAI #Logro',
       ].join('\n');
     case 'streak':
       return [
-        `\u{1F525} ${props.data.days} dias seguidos en Fitsi IA`,
+        `\u{1F525} ${props.data.days} dias seguidos en Fitsi AI`,
         '',
         'La constancia es la clave!',
-        '#FitsiIA #Racha',
+        '#FitsiAI #Racha',
       ].join('\n');
     case 'weekly': {
       const adh = props.data.adherence;
@@ -67,7 +67,7 @@ function buildShareText(props: ShareableCardProps): string {
         ? 'Avanzando paso a paso hacia mis metas'
         : 'Cada dia es una nueva oportunidad para mejorar';
       return [
-        `${emoji} Mi resumen semanal en Fitsi IA`,
+        `${emoji} Mi resumen semanal en Fitsi AI`,
         '',
         `\u{1F4CA} Calorias promedio: ${Math.round(props.data.avgCalories)} kcal/dia`,
         `\u{1F4AA} Proteina promedio: ${Math.round(props.data.avgProtein)}g/dia`,
@@ -76,11 +76,11 @@ function buildShareText(props: ShareableCardProps): string {
         `\u{2728} ${motivacion}`,
         '',
         '\u{1F34E} La nutricion inteligente cambia vidas.',
-        'Fitsi IA escanea tu comida y te da los macros al instante.',
+        'Fitsi AI escanea tu comida y te da los macros al instante.',
         '',
         '\u{1F449} Descarga gratis: https://fitsi.app',
         '',
-        '#FitsiIA #NutricionInteligente #MiSemana #HealthyLifestyle #MacroTracking',
+        '#FitsiAI #NutricionInteligente #MiSemana #HealthyLifestyle #MacroTracking',
       ].join('\n');
     }
   }
@@ -99,7 +99,7 @@ function AchievementContent({ data }: { data: AchievementData }) {
       {data.unlockedAt && (
         <Text style={cardStyles.cardDate}>{data.unlockedAt}</Text>
       )}
-      <Text style={cardStyles.branding}>Logrado en Fitsi IA</Text>
+      <Text style={cardStyles.branding}>Logrado en Fitsi AI</Text>
     </View>
   );
 }
@@ -112,7 +112,7 @@ function StreakContent({ data }: { data: StreakData }) {
       </View>
       <Text style={cardStyles.streakNumber}>{data.days}</Text>
       <Text style={cardStyles.cardSubtitle}>dias seguidos</Text>
-      <Text style={cardStyles.branding}>{data.days} dias seguidos en Fitsi IA</Text>
+      <Text style={cardStyles.branding}>{data.days} dias seguidos en Fitsi AI</Text>
     </View>
   );
 }
@@ -140,7 +140,7 @@ function WeeklyContent({ data }: { data: WeeklyData }) {
           <Text style={cardStyles.statLabel}>adherencia</Text>
         </View>
       </View>
-      <Text style={cardStyles.branding}>Mi semana en Fitsi IA</Text>
+      <Text style={cardStyles.branding}>Mi semana en Fitsi AI</Text>
     </View>
   );
 }
@@ -154,7 +154,7 @@ export default function ShareableCard(props: ShareableCardProps) {
       await Share.share(
         Platform.OS === 'ios'
           ? { message: text }
-          : { message: text, title: 'Fitsi IA' },
+          : { message: text, title: 'Fitsi AI' },
       );
       props.onShareComplete?.();
     } catch {
@@ -188,17 +188,17 @@ export default function ShareableCard(props: ShareableCardProps) {
 
 export async function shareAchievement(data: AchievementData) {
   const text = buildShareText({ type: 'achievement', data });
-  return Share.share(Platform.OS === 'ios' ? { message: text } : { message: text, title: 'Fitsi IA' });
+  return Share.share(Platform.OS === 'ios' ? { message: text } : { message: text, title: 'Fitsi AI' });
 }
 
 export async function shareStreak(data: StreakData) {
   const text = buildShareText({ type: 'streak', data });
-  return Share.share(Platform.OS === 'ios' ? { message: text } : { message: text, title: 'Fitsi IA' });
+  return Share.share(Platform.OS === 'ios' ? { message: text } : { message: text, title: 'Fitsi AI' });
 }
 
 export async function shareWeeklySummary(data: WeeklyData) {
   const text = buildShareText({ type: 'weekly', data });
-  return Share.share(Platform.OS === 'ios' ? { message: text } : { message: text, title: 'Fitsi IA' });
+  return Share.share(Platform.OS === 'ios' ? { message: text } : { message: text, title: 'Fitsi AI' });
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────────

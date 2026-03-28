@@ -66,7 +66,7 @@ export default function Step20Health({ onNext, onBack, step, totalSteps, onSkip 
         {/* App icons with connection indicator */}
         <View
           style={styles.iconRow}
-          accessibilityLabel={`Conectar ${appName} con Fitsi IA`}
+          accessibilityLabel={`Conectar ${appName} con Fitsi AI`}
         >
           <View style={[styles.appIcon, { backgroundColor: '#FF2D55' }]}>
             <Ionicons name={iconName as any} size={40} color={colors.white} />

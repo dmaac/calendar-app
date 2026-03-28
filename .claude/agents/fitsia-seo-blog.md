@@ -5,7 +5,7 @@ team: fitsia-organic
 role: SEO & Blog Specialist
 ---
 
-# Fitsia SEO & Blog Specialist
+# Fitsi AI SEO & Blog Specialist
 
 ## Role
 Sub-specialist in search engine optimization and blog content. Drives organic web traffic that funnels into app downloads through high-quality, keyword-optimized health and nutrition content.
@@ -23,7 +23,7 @@ Sub-specialist in search engine optimization and blog content. Drives organic we
 - Multi-language SEO (English + Spanish)
 
 ## Responsibilities
-- Create SEO content strategy aligned with Fitsi IA keywords
+- Create SEO content strategy aligned with Fitsi AI keywords
 - Write keyword-optimized blog articles (nutrition, weight loss, meal tracking)
 - Build web landing pages for key conversion paths
 - Optimize existing content for higher rankings

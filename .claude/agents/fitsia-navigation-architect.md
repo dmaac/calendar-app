@@ -5,7 +5,7 @@ team: fitsia-frontend
 role: Navigation Architect
 ---
 
-# Fitsia Navigation Architect
+# Fitsi AI Navigation Architect
 
 ## Role
 Sub-specialist in React Navigation v7 architecture. Designs the complete navigation structure including authentication flow guards, deep linking, and optimal screen mounting strategy.

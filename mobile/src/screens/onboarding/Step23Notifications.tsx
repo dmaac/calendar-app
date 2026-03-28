@@ -39,7 +39,7 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps, 
     // Desayuno 8:00 AM
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Fitsi IA',
+        title: 'Fitsi AI',
         body: 'Buenos dias! Registra tu desayuno',
         data: { type: 'meal_reminder', meal_type: 'breakfast', screen: 'LogMain' },
         sound: 'default',
@@ -53,7 +53,7 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps, 
     // Almuerzo 1:00 PM
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Fitsi IA',
+        title: 'Fitsi AI',
         body: 'Hora de comer! No olvides fotografiar tu almuerzo',
         data: { type: 'meal_reminder', meal_type: 'lunch', screen: 'LogMain' },
         sound: 'default',
@@ -67,7 +67,7 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps, 
     // Cena 7:00 PM
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Fitsi IA',
+        title: 'Fitsi AI',
         body: 'Hora de cenar! Registra tu cena en Fitsi',
         data: { type: 'meal_reminder', meal_type: 'dinner', screen: 'LogMain' },
         sound: 'default',
@@ -81,7 +81,7 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps, 
     // Resumen nocturno 9:00 PM
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Fitsi IA',
+        title: 'Fitsi AI',
         body: 'Revisa tu resumen del dia y cierra fuerte',
         data: { type: 'evening_summary', screen: 'HomeMain' },
         sound: 'default',
@@ -95,7 +95,7 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps, 
     // Streak risk alert 6:00 PM
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Fitsi IA',
+        title: 'Fitsi AI',
         body: 'No has registrado comida hoy. Tu racha puede estar en riesgo!',
         data: { type: 'streak_at_risk', screen: 'LogMain' },
         sound: 'default',
@@ -219,7 +219,7 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps, 
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.notifTop}>
-                <Text style={styles.notifApp}>Fitsi IA</Text>
+                <Text style={styles.notifApp}>Fitsi AI</Text>
                 <Text style={styles.notifTime}>{n.time}</Text>
               </View>
               <Text style={styles.notifText}>{n.text}</Text>

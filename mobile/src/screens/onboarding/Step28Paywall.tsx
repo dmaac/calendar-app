@@ -1,5 +1,5 @@
 /**
- * Step28Paywall — Cal AI-style paywall with 3-day trial timeline
+ * Step28Paywall — Fitsi AI-style paywall with 3-day trial timeline
  *
  * Features:
  *   - Vertical timeline showing trial progression (Today -> Day 2 -> Day 3)

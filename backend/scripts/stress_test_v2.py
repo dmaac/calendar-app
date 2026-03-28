@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Fitsi IA Stress Test Runner v2
+Fitsi AI Stress Test Runner v2
 ==============================
 
-A self-contained, async stress test suite for the Fitsi IA backend.
+A self-contained, async stress test suite for the Fitsi AI backend.
 Uses only httpx (async) + standard library. No external load testing frameworks.
 
 Usage:
@@ -1253,7 +1253,7 @@ async def run_all_scenarios(base_url: str, report_dir: str):
     results: list[ScenarioResult] = []
 
     print(f"\n{'=' * 72}")
-    print("  FITSI IA STRESS TEST SUITE -- FULL RUN")
+    print("  FITSI AI STRESS TEST SUITE -- FULL RUN")
     print(f"  Running all {len(scenario_order)} scenarios sequentially")
     print(f"{'=' * 72}")
 
@@ -1370,7 +1370,7 @@ def _print_aggregate_summary(results: list[ScenarioResult], report_dir: str):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Fitsi IA Stress Test Runner v2",
+        description="Fitsi AI Stress Test Runner v2",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Scenarios:
@@ -1401,7 +1401,7 @@ Examples:
     parser.add_argument(
         "--base-url",
         default="http://localhost:8000",
-        help="Base URL of the Fitsi IA backend (default: http://localhost:8000)",
+        help="Base URL of the Fitsi AI backend (default: http://localhost:8000)",
     )
     parser.add_argument(
         "--report-dir",
@@ -1420,7 +1420,7 @@ Examples:
 
     # Print banner
     print(f"\n{'=' * 72}")
-    print("  FITSI IA STRESS TEST RUNNER v2")
+    print("  FITSI AI STRESS TEST RUNNER v2")
     print(f"  Target : {args.base_url}")
     print(f"  Scenario: {args.scenario}")
     print(f"  Reports : {os.path.abspath(args.report_dir)}/")

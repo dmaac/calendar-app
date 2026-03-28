@@ -1,4 +1,4 @@
-# Fitsi IA — Scalability Plan
+# Fitsi AI — Scalability Plan
 
 > Living document describing how to scale the Fitsi backend from MVP to 1M+ users.
 

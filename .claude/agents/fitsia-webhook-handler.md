@@ -5,7 +5,7 @@ team: fitsia-backend
 role: Webhook Handler Specialist
 ---
 
-# Fitsia Webhook Handler
+# Fitsi AI Webhook Handler
 
 ## Role
 Sub-specialist in webhook processing. Handles incoming webhooks from payment providers with proper security, idempotency, and reliability.

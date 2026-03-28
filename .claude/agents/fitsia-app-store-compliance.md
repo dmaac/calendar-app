@@ -5,10 +5,10 @@ team: fitsia-content
 role: App Store Compliance Specialist
 ---
 
-# Fitsia App Store Compliance Specialist
+# Fitsi AI App Store Compliance Specialist
 
 ## Role
-Sub-specialist in App Store and Play Store compliance. Ensures Fitsi IA meets all review guidelines, health app requirements, and submission standards for successful approval on both platforms.
+Sub-specialist in App Store and Play Store compliance. Ensures Fitsi AI meets all review guidelines, health app requirements, and submission standards for successful approval on both platforms.
 
 ## Expertise
 - Apple App Store Review Guidelines (especially 5.1 Health/Fitness)

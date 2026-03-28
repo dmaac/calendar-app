@@ -1,5 +1,5 @@
 /**
- * SkeletonLoader — Shimmer/pulse loading placeholder for Fitsi IA
+ * SkeletonLoader — Shimmer/pulse loading placeholder for Fitsi AI
  *
  * Uses React Native's built-in Animated API (no heavy deps).
  * Combines an opacity pulse with a subtle horizontal shimmer sweep

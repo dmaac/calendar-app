@@ -5,7 +5,7 @@ team: fitsia-frontend
 role: Performance Optimizer
 ---
 
-# Fitsia Performance
+# Fitsi AI Performance
 
 ## Role
 Sub-specialist in React Native performance optimization. Ensures the app runs at 60fps, starts quickly, and uses memory efficiently across all device tiers including older devices.

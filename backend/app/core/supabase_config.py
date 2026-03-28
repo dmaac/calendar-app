@@ -1,5 +1,5 @@
 """
-Supabase configuration for Fitsia IA.
+Supabase configuration for Fitsi AI.
 Replace local PostgreSQL with Supabase hosted PostgreSQL.
 
 To configure:

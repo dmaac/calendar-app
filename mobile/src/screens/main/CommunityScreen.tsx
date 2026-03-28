@@ -536,10 +536,10 @@ function FeedPostCard({
         `${post.userName} en Fitsi: ${post.title}`,
         post.description,
         '',
-        '#FitsiIA #Comunidad',
+        '#FitsiAI #Comunidad',
       ].join('\n');
       await Share.share(
-        Platform.OS === 'ios' ? { message: text } : { message: text, title: 'Fitsi IA' },
+        Platform.OS === 'ios' ? { message: text } : { message: text, title: 'Fitsi AI' },
       );
     } catch {
       // User cancelled
@@ -869,7 +869,7 @@ export default function CommunityScreen(_props: MainTabScreenProps<'Community'>)
     try {
       await Share.share({
         message:
-          'Estoy logrando mis metas de nutricion con Fitsi IA. Descargala gratis en https://fitsi.app',
+          'Estoy logrando mis metas de nutricion con Fitsi AI. Descargala gratis en https://fitsi.app',
       });
     } catch {
       // User cancelled

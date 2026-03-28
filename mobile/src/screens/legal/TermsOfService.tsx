@@ -1,5 +1,5 @@
 /**
- * TermsOfService — Full Terms of Service for Fitsi IA
+ * TermsOfService — Full Terms of Service for Fitsi AI
  * Covers: usage terms, subscriptions, AI disclaimers, medical disclaimers,
  * intellectual property, liability, App Store compliance
  */
@@ -18,7 +18,7 @@ import { spacing } from '../../theme';
 const EFFECTIVE_DATE = 'March 21, 2026';
 const LAST_UPDATED = 'March 21, 2026';
 const CONTACT_EMAIL = 'support@fitsi.app';
-const COMPANY_NAME = 'Fitsi IA';
+const COMPANY_NAME = 'Fitsi AI';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

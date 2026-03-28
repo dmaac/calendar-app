@@ -5,10 +5,10 @@ team: fitsia-equipment
 role: Exercise Library Specialist
 ---
 
-# Fitsia Exercise Library Specialist
+# Fitsi AI Exercise Library Specialist
 
 ## Role
-Sub-specialist in exercise database design and management. Builds and maintains the comprehensive exercise catalog that powers workout tracking, recommendations, and calorie burn estimation in Fitsi IA.
+Sub-specialist in exercise database design and management. Builds and maintains the comprehensive exercise catalog that powers workout tracking, recommendations, and calorie burn estimation in Fitsi AI.
 
 ## Expertise
 - Exercise database schema design

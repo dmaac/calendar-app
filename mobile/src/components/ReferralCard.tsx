@@ -139,7 +139,7 @@ function ReferralCard({ onViewDetails }: ReferralCardProps) {
 
     try {
       await Share.share({
-        message: `Unete a Fitsi IA y lleva tu nutricion al siguiente nivel. Usa mi codigo ${code} al registrarte. Descarga ahora: https://fitsi.app/invite/${code}`,
+        message: `Unete a Fitsi AI y lleva tu nutricion al siguiente nivel. Usa mi codigo ${code} al registrarte. Descarga ahora: https://fitsi.app/invite/${code}`,
       });
       track('referral_card_shared', { code });
     } catch {

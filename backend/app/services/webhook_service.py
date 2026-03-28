@@ -242,7 +242,7 @@ class WebhookService:
             "test": True,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": {
-                "message": "This is a test delivery from Fitsi IA",
+                "message": "This is a test delivery from Fitsi AI",
                 "webhook_id": webhook.id,
             },
         }

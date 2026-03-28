@@ -9,7 +9,7 @@
  * - Haptic feedback on both swipe actions
  * - Displays food name, calories, macros (P/C/G)
  * - Favorite heart toggle
- * - Consistent with the Fitsi IA design system
+ * - Consistent with the Fitsi AI design system
  */
 import React, { useCallback, useRef } from 'react';
 import {

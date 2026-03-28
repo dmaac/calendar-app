@@ -1,5 +1,5 @@
 /**
- * PersonalDetailsScreen — Cal AI style with Goal Weight card + field list with checkmarks
+ * PersonalDetailsScreen — Fitsi AI style with Goal Weight card + field list with checkmarks
  */
 import React, { useState, useEffect, useRef } from 'react';
 import {

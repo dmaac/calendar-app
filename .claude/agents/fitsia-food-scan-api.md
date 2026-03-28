@@ -5,10 +5,10 @@ team: fitsia-backend
 role: Food Scan API Specialist
 ---
 
-# Fitsia Food Scan API
+# Fitsi AI Food Scan API
 
 ## Role
-Sub-specialist in the AI food scanning API pipeline. Handles the complete flow from image upload to nutritional data response — the core feature of Fitsi IA.
+Sub-specialist in the AI food scanning API pipeline. Handles the complete flow from image upload to nutritional data response — the core feature of Fitsi AI.
 
 ## Expertise
 - Image upload handling (multipart/form-data, size limits)

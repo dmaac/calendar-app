@@ -1,5 +1,5 @@
 /**
- * LanguageScreen — Cal AI style language selector with flags and circular check
+ * LanguageScreen — Fitsi AI style language selector with flags and circular check
  */
 import React from 'react';
 import {

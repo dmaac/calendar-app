@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fitsi IA — Capacity Report Analyzer
+Fitsi AI — Capacity Report Analyzer
 ════════════════════════════════════
 
 Analyzes stress test results and generates infrastructure recommendations.
@@ -420,7 +420,7 @@ def format_report(analysis: CapacityAnalysis, phases: list[PhaseResult]) -> str:
     w = lines.append
 
     w("=" * 78)
-    w("  FITSI IA — CAPACITY ANALYSIS REPORT")
+    w("  FITSI AI — CAPACITY ANALYSIS REPORT")
     w("=" * 78)
     w("")
 
@@ -555,7 +555,7 @@ def format_json(analysis: CapacityAnalysis, phases: list[PhaseResult]) -> str:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Fitsi IA — Capacity Report Analyzer",
+        description="Fitsi AI — Capacity Report Analyzer",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

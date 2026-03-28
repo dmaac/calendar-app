@@ -48,7 +48,7 @@ export default function AboutScreen({ navigation }: any) {
         contentContainerStyle={styles.scroll}
       >
         <View style={styles.logoSection}>
-          <Text style={[styles.appName, { color: c.black }]}>Fitsi IA</Text>
+          <Text style={[styles.appName, { color: c.black }]}>Fitsi AI</Text>
           <Text style={[styles.version, { color: c.gray }]}>
             Version {APP_VERSION} ({BUILD_NUMBER})
           </Text>
@@ -135,7 +135,7 @@ export default function AboutScreen({ navigation }: any) {
 
         {/* Footer */}
         <Text style={[styles.footer, { color: c.gray }]}>
-          {'\u00A9'} {new Date().getFullYear()} Fitsi IA. Todos los derechos reservados.
+          {'\u00A9'} {new Date().getFullYear()} Fitsi AI. Todos los derechos reservados.
         </Text>
 
         <View style={{ height: spacing.xxl }} />

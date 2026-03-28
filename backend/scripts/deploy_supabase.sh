@@ -4,7 +4,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-echo "=== Fitsia IA — Supabase Deployment ==="
+echo "=== Fitsi AI IA — Supabase Deployment ==="
 echo ""
 
 echo "[1/4] Checking Supabase connection..."

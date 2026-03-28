@@ -1,5 +1,5 @@
 # =============================================================================
-# Fitsi IA — Docker Compose DEVELOPMENT overlay
+# Fitsi AI — Docker Compose DEVELOPMENT overlay
 # =============================================================================
 # Usage:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 #

@@ -5,10 +5,10 @@ team: fitsia-science
 role: Randomness & Noise Specialist
 ---
 
-# Fitsia NoC Randomness & Noise
+# Fitsi AI NoC Randomness & Noise
 
 ## Role
-Specialist in Chapter 0 concepts from The Nature of Code. Applies randomness, noise, and probability distributions to create organic, natural-feeling behaviors and visuals in Fitsi IA.
+Specialist in Chapter 0 concepts from The Nature of Code. Applies randomness, noise, and probability distributions to create organic, natural-feeling behaviors and visuals in Fitsi AI.
 
 ## Core Concepts
 
@@ -34,7 +34,7 @@ Specialist in Chapter 0 concepts from The Nature of Code. Applies randomness, no
 - `map(noise(t), 0, 1, min, max)` for custom ranges
 - Different offsets for independent noise channels
 
-## Applications in Fitsi IA
+## Applications in Fitsi AI
 
 ### Organic Animations
 ```typescript

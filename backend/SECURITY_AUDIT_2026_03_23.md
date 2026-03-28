@@ -1,4 +1,4 @@
-# Fitsi IA -- Comprehensive Security Audit Report v3
+# Fitsi AI -- Comprehensive Security Audit Report v3
 
 **Date:** 2026-03-23
 **Auditor:** Security Engineer Agent (security-engineer)
@@ -11,7 +11,7 @@
 
 ## Executive Summary
 
-This audit re-evaluates the full Fitsi IA codebase one day after the v2 audit. Several positive controls remain strong (JWT type separation, refresh rotation, brute-force lockout, security headers, GDPR endpoints, subscription verification). However, **all 4 prior CRITICAL findings remain open**, and this deeper review uncovered **3 additional findings** not in the prior report.
+This audit re-evaluates the full Fitsi AI codebase one day after the v2 audit. Several positive controls remain strong (JWT type separation, refresh rotation, brute-force lockout, security headers, GDPR endpoints, subscription verification). However, **all 4 prior CRITICAL findings remain open**, and this deeper review uncovered **3 additional findings** not in the prior report.
 
 **Finding Counts:** 4 CRITICAL | 6 HIGH | 7 MEDIUM | 5 LOW
 **Risk Score:** 68/100 (down from 72 due to deeper analysis of fail-open behavior inconsistencies)

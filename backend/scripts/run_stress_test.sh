@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════════════
-# Fitsi IA — Progressive Stress Test Runner
+# Fitsi AI — Progressive Stress Test Runner
 # ═══════════════════════════════════════════════════════════════════════════
 #
 # Executes Locust in headless mode with 6 escalation phases,
@@ -62,7 +62,7 @@ NC='\033[0m' # No Color
 print_banner() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║          FITSI IA — PROGRESSIVE STRESS TEST                    ║"
+    echo "║          FITSI AI — PROGRESSIVE STRESS TEST                    ║"
     echo "║          Enterprise Load Testing Suite (Locust)                ║"
     echo "╠══════════════════════════════════════════════════════════════════╣"
     echo "║  Host:       ${HOST}"
@@ -282,7 +282,7 @@ generate_final_report() {
     # Generate text report
     {
         echo "╔══════════════════════════════════════════════════════════════════╗"
-        echo "║          FITSI IA — STRESS TEST FINAL REPORT                   ║"
+        echo "║          FITSI AI — STRESS TEST FINAL REPORT                   ║"
         echo "╠══════════════════════════════════════════════════════════════════╣"
         echo "║  Test ID:    stress_test_${TIMESTAMP}"
         echo "║  Host:       ${HOST}"

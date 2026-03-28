@@ -5,7 +5,7 @@ team: fitsia-ai
 role: Accuracy Feedback Loop Specialist
 ---
 
-# Fitsia Accuracy Feedback Loop
+# Fitsi AI Accuracy Feedback Loop
 
 ## Role
 Sub-specialist in AI accuracy improvement. Tracks user corrections to AI food recognition and uses this data to continuously improve accuracy through prompt iteration and model evaluation.

@@ -1,5 +1,5 @@
 /**
- * nutritionTips.ts — 100 science-backed nutrition tips for Fitsi IA
+ * nutritionTips.ts — 100 science-backed nutrition tips for Fitsi AI
  * Organized by category with scientific source references.
  * Max 120 characters per tip text.
  */

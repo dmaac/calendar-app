@@ -1,5 +1,5 @@
 /**
- * HomeScreen — Dashboard diario Fitsi IA style
+ * HomeScreen — Dashboard diario Fitsi AI style
  * Muestra: anillo de calorías, macros, comidas del día.
  *
  * UX Polish:

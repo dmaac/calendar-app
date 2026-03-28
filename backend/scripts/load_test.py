@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Load test script — Simulate concurrent users hitting the Fitsi IA API.
+Load test script — Simulate concurrent users hitting the Fitsi AI API.
 
 Usage:
     cd backend/
@@ -178,7 +178,7 @@ async def simulate_user(
 
 def print_report(report: LoadTestReport, num_users: int) -> None:
     print(f"\n{'='*72}")
-    print(f"  FITSI IA — LOAD TEST REPORT")
+    print(f"  FITSI AI — LOAD TEST REPORT")
     print(f"{'='*72}")
     print(f"  Concurrent users:  {num_users}")
     print(f"  Duration:          {report.duration_s:.2f}s")
@@ -235,13 +235,13 @@ def print_report(report: LoadTestReport, num_users: int) -> None:
 # ---------------------------------------------------------------------------
 
 async def main():
-    parser = argparse.ArgumentParser(description="Fitsi IA Load Test")
+    parser = argparse.ArgumentParser(description="Fitsi AI Load Test")
     parser.add_argument("--users", type=int, default=100, help="Number of concurrent users")
     parser.add_argument("--base-url", type=str, default=DEFAULT_BASE_URL, help="Backend base URL")
     parser.add_argument("--concurrency", type=int, default=50, help="Max concurrent connections")
     args = parser.parse_args()
 
-    print(f"Fitsi IA — Load Test")
+    print(f"Fitsi AI — Load Test")
     print(f"Base URL:    {args.base_url}")
     print(f"Users:       {args.users}")
     print(f"Concurrency: {args.concurrency}")

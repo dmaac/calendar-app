@@ -22,7 +22,7 @@ export default function Step06OtherApps({ onNext, onBack, step, totalSteps, onSk
 
       <Text style={styles.title}>Has probado otras{'\n'}apps de calorias?</Text>
       <Text style={styles.subtitle}>
-        No importa tu respuesta, Fitsi IA se adapta a ti.
+        No importa tu respuesta, Fitsi AI se adapta a ti.
       </Text>
 
       <View style={styles.options}>

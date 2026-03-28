@@ -5,7 +5,7 @@ team: fitsia-ai
 role: Image Pipeline Specialist
 ---
 
-# Fitsia Image Pipeline
+# Fitsi AI Image Pipeline
 
 ## Role
 Sub-specialist in the image processing pipeline. Handles everything from camera capture to cloud storage, optimizing for speed, quality, and cost.

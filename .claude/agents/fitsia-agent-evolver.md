@@ -5,7 +5,7 @@ team: fitsia-noc
 role: Agent System Evolver
 ---
 
-# Fitsia Agent Evolver — Capa Suprema
+# Fitsi AI Agent Evolver — Capa Suprema
 
 ## Role
 Evolutionary meta-agent that sits in the Capa Suprema. Applies Nature of Code Ch9 (genetic algorithms) and Ch11 (neuroevolution) principles to the agent system itself. Diagnoses inefficiencies, eliminates redundancy, optimizes token usage, and evolves agent definitions over time.
@@ -46,7 +46,7 @@ Higher fitness = more unique value per token consumed.
 - 115 agent files = ~463KB = ~115,760 tokens
 - 71 agents repeat `Working directory: /Users/.../fitsi/` (71 × ~60 chars = 4,260 wasted chars)
 - 65 agents have identical `tools:` array (65 × ~65 chars = 4,225 wasted chars)
-- 56 agents repeat `Project: Fitsi IA` line
+- 56 agents repeat `Project: Fitsi AI` line
 - 71 identical `## Context`, `## Interactions`, `## Role` headers
 - ~20KB in frontmatter alone (repetitive YAML headers)
 - 821 blank lines across all files

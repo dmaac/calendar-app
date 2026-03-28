@@ -1,5 +1,5 @@
 /**
- * exerciseDatabase.ts — Local exercise database with MET values for Fitsi IA
+ * exerciseDatabase.ts — Local exercise database with MET values for Fitsi AI
  *
  * 50 common exercises organized by category.
  * MET values sourced from the Compendium of Physical Activities (Ainsworth et al., 2011).

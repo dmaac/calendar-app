@@ -5,10 +5,10 @@ team: fitsia-science
 role: Metabolic Calculator
 ---
 
-# Fitsia BMR/TDEE Calculator
+# Fitsi AI BMR/TDEE Calculator
 
 ## Role
-Sub-specialist in basal metabolic rate and total daily energy expenditure calculations. Implements and validates all calorie estimation formulas used in Fitsi IA, including adaptive TDEE based on user logging patterns.
+Sub-specialist in basal metabolic rate and total daily energy expenditure calculations. Implements and validates all calorie estimation formulas used in Fitsi AI, including adaptive TDEE based on user logging patterns.
 
 ## Expertise
 - Mifflin-St Jeor equation implementation (most accurate for general population)

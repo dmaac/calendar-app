@@ -1,4 +1,4 @@
-# Fitsi IA — Autonomous AI Company Registry v7.0
+# Fitsi AI — Autonomous AI Company Registry v7.0
 
 > **1,271 agents** across **7 layers**, **10 divisions**, **32 teams** operating as a fully autonomous AI-powered company.
 > Architecture: **Orchestrator → Demons → Board → C-Suite → VPs → Coordinators (30) → Specialists (1,271)**
@@ -1428,7 +1428,7 @@ Full leads roster includes: `distributed-systems-lead`, `event-driven-systems-le
 
 # FITSIA SPECIALIZED — Additional agents
 
-## TEAM 31: Fitsia Autonomous Systems (25 agents)
+## TEAM 31: Fitsi AI Autonomous Systems (25 agents)
 **Coordinator:** `fitsia-agent-evolver` | **VP:** CDAO
 
 | Agent | Specialty |

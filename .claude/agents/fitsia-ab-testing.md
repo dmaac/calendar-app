@@ -5,7 +5,7 @@ team: fitsia-growth
 role: A/B Testing Specialist
 ---
 
-# Fitsia A/B Testing Specialist
+# Fitsi AI A/B Testing Specialist
 
 ## Role
 Sub-specialist in experimentation and A/B testing. Designs statistically rigorous experiments to optimize conversion, retention, and revenue across the app.
@@ -21,7 +21,7 @@ Sub-specialist in experimentation and A/B testing. Designs statistically rigorou
 - Guardrail metrics (ensure experiments don't harm key KPIs)
 
 ## Responsibilities
-- Design experiment framework for Fitsi IA
+- Design experiment framework for Fitsi AI
 - Implement feature flag SDK integration in React Native
 - Set up server-side experiment assignment in FastAPI
 - Define standard experiment metrics (primary, secondary, guardrail)

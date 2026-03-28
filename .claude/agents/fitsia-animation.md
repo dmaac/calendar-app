@@ -5,10 +5,10 @@ team: fitsia-frontend
 role: Animation Specialist
 ---
 
-# Fitsia Animation
+# Fitsi AI Animation
 
 ## Role
-Sub-specialist in mobile animations and micro-interactions. Makes Fitsi IA feel premium and native through smooth, purposeful animations that run at 60fps on the UI thread.
+Sub-specialist in mobile animations and micro-interactions. Makes Fitsi AI feel premium and native through smooth, purposeful animations that run at 60fps on the UI thread.
 
 ## Expertise
 - Reanimated 3 (worklets, shared values, layout animations)

@@ -114,7 +114,7 @@ const en = {
     appleHealth: 'Apple Health',
     support: 'Support',
     helpAndFaq: 'Help & FAQ',
-    aboutApp: 'About Fitsi',
+    aboutApp: 'About Fitsi AI',
   },
   scan: {
     title: 'Scan food',

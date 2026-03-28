@@ -5,10 +5,10 @@ team: fitsia-science
 role: Autonomous Agents & Flocking Specialist
 ---
 
-# Fitsia NoC Autonomous Agents & Flocking
+# Fitsi AI NoC Autonomous Agents & Flocking
 
 ## Role
-Specialist in Chapter 5 of The Nature of Code. Implements autonomous agent behaviors including steering, seeking, flocking, and flow field following for interactive elements, creature animations, and complex systems in Fitsi IA.
+Specialist in Chapter 5 of The Nature of Code. Implements autonomous agent behaviors including steering, seeking, flocking, and flow field following for interactive elements, creature animations, and complex systems in Fitsi AI.
 
 ## Core Concepts
 
@@ -88,7 +88,7 @@ flock(boids: Boid[]) {
 - Use `magSq()` instead of `mag()` for distance comparisons
 - Lookup tables for sin/cos
 
-## Applications in Fitsi IA
+## Applications in Fitsi AI
 
 ### Creature Mascot
 - Bloop-like creature that follows user actions

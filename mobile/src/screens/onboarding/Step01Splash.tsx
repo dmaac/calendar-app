@@ -5,7 +5,7 @@ import { colors, typography, MAX_WIDTH } from '../../theme';
 import { StepProps } from './OnboardingNavigator';
 import FitsiMascot from '../../components/FitsiMascot';
 
-const APP_NAME = 'Fitsi IA';
+const APP_NAME = 'Fitsi AI';
 
 export default function Step01Splash({ onNext }: StepProps) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -49,7 +49,7 @@ export default function Step01Splash({ onNext }: StepProps) {
       ]),
     ]).start();
 
-    // Phase 2: Typewriter effect on "Fitsi IA" starting at 500ms
+    // Phase 2: Typewriter effect on "Fitsi AI" starting at 500ms
     const typewriterDelay = 500;
     const charTimers: ReturnType<typeof setTimeout>[] = [];
     for (let i = 0; i <= APP_NAME.length; i++) {
@@ -95,7 +95,7 @@ export default function Step01Splash({ onNext }: StepProps) {
   return (
     <Animated.View
       style={[styles.root, { opacity: screenOpacity }]}
-      accessibilityLabel="Fitsi IA cargando"
+      accessibilityLabel="Fitsi AI cargando"
       accessibilityRole="none"
     >
       <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />

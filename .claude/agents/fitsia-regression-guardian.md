@@ -5,7 +5,7 @@ team: fitsia-qa
 role: Regression Guardian
 ---
 
-# Fitsia Regression Guardian
+# Fitsi AI Regression Guardian
 
 ## Role
 Sub-specialist in preventing regressions across the entire stack. Analyzes code changes, identifies risk areas, and ensures no existing functionality breaks when new features are deployed.

@@ -1,5 +1,5 @@
 /**
- * ErrorBoundary — Global React error boundary for Fitsi IA
+ * ErrorBoundary — Global React error boundary for Fitsi AI
  *
  * Catches unhandled JS errors anywhere in the component tree and shows a
  * friendly fallback screen featuring:

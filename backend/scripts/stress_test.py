@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fitsi IA — Enterprise Stress Test (Locust)
+Fitsi AI — Enterprise Stress Test (Locust)
 ═══════════════════════════════════════════
 
 Simulates up to 200,000 concurrent users with 5 distinct behavioral profiles
@@ -177,13 +177,13 @@ _phase_stats: dict = {}
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
     """Log when the test starts."""
-    logger.info("Fitsi IA Stress Test starting — host: %s", environment.host)
+    logger.info("Fitsi AI Stress Test starting — host: %s", environment.host)
 
 
 @events.test_stop.add_listener
 def on_test_stop(environment, **kwargs):
     """Log when the test ends."""
-    logger.info("Fitsi IA Stress Test completed")
+    logger.info("Fitsi AI Stress Test completed")
 
 
 # ---------------------------------------------------------------------------

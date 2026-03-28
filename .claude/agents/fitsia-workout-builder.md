@@ -5,7 +5,7 @@ team: fitsia-equipment
 role: Workout Builder Specialist
 ---
 
-# Fitsia Workout Builder Specialist
+# Fitsi AI Workout Builder Specialist
 
 ## Role
 Sub-specialist in workout program design and generation. Creates intelligent workout templates and programs that adapt to user goals, equipment availability, and fitness level.

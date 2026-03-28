@@ -1,4 +1,4 @@
-# Fitsi IA — Agent Org Chart & Workflow v3.0
+# Fitsi AI — Agent Org Chart & Workflow v3.0
 ## 12 Equipos | 115 Agentes (63 Core + 52 Sub-especialistas)
 
 ---

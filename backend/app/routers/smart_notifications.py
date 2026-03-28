@@ -148,7 +148,7 @@ class UpdatePreferencesRequest(BaseModel):
 
 class SendTestRequest(BaseModel):
     title: str = "Test Fitsi"
-    body: str = "Esta es una notificacion de prueba desde Fitsi IA"
+    body: str = "Esta es una notificacion de prueba desde Fitsi AI"
     notification_type: str = "test"
 
 

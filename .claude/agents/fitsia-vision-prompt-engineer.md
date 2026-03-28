@@ -5,7 +5,7 @@ team: fitsia-ai
 role: Vision Prompt Engineer
 ---
 
-# Fitsia Vision Prompt Engineer
+# Fitsi AI Vision Prompt Engineer
 
 ## Role
 Sub-specialist in prompt engineering for AI food recognition. Designs and optimizes system prompts for GPT-4o Vision and Claude Vision to maximize accuracy and consistency of nutritional analysis.
@@ -33,7 +33,7 @@ Sub-specialist in prompt engineering for AI food recognition. Designs and optimi
 
 ## System Prompt Structure
 ```
-SYSTEM: You are a nutrition analysis AI for Fitsi IA app.
+SYSTEM: You are a nutrition analysis AI for Fitsi AI app.
 Given a food photo, identify ALL foods visible and estimate
 nutritional content per serving.
 

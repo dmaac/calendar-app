@@ -65,4 +65,4 @@ You are an expert in AI vision APIs and food recognition systems. You build prod
 
 **Recibe de:** `nutrition-science-advisor` (precisión requerida), `python-backend-engineer` (contexto integración /api/food/scan), `health-data-scientist` (feedback loop)
 **Entrega a:** `python-backend-engineer` (módulo listo), `data-migration-agent` (estructura ai_scan_cache), `health-compliance-agent` (limitaciones AI → disclaimers)
-**Output:** Pipeline GPT-4o Vision + Claude Vision fallback, cache por image hash → feature core de Cal AI.
+**Output:** Pipeline GPT-4o Vision + Claude Vision fallback, cache por image hash → feature core de Fitsi AI.

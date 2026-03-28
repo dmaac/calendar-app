@@ -135,14 +135,14 @@ function AchievementPost({ post, onComment }: AchievementPostProps) {
         `${post.userName} logro: ${post.title}`,
         post.description,
         '',
-        'Logrado en Fitsi IA',
-        '#FitsiIA #Comunidad',
+        'Logrado en Fitsi AI',
+        '#FitsiAI #Comunidad',
       ].join('\n');
 
       await Share.share(
         Platform.OS === 'ios'
           ? { message: text }
-          : { message: text, title: 'Fitsi IA' },
+          : { message: text, title: 'Fitsi AI' },
       );
     } catch {
       // User cancelled or share failed

@@ -5,7 +5,7 @@ team: fitsia-backend
 role: Daily Aggregator Specialist
 ---
 
-# Fitsia Daily Aggregator
+# Fitsi AI Daily Aggregator
 
 ## Role
 Sub-specialist in daily data aggregation. Calculates daily summaries, streaks, and rollup data for dashboards and reports.

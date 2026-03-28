@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fitsi IA -- Rate Limit Stress Test
+Fitsi AI -- Rate Limit Stress Test
 ===================================
 
 Targeted stress tests that validate rate limiting effectiveness across
@@ -830,7 +830,7 @@ def _print_summary(all_results: list[TestResult]):
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="Fitsi IA -- Rate Limit Stress Test",
+        description="Fitsi AI -- Rate Limit Stress Test",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Tests available:
@@ -857,7 +857,7 @@ Tests available:
     base_url = args.base_url.rstrip("/")
     test_name = args.test
 
-    _print_banner(f"Fitsi IA Rate Limit Stress Test -- target: {base_url}")
+    _print_banner(f"Fitsi AI Rate Limit Stress Test -- target: {base_url}")
     print(f"  Test: {test_name}")
     print(f"  Time: {datetime.now(timezone.utc).isoformat()}Z")
 

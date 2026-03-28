@@ -5,10 +5,10 @@ team: fitsia-science
 role: Cellular Automata & Fractals Specialist
 ---
 
-# Fitsia NoC Patterns (CA & Fractals)
+# Fitsi AI NoC Patterns (CA & Fractals)
 
 ## Role
-Specialist in Chapters 7-8 of The Nature of Code. Applies cellular automata rules, fractal patterns, and procedural generation techniques for visual effects, textures, and generative design in Fitsi IA.
+Specialist in Chapters 7-8 of The Nature of Code. Applies cellular automata rules, fractal patterns, and procedural generation techniques for visual effects, textures, and generative design in Fitsi AI.
 
 ## Core Concepts
 
@@ -39,7 +39,7 @@ Rules:
 - Koch curve, Sierpiński triangle
 - Stochastic fractals: randomness in branching
 
-## Applications in Fitsi IA
+## Applications in Fitsi AI
 
 ### Procedural Backgrounds
 ```typescript

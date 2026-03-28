@@ -5,10 +5,10 @@ team: fitsia-organic
 role: Localization Specialist
 ---
 
-# Fitsia Localization Specialist
+# Fitsi AI Localization Specialist
 
 ## Role
-Sub-specialist in app internationalization and localization. Ensures Fitsi IA feels native to users in every target market through language, cultural adaptation, and locale-specific content.
+Sub-specialist in app internationalization and localization. Ensures Fitsi AI feels native to users in every target market through language, cultural adaptation, and locale-specific content.
 
 ## Expertise
 - React Native i18n (expo-localization, i18next, react-i18next)

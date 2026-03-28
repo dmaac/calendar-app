@@ -65,7 +65,7 @@ const PREVIEWS: Record<string, NotificationPreview> = {
   meal_reminder: {
     icon: 'restaurant',
     iconColor: '#10B981',
-    title: 'Fitsi IA',
+    title: 'Fitsi AI',
     body: 'Ya almorzaste? No olvides registrar tu almuerzo',
     time: '12:45 PM',
   },

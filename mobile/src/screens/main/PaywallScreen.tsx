@@ -658,7 +658,7 @@ export default function PaywallScreen({ navigation }: any) {
         setLoading(false);
         Alert.alert(
           'Bienvenido a Premium',
-          'Tu suscripcion ha sido activada exitosamente. Disfruta de todas las funciones de Fitsi IA sin limites.',
+          'Tu suscripcion ha sido activada exitosamente. Disfruta de todas las funciones de Fitsi AI sin limites.',
           [{ text: 'Comenzar', onPress: () => navigation.goBack?.() }]
         );
         return;

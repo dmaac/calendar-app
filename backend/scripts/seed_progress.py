@@ -1,5 +1,5 @@
 """
-Seed script for Fitsia Progress System.
+Seed script for Fitsi AI Progress System.
 
 Seeds:
 - 100 achievement definitions (10 categories x 10 each)
@@ -147,7 +147,7 @@ ACHIEVEMENTS = [
     {"code": "season_perfect", "name": "Temporada perfecta", "description": "No pierdas ningun dia durante una temporada", "category": "temporadas", "rarity": "epic", "icon": "diamond", "xp_reward": 400, "coins_reward": 200, "condition_type": "streak", "condition_value": 28, "sort_order": 97, "is_hidden": True},
     {"code": "season_improved", "name": "Mejor temporada", "description": "Mejora tu ranking respecto a la temporada anterior", "category": "temporadas", "rarity": "rare", "icon": "trending-up", "xp_reward": 80, "coins_reward": 40, "condition_type": "improvement", "condition_value": 1, "sort_order": 98},
     {"code": "multi_season_win", "name": "Dinastia", "description": "Gana 2 temporadas seguidas", "category": "temporadas", "rarity": "epic", "icon": "crown", "xp_reward": 800, "coins_reward": 400, "condition_type": "count", "condition_value": 2, "sort_order": 99, "is_hidden": True},
-    {"code": "level_20", "name": "Fitsia Supremo", "description": "Alcanza el nivel 20", "category": "temporadas", "rarity": "epic", "icon": "gem", "xp_reward": 1000, "coins_reward": 500, "condition_type": "level", "condition_value": 20, "sort_order": 100, "is_hidden": True},
+    {"code": "level_20", "name": "Fitsi AI Supremo", "description": "Alcanza el nivel 20", "category": "temporadas", "rarity": "epic", "icon": "gem", "xp_reward": 1000, "coins_reward": 500, "condition_type": "level", "condition_value": 20, "sort_order": 100, "is_hidden": True},
 ]
 
 # ─── Daily Mission Templates (15) ───────────────────────────────────────────

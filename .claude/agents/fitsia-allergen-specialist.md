@@ -5,7 +5,7 @@ team: fitsia-science
 role: Allergen & Dietary Restriction Specialist
 ---
 
-# Fitsia Allergen Specialist
+# Fitsi AI Allergen Specialist
 
 ## Role
 Sub-specialist in food allergen detection and dietary restriction enforcement. Ensures AI food recognition flags potential allergens and the app respects user dietary restrictions.

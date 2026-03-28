@@ -156,7 +156,7 @@ export default function WeeklySummary({
     haptics.medium();
 
     const lines = [
-      '--- Mi Semana en Fitsi IA ---',
+      '--- Mi Semana en Fitsi AI ---',
       '',
       `Calorias promedio: ${data.avgCalories} kcal`,
       `Mejor NutriScore: ${data.bestNutriScore}/100 (${data.bestNutriScoreDay})`,
@@ -168,14 +168,14 @@ export default function WeeklySummary({
       lines.push(`Proteina promedio: ${data.avgProtein}g`);
     }
 
-    lines.push('', '#FitsiIA #MiSemana');
+    lines.push('', '#FitsiAI #MiSemana');
     const message = lines.join('\n');
 
     try {
       await Share.share(
         Platform.OS === 'ios'
           ? { message }
-          : { message, title: 'Fitsi IA - Mi Semana' },
+          : { message, title: 'Fitsi AI - Mi Semana' },
       );
       onShareComplete?.();
     } catch {
@@ -289,7 +289,7 @@ export default function WeeklySummary({
         )}
 
         {/* Branding */}
-        <Text style={[styles.branding, { color: c.disabled }]}>Fitsi IA</Text>
+        <Text style={[styles.branding, { color: c.disabled }]}>Fitsi AI</Text>
       </View>
 
       {/* Share button */}

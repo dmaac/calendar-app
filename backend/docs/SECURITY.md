@@ -1,4 +1,4 @@
-# Fitsi IA — Security Architecture
+# Fitsi AI — Security Architecture
 
 Last updated: 2026-03-22
 

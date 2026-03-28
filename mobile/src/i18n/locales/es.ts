@@ -114,7 +114,7 @@ const es = {
     appleHealth: 'Apple Health',
     support: 'Soporte',
     helpAndFaq: 'Ayuda y FAQ',
-    aboutApp: 'Acerca de Fitsi',
+    aboutApp: 'Acerca de Fitsi AI',
   },
   scan: {
     title: 'Escanear comida',

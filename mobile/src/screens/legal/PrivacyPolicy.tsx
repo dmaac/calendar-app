@@ -1,5 +1,5 @@
 /**
- * PrivacyPolicy — Full privacy policy for Fitsi IA
+ * PrivacyPolicy — Full privacy policy for Fitsi AI
  * Covers: health data, AI scanning, GDPR, CCPA, Apple/Google compliance
  */
 import React from 'react';
@@ -17,7 +17,7 @@ import { colors, typography, spacing, radius } from '../../theme';
 const EFFECTIVE_DATE = 'March 21, 2026';
 const LAST_UPDATED = 'March 21, 2026';
 const CONTACT_EMAIL = 'privacy@fitsi.app';
-const COMPANY_NAME = 'Fitsi IA';
+const COMPANY_NAME = 'Fitsi AI';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

@@ -5,7 +5,7 @@ team: fitsia-ai
 role: ML Personalization Specialist
 ---
 
-# Fitsia ML Personalization
+# Fitsi AI ML Personalization
 
 ## Role
 Sub-specialist in ML-based personalization. Builds models that learn from user behavior to provide increasingly personalized nutrition guidance, meal suggestions, and adaptive goals.

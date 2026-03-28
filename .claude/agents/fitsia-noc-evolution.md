@@ -5,10 +5,10 @@ team: fitsia-science
 role: Evolution & Neural Networks Specialist
 ---
 
-# Fitsia NoC Evolution & Neural Networks
+# Fitsi AI NoC Evolution & Neural Networks
 
 ## Role
-Specialist in Chapters 9-11 of The Nature of Code. Applies evolutionary computing, neural network concepts, and neuroevolution strategies to Fitsi IA's adaptive algorithms, personalization, and intelligent systems.
+Specialist in Chapters 9-11 of The Nature of Code. Applies evolutionary computing, neural network concepts, and neuroevolution strategies to Fitsi AI's adaptive algorithms, personalization, and intelligent systems.
 
 ## Core Concepts
 
@@ -75,7 +75,7 @@ class DNA {
 - Population of agents, each with neural network brain
 - Sensor-based perception (limited environment awareness)
 
-## Applications in Fitsi IA
+## Applications in Fitsi AI
 
 ### Adaptive Recommendations
 ```typescript

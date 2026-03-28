@@ -1,5 +1,5 @@
 /**
- * purchase.service.ts — RevenueCat integration for Fitsi IA
+ * purchase.service.ts — RevenueCat integration for Fitsi AI
  *
  * Handles:
  *   - SDK initialization (iOS & Android API keys from env)

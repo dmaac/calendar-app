@@ -213,7 +213,7 @@ def _generate_pdf_bytes(
     elements = []
 
     # Title
-    elements.append(Paragraph("Fitsi IA - Reporte Nutricional", title_style))
+    elements.append(Paragraph("Fitsi AI - Reporte Nutricional", title_style))
     elements.append(Paragraph(
         f"{start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')}",
         normal_style,
@@ -350,7 +350,7 @@ def _generate_pdf_bytes(
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#E0E0E0")))
     elements.append(Spacer(1, 6))
     elements.append(Paragraph(
-        f"Generado por Fitsi IA el {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')} UTC",
+        f"Generado por Fitsi AI el {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')} UTC",
         ParagraphStyle("Footer", parent=normal_style, fontSize=8, textColor=colors.HexColor("#999999")),
     ))
 
@@ -367,7 +367,7 @@ def _generate_fallback_pdf(
 ) -> bytes:
     """Fallback: generate a minimal PDF without ReportLab (plain text in PDF wrapper)."""
     lines = [
-        "Fitsi IA - Reporte Nutricional",
+        "Fitsi AI - Reporte Nutricional",
         f"Periodo: {start_date} - {end_date}",
         f"Usuario: {user_data['name']}",
         f"Meta: {user_data['goal']}",

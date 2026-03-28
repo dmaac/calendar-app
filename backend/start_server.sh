@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script para iniciar el servidor FastAPI y abrir el navegador automáticamente
-# Autor: Fitsi IA Team
+# Autor: Fitsi AI Team
 # Fecha: 2025-09-29
 
 set -e  # Exit on error
@@ -22,7 +22,7 @@ DOCS_URL="${API_URL}/docs"
 clear
 
 echo "============================================================"
-echo "  🚀 Fitsi IA Backend - Server Launcher"
+echo "  🚀 Fitsi AI Backend - Server Launcher"
 echo "============================================================"
 echo ""
 

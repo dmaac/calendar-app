@@ -1,4 +1,4 @@
-# Fitsia IA
+# Fitsi AI
 
 > AI-powered nutrition tracking app with 71+ screens, 37 mascot expressions, dark mode, i18n, and enterprise-grade backend.
 
@@ -9,7 +9,7 @@ Built by an autonomous agent organization of **248 agents** across 10+ evolution
 ## Architecture
 
 ```
-fitsia/
+fitsi/
 ├── mobile/                 React Native + Expo 54 (TypeScript)
 │   ├── src/
 │   │   ├── screens/        71+ screens (30 onboarding + 25 main + legal + auth)
@@ -252,8 +252,8 @@ This app was built and evolved by **248 autonomous agents** organized in teams:
 
 | Category | Agents | Purpose |
 |----------|--------|---------|
-| Fitsia Management | 24 | Business decisions, strategy |
-| Fitsia Specialists | 11 | Feature-specific experts |
+| Fitsi AI Management | 24 | Business decisions, strategy |
+| Fitsi AI Specialists | 11 | Feature-specific experts |
 | Engineering | 19 | Frontend, backend, DevOps, QA, security |
 | Fitness Domain | 10 | Exercise science, biomechanics |
 | Nutrition Domain | 6 | Nutritional science, food AI |
@@ -283,7 +283,7 @@ Dashboard: `http://localhost:8765` (Agent Command Center with real-time monitori
 
 ## License
 
-Proprietary - Fitsia IA SpA. All rights reserved.
+Proprietary - Fitsi AI SpA. All rights reserved.
 
 ---
 

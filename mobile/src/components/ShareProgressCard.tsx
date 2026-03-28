@@ -152,7 +152,7 @@ export default function ShareProgressCard({
     haptics.medium();
 
     const lines = [
-      '--- Mi Progreso Hoy en Fitsi IA ---',
+      '--- Mi Progreso Hoy en Fitsi AI ---',
       '',
       `NutriScore: ${nutriScore}/100 (${scoreLabel})`,
       `Racha: ${streak} dia${streak !== 1 ? 's' : ''} seguidos`,
@@ -162,7 +162,7 @@ export default function ShareProgressCard({
       `Carbohidratos: ${carbs.current}g / ${carbs.target}g`,
       `Grasas: ${fats.current}g / ${fats.target}g`,
       '',
-      '#FitsiIA #MiProgreso',
+      '#FitsiAI #MiProgreso',
     ];
 
     const message = lines.join('\n');
@@ -171,7 +171,7 @@ export default function ShareProgressCard({
       const result = await Share.share(
         Platform.OS === 'ios'
           ? { message }
-          : { message, title: 'Fitsi IA - Mi Progreso' },
+          : { message, title: 'Fitsi AI - Mi Progreso' },
       );
       if (result.action === Share.sharedAction) {
         onShareComplete?.();
@@ -298,7 +298,7 @@ export default function ShareProgressCard({
         </View>
 
         {/* Branding */}
-        <Text style={[styles.branding, { color: c.disabled }]}>Fitsi IA</Text>
+        <Text style={[styles.branding, { color: c.disabled }]}>Fitsi AI</Text>
       </View>
 
       {/* Share button */}

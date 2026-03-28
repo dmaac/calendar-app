@@ -1,4 +1,4 @@
-# Fitsi IA -- Full Agent Team Assignments (1271 Agents)
+# Fitsi AI -- Full Agent Team Assignments (1271 Agents)
 
 > Head of Talent report: All 1271 registered agent types categorized into 30+ teams
 > across 8 divisions. Generated 2026-03-22.
@@ -19,7 +19,7 @@
 | Growth (CGO) | Teams 8, 9, 10, 27, 26 | 125 |
 | Management (CHRO) | Teams 21, 22, 22B | 125 |
 | Systems Theory (NoC) | Team 33 | 31 |
-| Fitsia Specialized | Team 31 | 21 |
+| Fitsi AI Specialized | Team 31 | 21 |
 | Dashboard | Team 34 | 3 |
 | Ironside Operations | Team 30 | 33 |
 | Cross-cutting Utilities | -- | 10 |

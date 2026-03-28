@@ -1,8 +1,8 @@
 import { Platform, useColorScheme, useWindowDimensions } from 'react-native';
 
-// ─── Design tokens (Fitsi IA style) ───────────────────────────────────────────
+// ─── Design tokens (Fitsi AI style) ───────────────────────────────────────────
 
-/** Light mode palette — Fitsia IA (Norte Digital inspired) */
+/** Light mode palette — Fitsi AI (Norte Digital inspired) */
 export const lightColors = {
   // Fondos
   bg: '#FFFFFF',
@@ -40,7 +40,7 @@ export const lightColors = {
   badgeText: '#1967D2',
 };
 
-/** Dark mode palette — Fitsia IA (Norte Digital inspired, WCAG AA) */
+/** Dark mode palette — Fitsi AI (Norte Digital inspired, WCAG AA) */
 export const darkColors: typeof lightColors = {
   bg: '#0D0D1A',
   surface: '#1A1A2E',

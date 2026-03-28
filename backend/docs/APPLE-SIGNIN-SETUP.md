@@ -1,6 +1,6 @@
 # Apple Sign In Configuration Guide
 
-This guide explains how to obtain and configure Apple Sign In credentials for Fitsi IA.
+This guide explains how to obtain and configure Apple Sign In credentials for Fitsi AI.
 
 ## Overview
 
@@ -24,7 +24,7 @@ Apple Sign In requires 4 credentials:
 2. Click the **+** button to create a new identifier
 3. Select **Services IDs** and click **Continue**
 4. Fill in:
-   - **Description**: "Fitsi IA API"
+   - **Description**: "Fitsi AI API"
    - **Identifier (Bundle ID)**: `com.fitsi.app` (must match your app's Bundle ID)
 5. Check **Sign In with Apple**
 6. Click **Continue** → **Register**

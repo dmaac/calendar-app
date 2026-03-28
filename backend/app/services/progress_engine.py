@@ -1,5 +1,5 @@
 """
-Fitsia Progress Engine -- XP, Levels, Streaks, Coins, and Achievements.
+Fitsi AI Progress Engine -- XP, Levels, Streaks, Coins, and Achievements.
 
 Core gamification engine for nutrition adherence. Manages experience points,
 level progression, streak tracking, coin economy, and achievement evaluation.
@@ -88,7 +88,7 @@ LEVELS = [
     {"level": 17, "name": "Titan",              "xp_required": 35000},
     {"level": 18, "name": "Inmortal",           "xp_required": 44000},
     {"level": 19, "name": "Ascendido",          "xp_required": 55000},
-    {"level": 20, "name": "Fitsia Supremo",     "xp_required": 70000},
+    {"level": 20, "name": "Fitsi AI Supremo",    "xp_required": 70000},
 ]
 
 

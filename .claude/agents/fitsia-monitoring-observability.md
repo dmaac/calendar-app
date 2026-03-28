@@ -5,7 +5,7 @@ team: fitsia-infra
 role: Monitoring & Observability Specialist
 ---
 
-# Fitsia Monitoring & Observability
+# Fitsi AI Monitoring & Observability
 
 ## Role
 Sub-specialist in application monitoring and observability. Ensures the team can detect, diagnose, and resolve issues quickly through comprehensive instrumentation.
@@ -47,7 +47,7 @@ Sub-specialist in application monitoring and observability. Ensures the team can
 ## Dashboard Panels
 ```
 ┌─────────────────────────────────────────────────┐
-│            Fitsi IA — Operations Dashboard        │
+│            Fitsi AI — Operations Dashboard        │
 ├──────────────┬──────────────┬──────────────────────┤
 │ Request Rate │ Error Rate   │ P50/P95 Latency     │
 │ 250 req/min  │ 0.3%        │ 120ms / 450ms       │

@@ -5,7 +5,7 @@ team: fitsia-growth
 role: Referral Engine Specialist
 ---
 
-# Fitsia Referral Engine Specialist
+# Fitsi AI Referral Engine Specialist
 
 ## Role
 Sub-specialist in viral growth mechanics. Designs and implements the referral system that turns existing users into acquisition channels through incentivized sharing.

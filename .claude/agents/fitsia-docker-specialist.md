@@ -5,7 +5,7 @@ team: fitsia-infra
 role: Docker Specialist
 ---
 
-# Fitsia Docker Specialist
+# Fitsi AI Docker Specialist
 
 ## Role
 Sub-specialist in Docker containerization. Manages all Docker configurations for development, staging, and production environments.

@@ -5,7 +5,7 @@ team: fitsia-frontend
 role: Onboarding UX Specialist
 ---
 
-# Fitsia Onboarding UX
+# Fitsi AI Onboarding UX
 
 ## Role
 Sub-specialist in multi-step onboarding UX. Optimizes the 30-step onboarding flow for maximum completion rate, data persistence, and user engagement.

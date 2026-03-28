@@ -1,5 +1,5 @@
 /**
- * NutritionGoalsScreen — Edit Nutrition Goals (Cal AI style)
+ * NutritionGoalsScreen — Edit Nutrition Goals (Fitsi AI style)
  * Editable macro cards with sliders, numeric input, pie chart, and reset to recommended.
  */
 import React, { useState, useEffect } from 'react';
@@ -19,6 +19,7 @@ import Svg, { Circle, G, Path } from 'react-native-svg';
 import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { getOnboardingProfile, updateProfile } from '../../services/onboarding.service';
 import { OnboardingProfileRead } from '../../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { haptics } from '../../hooks/useHaptics';
 
 // ─── Mifflin-St Jeor recalculation ──────────────────────────────────────────
@@ -428,21 +429,27 @@ export default function NutritionGoalsScreen({ navigation }: any) {
   const handleSave = async () => {
     haptics.light();
     setSaving(true);
+    const goals = {
+      daily_calories: calories,
+      daily_protein_g: protein,
+      daily_carbs_g: carbs,
+      daily_fats_g: fats,
+    };
+
+    // Always save locally first
     try {
-      await updateProfile({
-        daily_calories: calories,
-        daily_protein_g: protein,
-        daily_carbs_g: carbs,
-        daily_fats_g: fats,
-      });
-      haptics.success();
-      navigation.goBack();
+      await AsyncStorage.setItem('@fitsi_nutrition_goals', JSON.stringify(goals));
+    } catch {}
+
+    try {
+      await updateProfile(goals);
     } catch {
-      haptics.error();
-      Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
-    } finally {
-      setSaving(false);
+      // Backend failed but local save succeeded — still navigate back
     }
+
+    haptics.success();
+    setSaving(false);
+    navigation.goBack();
   };
 
   if (loading) {
@@ -460,7 +467,7 @@ export default function NutritionGoalsScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => { haptics.light(); navigation.goBack(); }} style={[styles.backBtn, { backgroundColor: c.surface }]}>
           <Ionicons name="chevron-back" size={20} color={c.black} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: c.black }]}>Edit Nutrition Goals</Text>
+        <Text style={[styles.headerTitle, { color: c.black }]}>Metas Nutricionales</Text>
         <View style={{ width: 36 }} />
       </View>
 

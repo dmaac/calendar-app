@@ -1,5 +1,5 @@
 # =============================================================================
-# Fitsi IA — Docker Compose PRODUCTION overlay
+# Fitsi AI — Docker Compose PRODUCTION overlay
 # =============================================================================
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d

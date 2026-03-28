@@ -569,7 +569,7 @@ def _print_startup_banner(db_ok: bool, redis_ok: bool) -> None:
 
     banner = f"""
 ================================================================================
-  FITSI IA API  v{APP_VERSION}
+  FITSI AI API  v{APP_VERSION}
 ================================================================================
   Environment : {settings.env}
   Host        : {settings.server_host}:{settings.server_port}
@@ -728,9 +728,9 @@ _docs_url = None if settings.is_production else "/docs"
 _redoc_url = None if settings.is_production else "/redoc"
 
 app = FastAPI(
-    title="Fitsi IA API",
+    title="Fitsi AI API",
     description=(
-        "REST API for Fitsi IA — AI-powered nutrition tracking app.\n\n"
+        "REST API for Fitsi AI — AI-powered nutrition tracking app.\n\n"
         "## Features\n"
         "- AI food scanning from photos (GPT-4o Vision)\n"
         "- Manual food logging and water tracking\n"
@@ -878,7 +878,7 @@ app.include_router(backup_router)
 
 @app.get("/", tags=["root"])
 async def read_root():
-    return {"message": "Fitsi IA API is running!", "version": APP_VERSION}
+    return {"message": "Fitsi AI API is running!", "version": APP_VERSION}
 
 
 async def _health_check_impl():

@@ -5,7 +5,7 @@ team: fitsia-paid
 role: Creative Testing Specialist
 ---
 
-# Fitsia Creative Testing Specialist
+# Fitsi AI Creative Testing Specialist
 
 ## Role
 Sub-specialist in systematic ad creative testing. Identifies winning creative elements through structured experimentation across all paid channels.

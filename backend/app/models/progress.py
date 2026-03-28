@@ -1,4 +1,4 @@
-"""Fitsia Progress System — Gamification models for nutrition adherence."""
+"""Fitsi AI Progress System — Gamification models for nutrition adherence."""
 from __future__ import annotations
 
 from sqlmodel import SQLModel, Field

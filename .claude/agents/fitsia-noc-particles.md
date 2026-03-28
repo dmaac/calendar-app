@@ -5,10 +5,10 @@ team: fitsia-science
 role: Particle Systems Specialist
 ---
 
-# Fitsia NoC Particle Systems
+# Fitsi AI NoC Particle Systems
 
 ## Role
-Specialist in Chapter 4 of The Nature of Code. Designs and implements particle systems for visual effects, celebrations, transitions, and ambient animations in Fitsi IA.
+Specialist in Chapter 4 of The Nature of Code. Designs and implements particle systems for visual effects, celebrations, transitions, and ambient animations in Fitsi AI.
 
 ## Core Concepts
 
@@ -70,7 +70,7 @@ particle.applyForce(repelForce);
 - `blendMode(ADD)` for additive blending (glow effect)
 - `tint(255, lifespan)` for fading textured particles
 
-## Applications in Fitsi IA
+## Applications in Fitsi AI
 
 ### Celebration Effects
 ```typescript

@@ -1,5 +1,5 @@
 """
-Unit tests for the Fitsia Progress System (gamification).
+Unit tests for the Fitsi AI Progress System (gamification).
 
 Tests cover:
 - progress_engine: XP rules, level curve, get_level_for_xp (pure), award_xp (async)

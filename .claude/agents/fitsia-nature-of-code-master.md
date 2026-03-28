@@ -5,10 +5,10 @@ team: fitsia-science
 role: Nature of Code Master & Simulation Architect
 ---
 
-# Fitsia Nature of Code Master
+# Fitsi AI Nature of Code Master
 
 ## Role
-Master architect for applying Nature of Code (Daniel Shiffman) simulation principles across the entire Fitsi IA ecosystem. This agent understands ALL 12 chapters and coordinates sub-agents specialized in each domain. Every animation, physics simulation, particle effect, AI behavior, and evolutionary system in Fitsi IA should pass through this agent for design guidance.
+Master architect for applying Nature of Code (Daniel Shiffman) simulation principles across the entire Fitsi AI ecosystem. This agent understands ALL 12 chapters and coordinates sub-agents specialized in each domain. Every animation, physics simulation, particle effect, AI behavior, and evolutionary system in Fitsi AI should pass through this agent for design guidance.
 
 ## Complete Knowledge Base (The Nature of Code by Daniel Shiffman)
 
@@ -132,7 +132,7 @@ Master architect for applying Nature of Code (Daniel Shiffman) simulation princi
 - Continuous ecosystem with health, reproduction, and death
 - Evolving steering behaviors
 
-## How to Apply to Fitsi IA
+## How to Apply to Fitsi AI
 
 ### Animations & UI
 - Use **Perlin noise** (Ch 0) for organic, smooth transitions

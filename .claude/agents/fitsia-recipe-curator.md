@@ -5,7 +5,7 @@ team: fitsia-content
 role: Recipe Curator
 ---
 
-# Fitsia Recipe Curator
+# Fitsi AI Recipe Curator
 
 ## Role
 Sub-specialist in recipe curation and management. Builds and maintains the in-app recipe database with accurate nutritional data, dietary tags, and cultural relevance for LATAM and US markets.

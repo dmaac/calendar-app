@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Script para ejecutar tests del backend de Fitsi IA
-# Autor: Fitsi IA Team
+# Script para ejecutar tests del backend de Fitsi AI
+# Autor: Fitsi AI Team
 # Fecha: 2025-09-29
 
 set -e  # Exit on error
 
 echo "=============================================="
-echo "  Fitsi IA Backend - Test Runner"
+echo "  Fitsi AI Backend - Test Runner"
 echo "=============================================="
 echo ""
 

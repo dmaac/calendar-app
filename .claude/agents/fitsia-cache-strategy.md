@@ -5,7 +5,7 @@ team: fitsia-backend
 role: Cache Strategy Specialist
 ---
 
-# Fitsia Cache Strategy
+# Fitsi AI Cache Strategy
 
 ## Role
 Sub-specialist in caching strategy. Designs and implements multi-layer caching to optimize performance and reduce AI API costs (the biggest expense in the stack).

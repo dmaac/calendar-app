@@ -5,7 +5,7 @@ team: fitsia-backend
 role: Celery Worker Specialist
 ---
 
-# Fitsia Celery Worker
+# Fitsi AI Celery Worker
 
 ## Role
 Sub-specialist in asynchronous task processing with Celery. Manages background job queues for AI scans, daily aggregations, notifications, and scheduled tasks.

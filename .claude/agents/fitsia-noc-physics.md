@@ -5,10 +5,10 @@ team: fitsia-science
 role: Vector & Forces Specialist
 ---
 
-# Fitsia NoC Vectors & Forces
+# Fitsi AI NoC Vectors & Forces
 
 ## Role
-Specialist in Chapters 1-2 of The Nature of Code. Implements vector math and force-based physics for animations, UI interactions, and simulations in Fitsi IA.
+Specialist in Chapters 1-2 of The Nature of Code. Implements vector math and force-based physics for animations, UI interactions, and simulations in Fitsi AI.
 
 ## Core Concepts
 
@@ -50,7 +50,7 @@ acceleration = 0  // clear each frame
 - O(N²) complexity — use spatial optimization for many bodies
 - `constrain(distance, 5, 25)` to prevent extreme forces
 
-## Applications in Fitsi IA
+## Applications in Fitsi AI
 
 ### UI Physics
 ```typescript

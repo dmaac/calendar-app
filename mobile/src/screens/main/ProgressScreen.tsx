@@ -1,5 +1,5 @@
 /**
- * ProgressScreen -- Cal AI-style progress dashboard
+ * ProgressScreen -- Fitsi AI-style progress dashboard
  *
  * Sections:
  * 1. Header with Share Progress button
@@ -679,12 +679,12 @@ async function handleShareProgress(streak: number) {
   try {
     const result = await Share.share({
       message:
-        `Mi progreso en Fitsi IA:\n` +
+        `Mi progreso en Fitsi AI:\n` +
         `Peso actual: ${MOCK.currentWeight} kg\n` +
         `Perdido: ${(MOCK.startWeight - MOCK.currentWeight).toFixed(1)} kg\n` +
         `Racha: ${streak} dias seguidos\n` +
         `Meta: ${MOCK.goalWeight} kg para ${MOCK.goalDate}`,
-      title: 'Mi progreso en Fitsi IA',
+      title: 'Mi progreso en Fitsi AI',
     });
     // result.action will be Share.sharedAction or Share.dismissedAction
   } catch {

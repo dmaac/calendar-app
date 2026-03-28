@@ -1,5 +1,5 @@
 /**
- * AppNavigator -- Root navigator for Fitsi IA.
+ * AppNavigator -- Root navigator for Fitsi AI.
  *
  * Responsibilities:
  * 1. NavigationContainer with deep linking configuration

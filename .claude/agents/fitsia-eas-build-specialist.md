@@ -5,7 +5,7 @@ team: fitsia-infra
 role: EAS Build Specialist
 ---
 
-# Fitsia EAS Build Specialist
+# Fitsi AI EAS Build Specialist
 
 ## Role
 Sub-specialist in Expo Application Services (EAS). Manages mobile app builds, OTA updates, code signing, and store submissions for both iOS and Android.

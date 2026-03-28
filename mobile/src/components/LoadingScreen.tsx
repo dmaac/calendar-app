@@ -1,5 +1,5 @@
 /**
- * LoadingScreen — Full-screen branded loading state for Fitsi IA.
+ * LoadingScreen — Full-screen branded loading state for Fitsi AI.
  *
  * Uses a pulsing logo circle + fade-in entrance instead of a plain spinner.
  * The subtle scale animation communicates "working" without being distracting.

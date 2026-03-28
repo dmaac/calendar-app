@@ -1,5 +1,5 @@
 /**
- * foodDatabase.ts — Local food database with macronutrient data for Fitsi IA
+ * foodDatabase.ts — Local food database with macronutrient data for Fitsi AI
  * 100 common foods organized by category.
  * Nutritional values per 100g unless otherwise noted.
  * Sources: USDA FoodData Central, FAO/INFOODS.

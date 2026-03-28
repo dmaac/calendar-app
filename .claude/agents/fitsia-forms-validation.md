@@ -5,7 +5,7 @@ team: fitsia-frontend
 role: Forms & Validation Specialist
 ---
 
-# Fitsia Forms & Validation
+# Fitsi AI Forms & Validation
 
 ## Role
 Sub-specialist in form handling and input validation. Ensures all user input flows are smooth, validated, and accessible across the onboarding and main app.

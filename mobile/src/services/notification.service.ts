@@ -458,7 +458,7 @@ export async function sendTestNotification(
   body?: string,
 ): Promise<void> {
   const testTitle = title ?? 'Test Fitsi';
-  const testBody = body ?? 'Esta es una notificacion de prueba desde Fitsi IA';
+  const testBody = body ?? 'Esta es una notificacion de prueba desde Fitsi AI';
 
   try {
     await api.post('/api/smart-notifications/send-test', {
@@ -517,7 +517,7 @@ export async function scheduleLocalNotifications(
     for (const meal of meals) {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Fitsi IA',
+          title: 'Fitsi AI',
           body: `Ya ${meal.label}aste? No olvides registrar tu ${meal.label}`,
           data: { type: 'meal_reminder', meal_type: meal.key, screen: 'LogMain' },
           sound: 'default',
@@ -531,7 +531,7 @@ export async function scheduleLocalNotifications(
   if (prefs.evening_summary_enabled) {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Fitsi IA',
+        title: 'Fitsi AI',
         body: 'Revisa tu resumen del dia y cierra fuerte',
         data: { type: 'evening_summary', screen: 'HomeMain' },
         sound: 'default',
@@ -544,7 +544,7 @@ export async function scheduleLocalNotifications(
   if (prefs.streak_alerts_enabled) {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Fitsi IA',
+        title: 'Fitsi AI',
         body: 'No has registrado comida hoy. Tu racha puede estar en riesgo!',
         data: { type: 'streak_at_risk', screen: 'LogMain' },
         sound: 'default',
@@ -604,7 +604,7 @@ export async function scheduleFromPredictedTimes(): Promise<void> {
 
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: 'Fitsi IA',
+            title: 'Fitsi AI',
             body: `Ya ${label}aste? No olvides registrar tu ${label}`,
             data: {
               type: 'meal_reminder',

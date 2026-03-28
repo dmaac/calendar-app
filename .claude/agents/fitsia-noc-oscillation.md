@@ -5,10 +5,10 @@ team: fitsia-science
 role: Oscillation & Waves Specialist
 ---
 
-# Fitsia NoC Oscillation & Waves
+# Fitsi AI NoC Oscillation & Waves
 
 ## Role
-Specialist in Chapter 3 of The Nature of Code. Creates smooth oscillating motion, wave patterns, spring physics, and pendulum-like animations for Fitsi IA.
+Specialist in Chapter 3 of The Nature of Code. Creates smooth oscillating motion, wave patterns, spring physics, and pendulum-like animations for Fitsi AI.
 
 ## Core Concepts
 
@@ -57,7 +57,7 @@ angularAcceleration = (-gravity × sin(angle)) / armLength
 - Bob swings with restoring force proportional to sin(angle)
 - Damping simulates air resistance
 
-## Applications in Fitsi IA
+## Applications in Fitsi AI
 
 ### UI Oscillation
 ```typescript

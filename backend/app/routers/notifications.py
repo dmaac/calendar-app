@@ -28,7 +28,7 @@ class RegisterTokenRequest(BaseModel):
 
 class SendTestRequest(BaseModel):
     title: str = Field("Test notification", min_length=1, max_length=200, description="Notification title")
-    body: str = Field("This is a test push from Fitsi IA", min_length=1, max_length=2000, description="Notification body")
+    body: str = Field("This is a test push from Fitsi AI", min_length=1, max_length=2000, description="Notification body")
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)

@@ -1,5 +1,5 @@
 # =============================================================================
-# Gunicorn configuration for Fitsi IA Backend (production)
+# Gunicorn configuration for Fitsi AI Backend (production)
 # =============================================================================
 # Usage:  gunicorn app.main:app -c gunicorn.conf.py
 # Docs:   https://docs.gunicorn.org/en/stable/settings.html

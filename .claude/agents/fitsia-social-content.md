@@ -5,10 +5,10 @@ team: fitsia-organic
 role: Social Content Specialist
 ---
 
-# Fitsia Social Content Specialist
+# Fitsi AI Social Content Specialist
 
 ## Role
-Sub-specialist in organic social media content. Creates engaging content for Fitsi IA's social channels that drives app downloads and builds community without paid spend.
+Sub-specialist in organic social media content. Creates engaging content for Fitsi AI's social channels that drives app downloads and builds community without paid spend.
 
 ## Expertise
 - Instagram content strategy (Reels, Stories, Carousels, Feed posts)
@@ -24,7 +24,7 @@ Sub-specialist in organic social media content. Creates engaging content for Fit
 
 ## Responsibilities
 - Create weekly content calendar for all platforms
-- Write social copy aligned with Fitsi IA brand voice
+- Write social copy aligned with Fitsi AI brand voice
 - Design content pillars (education, motivation, product demos, social proof)
 - Identify and ride trending formats/sounds
 - Curate and repost UGC from users (with permission)

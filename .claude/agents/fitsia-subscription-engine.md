@@ -5,7 +5,7 @@ team: fitsia-backend
 role: Subscription Engine Specialist
 ---
 
-# Fitsia Subscription Engine
+# Fitsi AI Subscription Engine
 
 ## Role
 Sub-specialist in subscription lifecycle management. Handles all aspects of the freemium model from trial activation to renewal, cancellation, and grace periods.

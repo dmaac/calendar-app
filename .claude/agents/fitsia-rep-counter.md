@@ -5,7 +5,7 @@ team: fitsia-equipment
 role: Rep Counter Specialist
 ---
 
-# Fitsia Rep Counter Specialist
+# Fitsi AI Rep Counter Specialist
 
 ## Role
 Sub-specialist in automated repetition counting and exercise tracking. Uses device sensors (accelerometer, gyroscope) and optional camera pose estimation to count reps, detect exercises, and provide real-time workout feedback.

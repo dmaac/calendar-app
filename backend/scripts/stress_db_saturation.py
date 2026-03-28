@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fitsi IA -- Database Connection Pool Saturation Stress Test
+Fitsi AI -- Database Connection Pool Saturation Stress Test
 ===========================================================
 
 Specialized stress test targeting PostgreSQL connection pool exhaustion.
@@ -913,7 +913,7 @@ SCENARIOS = {
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="Fitsi IA -- DB Connection Pool Saturation Stress Test",
+        description="Fitsi AI -- DB Connection Pool Saturation Stress Test",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -967,7 +967,7 @@ async def main():
     else:
         scenarios_to_run = list(SCENARIOS.keys())
 
-    _print_banner("FITSI IA -- DB CONNECTION POOL SATURATION TEST")
+    _print_banner("FITSI AI -- DB CONNECTION POOL SATURATION TEST")
     print(f"  Base URL:      {args.base_url}")
     print(f"  Test users:    {max_users}")
     print(f"  Pool config:   size={POOL_SIZE} + overflow={MAX_OVERFLOW} = {POOL_MAX} max")

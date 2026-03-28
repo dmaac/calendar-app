@@ -1,4 +1,4 @@
-# Fitsi IA -- Comprehensive Security Audit Report
+# Fitsi AI -- Comprehensive Security Audit Report
 
 **Date:** 2026-03-22
 **Auditor:** Security Engineer Agent (security-engineer)
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The Fitsi IA codebase shows a mature security posture with many best practices already in place (JWT type separation, refresh token rotation, brute-force lockout, security headers, input validation middleware, GDPR endpoints). However, this audit identified **4 CRITICAL**, **5 HIGH**, **5 MEDIUM**, and **4 LOW** severity findings that should be remediated before production launch.
+The Fitsi AI codebase shows a mature security posture with many best practices already in place (JWT type separation, refresh token rotation, brute-force lockout, security headers, input validation middleware, GDPR endpoints). However, this audit identified **4 CRITICAL**, **5 HIGH**, **5 MEDIUM**, and **4 LOW** severity findings that should be remediated before production launch.
 
 **Risk Score:** 72/100 (Good foundation, critical gaps in secrets management and TLS verification)
 
@@ -569,7 +569,7 @@ Run `npm audit` in the mobile directory for current CVE status. Key dependencies
 
 ## HIPAA / Health Data Considerations
 
-Fitsi IA handles health-related data (weight, height, calorie intake, exercise data). While this may not constitute formal Protected Health Information (PHI) under HIPAA unless linked to a covered entity, the data is sensitive and should be treated with equivalent care:
+Fitsi AI handles health-related data (weight, height, calorie intake, exercise data). While this may not constitute formal Protected Health Information (PHI) under HIPAA unless linked to a covered entity, the data is sensitive and should be treated with equivalent care:
 
 1. **Encryption at rest:** Supabase PostgreSQL encrypts data at rest (AES-256). Confirmed.
 2. **Encryption in transit:** TLS is used but certificate verification is disabled (C-2). Fix required.

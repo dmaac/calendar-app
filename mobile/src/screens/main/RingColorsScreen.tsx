@@ -1,5 +1,5 @@
 /**
- * RingColorsScreen — Cal AI style with weekly calendar, score icon, and color legend
+ * RingColorsScreen — Fitsi AI style with weekly calendar, score icon, and color legend
  */
 import React from 'react';
 import {

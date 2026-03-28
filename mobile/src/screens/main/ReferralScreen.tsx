@@ -41,7 +41,7 @@ function generatePromoCode(): string {
   for (let i = 0; i < 4; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
-  return `FITSIA-${code}`;
+  return `FITSIAI-${code}`;
 }
 
 const PROMO_CODE = generatePromoCode();
@@ -242,7 +242,7 @@ export default function ReferralScreen({ navigation }: any) {
 
   const SHARE_MESSAGE = `Hey! Descubri una app increible para cuidar mi alimentacion con inteligencia artificial.
 
-Fitsi IA escanea tu comida con la camara y te dice las calorias y macros al instante. Es como tener un nutricionista en tu bolsillo.
+Fitsi AI escanea tu comida con la camara y te dice las calorias y macros al instante. Es como tener un nutricionista en tu bolsillo.
 
 Usa mi codigo ${PROMO_CODE} al registrarte y ambos ganamos $10 de credito premium.
 

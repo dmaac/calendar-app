@@ -1,5 +1,5 @@
 /**
- * AnalyticsService — Centralized event tracking for Fitsi IA
+ * AnalyticsService — Centralized event tracking for Fitsi AI
  *
  * Current implementation: console.log (dev) + in-memory ring buffer (last 100 events).
  * Prepared for Mixpanel / Amplitude / PostHog integration — swap the _send() method.

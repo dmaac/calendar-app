@@ -5,7 +5,7 @@ team: fitsia-infra
 role: CDN & Storage Specialist
 ---
 
-# Fitsia CDN & Storage
+# Fitsi AI CDN & Storage
 
 ## Role
 Sub-specialist in content delivery and cloud storage. Optimizes image delivery, manages storage costs, and ensures fast global access to food photos.

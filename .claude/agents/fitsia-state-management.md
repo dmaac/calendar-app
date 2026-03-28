@@ -5,7 +5,7 @@ team: fitsia-frontend
 role: State Management Architect
 ---
 
-# Fitsia State Management
+# Fitsi AI State Management
 
 ## Role
 Sub-specialist in React Native state management architecture. Designs and implements the data flow, persistence, and synchronization patterns across the app.

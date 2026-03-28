@@ -64,7 +64,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         {/* Logo + título */}
         <View style={styles.header}>
           <FitsiMascot expression="strong" size="hero" animation="bounce" />
-          <Text style={styles.appName}>Fitsi IA</Text>
+          <Text style={styles.appName}>Fitsi AI</Text>
           <Text style={styles.appTagline}>Tu asistente de nutrición con IA</Text>
         </View>
 

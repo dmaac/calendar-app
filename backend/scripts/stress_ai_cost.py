@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fitsi IA -- AI Cost Abuse Vector Stress Test
+Fitsi AI -- AI Cost Abuse Vector Stress Test
 =============================================
 
 Identifies cost amplification vectors across all AI-powered endpoints:
@@ -743,7 +743,7 @@ class AICostStressTest:
         proj = report["cost_projection"]
 
         print("\n" + "=" * 72)
-        print("  FITSI IA -- AI COST ABUSE VECTOR STRESS TEST REPORT")
+        print("  FITSI AI -- AI COST ABUSE VECTOR STRESS TEST REPORT")
         print("=" * 72)
 
         print(f"\n  Started:     {meta['started_at']}")
@@ -819,7 +819,7 @@ class AICostStressTest:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Fitsi IA -- AI Cost Abuse Vector Stress Test",
+        description="Fitsi AI -- AI Cost Abuse Vector Stress Test",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
@@ -873,7 +873,7 @@ async def main() -> None:
         datefmt="%H:%M:%S",
     )
 
-    print(f"\nFitsi IA -- AI Cost Stress Test")
+    print(f"\nFitsi AI -- AI Cost Stress Test")
     print(f"Target:   {args.base_url}")
     print(f"Users:    {args.users}")
     print(f"Duration: {args.duration}s")

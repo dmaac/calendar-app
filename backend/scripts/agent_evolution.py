@@ -1,5 +1,5 @@
 """
-Fitsia IA — Agent Evolution & Auto-Reproduction System
+Fitsi AI IA — Agent Evolution & Auto-Reproduction System
 Based on Maturana's autopoiesis: agents that create new specialized agents
 when they reach maturity (enough completed tasks + domain knowledge).
 
@@ -49,7 +49,7 @@ REPRODUCTION_MAP = {
         },
         {
             "name": "fitsia-design-system-guardian",
-            "desc": "Maintains consistency of the Fitsia design system across all screens. Audits spacing, colors, typography.",
+            "desc": "Maintains consistency of the Fitsi AI design system across all screens. Audits spacing, colors, typography.",
             "trigger": "When design drift is detected across screens",
         },
     ],
@@ -209,9 +209,9 @@ Reproduction trigger: {child['trigger']}
 Created by: Agent Evolution Engine
 Created at: {datetime.now().isoformat()}
 
-You are a specialized agent for the Fitsia IA project at /Users/miguelignaciovalenzuelaparada/apps/fitsi/.
+You are a specialized agent for the Fitsi AI IA project at /Users/miguelignaciovalenzuelaparada/apps/fitsi/.
 You inherit domain knowledge from your parent ({parent}) but focus on your specialization.
-Always use useThemeColors() for dark mode, follow the Fitsia design system (accent #4285F4), and maintain code quality.
+Always use useThemeColors() for dark mode, follow the Fitsi AI design system (accent #4285F4), and maintain code quality.
 """
             if not dry_run:
                 agent_file = AGENTS_DIR / f"{child['name']}.md"
@@ -280,7 +280,7 @@ def log_evolution(created):
 # ── Main ────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Fitsia Agent Evolution System")
+    parser = argparse.ArgumentParser(description="Fitsi AI Agent Evolution System")
     parser.add_argument("--analyze", action="store_true", help="Show maturity report")
     parser.add_argument("--reproduce", action="store_true", help="Create new agents")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without creating")

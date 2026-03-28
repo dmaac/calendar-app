@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fitsi IA -- Auth Boundary Stress Test
+Fitsi AI -- Auth Boundary Stress Test
 ======================================
 
 Specialized stress test for authentication and authorization boundaries.
@@ -978,7 +978,7 @@ async def run_tests(
         base_url=base_url,
     )
 
-    print(f"\nFitsi IA -- Auth Boundary Stress Test")
+    print(f"\nFitsi AI -- Auth Boundary Stress Test")
     print(f"Target: {base_url}")
     print(f"Tests:  {', '.join(tests)}")
     print(f"Users:  {user_count}")
@@ -1056,7 +1056,7 @@ def print_summary(report: StressReport) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Fitsi IA -- Auth Boundary Stress Test",
+        description="Fitsi AI -- Auth Boundary Stress Test",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Test names:

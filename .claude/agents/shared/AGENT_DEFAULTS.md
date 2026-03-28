@@ -4,7 +4,7 @@
 > Only override in an agent file if the value differs from the default.
 
 ## Common Properties
-project: Fitsi IA
+project: Fitsi AI
 working_dir: /Users/miguelignaciovalenzuelaparada/apps/fitsi/
 default_tools: Read,Grep,Glob,Bash,Edit,Write,Agent
 stack_mobile: React Native + Expo 54, React Navigation v7

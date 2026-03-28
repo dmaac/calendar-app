@@ -789,7 +789,7 @@ export default function SettingsScreen({ navigation }: ProfileStackScreenProps<'
 
         {/* Version footer */}
         <Text style={[styles.versionFooter, { color: c.disabled }]} allowFontScaling>
-          Fitsi IA v{APP_VERSION} ({BUILD_NUMBER})
+          Fitsi AI v{APP_VERSION} ({BUILD_NUMBER})
         </Text>
       </ScrollView>
     </View>

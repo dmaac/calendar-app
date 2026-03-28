@@ -5,7 +5,7 @@ team: fitsia-paid
 role: Attribution Specialist
 ---
 
-# Fitsia Attribution Specialist
+# Fitsi AI Attribution Specialist
 
 ## Role
 Sub-specialist in mobile measurement and attribution. Ensures every install and conversion is correctly attributed to its source, enabling accurate ROI calculation across all paid and organic channels.

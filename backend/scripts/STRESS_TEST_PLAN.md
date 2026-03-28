@@ -1,4 +1,4 @@
-# Fitsi IA -- Comprehensive Stress Test Plan
+# Fitsi AI -- Comprehensive Stress Test Plan
 
 > Version: 2.0
 > Date: 2026-03-22
@@ -24,7 +24,7 @@
 
 ## 1. Executive Summary
 
-This plan defines 10 stress test scenarios for the Fitsi IA backend API, ranging from
+This plan defines 10 stress test scenarios for the Fitsi AI backend API, ranging from
 a 10-user smoke test to a 1000-user stress test and specialized bottleneck probes.
 The test runner (`stress_test_v2.py`) is a standalone Python script that uses only
 `httpx` (already in requirements.txt) and the standard library. No external

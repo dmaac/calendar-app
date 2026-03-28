@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Fitsi IA",
+    "name": "Fitsi AI",
     "slug": "fitsiai",
     "scheme": "fitsiai",
     "version": "1.4.0",
@@ -18,10 +18,10 @@
       "bundleIdentifier": "com.fitsiai.app",
       "buildNumber": "2",
       "infoPlist": {
-        "NSCameraUsageDescription": "Fitsi IA necesita acceso a la camara para escanear alimentos con IA.",
-        "NSPhotoLibraryUsageDescription": "Fitsi IA necesita acceso a tus fotos para seleccionar imagenes de alimentos.",
-        "NSHealthShareUsageDescription": "Fitsi IA usa tus datos de salud para personalizar tu plan nutricional y calcular calorias quemadas.",
-        "NSHealthUpdateUsageDescription": "Fitsi IA registra tu ingesta nutricional y agua en Apple Health."
+        "NSCameraUsageDescription": "Fitsi AI necesita acceso a la camara para escanear alimentos con IA.",
+        "NSPhotoLibraryUsageDescription": "Fitsi AI necesita acceso a tus fotos para seleccionar imagenes de alimentos.",
+        "NSHealthShareUsageDescription": "Fitsi AI usa tus datos de salud para personalizar tu plan nutricional y calcular calorias quemadas.",
+        "NSHealthUpdateUsageDescription": "Fitsi AI registra tu ingesta nutricional y agua en Apple Health."
       }
     },
     "android": {

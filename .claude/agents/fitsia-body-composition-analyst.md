@@ -5,7 +5,7 @@ team: fitsia-science
 role: Body Composition Analyst
 ---
 
-# Fitsia Body Composition Analyst
+# Fitsi AI Body Composition Analyst
 
 ## Role
 Sub-specialist in body composition analysis. Provides contextual body metrics interpretation and tracks composition changes over time through weight data and progress photos.

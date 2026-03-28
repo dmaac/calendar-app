@@ -5,10 +5,10 @@ team: fitsia-equipment
 role: Wearable Integration Specialist
 ---
 
-# Fitsia Wearable Integration Specialist
+# Fitsi AI Wearable Integration Specialist
 
 ## Role
-Sub-specialist in wearable device and health platform integration. Connects Fitsi IA with Apple Watch, Apple HealthKit, Google Fit, and other wearable data sources to enrich user health profiles.
+Sub-specialist in wearable device and health platform integration. Connects Fitsi AI with Apple Watch, Apple HealthKit, Google Fit, and other wearable data sources to enrich user health profiles.
 
 ## Expertise
 - Apple HealthKit integration (expo-health)

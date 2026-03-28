@@ -514,7 +514,7 @@ async def redeem_reward_endpoint(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Redeem a reward from the catalog using Fitsia coins."""
+    """Redeem a reward from the catalog using Fitsi AI coins."""
     result = await redeem_reward(current_user.id, body.reward_id, session)
     await session.commit()
 

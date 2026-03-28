@@ -1,5 +1,5 @@
 """
-Fitsia IA — Evolution Engine
+Fitsi AI IA — Evolution Engine
 Autonomous system that continuously analyzes and improves the codebase.
 Runs as a background process, dispatching improvement tasks to the agent dashboard.
 
@@ -320,7 +320,7 @@ def run_evolution_pass():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fitsia Evolution Engine")
+    parser = argparse.ArgumentParser(description="Fitsi AI Evolution Engine")
     parser.add_argument("--interval", type=int, default=300, help="Seconds between passes (default 300)")
     parser.add_argument("--once", action="store_true", help="Run once and exit")
     args = parser.parse_args()

@@ -360,6 +360,34 @@ async def evaluate_daily_alerts(
         ))
 
     # ------------------------------------------------------------------
+    # WARNING: Excessive water (> 4L)
+    # ------------------------------------------------------------------
+    if water > 4000:
+        alerts.append(NutritionAlert(
+            level="warning",
+            title="Consumo de agua muy alto",
+            message=f"Llevas {water / 1000:.1f}L de agua hoy. Beber mas de 4L puede ser peligroso (hiponatremia). Consulta a un profesional.",
+            icon="droplet",
+            color=_LEVEL_COLORS["warning"],
+            action_label="Ver registro",
+            action_route="/log",
+        ))
+
+    # ------------------------------------------------------------------
+    # DANGER: Extremely excessive water (> 6L)
+    # ------------------------------------------------------------------
+    if water > 6000:
+        alerts.append(NutritionAlert(
+            level="danger",
+            title="Agua extremadamente alta",
+            message=f"Llevas {water / 1000:.1f}L de agua hoy — esto puede ser peligroso para tu salud. La hiponatremia es un riesgo real. Para de beber y consulta a un medico.",
+            icon="alert-circle",
+            color=_LEVEL_COLORS["danger"],
+            action_label="Ver registro",
+            action_route="/log",
+        ))
+
+    # ------------------------------------------------------------------
     # INFO: Streak at risk (has a streak but hasn't logged today)
     # ------------------------------------------------------------------
     if not logged_today and days_inactive is not None and days_inactive <= 1:

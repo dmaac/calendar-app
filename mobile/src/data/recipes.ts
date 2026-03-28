@@ -1,5 +1,5 @@
 /**
- * recipes.ts — Hardcoded recipe database for Fitsi IA
+ * recipes.ts — Hardcoded recipe database for Fitsi AI
  * 50 recipes across breakfast, lunch, dinner, snack with varied diet types.
  * Includes Chilean/Latin, Keto/Low-Carb, and Vegan categories.
  */

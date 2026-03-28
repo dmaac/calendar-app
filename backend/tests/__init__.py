@@ -1,3 +1,3 @@
 """
-Test suite for Fitsi IA Backend
+Test suite for Fitsi AI Backend
 """
