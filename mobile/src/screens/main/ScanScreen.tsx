@@ -1245,7 +1245,7 @@ export default function ScanScreen({ navigation }: any) {
           style={[styles.upgradeBtn, { backgroundColor: c.black }]}
           onPress={() => {
             haptics.light();
-            navigation.navigate('Perfil', { screen: 'Paywall' });
+            navigation.navigate('Paywall');
           }}
           activeOpacity={0.85}
           accessibilityLabel={t('scan.viewPremiumPlans')}
@@ -1391,7 +1391,7 @@ export default function ScanScreen({ navigation }: any) {
             style={[styles.freeBanner, { backgroundColor: c.badgeBg }]}
             onPress={() => {
               haptics.light();
-              navigation.navigate('Perfil', { screen: 'Paywall' });
+              navigation.navigate('Paywall');
             }}
             activeOpacity={0.8}
             accessibilityLabel={scansLoading ? t('scan.loadingScans') : t('scan.freePlan', { used: todayScans, limit: FREE_SCAN_LIMIT })}

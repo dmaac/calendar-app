@@ -38,6 +38,7 @@ import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import ApiService from '../../services/api';
 import useHealthKit from '../../hooks/useHealthKit';
+import type { ProfileStackScreenProps } from '../../navigation/types';
 
 const APP_VERSION = '1.0.0';
 const BUILD_NUMBER = '1';
@@ -340,7 +341,7 @@ function Card({ children, c }: { children: React.ReactNode; c: ReturnType<typeof
 
 // ---- Main component ---------------------------------------------------------
 
-export default function SettingsScreen({ navigation }: any) {
+export default function SettingsScreen({ navigation }: ProfileStackScreenProps<'Settings'>) {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { isDark, mode: themeMode, setMode, warmth, setWarmth } = useAppTheme();

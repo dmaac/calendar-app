@@ -747,7 +747,7 @@ export default function ProgressScreen() {
         showsVerticalScrollIndicator={false}
         bounces
         overScrollMode="never"
-        contentContainerStyle={[s.scroll, { paddingHorizontal: sidePadding }]}
+        contentContainerStyle={[s.scroll, { paddingHorizontal: sidePadding, paddingBottom: insets.bottom + 100 }]}
       >
         {/* Weekly Summary (shows on Sunday/Monday) */}
         <WeeklySummary

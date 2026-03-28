@@ -1,7 +1,9 @@
 import asyncio
 import json
 import logging
+import sys
 import time
+import traceback
 import uuid
 from contextlib import asynccontextmanager
 from packaging.version import Version, InvalidVersion
@@ -374,6 +376,18 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         start = time.perf_counter()
 
+        # Best-effort user_id extraction (no DB hit) — done early so it
+        # is available for both the exception path and the normal log path.
+        user_id = None
+        try:
+            from .core.security import verify_token
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                user_id = verify_token(token)
+        except Exception:
+            pass
+
         # Catch unhandled exceptions so we can track them in metrics
         try:
             response: Response = await call_next(request)
@@ -386,11 +400,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 exception_type=type(exc).__name__, endpoint=path,
             )
             request_id = getattr(request.state, "request_id", None)
-            logger.error(
-                "Unhandled exception on %s %s: %s (request_id=%s, duration=%.0fms)",
-                request.method, path, exc, request_id, duration_s * 1000,
-                exc_info=True,
-            )
+            tb_str = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            error_log_data = {
+                "event": "unhandled_exception",
+                "endpoint": path,
+                "method": request.method,
+                "user_id": user_id,
+                "request_id": request_id,
+                "duration_ms": round(duration_s * 1000, 2),
+                "exception_type": type(exc).__name__,
+                "exception_message": str(exc),
+                "traceback": tb_str,
+            }
+            request_logger.error(json.dumps(error_log_data))
             raise
 
         duration_s = time.perf_counter() - start
@@ -418,17 +440,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         if path in self._SKIP_PATHS:
             return response
 
-        # Extract user_id from auth header if present (best-effort, no DB hit)
-        user_id = None
-        try:
-            from .core.security import verify_token
-            auth_header = request.headers.get("authorization", "")
-            if auth_header.startswith("Bearer "):
-                token = auth_header[7:]
-                user_id = verify_token(token)
-        except Exception:
-            pass
-
         # Track active users for the 24h rolling window metric
         if user_id:
             record_active_user(str(user_id))
@@ -448,6 +459,17 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Use WARNING level for slow requests, ERROR for 5xx responses
         if response.status_code >= 500:
             log_data["slow"] = duration_s > self._SLOW_THRESHOLD_S
+            # Include traceback if an exception handler stored it on request.state
+            stored_tb = getattr(request.state, "_exc_traceback", None)
+            stored_exc_type = getattr(request.state, "_exc_type", None)
+            stored_exc_msg = getattr(request.state, "_exc_message", None)
+            if stored_tb:
+                log_data["traceback"] = stored_tb
+                log_data["exception_type"] = stored_exc_type
+                log_data["exception_message"] = stored_exc_msg
+            # Also capture current sys.exc_info() if we are inside an exception context
+            elif sys.exc_info()[2] is not None:
+                log_data["traceback"] = "".join(traceback.format_exception(*sys.exc_info()))
             request_logger.error(json.dumps(log_data))
         elif duration_s > self._SLOW_THRESHOLD_S:
             log_data["slow"] = True
@@ -733,6 +755,28 @@ if _slowapi_available:
     limiter = Limiter(key_func=get_remote_address)
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# ─── Generic exception handler — stores traceback for the logging middleware ─
+async def _generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch exceptions that route handlers raise but don't handle.
+
+    Stores the full traceback on ``request.state`` so that
+    ``RequestLoggingMiddleware`` can include it in the structured error log,
+    then returns a standard 500 JSON response.
+    """
+    tb_str = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    request.state._exc_traceback = tb_str
+    request.state._exc_type = type(exc).__name__
+    request.state._exc_message = str(exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
+
+
+app.add_exception_handler(Exception, _generic_exception_handler)
+
 
 # Correlation ID (outermost — so all other middleware can use request_id)
 app.add_middleware(CorrelationIDMiddleware)

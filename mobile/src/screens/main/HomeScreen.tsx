@@ -34,6 +34,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import type { HomeStackScreenProps } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -582,7 +583,7 @@ const DailyTipCard = React.memo(function DailyTipCard({
 // ─── Stable constant — hoisted outside component to avoid re-creation ────────
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
-export default function HomeScreen({ navigation }: any) {
+export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMain'>) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
@@ -918,37 +919,37 @@ export default function HomeScreen({ navigation }: any) {
   // Nutrition alert action handler — navigates based on backend action_route
   const onAlertAction = useCallback((route: string) => {
     // Routes that live in the current HomeStack
-    const homeRoutes: Record<string, string> = {
-      '/scan': 'Scan',
-      '/dashboard': 'HomeMain',
-    };
-    // Routes that need cross-tab navigation
-    const tabRoutes: Record<string, { tab: string; screen?: string }> = {
-      '/log': { tab: 'Registro' },
-      '/water': { tab: 'Registro' },
-      '/foods': { tab: 'Registro', screen: 'FoodSearch' },
-      '/foods?category=protein': { tab: 'Registro', screen: 'FoodSearch' },
-      '/foods?category=healthy': { tab: 'Registro', screen: 'FoodSearch' },
-    };
-    if (homeRoutes[route]) {
-      navigation.navigate(homeRoutes[route]);
-    } else if (tabRoutes[route]) {
-      const { tab, screen } = tabRoutes[route];
-      navigation.navigate(tab as any, screen ? { screen } : undefined);
-    } else {
-      navigation.navigate('HomeMain');
+    switch (route) {
+      case '/scan':
+        navigation.navigate('Scan');
+        break;
+      case '/dashboard':
+        navigation.navigate('HomeMain');
+        break;
+      case '/log':
+      case '/water':
+        navigation.navigate('Registro', { screen: 'LogMain' });
+        break;
+      case '/foods':
+      case '/foods?category=protein':
+      case '/foods?category=healthy':
+        navigation.navigate('Registro', { screen: 'FoodSearch' });
+        break;
+      default:
+        navigation.navigate('HomeMain');
+        break;
     }
   }, [navigation]);
 
   // ---- QuickAction navigation callbacks (stable refs) ----
   const onQuickScan = useCallback(() => { haptics.light(); navigation.navigate('Scan'); }, [navigation]);
-  const onQuickWater = useCallback(() => { haptics.light(); (navigation as any).navigate('Registro'); }, [navigation]);
+  const onQuickWater = useCallback(() => { haptics.light(); navigation.navigate('Registro', { screen: 'LogMain' }); }, [navigation]);
   const onQuickFavorites = useCallback(() => { haptics.light(); navigation.navigate('Favorites'); }, [navigation]);
-  const onQuickReports = useCallback(() => { haptics.light(); (navigation as any).navigate('Progress'); }, [navigation]);
+  const onQuickReports = useCallback(() => { haptics.light(); navigation.navigate('Progress'); }, [navigation]);
 
   // ---- Risk-adaptive QuickAction callbacks ----
-  const onQuickLog = useCallback(() => { haptics.light(); navigation.navigate('Registro'); }, [navigation]);
-  const onCopyYesterday = useCallback(() => { haptics.light(); navigation.navigate('Registro'); }, [navigation]);
+  const onQuickLog = useCallback(() => { haptics.light(); navigation.navigate('Registro', { screen: 'LogMain' }); }, [navigation]);
+  const onCopyYesterday = useCallback(() => { haptics.light(); navigation.navigate('Registro', { screen: 'LogMain' }); }, [navigation]);
   const onSuggestedMeal = useCallback(() => { haptics.light(); navigation.navigate('Recipes'); }, [navigation]);
   const isHighRisk = riskScore > 40;
 
@@ -1105,7 +1106,7 @@ export default function HomeScreen({ navigation }: any) {
           ) : riskScore > 60 ? (
             <TouchableOpacity
               style={[styles.semaphoreContainer, { paddingHorizontal: sidePadding }]}
-              onPress={() => { haptics.light(); navigation.navigate('RiskDetail' as any); }}
+              onPress={() => { haptics.light(); navigation.navigate('RiskDetail'); }}
               activeOpacity={0.8}
               accessibilityLabel="Ver detalle de riesgo nutricional"
               accessibilityRole="button"

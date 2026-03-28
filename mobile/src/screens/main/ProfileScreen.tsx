@@ -26,6 +26,7 @@ import { haptics } from '../../hooks/useHaptics';
 import { getOnboardingProfile } from '../../services/onboarding.service';
 import { getDailySummary } from '../../services/food.service';
 import { OnboardingProfileRead, DailySummary } from '../../types';
+import type { ProfileStackScreenProps } from '../../navigation/types';
 import ReferralCard from '../../components/ReferralCard';
 
 // ---- Mock data for offline / backend unavailable ----------------------------
@@ -331,7 +332,7 @@ function useSectionFadeIn(delay: number) {
 
 // ---- Main component ---------------------------------------------------------
 
-export default function ProfileScreen({ navigation }: any) {
+export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
   const { user } = useAuth();

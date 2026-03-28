@@ -84,6 +84,38 @@ const api: AxiosInstance = axios.create({
   },
 });
 
+// -- Dev logging: one line per request, one line per response -----------------
+if (__DEV__) {
+  api.interceptors.request.use((config) => {
+    const method = (config.method ?? 'GET').toUpperCase();
+    const url = config.url ?? '/';
+    (config as any)._startTime = Date.now();
+    console.log(`[API] --> ${method} ${url}`);
+    return config;
+  });
+
+  api.interceptors.response.use(
+    (response) => {
+      const config = response.config as any;
+      const ms = config._startTime ? Date.now() - config._startTime : 0;
+      const method = (config.method ?? 'GET').toUpperCase();
+      const url = config.url ?? '/';
+      console.log(`[API] <-- ${response.status} ${method} ${url} in ${ms}ms`);
+      return response;
+    },
+    (error) => {
+      const config = (error.config ?? {}) as any;
+      const ms = config._startTime ? Date.now() - config._startTime : 0;
+      const method = (config.method ?? '???').toUpperCase();
+      const url = config.url ?? '/';
+      const status = error.response?.status ?? 'NETWORK_ERROR';
+      const msg = error.response?.statusText ?? error.message ?? 'Unknown error';
+      console.log(`[API] <-- ${status} ${method} ${url} in ${ms}ms | ${msg}`);
+      return Promise.reject(error);
+    },
+  );
+}
+
 // -- Request: inject access token + offline guard ------------------------------
 api.interceptors.request.use(async (config) => {
   // Quick offline check to fail fast

@@ -54,7 +54,7 @@ export type HomeStackParamList = {
   Challenges: undefined;
   Paywall: undefined;
   Scan: undefined;
-  Barcode: { onScan?: (data: string) => void } | undefined;
+  Barcode: { onScan?: (data: string) => void; mealType?: string } | undefined;
   Recipes: undefined;
   RecipeDetail: { recipe: NavigationRecipe };
   Favorites: undefined;
@@ -107,7 +107,7 @@ export type ProfileStackParamList = {
 
 export type ScanStackParamList = {
   ScanMain: undefined;
-  Barcode: { onScan?: (data: string) => void } | undefined;
+  Barcode: { onScan?: (data: string) => void; mealType?: string } | undefined;
 };
 
 // ─── Recipes Stack ──────────────────────────────────────────────────────────

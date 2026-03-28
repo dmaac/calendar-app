@@ -314,6 +314,38 @@ function createApiClient(): AxiosInstance {
     },
   });
 
+  // -- Dev logging: one line per request, one line per response ----------------
+  if (__DEV__) {
+    client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+      const method = (config.method ?? 'GET').toUpperCase();
+      const url = config.url ?? '/';
+      (config as any)._startTime = Date.now();
+      console.log(`[API] --> ${method} ${url}`);
+      return config;
+    });
+
+    client.interceptors.response.use(
+      (response: AxiosResponse) => {
+        const config = response.config as any;
+        const ms = config._startTime ? Date.now() - config._startTime : 0;
+        const method = (config.method ?? 'GET').toUpperCase();
+        const url = config.url ?? '/';
+        console.log(`[API] <-- ${response.status} ${method} ${url} in ${ms}ms`);
+        return response;
+      },
+      (error: AxiosError) => {
+        const config = (error.config ?? {}) as any;
+        const ms = config._startTime ? Date.now() - config._startTime : 0;
+        const method = (config.method ?? '???').toUpperCase();
+        const url = config.url ?? '/';
+        const status = error.response?.status ?? 'NETWORK_ERROR';
+        const msg = error.response?.statusText ?? error.message ?? 'Unknown error';
+        console.log(`[API] <-- ${status} ${method} ${url} in ${ms}ms | ${msg}`);
+        return Promise.reject(error);
+      },
+    );
+  }
+
   // -- Request interceptor: inject Bearer token + offline guard ----------------
   client.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     // Check if device is offline before sending

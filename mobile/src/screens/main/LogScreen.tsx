@@ -339,16 +339,20 @@ export default function LogScreen({ navigation }: any) {
   const prevLogCount = useRef(0);
   const lastFetchRef = useRef<number>(0);
 
-  // Load user weight + fat target for personalized water goal and fat alerts
+  // Load user weight + fat target for personalized water goal and fat alerts.
+  // The /api/onboarding/profile endpoint may return 500 for users that skipped
+  // onboarding or whose profile was never persisted.  We must never crash the
+  // screen because of this -- keep default values and move on.
   useEffect(() => {
-    getOnboardingProfile()
-      .then((p) => {
+    (async () => {
+      try {
+        const p = await getOnboardingProfile();
         if (p?.weight_kg) setUserWeightKg(p.weight_kg);
         if (p?.daily_fats_g) setUserFatTargetG(p.daily_fats_g);
-      })
-      .catch((err) => {
-        console.error('[LogScreen] Failed to load onboarding profile:', err);
-      });
+      } catch {
+        // Silently ignore -- defaults (undefined weight, 70g fat) remain.
+      }
+    })();
   }, []);
 
   // ─── Day navigation (hook handles state, swipe gestures, and animations) ─
@@ -421,7 +425,7 @@ export default function LogScreen({ navigation }: any) {
   // Reload when date changes
   useEffect(() => {
     setLoading(true);
-    load(toDateStr(selectedDate)).then(() => { lastFetchRef.current = Date.now(); });
+    load(toDateStr(selectedDate)).then(() => { lastFetchRef.current = Date.now(); }).catch(() => {});
   }, [selectedDate]);
 
   useFocusEffect(useCallback(() => {
@@ -430,7 +434,7 @@ export default function LogScreen({ navigation }: any) {
       return;
     }
     setLoading(true);
-    load().then(() => { lastFetchRef.current = Date.now(); });
+    load().then(() => { lastFetchRef.current = Date.now(); }).catch(() => {});
   }, [load, logs.length]));
 
   // Detect when a new food log is added (logs count increased) and fire confetti
@@ -448,37 +452,47 @@ export default function LogScreen({ navigation }: any) {
   // Smart suggestion: if a food appears 3+ times, suggest adding to favorites
   useEffect(() => {
     if (logs.length < 3) return;
-    const counts: Record<string, { count: number; log: AIFoodLog }> = {};
-    for (const log of logs) {
-      const key = log.food_name.toLowerCase();
-      if (!counts[key]) counts[key] = { count: 0, log };
-      counts[key].count += 1;
-    }
-    for (const { count, log } of Object.values(counts)) {
-      if (count >= 3) {
-        favoritesService.shouldSuggestFavorite(log.food_name, count).then((should) => {
-          if (should) {
-            showNotification({
-              message: `Te gusta "${log.food_name}"? Agregalo a favoritos!`,
-              type: 'info',
-              icon: 'heart',
-              duration: 5000,
-            });
-          }
-        }).catch((err) => {
-          console.error('[LogScreen] Failed to check favorite suggestion:', err);
-        });
-        break; // Only suggest one at a time
+    try {
+      const counts: Record<string, { count: number; log: AIFoodLog }> = {};
+      for (const log of logs) {
+        if (!log.food_name) continue;
+        const key = log.food_name.toLowerCase();
+        if (!counts[key]) counts[key] = { count: 0, log };
+        counts[key].count += 1;
       }
+      for (const { count, log } of Object.values(counts)) {
+        if (count >= 3) {
+          favoritesService.shouldSuggestFavorite(log.food_name, count).then((should) => {
+            if (should) {
+              showNotification({
+                message: `Te gusta "${log.food_name}"? Agregalo a favoritos!`,
+                type: 'info',
+                icon: 'heart',
+                duration: 5000,
+              });
+            }
+          }).catch(() => {
+            // Non-critical -- ignore silently
+          });
+          break; // Only suggest one at a time
+        }
+      }
+    } catch {
+      // Guard against malformed log entries
     }
   }, [logs]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
-    await load();
-    lastFetchRef.current = Date.now();
-    setRefreshing(false);
+    try {
+      await load();
+      lastFetchRef.current = Date.now();
+    } catch {
+      // load() already handles errors internally, but guard the refresh spinner
+    } finally {
+      setRefreshing(false);
+    }
   }, [load]);
 
   // Stable callback refs to prevent child re-renders
@@ -530,18 +544,26 @@ export default function LogScreen({ navigation }: any) {
   }, []);
 
   const handleToggleFavorite = useCallback(async (log: AIFoodLog) => {
-    const added = await favoritesService.toggleFavorite({
-      name: log.food_name,
-      calories: log.calories,
-      protein_g: log.protein_g,
-      carbs_g: log.carbs_g,
-      fats_g: log.fats_g,
-    });
-    showNotification({
-      message: added ? `${log.food_name} agregado a favoritos!` : `${log.food_name} eliminado de favoritos`,
-      type: added ? 'success' : 'info',
-      icon: added ? 'heart' : 'heart-dislike',
-    });
+    try {
+      const added = await favoritesService.toggleFavorite({
+        name: log.food_name,
+        calories: log.calories,
+        protein_g: log.protein_g,
+        carbs_g: log.carbs_g,
+        fats_g: log.fats_g,
+      });
+      showNotification({
+        message: added ? `${log.food_name} agregado a favoritos!` : `${log.food_name} eliminado de favoritos`,
+        type: added ? 'success' : 'info',
+        icon: added ? 'heart' : 'heart-dislike',
+      });
+    } catch {
+      showNotification({
+        message: 'No se pudo actualizar favoritos',
+        type: 'warning',
+        icon: 'alert-circle',
+      });
+    }
   }, []);
 
   const handleAddWater = useCallback(async (ml: number) => {
@@ -605,8 +627,8 @@ export default function LogScreen({ navigation }: any) {
               haptics.success();
               track('delete_all_meals', { count: logs.length });
               showNotification({ message: 'Todas las comidas eliminadas', type: 'success', icon: 'trash' });
-              // Reload to refresh summary
-              load();
+              // Reload to refresh summary (fire-and-forget with safety catch)
+              load().catch(() => {});
             } catch {
               showNotification({ message: 'Error al eliminar comidas', type: 'warning', icon: 'alert-circle' });
             }
@@ -679,7 +701,8 @@ export default function LogScreen({ navigation }: any) {
   }, [c, openAddModal]);
 
   const renderItem = useCallback(({ item: log }: { item: AIFoodLog }) => {
-    const fatPercent = userFatTargetG > 0 ? (log.fats_g / userFatTargetG) * 100 : 0;
+    const fats = log.fats_g ?? 0;
+    const fatPercent = userFatTargetG > 0 ? (fats / userFatTargetG) * 100 : 0;
     const isExtremeFat = fatPercent > 200;
 
     return (
@@ -697,7 +720,7 @@ export default function LogScreen({ navigation }: any) {
             alerts={[{
               level: 'danger',
               title: 'Grasa extrema detectada',
-              message: `"${log.food_name}" tiene ${Math.round(log.fats_g)}g de grasa (${Math.round(fatPercent)}% de tu meta diaria de ${Math.round(userFatTargetG)}g). Considera una porcion mas pequena.`,
+              message: `"${log.food_name ?? 'Alimento'}" tiene ${Math.round(fats)}g de grasa (${Math.round(fatPercent)}% de tu meta diaria de ${Math.round(userFatTargetG)}g). Considera una porcion mas pequena.`,
               icon: 'alert-circle',
               color: c.protein,
               action_label: '',
@@ -749,7 +772,7 @@ export default function LogScreen({ navigation }: any) {
       {error && !loading && (
         <TouchableOpacity
           style={[styles.errorBanner, { backgroundColor: c.accent }]}
-          onPress={() => { setLoading(true); load(); }}
+          onPress={() => { setLoading(true); load().catch(() => {}); }}
           activeOpacity={0.8}
           accessibilityLabel="Sin conexion, mostrando datos de ejemplo. Toca para reintentar"
           accessibilityRole="button"

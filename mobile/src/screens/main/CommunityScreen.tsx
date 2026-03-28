@@ -26,7 +26,6 @@ import {
   TouchableOpacity,
   Animated,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
   Share,
   ActivityIndicator,
@@ -922,7 +921,7 @@ export default function CommunityScreen() {
           keyExtractor={keyExtractor}
           contentContainerStyle={[
             styles.list,
-            { paddingHorizontal: sidePadding },
+            { paddingHorizontal: sidePadding, paddingBottom: insets.bottom + 100 },
             currentData.length === 0 && styles.listEmpty,
           ]}
           showsVerticalScrollIndicator={false}
@@ -948,7 +947,7 @@ export default function CommunityScreen() {
 
       {/* Floating "Share Achievement" CTA */}
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: c.accent }]}
+        style={[styles.fab, { backgroundColor: c.accent, bottom: 72 + insets.bottom }]}
         onPress={handleShareAchievement}
         activeOpacity={0.85}
         accessibilityLabel="Compartir logro"
@@ -1019,7 +1018,6 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingTop: spacing.md,
-    paddingBottom: spacing.xxl + 60,
   },
   listEmpty: {
     flexGrow: 1,
@@ -1197,7 +1195,6 @@ const styles = StyleSheet.create({
   // ─── FAB ────────────────────────────────────────────────────────────────────
   fab: {
     position: 'absolute',
-    bottom: 100,
     right: spacing.lg,
     width: 56,
     height: 56,
