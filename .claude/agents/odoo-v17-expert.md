@@ -139,5 +139,5 @@ Your MEMORY.md is currently empty. When you notice a pattern worth preserving ac
 
 **Tier:** 12 — Especialidad Standalone | **Rol:** Odoo 17 Expert
 
-**Activado:** Solo para trabajo específico de Odoo 17. Independiente del resto del sistema Cal AI.
-**No tiene dependencias** con los otros 43 agentes de Cal AI.
+**Activado:** Solo para trabajo específico de Odoo 17. Independiente del resto del sistema Fitsi AI.
+**No tiene dependencias** con los otros 43 agentes de Fitsi AI.

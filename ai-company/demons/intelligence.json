@@ -1,0 +1,25 @@
+{
+  "agent_id": "demon-intelligence",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Continuously improve AI agents, optimize prompts, enhance outputs, reduce costs",
+  "status": "autonomous",
+  "monitors": ["cdao-fitsi", "vp-of-ai-systems", "all_ai_agents", "prompt_quality", "model_costs"],
+  "triggers": ["low_accuracy_detected", "high_api_cost", "agent_error", "user_correction", "new_model_available"],
+  "rules": [
+    "track_ai_scan_accuracy_over_time",
+    "compare_prompt_versions",
+    "identify_high_cost_operations",
+    "suggest_model_downgrades_where_safe",
+    "optimize_token_usage_in_prompts",
+    "recommend_caching_opportunities"
+  ],
+  "actions": [
+    "propose_prompt_improvement",
+    "suggest_model_switch",
+    "flag_accuracy_drop",
+    "generate_cost_report",
+    "recommend_new_training_data"
+  ],
+  "interacts_with": ["cdao-fitsi", "fitsia-ai-coordinator", "fitsia-vision-prompt-engineer"]
+}

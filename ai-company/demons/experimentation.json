@@ -1,0 +1,25 @@
+{
+  "agent_id": "demon-experimentation",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Run continuous A/B tests, validate hypotheses, ensure statistical rigor",
+  "status": "autonomous",
+  "monitors": ["cpo-fitsi", "cgo-fitsi", "feature_flags", "experiment_results"],
+  "triggers": ["new_feature_launch", "ui_change", "funnel_change", "pricing_change", "experiment_complete"],
+  "rules": [
+    "ensure_statistical_significance_before_decisions",
+    "detect_experiment_contamination",
+    "flag_peeking_bias",
+    "validate_control_group_integrity",
+    "monitor_guardrail_metrics",
+    "suggest_new_experiments"
+  ],
+  "actions": [
+    "propose_experiment",
+    "validate_results",
+    "flag_insufficient_sample",
+    "recommend_rollout_or_rollback",
+    "generate_experiment_report"
+  ],
+  "interacts_with": ["cpo-fitsi", "cgo-fitsi", "fitsia-ab-testing"]
+}

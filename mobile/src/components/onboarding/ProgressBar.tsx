@@ -31,8 +31,19 @@ export default function ProgressBar({ step, totalSteps }: ProgressBarProps) {
     outputRange: ['2%', '100%'],
   });
 
+  const stepLabel = `Paso ${step} de ${totalSteps}`;
+
   return (
-    <View style={styles.track}>
+    <View
+      style={styles.track}
+      accessibilityRole="progressbar"
+      accessibilityLabel={stepLabel}
+      accessibilityValue={{
+        min: 1,
+        max: totalSteps,
+        now: step,
+      }}
+    >
       <Animated.View style={[styles.fill, { width: widthInterpolated }]} />
     </View>
   );

@@ -1,0 +1,5 @@
+# Never commit certificates to git
+*.crt
+*.pem
+*.cer
+*.key

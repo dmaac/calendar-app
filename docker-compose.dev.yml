@@ -1,34 +1,45 @@
+# =============================================================================
+# Fitsi AI — Docker Compose DEVELOPMENT overlay
+# =============================================================================
+# Usage:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# What this overlay adds:
+#   - Exposed DB and Redis ports for local tooling (pgAdmin, redis-cli, etc.)
+#   - Hot-reload via source mount + uvicorn --reload
+#   - No gunicorn, no tini — fast iteration loop
+# =============================================================================
+
 services:
-  postgres:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: calendar_db
+  db:
     ports:
       - "5432:5432"
-    volumes:
-      - calai_postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d calendar_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   redis:
-    image: redis:7-alpine
-    restart: unless-stopped
     ports:
       - "6379:6379"
-    volumes:
-      - calai_redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+    command: >
+      redis-server
+        --save 60 1
+        --appendonly yes
+        --loglevel warning
+        --maxmemory 256mb
+        --maxmemory-policy allkeys-lru
 
-volumes:
-  calai_postgres:
-  calai_redis:
+  backend:
+    # Override CMD to run uvicorn with hot-reload instead of gunicorn
+    command: >
+      uvicorn app.main:app
+        --host 0.0.0.0
+        --port 8000
+        --reload
+        --reload-dir /app/app
+        --log-level debug
+    volumes:
+      # Mount source code so changes are reflected immediately
+      - ./backend/app:/app/app
+      # Mount alembic so migrations can be run from inside the container
+      - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini
+    environment:
+      ENV: development
+      LOG_LEVEL: debug

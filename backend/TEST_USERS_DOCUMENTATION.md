@@ -1,4 +1,4 @@
-# 👥 Documentación de Usuarios de Prueba - Calendar App
+# 👥 Documentación de Usuarios de Prueba - Fitsi AI
 
 ## ✅ Resumen
 

@@ -1,0 +1,24 @@
+{
+  "agent_id": "demon-decision",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Evaluate strategic decisions made by executives, detect suboptimal choices, propose alternatives",
+  "status": "autonomous",
+  "monitors": ["ceo-fitsi", "cpo-fitsi", "board-chairman"],
+  "triggers": ["new_feature_proposal", "strategic_pivot", "resource_reallocation", "priority_change"],
+  "rules": [
+    "evaluate_decision_against_company_kpis",
+    "compare_with_historical_outcomes",
+    "detect_bias_in_prioritization",
+    "suggest_data_driven_alternatives",
+    "flag_decisions_without_clear_metrics"
+  ],
+  "actions": [
+    "approve_decision",
+    "flag_for_review",
+    "suggest_alternative",
+    "escalate_to_board"
+  ],
+  "interacts_with": ["ceo-fitsi", "board-chairman", "supreme_orchestrator"],
+  "cannot_override": ["board-chairman", "supreme_orchestrator"]
+}

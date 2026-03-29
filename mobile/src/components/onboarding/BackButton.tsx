@@ -14,6 +14,8 @@ export default function BackButton({ onPress }: BackButtonProps) {
       style={styles.btn}
       activeOpacity={0.7}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityLabel="Volver al paso anterior"
+      accessibilityRole="button"
     >
       <Ionicons name="chevron-back" size={20} color={colors.black} />
     </TouchableOpacity>

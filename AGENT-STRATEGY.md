@@ -6,10 +6,7 @@
 
 ## Principios de Eficiencia
 
-### 1. NUNCA lanzar más de 3 agentes en paralelo
-- Cada agente consume 30k-150k tokens por ejecución
-- 3 en paralelo = ~300k tokens max por ronda
-- Esperar resultados antes de lanzar la siguiente ronda
+
 
 ### 2. Usar el modelo correcto por tarea
 | Tarea | Modelo | Tokens aprox |

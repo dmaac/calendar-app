@@ -13,11 +13,10 @@ const GOAL_LABELS: Record<string, string> = {
   gain: 'Ganar peso',
 };
 
-export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step11TargetWeight({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const isImperial = data.unitSystem === 'imperial';
 
-  // Convert for display
   const displayValue = isImperial
     ? Math.round(data.targetWeightKg * 2.20462)
     : data.targetWeightKg;
@@ -27,23 +26,37 @@ export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }:
     update('targetWeightKg', kg);
   };
 
+  const unit = isImperial ? 'lb' : 'kg';
+
   return (
     <OnboardingLayout
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
-      <Text style={styles.title}>¿Cuál es tu{'\n'}peso deseado?</Text>
-      <Text style={styles.subtitle}>{GOAL_LABELS[data.goal] || 'Tu objetivo'}</Text>
+      <Text
+        style={styles.title}
+        accessibilityRole="header"
+      >
+        ¿Cual es tu{'\n'}peso deseado?
+      </Text>
+      <Text style={styles.subtitle}>
+        {GOAL_LABELS[data.goal] || 'Tu objetivo'}
+      </Text>
 
-      <View style={styles.rulerWrapper}>
+      <View
+        style={styles.rulerWrapper}
+        accessibilityLabel={`Peso objetivo: ${displayValue} ${unit}`}
+        accessibilityHint="Desliza horizontalmente para ajustar tu peso deseado"
+      >
         <RulerSlider
           value={isImperial ? displayValue : data.targetWeightKg}
           min={isImperial ? 88 : 30}
           max={isImperial ? 330 : 150}
           step={isImperial ? 1 : 0.5}
-          unit={isImperial ? 'lb' : 'kg'}
+          unit={unit}
           onChange={handleChange}
         />
       </View>
@@ -52,7 +65,19 @@ export default function Step11TargetWeight({ onNext, onBack, step, totalSteps }:
 }
 
 const styles = StyleSheet.create({
-  title: { ...typography.title, color: colors.black, marginTop: spacing.md },
-  subtitle: { ...typography.subtitle, color: colors.gray, marginTop: spacing.sm },
-  rulerWrapper: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  title: {
+    ...typography.title,
+    color: colors.black,
+    marginTop: spacing.md,
+  },
+  subtitle: {
+    ...typography.subtitle,
+    color: colors.gray,
+    marginTop: spacing.sm,
+  },
+  rulerWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

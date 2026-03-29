@@ -1,53 +1,85 @@
-# ── Stage 1: builder ────────────────────────────────────────────────────────
-FROM python:3.11-slim AS builder
+# =============================================================================
+# Fitsi IA — Backend Dockerfile (multi-stage, production-ready)
+# =============================================================================
+# Build:  docker build -t fitsiai-backend .
+# Run:    docker run -p 8000:8000 --env-file .env fitsiai-backend
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: builder — compile wheels so the final image stays small
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS builder
+
+# Prevent .pyc files and enable unbuffered output during build
+ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /build
 
-# Install build deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
+# System deps needed to compile psycopg2, asyncpg, etc.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       gcc \
+       libpq-dev \
+       python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Python deps into an isolated prefix so we can COPY them cleanly.
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# ── Stage 2: final ──────────────────────────────────────────────────────────
-FROM python:3.11-slim
+# ---------------------------------------------------------------------------
+# Stage 2: production — minimal runtime image
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS production
+
+# Prevent .pyc files, enable unbuffered stdout/stderr for container logging
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Labels (OCI standard)
+LABEL org.opencontainers.image.title="fitsiai-backend" \
+      org.opencontainers.image.description="Fitsi IA — FastAPI backend" \
+      org.opencontainers.image.source="https://github.com/fitsiai/calendar-app"
 
 WORKDIR /app
 
-# Runtime system deps only
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
+# Runtime-only system packages (no compiler, no dev headers)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libpq5 \
+       curl \
+       tini \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder
+# Copy pre-built Python packages from builder
 COPY --from=builder /install /usr/local
 
-# Create non-root user
-RUN groupadd --gid 1001 appgroup && \
-    useradd --uid 1001 --gid appgroup --no-create-home --shell /bin/false appuser
+# Create a non-root user
+RUN groupadd --gid 1001 appgroup \
+    && useradd --uid 1001 --gid appgroup --no-create-home --shell /bin/false appuser
 
 # Copy application code
 COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini .
+COPY gunicorn.conf.py .
 
-# Own files
+# Make sure appuser owns everything under /app
 RUN chown -R appuser:appgroup /app
 
 USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:8000/ || exit 1
+# Health check — hit the /health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Production: gunicorn with uvicorn workers (no --reload)
-CMD ["gunicorn", "app.main:app", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--workers", "2", \
-     "--bind", "0.0.0.0:8000", \
-     "--timeout", "120", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-"]
+# Graceful shutdown: gunicorn listens for SIGTERM by default
+STOPSIGNAL SIGTERM
+
+# Use tini as PID 1 for proper signal handling (SIGTERM → graceful shutdown)
+ENTRYPOINT ["tini", "--"]
+
+# Production server via gunicorn config file
+CMD ["gunicorn", "app.main:app", "-c", "gunicorn.conf.py"]

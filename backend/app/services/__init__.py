@@ -3,6 +3,7 @@ from .activity_service import ActivityService
 from .food_service import FoodService
 from .meal_service import MealService
 from .nutrition_service import NutritionService
+from .webhook_service import WebhookService
 
 __all__ = [
     "UserService",
@@ -10,4 +11,5 @@ __all__ = [
     "FoodService",
     "MealService",
     "NutritionService",
+    "WebhookService",
 ]

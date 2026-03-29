@@ -1,6 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Index
 from typing import Optional, List, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from .activity import Activity
@@ -11,6 +12,9 @@ if TYPE_CHECKING:
     from .onboarding_profile import OnboardingProfile
     from .ai_food_log import AIFoodLog
     from .subscription import Subscription
+    from .push_token import PushToken
+    from .workout import WorkoutLog
+    from .notification_schedule import NotificationSchedule
 
 
 class UserBase(SQLModel):
@@ -21,10 +25,17 @@ class UserBase(SQLModel):
 
 
 class User(UserBase, table=True):
+    __table_args__ = (
+        # Provider lookups: find user by OAuth provider + provider_id
+        Index("ix_user_provider_provider_id", "provider", "provider_id"),
+        # Created-at for admin user listing sorted by registration date
+        Index("ix_user_created_at", "created_at"),
+    )
+
     id: Optional[int] = Field(default=None, primary_key=True)
     hashed_password: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # OAuth fields
     provider: str = Field(default="email")
@@ -32,6 +43,9 @@ class User(UserBase, table=True):
 
     # Premium flag
     is_premium: bool = Field(default=False)
+
+    # Admin flag — grants access to /api/admin/* endpoints
+    is_admin: bool = Field(default=False)
 
     activities: List["Activity"] = Relationship(back_populates="user")
     meal_logs: List["MealLog"] = Relationship(back_populates="user")
@@ -41,6 +55,12 @@ class User(UserBase, table=True):
     onboarding_profile: Optional["OnboardingProfile"] = Relationship(back_populates="user")
     ai_food_logs: List["AIFoodLog"] = Relationship(back_populates="user")
     subscriptions: List["Subscription"] = Relationship(back_populates="user")
+    push_tokens: List["PushToken"] = Relationship(back_populates="user")
+    workout_logs: List["WorkoutLog"] = Relationship(back_populates="user")
+    notification_schedule: Optional["NotificationSchedule"] = Relationship(back_populates="user")
+
+    def __repr__(self) -> str:
+        return f"<User id={self.id} email={self.email!r} active={self.is_active} premium={self.is_premium}>"
 
 
 class UserCreate(UserBase):
@@ -53,6 +73,11 @@ class UserRead(UserBase):
     is_premium: bool = False
     created_at: datetime
     updated_at: datetime
+
+
+class UserAdminRead(UserRead):
+    """Extended schema that includes admin flag — only for admin-facing endpoints."""
+    is_admin: bool = False
 
 
 class UserUpdate(SQLModel):

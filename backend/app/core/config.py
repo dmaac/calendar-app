@@ -1,13 +1,17 @@
 from pydantic_settings import BaseSettings
 from pydantic import validator
 from typing import Optional, List
+import os
 
 
 class Settings(BaseSettings):
+    # TODO:SECURITY [Medium] Default DB URL contains dummy credentials. In production,
+    # this is always overridden by .env, but consider removing the default entirely
+    # and requiring DATABASE_URL to be set explicitly (like secret_key).
     database_url: str = "postgresql://user:password@localhost/calendar_db"
     secret_key: str = ""
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 15
 
     # Server configuration
     server_host: str = "localhost"
@@ -24,11 +28,13 @@ class Settings(BaseSettings):
     db_pool_size: int = 20
     db_max_overflow: int = 40
     db_pool_timeout: int = 30
-    db_pool_recycle: int = 1800
+    db_pool_recycle: int = 3600
 
     # Refresh token settings
+    # SEC: 7-day refresh window balances UX (weekly re-auth) vs risk surface.
+    # Override with REFRESH_TOKEN_EXPIRE_DAYS env var if needed.
     refresh_secret_key: str = ""
-    refresh_token_expire_days: int = 30
+    refresh_token_expire_days: int = 7
 
     # Apple OAuth
     apple_client_id: str = ""
@@ -42,8 +48,122 @@ class Settings(BaseSettings):
     # OpenAI (AI Food Scan)
     openai_api_key: str = ""
 
-    # CORS
-    cors_origins: List[str] = ["*"]
+    # Anthropic (Claude Vision)
+    anthropic_api_key: str = ""
+
+    # RevenueCat (server-side subscription verification)
+    revenuecat_api_key: str = ""
+
+    # AI provider selection: "claude", "openai", "auto" (Claude -> OpenAI -> mock)
+    ai_provider: str = "auto"
+
+    # AI cost kill switch (Item 158): when False, all AI requests route to
+    # template/haiku only (no sonnet/opus). Toggle via AI_EXPENSIVE_ENABLED=false.
+    ai_expensive_enabled: bool = True
+
+    # Supabase SSL CA certificate file path (for full SSL verification)
+    database_ssl_ca_file: str = ""
+
+    # Supabase
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
+    supabase_service_key: str = ""
+
+    # CORS — no default origins. Must be set explicitly in .env.
+    # In production set CORS_ORIGINS to a comma-separated list of allowed origins.
+    # SEC: Defaults to dev origins. Never defaults to "*".
+    cors_origins: List[str] = [
+        "http://localhost:8081",   # Metro bundler
+        "http://localhost:19006",  # Expo web
+    ]
+
+    # Allowed CORS methods and headers (restrict in production).
+    cors_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    cors_headers: List[str] = [
+        "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With",
+        "X-App-Version", "X-API-Version", "X-Platform", "X-Idempotency-Key", "If-None-Match",
+        "X-CSRF-Token",  # SEC: Required for CSRF double-submit cookie pattern
+    ]
+
+    # Deployment environment — set ENV=production in prod to enforce stricter checks.
+    env: str = "development"
+
+    # SEC: Trusted proxy IPs — only accept X-Forwarded-For from these addresses.
+    # Set TRUSTED_PROXY_IPS as a comma-separated list of IPs/CIDRs in .env.
+    # When empty, X-Forwarded-For is ignored and request.client.host is used.
+    trusted_proxy_ips: List[str] = []
+
+    # RevenueCat webhook secret (Authorization header value)
+    revenuecat_webhook_secret: str = ""
+
+    # Apple App Store shared secret (for receipt validation)
+    app_store_shared_secret: str = ""
+
+    # Google Play service account JSON (for receipt validation)
+    google_play_service_account: str = ""
+    google_play_package_name: str = "com.fitsiai.app"
+
+    # Password policy
+    password_min_length: int = 8
+
+    @validator('secret_key', always=True)
+    def secret_key_must_not_be_empty(cls, v, values):
+        if not v or not v.strip():
+            raise ValueError(
+                "SECRET_KEY must be set. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        if len(v.strip()) < 32:
+            raise ValueError(
+                "SECRET_KEY must be at least 32 characters. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        return v
+
+    @validator('refresh_secret_key', always=True)
+    def refresh_secret_key_must_not_be_empty(cls, v, values):
+        if not v or not v.strip():
+            raise ValueError(
+                "REFRESH_SECRET_KEY must be set. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        if len(v.strip()) < 32:
+            raise ValueError(
+                "REFRESH_SECRET_KEY must be at least 32 characters."
+            )
+        return v
+
+    @validator('cors_origins', always=True)
+    def cors_no_wildcard_in_production(cls, v, values):
+        env = values.get('env', 'development')
+        if env == 'production' and '*' in v:
+            raise ValueError(
+                "CORS_ORIGINS must not contain '*' in production. "
+                "Set CORS_ORIGINS to a comma-separated list of allowed origins."
+            )
+        return v
+
+    @validator('openai_api_key', always=True)
+    def warn_openai_key_in_production(cls, v, values):
+        env = values.get('env', 'development')
+        if env == 'production' and not v:
+            import warnings
+            warnings.warn("OPENAI_API_KEY is not set — AI food scanning will be unavailable.")
+        return v
+
+    @validator('database_url', always=True)
+    def reject_unsafe_database_url_in_production(cls, v, values):
+        env = values.get('env', 'development')
+        if env == 'production':
+            _dummy_markers = ['localhost', '127.0.0.1', 'user:password@', 'calendar_db']
+            for marker in _dummy_markers:
+                if marker in v:
+                    raise ValueError(
+                        f"SECURITY: DATABASE_URL contains '{marker}' which is not allowed "
+                        f"in production. Set DATABASE_URL to your production database "
+                        f"connection string."
+                    )
+        return v
 
     @validator('database_url_async', always=True, pre=True)
     def derive_async_url(cls, v, values):
@@ -54,6 +174,10 @@ class Settings(BaseSettings):
                     .replace('postgres://', 'postgresql+asyncpg://', 1)
                     .replace('sqlite://', 'sqlite+aiosqlite://', 1))
         return v
+
+    @property
+    def is_production(self) -> bool:
+        return self.env == "production"
 
     class Config:
         env_file = ".env"

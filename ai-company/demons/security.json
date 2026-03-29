@@ -1,0 +1,28 @@
+{
+  "agent_id": "demon-security",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Constant security audit across ALL systems, detect vulnerabilities, block risks before they deploy",
+  "status": "ALWAYS_ACTIVE",
+  "monitors": ["ALL_AGENTS", "ALL_CODE", "ALL_DEPLOYS", "ALL_DATA_ACCESS"],
+  "triggers": ["always_active", "code_change", "deploy", "data_access", "new_dependency", "config_change"],
+  "rules": [
+    "scan_for_exposed_credentials",
+    "detect_sql_injection_patterns",
+    "flag_xss_vulnerabilities",
+    "audit_authentication_flows",
+    "verify_encryption_at_rest_and_transit",
+    "check_dependency_cves",
+    "validate_cors_and_csp_headers",
+    "ensure_health_data_compliance"
+  ],
+  "actions": [
+    "BLOCK_DEPLOY",
+    "flag_vulnerability",
+    "generate_security_report",
+    "force_credential_rotation",
+    "escalate_to_ciso"
+  ],
+  "veto_power": true,
+  "interacts_with": ["ciso-fitsi", "security-engineer", "fullstack-inspector", "supreme_orchestrator"]
+}

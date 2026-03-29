@@ -1,4 +1,4 @@
-# Memoria Compartida — Cal AI Agent System
+# Memoria Compartida — Fitsi AI Agent System
 
 > Este archivo es leído por los 44 agentes del sistema.
 > Actualizar al inicio/fin de cada sesión importante.

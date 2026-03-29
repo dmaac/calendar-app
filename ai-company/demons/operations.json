@@ -1,0 +1,25 @@
+{
+  "agent_id": "demon-operations",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Optimize internal processes, reduce friction, automate repetitive tasks",
+  "status": "autonomous",
+  "monitors": ["coo-fitsi", "head-of-operations", "ci_cd_pipelines", "deployment_logs"],
+  "triggers": ["process_slowdown", "error_spike", "deploy_failure", "queue_buildup", "sla_breach"],
+  "rules": [
+    "monitor_ci_cd_pipeline_health",
+    "detect_deployment_failures",
+    "track_agent_response_times",
+    "identify_process_bottlenecks",
+    "flag_manual_steps_that_should_be_automated",
+    "audit_resource_utilization"
+  ],
+  "actions": [
+    "suggest_process_improvement",
+    "flag_operational_risk",
+    "generate_ops_report",
+    "recommend_automation",
+    "escalate_to_coo"
+  ],
+  "interacts_with": ["coo-fitsi", "fitsia-devops-coordinator", "devops-deployer"]
+}

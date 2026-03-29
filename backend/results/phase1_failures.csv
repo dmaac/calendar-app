@@ -1,0 +1,4 @@
+Method,Name,Error,Occurrences
+POST,POST /auth/login,CatchResponseError('Login failed for user_0061@fitsi.test: 401'),1
+POST,POST /auth/login,CatchResponseError('Login failed for user_0036@fitsi.test: 401'),1
+POST,POST /auth/login,CatchResponseError('Login failed for user_0034@fitsi.test: 401'),1

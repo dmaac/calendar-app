@@ -52,8 +52,16 @@ export const clearTokens = async (): Promise<void> => {
   ]);
 };
 
+/** Decoded JWT payload fields relevant to client-side checks. */
+interface JwtPayload {
+  exp?: number;
+  sub?: string | number;
+  iat?: number;
+  [key: string]: unknown;
+}
+
 /** Decode JWT payload without verification (for reading exp, sub client-side). */
-export const decodeJwtPayload = (token: string): Record<string, any> | null => {
+export const decodeJwtPayload = (token: string): JwtPayload | null => {
   try {
     const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
     const json = decodeURIComponent(
@@ -73,33 +81,53 @@ export const isTokenExpired = (token: string): boolean => {
 
 // ─── API calls (these use a plain fetch to avoid circular imports with api.ts) ─
 
-let _baseUrl = 'http://localhost:8000';
+/** Resolve the base URL using the same logic as api.ts/apiClient.ts. */
+const resolveAuthBaseUrl = (): string => {
+  if (__DEV__) {
+    if (Platform.OS === 'web') return 'http://localhost:8000';
+    if (Platform.OS === 'android') return 'http://10.0.2.2:8000';
+    return 'http://172.20.10.13:8000'; // iOS physical device — change to your local IP
+  }
+  return process.env.EXPO_PUBLIC_API_URL ?? 'https://api.fitsiai.app';
+};
+
+let _baseUrl = resolveAuthBaseUrl();
 export const setBaseUrl = (url: string) => { _baseUrl = url; };
 
-const authFetch = async (path: string, body: object): Promise<any> => {
+/** Generic JSON response from auth endpoints. */
+interface AuthJsonResponse {
+  access_token?: string;
+  refresh_token?: string;
+  token_type?: string;
+  user_id?: number;
+  detail?: string;
+  [key: string]: unknown;
+}
+
+const authFetch = async (path: string, body: object): Promise<AuthJsonResponse> => {
   const res = await fetch(`${_baseUrl}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    const err: { detail?: string } = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || `HTTP ${res.status}`);
   }
-  return res.json();
+  return res.json() as Promise<AuthJsonResponse>;
 };
 
-const authFetchForm = async (path: string, body: URLSearchParams): Promise<any> => {
+const authFetchForm = async (path: string, body: URLSearchParams): Promise<AuthJsonResponse> => {
   const res = await fetch(`${_baseUrl}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    const err: { detail?: string } = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || `HTTP ${res.status}`);
   }
-  return res.json();
+  return res.json() as Promise<AuthJsonResponse>;
 };
 
 // ─── Auth methods ─────────────────────────────────────────────────────────────
@@ -110,12 +138,12 @@ export const login = async (credentials: LoginRequest): Promise<{ tokens: AuthTo
   params.append('password', credentials.password);
   const data = await authFetchForm('/auth/login', params);
   const tokens: AuthTokens = {
-    access_token:  data.access_token,
-    refresh_token: data.refresh_token,
+    access_token:  data.access_token ?? '',
+    refresh_token: data.refresh_token ?? '',
     token_type:    'bearer',
   };
   await saveTokens(tokens);
-  return { tokens, userId: data.user_id };
+  return { tokens, userId: data.user_id ?? 0 };
 };
 
 export const register = async (req: RegisterRequest): Promise<void> => {
@@ -125,39 +153,40 @@ export const register = async (req: RegisterRequest): Promise<void> => {
 export const loginWithApple = async (req: AppleAuthRequest): Promise<{ tokens: AuthTokens; userId: number }> => {
   const data = await authFetch('/auth/apple', req);
   const tokens: AuthTokens = {
-    access_token:  data.access_token,
-    refresh_token: data.refresh_token,
+    access_token:  data.access_token ?? '',
+    refresh_token: data.refresh_token ?? '',
     token_type:    'bearer',
   };
   await saveTokens(tokens);
-  return { tokens, userId: data.user_id };
+  return { tokens, userId: data.user_id ?? 0 };
 };
 
 export const loginWithGoogle = async (req: GoogleAuthRequest): Promise<{ tokens: AuthTokens; userId: number }> => {
   const data = await authFetch('/auth/google', req);
   const tokens: AuthTokens = {
-    access_token:  data.access_token,
-    refresh_token: data.refresh_token,
+    access_token:  data.access_token ?? '',
+    refresh_token: data.refresh_token ?? '',
     token_type:    'bearer',
   };
   await saveTokens(tokens);
-  return { tokens, userId: data.user_id };
+  return { tokens, userId: data.user_id ?? 0 };
 };
 
-/** Rolling refresh — revokes old token, issues new pair. */
+/** Rolling refresh -- revokes old token, issues new pair. */
 export const refreshSession = async (): Promise<AuthTokens | null> => {
   const refreshToken = await getRefreshToken();
   if (!refreshToken) return null;
   try {
     const data = await authFetch('/auth/refresh', { refresh_token: refreshToken });
     const tokens: AuthTokens = {
-      access_token:  data.access_token,
-      refresh_token: data.refresh_token,
+      access_token:  data.access_token ?? '',
+      refresh_token: data.refresh_token ?? '',
       token_type:    'bearer',
     };
     await saveTokens(tokens);
     return tokens;
-  } catch {
+  } catch (err) {
+    console.error('[AuthService] Session refresh failed, clearing tokens:', err);
     await clearTokens();
     return null;
   }

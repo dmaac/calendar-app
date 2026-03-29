@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius, useLayout } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import ScrollPicker from '../../components/onboarding/ScrollPicker';
@@ -26,7 +27,7 @@ const ftInToCm = (ft: number, inch: number) => Math.round((ft * 12 + inch) * 2.5
 const kgToLb = (kg: number) => Math.round(kg * 2.20462);
 const lbToKg = (lb: number) => Math.round(lb / 2.20462);
 
-export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step08HeightWeight({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, updateMany } = useOnboarding();
   const [unit, setUnit] = useState<'metric' | 'imperial'>(data.unitSystem);
 
@@ -56,37 +57,92 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
     updateMany({ unitSystem: newUnit });
   };
 
+  // ── Validation: Catch extreme/unrealistic values ──────────────────────────
+  const validation = useMemo(() => {
+    const h = data.heightCm;
+    const w = data.weightKg;
+    const bmi = w / Math.pow(h / 100, 2);
+
+    if (h < 130 || h > 230) {
+      return { valid: false, warning: 'Verifica tu altura. El rango normal es 130-230 cm.' };
+    }
+    if (w < 35 || w > 200) {
+      return { valid: false, warning: 'Verifica tu peso. El rango normal es 35-200 kg.' };
+    }
+    if (bmi < 13) {
+      return { valid: false, warning: 'La combinacion de altura y peso parece inusual. Verifica tus datos.' };
+    }
+    if (bmi > 50) {
+      return { valid: false, warning: 'La combinacion de altura y peso parece inusual. Verifica tus datos.' };
+    }
+    return { valid: true, warning: '' };
+  }, [data.heightCm, data.weightKg]);
+
+  // ── Summary line showing BMI context ─────────────────────────────────────
+  const summaryText = useMemo(() => {
+    if (unit === 'imperial') {
+      const lbDisplay = kgToLb(data.weightKg);
+      const { ft: fDisplay, inch: iDisplay } = cmToFtIn(data.heightCm);
+      return `${fDisplay}'${iDisplay}" y ${lbDisplay} lb`;
+    }
+    return `${data.heightCm} cm y ${data.weightKg} kg`;
+  }, [data.heightCm, data.weightKg, unit]);
+
   return (
     <OnboardingLayout
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
-      footer={<PrimaryButton label="Continuar" onPress={onNext} />}
+      onSkip={onSkip}
+      footer={
+        <View>
+          {validation.warning ? (
+            <View style={styles.warningRow}>
+              <Ionicons name="alert-circle-outline" size={16} color="#D97706" />
+              <Text style={styles.warningText}>{validation.warning}</Text>
+            </View>
+          ) : (
+            <View style={styles.summaryRow}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+              <Text style={styles.summaryText}>{summaryText}</Text>
+            </View>
+          )}
+          <PrimaryButton label="Continuar" onPress={onNext} disabled={!validation.valid} />
+        </View>
+      }
     >
-      <Text style={styles.title}>Altura y peso</Text>
-      <Text style={styles.subtitle}>Esto nos ayudará a calibrar tu plan personalizado.</Text>
+      <Text style={styles.title}>Tu altura y peso</Text>
+      <Text style={styles.subtitle}>
+        Con estos datos calculamos tu metabolismo basal y calorias diarias.
+      </Text>
 
       {/* Unit toggle */}
-      <View style={styles.toggleRow}>
-        {(['imperial', 'metric'] as const).map(u => (
-          <TouchableOpacity
-            key={u}
-            onPress={() => switchUnit(u)}
-            style={[styles.toggleBtn, unit === u && styles.toggleBtnActive]}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleText, unit === u && styles.toggleTextActive]}>
-              {u.charAt(0).toUpperCase() + u.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.toggleRow} accessibilityRole="radiogroup">
+        {(['imperial', 'metric'] as const).map(u => {
+          const label = u === 'imperial' ? 'Imperial (ft, lb)' : 'Metrico (cm, kg)';
+          return (
+            <TouchableOpacity
+              key={u}
+              onPress={() => switchUnit(u)}
+              style={[styles.toggleBtn, unit === u && styles.toggleBtnActive]}
+              activeOpacity={0.8}
+              accessibilityLabel={label}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: unit === u }}
+            >
+              <Text style={[styles.toggleText, unit === u && styles.toggleTextActive]}>
+                {u === 'imperial' ? 'Imperial' : 'Metrico'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Pickers */}
       <View style={styles.pickersRow}>
         {unit === 'imperial' ? (
           <>
-            <View style={styles.pickerCol}>
+            <View style={styles.pickerCol} accessibilityLabel="Selector de altura">
               <Text style={styles.pickerLabel}>Altura</Text>
               <View style={styles.pickerPair}>
                 <ScrollPicker
@@ -104,7 +160,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
               </View>
             </View>
             <View style={styles.divider} />
-            <View style={styles.pickerCol}>
+            <View style={styles.pickerCol} accessibilityLabel="Selector de peso">
               <Text style={styles.pickerLabel}>Peso</Text>
               <ScrollPicker
                 items={LB_OPTIONS}
@@ -116,7 +172,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
           </>
         ) : (
           <>
-            <View style={styles.pickerCol}>
+            <View style={styles.pickerCol} accessibilityLabel="Selector de altura">
               <Text style={styles.pickerLabel}>Altura</Text>
               <ScrollPicker
                 items={CM_OPTIONS}
@@ -126,7 +182,7 @@ export default function Step08HeightWeight({ onNext, onBack, step, totalSteps }:
               />
             </View>
             <View style={styles.divider} />
-            <View style={styles.pickerCol}>
+            <View style={styles.pickerCol} accessibilityLabel="Selector de peso">
               <Text style={styles.pickerLabel}>Peso</Text>
               <ScrollPicker
                 items={KG_OPTIONS}
@@ -173,4 +229,29 @@ const styles = StyleSheet.create({
   pickerPair: { flexDirection: 'row', gap: spacing.xs },
   pickerLabel: { ...typography.label, color: colors.black },
   divider: { width: 1, height: 200, backgroundColor: colors.grayLight, marginTop: 28 },
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: '#FEF3C7',
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  warningText: {
+    ...typography.caption,
+    color: '#92400E',
+    flex: 1,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  summaryText: {
+    ...typography.label,
+    color: colors.gray,
+  },
 });

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, typography, spacing } from '../../theme';
+import { haptics } from '../../hooks/useHaptics';
 
 interface OptionCardProps {
   label: string;
@@ -31,11 +32,12 @@ export default function OptionCard({
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
-    Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, speed: 50 }).start();
+    haptics.selection();
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
   };
 
   return (
@@ -46,6 +48,9 @@ export default function OptionCard({
         onPressOut={handlePressOut}
         activeOpacity={1}
         style={[styles.card, selected && styles.cardSelected]}
+        accessibilityLabel={`${label}${subtitle ? `, ${subtitle}` : ''}`}
+        accessibilityRole="radio"
+        accessibilityState={{ selected }}
       >
         {/* Ícono izquierdo */}
         {(icon || emoji) && (

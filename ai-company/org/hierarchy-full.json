@@ -1,0 +1,671 @@
+{
+  "system": "Fitsi IA — Autonomous AI Company",
+  "version": "8.0",
+  "rule": "MAX_DIRECT_REPORTS = 8, HARD_LIMIT = 10",
+  "total_agents": 1299,
+  "generated_by": "CHRO + Head of Talent autonomous assignment",
+
+  "root": {
+    "id": "fitsia-orchestrator",
+    "role": "Supreme Orchestrator",
+    "manages": ["demons-group", "board-chairman", "ceo-fitsi"],
+    "colleagues": []
+  },
+
+  "demons-group": {
+    "id": "demon-intelligence",
+    "role": "Lead Demon (Intelligence)",
+    "owner": "fitsia-orchestrator",
+    "manages": ["demon-decision", "demon-performance", "demon-security", "demon-data", "demon-growth", "demon-experimentation", "demon-operations", "demon-evolution", "demon-crisis"],
+    "colleagues": ["ceo-fitsi", "board-chairman"]
+  },
+
+  "board": {
+    "id": "board-chairman",
+    "role": "Chairman",
+    "owner": "fitsia-orchestrator",
+    "manages": ["board-advisor-tech", "board-advisor-finance", "board-advisor-growth", "board-advisor-people"],
+    "colleagues": ["demon-intelligence"],
+    "oversees": "ceo-fitsi"
+  },
+
+  "ceo": {
+    "id": "ceo-fitsi",
+    "role": "CEO",
+    "owner": "board-chairman",
+    "manages": ["coo-fitsi", "chief-technology-officer", "cpo-fitsi", "cfo-fitsi", "cdao-fitsi", "cgo-fitsi", "ciso-fitsi", "chro-fitsi"],
+    "colleagues": ["board-chairman", "demon-decision"]
+  },
+
+  "coo": {
+    "id": "coo-fitsi",
+    "role": "COO",
+    "owner": "ceo-fitsi",
+    "manages": ["vp-of-platform", "head-of-operations", "head-of-partnerships", "ironside-orchestrator"],
+    "colleagues": ["chief-technology-officer", "cgo-fitsi"]
+  },
+
+  "cto": {
+    "id": "chief-technology-officer",
+    "role": "CTO",
+    "owner": "ceo-fitsi",
+    "manages": ["vp-of-engineering", "vp-of-mobile-engineering", "chief-software-architect", "cto-office-lead"],
+    "colleagues": ["cdao-fitsi", "coo-fitsi"],
+    "note": "CTO Office (9 agents) rolls up via cto-office-lead"
+  },
+
+  "cpo": {
+    "id": "cpo-fitsi",
+    "role": "CPO",
+    "owner": "ceo-fitsi",
+    "manages": ["vp-of-product", "head-of-ux-research", "fitsia-feature-coordinator"],
+    "colleagues": ["cgo-fitsi", "cdao-fitsi"]
+  },
+
+  "cfo": {
+    "id": "cfo-fitsi",
+    "role": "CFO",
+    "owner": "ceo-fitsi",
+    "manages": ["head-of-revenue", "vp-of-finance", "head-of-financial-planning"],
+    "colleagues": ["cgo-fitsi"]
+  },
+
+  "cdao": {
+    "id": "cdao-fitsi",
+    "role": "CDAO",
+    "owner": "ceo-fitsi",
+    "manages": ["vp-of-ai-systems", "fitsia-ai-coordinator", "fitsia-science-coordinator", "fitsia-data-coordinator"],
+    "colleagues": ["chief-technology-officer", "cpo-fitsi"]
+  },
+
+  "cgo": {
+    "id": "cgo-fitsi",
+    "role": "CGO",
+    "owner": "ceo-fitsi",
+    "manages": ["head-of-growth-engineering", "head-of-marketing", "fitsia-marketing-coordinator"],
+    "colleagues": ["cpo-fitsi", "cfo-fitsi"]
+  },
+
+  "ciso": {
+    "id": "ciso-fitsi",
+    "role": "CISO",
+    "owner": "ceo-fitsi",
+    "manages": ["head-of-compliance", "security-lead-appsec", "security-lead-threat", "security-lead-infra", "security-lead-privacy"],
+    "colleagues": ["coo-fitsi", "chief-technology-officer"]
+  },
+
+  "chro": {
+    "id": "chro-fitsi",
+    "role": "CHRO",
+    "owner": "ceo-fitsi",
+    "manages": ["head-of-talent", "head-of-culture", "fitsia-management-coordinator"],
+    "colleagues": ["ceo-fitsi"]
+  },
+
+  "divisions": {
+
+    "engineering": {
+      "vp-of-engineering": {
+        "owner": "chief-technology-officer",
+        "manages": ["fitsia-backend-coordinator", "fitsia-qa-coordinator", "director-of-engineering", "director-of-sre"],
+        "colleagues": ["vp-of-mobile-engineering"]
+      },
+      "vp-of-mobile-engineering": {
+        "owner": "chief-technology-officer",
+        "manages": ["fitsia-frontend-coordinator", "mobile-platform-lead", "director-of-mobile-engineering"],
+        "colleagues": ["vp-of-engineering"]
+      },
+      "chief-software-architect": {
+        "owner": "chief-technology-officer",
+        "manages": ["arch-lead-system", "arch-lead-cloud", "arch-lead-data", "arch-lead-security", "arch-lead-patterns"],
+        "colleagues": ["vp-of-engineering", "vp-of-platform"]
+      },
+
+      "backend": {
+        "coordinator": "fitsia-backend-coordinator",
+        "owner": "vp-of-engineering",
+        "manages": ["backend-lead-core", "backend-lead-api", "backend-lead-data", "backend-lead-infra", "backend-lead-async"],
+        "subgroups": {
+          "backend-lead-core": {
+            "agents": ["python-backend-engineer", "python-dev-expert", "backend-python-engineer", "backend-typescript-engineer", "backend-go-engineer", "backend-java-engineer", "backend-nodejs-engineer", "backend-rust-engineer"],
+            "count": 8
+          },
+          "backend-lead-api": {
+            "agents": ["api-design-engineer", "backend-api-versioning-engineer", "backend-cors-engineer", "backend-pagination-engineer", "backend-serialization-engineer", "backend-documentation-engineer", "backend-compression-engineer", "backend-internationalization-engineer"],
+            "count": 8
+          },
+          "backend-lead-data": {
+            "agents": ["backend-cache-engineer", "backend-data-validation-engineer", "backend-data-seeding-engineer", "backend-data-export-engineer", "backend-search-engineer", "backend-batch-processing-engineer", "backend-stream-processing-engineer", "backend-logging-engineer"],
+            "count": 8
+          },
+          "backend-lead-infra": {
+            "agents": ["backend-deployment-engineer", "backend-container-engineer", "backend-ci-pipeline-engineer", "backend-configuration-engineer", "backend-health-check-engineer", "backend-monitoring-engineer", "backend-observability-engineer", "backend-dns-engineer"],
+            "count": 8
+          },
+          "backend-lead-async": {
+            "agents": ["backend-queue-engineer", "backend-background-task-engineer", "backend-cron-job-engineer", "backend-webhook-engineer", "backend-notification-engineer", "backend-email-engineer", "backend-pdf-engineer", "backend-file-upload-engineer"],
+            "count": 8
+          },
+          "backend-lead-security": {
+            "agents": ["backend-auth-engineer", "backend-security-engineer", "backend-encryption-engineer", "backend-session-engineer", "backend-rate-limiting-engineer", "backend-throttling-engineer", "backend-idempotency-engineer", "backend-audit-log-engineer"],
+            "count": 8
+          },
+          "backend-lead-reliability": {
+            "agents": ["backend-reliability-engineer", "backend-scalability-engineer", "backend-capacity-engineer", "backend-rollback-engineer", "backend-error-handling-engineer", "backend-incident-engineer", "backend-cost-engineer", "backend-testing-engineer"],
+            "count": 8
+          },
+          "backend-lead-integration": {
+            "agents": ["backend-middleware-engineer", "backend-proxy-engineer", "backend-cdn-engineer", "backend-multi-tenancy-engineer", "backend-orchestration-engineer", "backend-payment-engineer", "backend-feature-flag-engineer", "backend-dependency-engineer"],
+            "count": 8
+          },
+          "backend-lead-protocols": {
+            "agents": ["graphql-engineer", "grpc-engineer", "websocket-engineer", "redis-engineer", "realtime-systems-engineer", "event-driven-engineer", "microservices-engineer", "serverless-engineer"],
+            "count": 8
+          },
+          "backend-lead-database": {
+            "agents": ["database-engineer-postgresql", "database-engineer-mysql", "database-engineer-mongodb", "database-migration-engineer", "database-performance-engineer", "database-replication-engineer", "sql-optimization-engineer", "sqlmodel-engineer", "data-sync-engineer"],
+            "count": 9
+          }
+        },
+        "total": 80
+      },
+
+      "mobile": {
+        "coordinator": "fitsia-frontend-coordinator",
+        "owner": "vp-of-mobile-engineering",
+        "manages": ["mobile-lead-core-ui", "mobile-lead-navigation", "mobile-lead-platform", "mobile-lead-media", "mobile-lead-data", "mobile-lead-quality"],
+        "subgroups": {
+          "mobile-lead-core-ui": {
+            "agents": ["ui-engineer", "onboarding-builder", "ux-polish-agent", "mobile-ui-ux-engineer", "mobile-forms-engineer", "mobile-empty-state-engineer", "mobile-icon-engineer", "mobile-typography-engineer"],
+            "count": 8
+          },
+          "mobile-lead-navigation": {
+            "agents": ["mobile-navigation-engineer", "mobile-deep-linking-engineer", "mobile-splash-screen-engineer", "mobile-skeleton-loading-engineer", "mobile-bottom-sheet-engineer", "mobile-gesture-engineer", "mobile-animation-engineer", "mobile-haptics-engineer"],
+            "count": 8
+          },
+          "mobile-lead-platform": {
+            "agents": ["react-native-engineer", "flutter-engineer", "android-engineer-kotlin", "ios-engineer-swift", "mobile-software-engineer", "mobile-state-management-engineer", "mobile-offline-first-architect", "mobile-arch"],
+            "count": 8
+          },
+          "mobile-lead-media": {
+            "agents": ["mobile-camera-engineer", "mobile-video-engineer", "mobile-sharing-engineer", "mobile-maps-engineer", "mobile-calendar-engineer", "mobile-webview-engineer", "mobile-widget-engineer", "mobile-watch-engineer"],
+            "count": 8
+          },
+          "mobile-lead-data": {
+            "agents": ["mobile-storage-engineer", "mobile-networking-engineer", "mobile-sync-engineer", "mobile-auth-engineer", "mobile-payments-engineer", "mobile-push-notification-engineer", "mobile-localization-engineer", "mobile-search-ui-engineer"],
+            "count": 8
+          },
+          "mobile-lead-quality": {
+            "agents": ["mobile-performance-engineer", "mobile-memory-optimization-engineer", "mobile-battery-optimization-engineer", "mobile-crash-analysis-specialist", "mobile-error-handling-engineer", "mobile-observability-engineer", "mobile-accessibility-engineer", "mobile-security-engineer"],
+            "count": 8
+          },
+          "mobile-lead-devops": {
+            "agents": ["mobile-ci-cd-engineer", "mobile-release-engineer", "mobile-edge-computing-engineer", "mobile-theme-engineer", "mobile-onboarding-engineer", "mobile-device-lab-engineer"],
+            "count": 6
+          }
+        },
+        "total": 54
+      },
+
+      "architecture": {
+        "lead": "chief-software-architect",
+        "subgroups": {
+          "arch-lead-system": {
+            "agents": ["software-architect", "systems-architect", "full-stack-architect", "distributed-systems-architect", "scalability-architect", "performance-architect", "reliability-architect", "cost-aware-architect"],
+            "count": 8
+          },
+          "arch-lead-cloud": {
+            "agents": ["cloud-architect", "edge-computing-architect", "serverless-architect", "multi-region-architect", "network-architect", "storage-architect", "zero-downtime-architect", "multi-tenant-architect"],
+            "count": 8
+          },
+          "arch-lead-data": {
+            "agents": ["data-architect", "database-architect", "cache-architect", "search-architect", "realtime-architect", "event-driven-architect", "event-sourcing-architect", "cqrs-architect"],
+            "count": 8
+          },
+          "arch-lead-security": {
+            "agents": ["security-architect", "identity-architect", "zero-trust-architect", "compliance-architect", "accessibility-architect", "rate-limiting-architect", "circuit-breaker-architect"],
+            "count": 7
+          },
+          "arch-lead-patterns": {
+            "agents": ["frontend-architect", "backend-architect", "mobile-architect", "platform-architect", "api-architect", "microservices-architect", "integration-architect", "internationalization-architect"],
+            "count": 8
+          },
+          "arch-lead-modernization": {
+            "agents": ["domain-driven-design-architect", "hexagonal-architecture-specialist", "clean-architecture-specialist", "saga-pattern-architect", "legacy-modernization-architect", "migration-architecture-specialist", "plugin-architecture-specialist", "sdk-architecture-specialist", "testing-architecture-specialist", "technical-debt-architect", "observability-architect"],
+            "count": 11,
+            "note": "Split if needed — 2 sub-leads of 5-6"
+          }
+        },
+        "total": 50
+      }
+    },
+
+    "ai_data": {
+      "vp-of-ai-systems": {
+        "owner": "cdao-fitsi",
+        "manages": ["fitsia-ai-coordinator", "ai-infra-lead", "fitsia-science-coordinator", "fitsia-data-coordinator", "director-of-ai-engineering"],
+        "colleagues": ["vp-of-engineering"]
+      },
+
+      "ai_engineering": {
+        "coordinator": "fitsia-ai-coordinator",
+        "owner": "vp-of-ai-systems",
+        "manages": ["ai-lead-vision", "ai-lead-nlp", "ai-lead-ml-ops", "ai-lead-food", "ai-lead-fitness"],
+        "subgroups": {
+          "ai-lead-vision": {
+            "agents": ["ai-food-recognition-engineer", "computer-vision-engineer", "computer-vision-mobile-engineer", "ai-image-pipeline-engineer", "ai-confidence-calibration-engineer", "ai-classification-engineer", "edge-ai-optimization-engineer", "multimodal-mobile-engineer"],
+            "count": 8
+          },
+          "ai-lead-nlp": {
+            "agents": ["nlp-engineer", "nlp-food-logging-engineer", "ai-voice-food-logging-engineer", "ai-summarization-engineer", "ai-translation-engineer", "ai-prompt-optimization-engineer", "conversational-ai-engineer", "voice-interface-engineer"],
+            "count": 8
+          },
+          "ai-lead-ml-ops": {
+            "agents": ["ml-model-training-engineer", "ml-model-serving-engineer", "ml-data-pipeline-engineer", "ml-experiment-tracking-engineer", "ml-feature-engineering-specialist", "ml-monitoring-engineer", "ai-evaluation-engineer", "ai-testing-engineer"],
+            "count": 8
+          },
+          "ai-lead-food": {
+            "agents": ["ai-nutrition-analysis-engineer", "ai-barcode-processing-engineer", "ai-meal-planning-engineer", "ai-recipe-generation-engineer", "ai-dietary-advisor-engineer", "ai-calorie-prediction-engineer", "ai-supplement-advisor-engineer", "ai-hydration-advisor-engineer"],
+            "count": 8
+          },
+          "ai-lead-fitness": {
+            "agents": ["ai-exercise-form-engineer", "ai-rep-counter-engineer", "ai-workout-recommender-engineer", "ai-weight-trajectory-engineer", "ai-churn-prediction-engineer", "ai-personalization-engineer", "ai-coach-engine-engineer", "reinforcement-learning-engineer"],
+            "count": 8
+          },
+          "ai-lead-infra": {
+            "agents": ["ai-infrastructure-engineer", "ai-platform-engineer", "ai-scalability-engineer", "ai-caching-engineer", "ai-batch-processing-engineer", "ai-streaming-engineer", "ai-real-time-engineer", "ai-multi-provider-engineer"],
+            "count": 8
+          },
+          "ai-lead-governance": {
+            "agents": ["ai-safety-engineer", "ai-ethics-engineer", "ai-governance-engineer", "ai-documentation-engineer", "ai-observability-engineer", "ai-migration-engineer", "ai-fallback-engineer", "ai-rate-limiting-engineer"],
+            "count": 8
+          },
+          "ai-lead-integration": {
+            "agents": ["ai-mobile-integration-engineer", "ai-sdk-engineer", "ai-multi-tenant-engineer", "ai-content-generation-engineer", "ai-embedding-engineer", "ai-clustering-engineer", "on-device-ml-engineer", "llm-mobile-integration-engineer"],
+            "count": 8
+          },
+          "ai-lead-cost": {
+            "agents": ["ai-cost-optimization-engineer", "ai-workflow-automation-engineer", "ai-agent-orchestrator", "ai-context-window-engineer", "ai-incident-response-engineer", "ai-simulation-lead", "ai-fine-tuning-engineer", "prompt-engineer-mobile"],
+            "count": 8
+          },
+          "ai-lead-advanced": {
+            "agents": ["deep-learning-engineer", "generative-ai-engineer", "knowledge-graph-engineer", "time-series-ai-engineer", "anomaly-detection-engineer", "semantic-search-engineer", "recommendation-systems-engineer", "conversational-ai-lead"],
+            "count": 8
+          }
+        },
+        "total": 80
+      },
+
+      "ai_leadership": {
+        "lead": "director-of-ai-engineering",
+        "owner": "vp-of-ai-systems",
+        "manages": ["ai-leadership-strategy", "ai-leadership-platform", "ai-leadership-safety", "ai-leadership-product"],
+        "subgroups": {
+          "ai-leadership-strategy": {
+            "agents": ["ai-research-lead", "ai-automation-lead", "ai-continuous-learning-lead", "ai-experimentation-lead", "ai-scaling-lead", "ai-deployment-lead", "ai-devtools-lead", "ai-simulation-lead"],
+            "count": 8
+          },
+          "ai-leadership-platform": {
+            "agents": ["ai-platform-lead", "ai-infrastructure-lead", "ai-data-pipeline-lead", "ai-orchestration-lead", "ai-systems-architect-lead", "llm-systems-lead", "multi-agent-systems-lead", "prompt-engineering-lead"],
+            "count": 8
+          },
+          "ai-leadership-safety": {
+            "agents": ["ai-safety-lead", "ai-security-lead", "ai-privacy-lead", "ai-governance-lead", "ai-monitoring-lead", "ai-testing-lead", "ai-incident-response-lead", "ai-lifecycle-manager"],
+            "count": 8
+          },
+          "ai-leadership-product": {
+            "agents": ["ai-product-lead", "ai-personalization-lead", "ai-performance-lead", "ai-optimization-lead", "ai-cost-optimization-lead", "ai-feedback-systems-lead", "ai-mobile-lead", "edge-ai-lead", "head-of-ai-agents", "director-of-autonomous-systems"],
+            "count": 10
+          }
+        },
+        "total": 35
+      },
+
+      "science": {
+        "coordinator": "fitsia-science-coordinator",
+        "owner": "vp-of-ai-systems",
+        "manages": ["science-lead-nutrition", "science-lead-fitness", "science-lead-specialists"],
+        "subgroups": {
+          "science-lead-nutrition": {
+            "agents": ["nutrition-science-advisor", "nutri-macros-expert", "nutri-micros-expert", "nutri-allergies", "nutri-hydration", "nutri-meal-timing", "nutri-gut-health", "nutri-supplements"],
+            "count": 8
+          },
+          "science-lead-fitness": {
+            "agents": ["fitness-science-advisor", "exercise-physiology-expert", "sports-medicine-advisor", "biomechanics-expert", "kinesiology-expert", "nutri-sports-nutrition", "nutri-weight-management"],
+            "count": 7
+          },
+          "science-lead-specialists": {
+            "agents": ["nutri-cultural-foods", "nutri-eating-disorders", "nutri-food-quality", "nutri-geriatric", "nutri-pediatric", "nutri-pregnancy"],
+            "count": 6
+          }
+        },
+        "total": 21
+      },
+
+      "data_engineering": {
+        "coordinator": "fitsia-data-coordinator",
+        "owner": "vp-of-ai-systems",
+        "manages": ["data-lead-pipelines", "data-lead-analytics", "data-lead-governance", "data-lead-visualization", "data-lead-tracking"],
+        "subgroups": {
+          "data-lead-pipelines": {
+            "agents": ["data-engineer", "data-orchestration-engineer", "data-transformation-engineer", "etl-infrastructure-engineer", "data-lake-engineer", "data-warehouse-engineer", "streaming-data-engineer", "data-platform-engineer"],
+            "count": 8
+          },
+          "data-lead-analytics": {
+            "agents": ["analytics-engineer", "bi-engineer", "data-analyst", "cohort-analysis-engineer", "funnel-analysis-engineer", "real-time-analytics-engineer", "growth-analytics-engineer", "marketing-analytics-engineer"],
+            "count": 8
+          },
+          "data-lead-governance": {
+            "agents": ["data-governance-engineer", "data-quality-engineer", "data-compliance-engineer", "data-privacy-engineer", "data-retention-engineer", "data-lineage-engineer", "data-documentation-engineer", "data-catalog-engineer"],
+            "count": 8
+          },
+          "data-lead-visualization": {
+            "agents": ["data-visualization-engineer", "data-api-engineer", "data-integration-engineer", "data-monitoring-engineer", "data-testing-engineer", "data-archival-engineer", "data-migration-engineer"],
+            "count": 7
+          },
+          "data-lead-tracking": {
+            "agents": ["event-tracking-engineer", "metrics-engineer", "product-analytics-engineer", "revenue-analytics-engineer", "health-analytics-engineer", "exercise-data-engineer", "nutrition-data-engineer", "wearable-data-engineer", "user-behavior-analytics-engineer", "personalization-systems-engineer"],
+            "count": 10,
+            "note": "At hard limit — consider splitting"
+          }
+        },
+        "total": 41
+      }
+    },
+
+    "infrastructure": {
+      "vp-of-platform": {
+        "owner": "coo-fitsi",
+        "manages": ["fitsia-devops-coordinator", "platform-lead-cloud", "platform-lead-observability", "director-of-devops", "director-of-sre", "director-of-platform-engineering"],
+        "colleagues": ["vp-of-engineering"]
+      },
+
+      "devops": {
+        "coordinator": "fitsia-devops-coordinator",
+        "owner": "vp-of-platform",
+        "manages": ["devops-lead-cicd", "devops-lead-containers", "devops-lead-iac", "devops-lead-reliability", "devops-lead-tools"],
+        "subgroups": {
+          "devops-lead-cicd": {
+            "agents": ["ci-cd-pipeline-engineer", "gitops-engineer", "devops-engineer", "devsecops-engineer", "artifact-management-engineer", "environment-management-engineer", "configuration-management-engineer"],
+            "count": 7
+          },
+          "devops-lead-containers": {
+            "agents": ["docker-engineer", "kubernetes-engineer", "helm-engineer", "container-registry-engineer", "container-security-engineer", "terraform-engineer"],
+            "count": 6
+          },
+          "devops-lead-iac": {
+            "agents": ["infrastructure-automation-engineer", "infrastructure-documentation-engineer", "infrastructure-security-engineer", "resource-tagging-engineer", "cost-optimization-engineer", "finops-engineer"],
+            "count": 6
+          },
+          "devops-lead-reliability": {
+            "agents": ["sre-engineer", "on-call-engineer", "postmortem-engineer", "runbook-engineer", "incident-management-engineer", "disaster-recovery-engineer", "backup-recovery-engineer"],
+            "count": 7
+          },
+          "devops-lead-tools": {
+            "agents": ["git-version-manager", "git-branch-strategist", "git-changelog-writer", "git-pr-reviewer", "git-ci-guardian"],
+            "count": 5
+          }
+        },
+        "total": 31
+      },
+
+      "cloud_platform": {
+        "lead": "platform-lead-cloud",
+        "owner": "vp-of-platform",
+        "manages": ["cloud-lead-providers", "cloud-lead-networking", "cloud-lead-storage", "cloud-lead-edge"],
+        "subgroups": {
+          "cloud-lead-providers": {
+            "agents": ["cloud-architect-aws", "cloud-architect-azure", "cloud-architect-gcp", "cloud-security-engineer", "multi-cloud-engineer", "platform-engineer", "serverless-engineer"],
+            "count": 7
+          },
+          "cloud-lead-networking": {
+            "agents": ["network-engineer", "load-balancer-engineer", "service-discovery-engineer", "service-mesh-engineer", "ssl-dns-engineer", "secrets-management-engineer", "secrets-rotation-engineer", "certificate-management-engineer"],
+            "count": 8
+          },
+          "cloud-lead-storage": {
+            "agents": ["storage-engineer", "caching-infrastructure-engineer", "database-infrastructure-engineer", "message-queue-engineer", "streaming-infrastructure-engineer", "search-infrastructure-engineer"],
+            "count": 6
+          },
+          "cloud-lead-edge": {
+            "agents": ["edge-infrastructure-engineer", "capacity-planning-engineer", "blue-green-deployment-engineer", "canary-release-engineer", "identity-infrastructure-engineer", "compliance-infrastructure-engineer"],
+            "count": 6
+          }
+        },
+        "total": 27
+      },
+
+      "observability": {
+        "lead": "platform-lead-observability",
+        "owner": "vp-of-platform",
+        "manages": ["obs-lead-monitoring", "obs-lead-logging", "obs-lead-perf"],
+        "subgroups": {
+          "obs-lead-monitoring": {
+            "agents": ["monitoring-engineer", "observability-engineer", "audit-infrastructure-engineer", "security-monitoring-engineer", "ml-infrastructure-engineer"],
+            "count": 5
+          },
+          "obs-lead-logging": {
+            "agents": ["log-aggregation-engineer", "etl-infrastructure-engineer", "performance-testing-infrastructure-engineer", "security-metrics-engineer", "security-automation-engineer"],
+            "count": 5
+          },
+          "obs-lead-perf": {
+            "agents": ["chaos-engineer", "chaos-engineering-engineer", "load-testing-engineer", "performance-tester", "bug-bounty-coordinator"],
+            "count": 5
+          }
+        },
+        "total": 15
+      }
+    },
+
+    "security": {
+      "ciso-fitsi": {
+        "owner": "ceo-fitsi",
+        "manages": ["security-lead-appsec", "security-lead-threat", "security-lead-infra", "security-lead-privacy", "security-lead-compliance"]
+      },
+      "subgroups": {
+        "security-lead-appsec": {
+          "agents": ["application-security-engineer", "api-security-engineer", "input-validation-engineer", "cors-security-engineer", "secure-code-review-engineer", "devsecops-engineer", "secure-sdk-engineer", "auth-hardening-engineer"],
+          "count": 8
+        },
+        "security-lead-threat": {
+          "agents": ["penetration-tester", "red-team-engineer", "threat-modeling-engineer", "vulnerability-management-engineer", "fraud-detection-engineer", "reverse-engineering-specialist", "supply-chain-security-engineer", "bug-bounty-coordinator"],
+          "count": 8
+        },
+        "security-lead-infra": {
+          "agents": ["cloud-security-engineer", "network-security-engineer", "container-security-engineer", "identity-systems-engineer", "session-security-engineer", "certificate-management-engineer", "cryptography-engineer", "mobile-security-specialist"],
+          "count": 8
+        },
+        "security-lead-privacy": {
+          "agents": ["privacy-engineer", "consent-management-engineer", "data-protection-engineer", "data-retention-engineer", "right-to-erasure-engineer", "privacy-impact-assessment-engineer", "health-app-compliance-engineer"],
+          "count": 7
+        },
+        "security-lead-compliance": {
+          "agents": ["security-compliance-engineer", "compliance-audit-engineer", "compliance-testing-engineer", "security-architecture-reviewer", "security-training-engineer", "security-testing-engineer", "incident-response-engineer", "secrets-rotation-engineer"],
+          "count": 8
+        }
+      },
+      "total": 40
+    },
+
+    "quality": {
+      "qa_engineering": {
+        "coordinator": "fitsia-qa-coordinator",
+        "owner": "vp-of-engineering",
+        "manages": ["qa-lead-unit", "qa-lead-integration", "qa-lead-e2e", "qa-lead-specialized", "qa-lead-infra", "qa-lead-users"],
+        "subgroups": {
+          "qa-lead-unit": {
+            "agents": ["unit-testing-engineer", "snapshot-testing-engineer", "mutation-testing-engineer", "test-coverage-engineer", "flaky-test-engineer", "test-data-engineer", "regression-specialist"],
+            "count": 7
+          },
+          "qa-lead-integration": {
+            "agents": ["integration-testing-engineer", "contract-testing-engineer", "api-testing-engineer", "auth-testing-engineer", "payment-testing-engineer", "migration-testing-engineer", "compliance-testing-engineer"],
+            "count": 7
+          },
+          "qa-lead-e2e": {
+            "agents": ["e2e-testing-engineer", "visual-regression-engineer", "accessibility-testing-engineer", "localization-testing-engineer", "cross-browser-testing-engineer", "cross-device-testing-engineer", "deep-link-testing-engineer", "network-testing-engineer"],
+            "count": 8
+          },
+          "qa-lead-specialized": {
+            "agents": ["security-testing-engineer", "ai-model-testing-engineer", "push-notification-testing-engineer", "load-testing-engineer", "fuzzing-engineer", "exploratory-testing-engineer", "usability-testing-engineer"],
+            "count": 7
+          },
+          "qa-lead-infra": {
+            "agents": ["test-infrastructure-engineer", "test-environment-engineer", "test-orchestration-engineer", "test-monitoring-engineer", "test-reporting-engineer", "test-strategy-engineer", "mobile-device-lab-engineer", "emulator-testing-engineer"],
+            "count": 8
+          },
+          "qa-lead-process": {
+            "agents": ["qa-automation-engineer", "qa-engineer", "senior-code-reviewer", "fullstack-inspector", "bug-triage-engineer", "beta-testing-coordinator", "release-validation-engineer", "smoke-testing-engineer"],
+            "count": 8
+          },
+          "qa-lead-validation": {
+            "agents": ["a-b-test-validation-engineer", "canary-testing-engineer", "rollback-testing-engineer", "disaster-recovery-testing-engineer", "mobile-test-engineer"],
+            "count": 5
+          }
+        },
+        "total": 50
+      },
+
+      "qa_simulated_users": {
+        "lead": "qa-lead-users",
+        "owner": "fitsia-qa-coordinator",
+        "manages": ["qa-users-power", "qa-users-scanner", "qa-users-casual", "qa-users-onboarding", "qa-users-browser", "qa-users-diet"],
+        "subgroups": {
+          "qa-users-power": { "agents": ["qa-power-user-01","qa-power-user-02","qa-power-user-03","qa-power-user-04","qa-power-user-05","qa-power-user-06","qa-power-user-07","qa-power-user-08","qa-power-user-09","qa-power-user-10"], "count": 10 },
+          "qa-users-scanner": { "agents": ["qa-scanner-user-01","qa-scanner-user-02","qa-scanner-user-03","qa-scanner-user-04","qa-scanner-user-05","qa-scanner-user-06","qa-scanner-user-07","qa-scanner-user-08","qa-scanner-user-09","qa-scanner-user-10"], "count": 10 },
+          "qa-users-casual": { "agents": ["qa-casual-user-01","qa-casual-user-02","qa-casual-user-03","qa-casual-user-04","qa-casual-user-05","qa-casual-user-06","qa-casual-user-07","qa-casual-user-08","qa-casual-user-09","qa-casual-user-10"], "count": 10 },
+          "qa-users-onboarding": { "agents": ["qa-onboarding-user-01","qa-onboarding-user-02","qa-onboarding-user-03","qa-onboarding-user-04","qa-onboarding-user-05","qa-onboarding-user-06","qa-onboarding-user-07","qa-onboarding-user-08","qa-onboarding-user-09","qa-onboarding-user-10"], "count": 10 },
+          "qa-users-browser": { "agents": ["qa-browser-user-01","qa-browser-user-02","qa-browser-user-03","qa-browser-user-04","qa-browser-user-05","qa-browser-user-06","qa-browser-user-07","qa-browser-user-08","qa-browser-user-09","qa-browser-user-10"], "count": 10 },
+          "qa-users-diet": { "agents": ["qa-keto-user-01","qa-keto-user-02","qa-vegan-user-01","qa-vegan-user-02","qa-diabetic-user-01","qa-diabetic-user-02","qa-athlete-user-01","qa-athlete-user-02","qa-bodybuilder-user-01","qa-elderly-user-01","qa-food-allergy-user-01","qa-gluten-free-user-01","qa-intermittent-fasting-01","qa-maintenance-user-01","qa-mediterranean-user-01","qa-muscle-gain-user-01","qa-paleo-user-01","qa-pregnant-user-01","qa-teen-user-01","qa-weight-loss-user-01"], "count": 20 }
+        },
+        "total": 70
+      }
+    },
+
+    "product": {
+      "vp-of-product": {
+        "owner": "cpo-fitsi",
+        "manages": ["fitsia-content-coordinator", "fitsia-equipment-coordinator", "product-lead-nutrition", "product-lead-fitness", "product-lead-engagement"],
+        "colleagues": ["head-of-ux-research"]
+      },
+
+      "head-of-ux-research": {
+        "owner": "cpo-fitsi",
+        "manages": ["ux-lead-research", "ux-lead-systems", "ux-lead-interaction"],
+        "subgroups": {
+          "ux-lead-research": { "agents": ["ux-researcher", "ux-engineer", "head-of-design", "ux-food-logging", "ux-data-viz", "ux-navigation-patterns"], "count": 6 },
+          "ux-lead-systems": { "agents": ["design-systems-engineer", "ui-systems-engineer", "color-system-engineer", "illustration-system-engineer", "ux-typography", "ux-iconography", "ux-color-system", "ux-dark-mode"], "count": 8 },
+          "ux-lead-interaction": { "agents": ["interaction-engineer", "motion-design-engineer", "haptic-design-engineer", "sound-design-engineer", "loading-state-engineer", "ux-micro-interactions", "ux-motion-design", "ux-empty-states", "ux-error-states"], "count": 9 }
+        }
+      }
+    },
+
+    "growth": {
+      "cgo-fitsi": {
+        "owner": "ceo-fitsi",
+        "manages": ["head-of-growth-engineering", "head-of-marketing"],
+        "colleagues": ["cpo-fitsi", "cfo-fitsi"]
+      },
+
+      "head-of-growth-engineering": {
+        "owner": "cgo-fitsi",
+        "manages": ["growth-lead-experimentation", "growth-lead-retention", "growth-lead-analytics", "growth-lead-monetization"],
+        "subgroups": {
+          "growth-lead-experimentation": { "agents": ["experimentation-engineer", "a-b-test-validation-engineer", "feature-flag-product-engineer", "competitive-analysis-engineer", "onboarding-optimization-engineer", "conversion-optimization-engineer", "growth-engineer", "growth-strategist"], "count": 8 },
+          "growth-lead-retention": { "agents": ["retention-engineer", "retention-growth-specialist", "streak-engine-engineer", "streak-engine-specialist", "achievement-system-engineer", "achievement-engine-engineer", "community-features-engineer", "social-fitness-engineer"], "count": 8 },
+          "growth-lead-analytics": { "agents": ["data-analyst", "product-analytics-engineer", "cohort-analysis-engineer", "user-behavior-analytics-engineer", "funnel-analysis-engineer"], "count": 5 },
+          "growth-lead-monetization": { "agents": ["monetization-engineer", "paywall-engineer", "pricing-strategy-engineer", "subscription-lifecycle-engineer", "user-acquisition-engineer", "referral-systems-engineer", "push-campaign-engineer", "notification-strategy-engineer"], "count": 8 }
+        }
+      },
+
+      "head-of-marketing": {
+        "owner": "cgo-fitsi",
+        "manages": ["marketing-lead-organic", "marketing-lead-paid", "marketing-lead-content"],
+        "subgroups": {
+          "marketing-lead-organic": { "agents": ["aso-specialist", "aso-copywriter", "aso-engineer", "email-funnel-builder", "email-funnel-engineer", "social-sharing-engineer", "deep-link-marketing-engineer", "app-rating-engineer"], "count": 8 },
+          "marketing-lead-paid": { "agents": ["meta-ads-specialist", "tiktok-ads-specialist", "apple-search-ads-specialist", "google-uac-specialist", "paid-analytics-specialist", "cro-landing-page-specialist", "ugc-content-director", "influencer-partnership-manager"], "count": 8 },
+          "marketing-lead-content": { "agents": ["marketing-content-agent", "content-personalization-engineer", "brand-integration-engineer", "competitor-analyst", "feedback-collection-engineer", "help-center-engineer", "customer-support-architect"], "count": 7 }
+        }
+      }
+    },
+
+    "management": {
+      "chro-fitsi": {
+        "owner": "ceo-fitsi",
+        "manages": ["head-of-talent", "head-of-culture", "fitsia-management-coordinator"]
+      },
+
+      "eng_managers": {
+        "coordinator": "fitsia-management-coordinator",
+        "owner": "head-of-talent",
+        "manages": ["mgr-lead-platform", "mgr-lead-product", "mgr-lead-ai", "mgr-lead-ops"],
+        "subgroups": {
+          "mgr-lead-platform": { "agents": ["engineering-manager-backend", "engineering-manager-frontend", "engineering-manager-mobile", "engineering-manager-mobile-infra", "engineering-manager-mobile-platform", "engineering-manager-platform", "engineering-manager-infrastructure", "engineering-manager-kubernetes"], "count": 8 },
+          "mgr-lead-product": { "agents": ["engineering-manager-api", "engineering-manager-payments", "engineering-manager-feature-flags", "engineering-manager-integrations", "engineering-manager-sdks", "engineering-manager-growth", "engineering-manager-experimentation", "engineering-manager-realtime"], "count": 8 },
+          "mgr-lead-ai": { "agents": ["engineering-manager-ai", "engineering-manager-ai-agents", "engineering-manager-analytics", "engineering-manager-data", "engineering-manager-data-pipelines", "engineering-manager-llm-systems", "engineering-manager-microservices", "engineering-manager-edge"], "count": 8 },
+          "mgr-lead-ops": { "agents": ["engineering-manager-ci-cd", "engineering-manager-cloud", "engineering-manager-devops", "engineering-manager-observability", "engineering-manager-performance", "engineering-manager-qa", "engineering-manager-release", "engineering-manager-reliability", "engineering-manager-scalability", "engineering-manager-security", "engineering-manager-sre"], "count": 11 }
+        },
+        "total": 35
+      },
+
+      "tech_leads": {
+        "lead": "tech-lead",
+        "owner": "head-of-talent",
+        "manages": ["tl-group-platform", "tl-group-product", "tl-group-ai", "tl-group-ops"],
+        "subgroups": {
+          "tl-group-platform": { "agents": ["tech-lead-backend", "tech-lead-mobile", "tech-lead-react-native", "tech-lead-flutter", "tech-lead-ios", "tech-lead-android", "tech-lead-platform", "tech-lead-infrastructure"], "count": 8 },
+          "tl-group-product": { "agents": ["tech-lead-api", "tech-lead-graphql", "tech-lead-payments", "tech-lead-monetization", "tech-lead-growth", "tech-lead-design-systems", "tech-lead-ux-engineering", "tech-lead-identity-auth"], "count": 8 },
+          "tl-group-ai": { "agents": ["tech-lead-ai-systems", "tech-lead-ml-systems", "tech-lead-llm-integration", "tech-lead-on-device-ai", "tech-lead-agent-orchestration", "tech-lead-data-engineering", "tech-lead-analytics", "tech-lead-experimentation"], "count": 8 },
+          "tl-group-ops": { "agents": ["tech-lead-devops", "tech-lead-ci-cd", "tech-lead-cloud", "tech-lead-sre", "tech-lead-reliability", "tech-lead-scalability", "tech-lead-performance", "tech-lead-observability", "tech-lead-security", "tech-lead-test-automation", "tech-lead-realtime"], "count": 11 }
+        },
+        "total": 35
+      },
+
+      "directors": {
+        "lead": "director-of-engineering",
+        "owner": "head-of-talent",
+        "agents": ["director-of-ai-engineering", "director-of-data-engineering", "director-of-devops", "director-of-innovation", "director-of-mobile-engineering", "director-of-platform-engineering", "director-of-product-engineering", "director-of-security-engineering", "director-of-sre"],
+        "total": 10
+      }
+    },
+
+    "systems_theory": {
+      "lead": "sys-agent-orchestrator",
+      "owner": "cdao-fitsi",
+      "manages": ["sys-group-cognition", "sys-group-organization", "sys-group-tools"],
+      "subgroups": {
+        "sys-group-cognition": { "agents": ["sys-autopoiesis", "sys-cognition", "sys-emergence", "sys-languaging", "sys-observer", "sys-ontogenic-drift", "sys-perturbation", "sys-structural-coupling"], "count": 8 },
+        "sys-group-organization": { "agents": ["sys-organization-closure", "sys-symbiogenesis", "sys-meta-learner", "sys-agent-evaluator", "sys-dependency-resolver", "sys-context-manager"], "count": 6 },
+        "sys-group-tools": { "agents": ["sys-capacity-planner", "sys-health-checker", "sys-performance-monitor", "sys-quality-gate", "sys-report-generator", "sys-rollback-manager", "sys-task-scheduler", "sys-documentation"], "count": 8 }
+      },
+      "total": 23
+    },
+
+    "noc_evolution": {
+      "lead": "fitsia-nature-of-code-master",
+      "owner": "fitsia-orchestrator",
+      "agents": ["fitsia-noc-randomness", "fitsia-noc-physics", "fitsia-noc-oscillation", "fitsia-noc-particles", "fitsia-noc-agents", "fitsia-noc-patterns", "fitsia-noc-evolution"],
+      "total": 8
+    },
+
+    "ironside": {
+      "lead": "ironside-orchestrator",
+      "owner": "coo-fitsi",
+      "note": "SEPARATE DIVISION — must never mix with Fitsi app agents",
+      "manages": ["ironside-lead-commercial", "ironside-lead-logistics", "ironside-lead-technical", "ironside-lead-marketing", "ironside-lead-admin"],
+      "total": 35,
+      "detail": "See ironside-orchestrator agent definition for full breakdown"
+    }
+  },
+
+  "colleague_relationships": [
+    ["chief-technology-officer", "cdao-fitsi", "Technical alignment on AI infrastructure"],
+    ["cpo-fitsi", "cgo-fitsi", "Product-growth alignment"],
+    ["coo-fitsi", "chief-technology-officer", "Operations-engineering coordination"],
+    ["ciso-fitsi", "vp-of-platform", "Security-infrastructure alignment"],
+    ["vp-of-engineering", "vp-of-mobile-engineering", "Backend-frontend coordination"],
+    ["vp-of-ai-systems", "vp-of-engineering", "AI-backend pipeline"],
+    ["head-of-marketing", "head-of-growth-engineering", "Marketing-growth synergy"],
+    ["fitsia-backend-coordinator", "fitsia-frontend-coordinator", "API contract alignment"],
+    ["fitsia-ai-coordinator", "fitsia-science-coordinator", "AI-science validation"],
+    ["fitsia-qa-coordinator", "fitsia-devops-coordinator", "Testing-deployment pipeline"]
+  ]
+}

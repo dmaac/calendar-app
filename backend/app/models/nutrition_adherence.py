@@ -1,0 +1,65 @@
+from __future__ import annotations
+
+from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, Date, ForeignKey, Index, Integer, UniqueConstraint
+from typing import Optional
+from datetime import date as date_type, datetime, timezone
+
+
+class DailyNutritionAdherence(SQLModel, table=True):
+    __tablename__ = "daily_nutrition_adherence"
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_adherence_user_date"),
+        Index("ix_adherence_user_date", "user_id", "date"),
+        # Risk analytics: filter by adherence status over date ranges
+        Index("ix_adherence_user_status", "user_id", "adherence_status"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    date: date_type = Field(sa_column=Column(Date, nullable=False))
+
+    # Calorie targets vs actual
+    calories_target: int = Field(default=0)
+    calories_logged: int = Field(default=0)
+    calories_ratio: float = Field(default=0.0)  # logged / target
+
+    # Meals
+    meals_logged: int = Field(default=0)
+
+    # Macro targets vs actual
+    protein_target: int = Field(default=0)
+    protein_logged: int = Field(default=0)
+    carbs_target: int = Field(default=0)
+    carbs_logged: int = Field(default=0)
+    fats_target: int = Field(default=0)
+    fats_logged: int = Field(default=0)
+
+    # Composite scores
+    diet_quality_score: int = Field(default=0)  # 0-100
+    adherence_status: str = Field(default="critical")  # optimal, low_adherence, risk, high_risk, critical, moderate_excess, high_excess
+    nutrition_risk_score: int = Field(default=0)  # 0-100
+
+    # Flags
+    no_log_flag: bool = Field(default=True)
+
+    # Scoring metadata (v2)
+    scoring_version: int = Field(default=2)
+    data_confidence: int = Field(default=0)  # 0-100
+    primary_risk_reason: Optional[str] = Field(default=None)
+    plan_snapshot: Optional[str] = Field(default=None)  # JSON: {calories, protein_g, fat_g, carbs_g}
+
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self) -> str:
+        return (
+            f"<DailyNutritionAdherence id={self.id} user={self.user_id} "
+            f"date={self.date} status={self.adherence_status!r} score={self.diet_quality_score}>"
+        )

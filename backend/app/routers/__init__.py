@@ -6,6 +6,33 @@ from .nutrition_profile import router as nutrition_profile_router
 from .onboarding import router as onboarding_router
 from .ai_food import router as ai_food_router
 from .subscriptions import router as subscriptions_router
+from .notifications import router as notifications_router
+from .feedback import router as feedback_router
+from .admin import router as admin_router
+from .export import router as export_router
+from .workouts import router as workouts_router
+from .insights import router as insights_router
+from .calories import router as calories_router
+from .health_alerts import router as health_alerts_router
+from .smart_notifications import router as smart_notifications_router
+from .coach import router as coach_router
+from .foods_catalog import router as foods_catalog_router
+from .user_data import router as user_data_router
+from .experiments import router as experiments_router
+from .analytics import router as analytics_router
+from .webhooks import router as webhooks_router
+from .corporate import router as corporate_router
+from .family import router as family_router
+from .favorites import router as favorites_router
+from .alerts import router as alerts_router
+from .risk import router as risk_router
+from .ai_usage import router as ai_usage_router
+from .progress import router as progress_router
+from .recommendations import router as recommendations_router
+from .adaptive_calories import router as adaptive_calories_router
+from .audit import router as audit_router
+from .recovery import router as recovery_router
+from .backup import router as backup_router
 
 __all__ = [
     "auth_router",
@@ -16,4 +43,31 @@ __all__ = [
     "onboarding_router",
     "ai_food_router",
     "subscriptions_router",
+    "notifications_router",
+    "feedback_router",
+    "admin_router",
+    "export_router",
+    "workouts_router",
+    "insights_router",
+    "calories_router",
+    "health_alerts_router",
+    "smart_notifications_router",
+    "coach_router",
+    "foods_catalog_router",
+    "user_data_router",
+    "experiments_router",
+    "analytics_router",
+    "webhooks_router",
+    "corporate_router",
+    "family_router",
+    "favorites_router",
+    "alerts_router",
+    "risk_router",
+    "ai_usage_router",
+    "progress_router",
+    "recommendations_router",
+    "adaptive_calories_router",
+    "audit_router",
+    "recovery_router",
+    "backup_router",
 ]

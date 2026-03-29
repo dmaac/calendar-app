@@ -5,14 +5,16 @@
 import React, { ReactNode } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   SafeAreaView,
   Platform,
   ScrollView,
   KeyboardAvoidingView,
   StatusBar,
+  TouchableOpacity,
 } from 'react-native';
-import { colors, spacing, MAX_WIDTH, useLayout } from '../../theme';
+import { colors, spacing, typography, MAX_WIDTH, useLayout } from '../../theme';
 import ProgressBar from './ProgressBar';
 import BackButton from './BackButton';
 
@@ -24,6 +26,7 @@ interface OnboardingLayoutProps {
   showHeader?: boolean;       // false en splash y welcome
   showBack?: boolean;         // false en splash, welcome, y pantallas sin retroceso
   onBack?: () => void;
+  onSkip?: () => void;        // subtle skip button in header — goes next with defaults
   scrollable?: boolean;       // true cuando el contenido puede ser largo
   keyboardAware?: boolean;    // true cuando hay TextInput
 }
@@ -36,6 +39,7 @@ export default function OnboardingLayout({
   showHeader = true,
   showBack = true,
   onBack,
+  onSkip,
   scrollable = false,
   keyboardAware = false,
 }: OnboardingLayoutProps) {
@@ -68,7 +72,20 @@ export default function OnboardingLayout({
             <View style={styles.progressWrapper}>
               <ProgressBar step={step} totalSteps={totalSteps} />
             </View>
-            <View style={styles.backPlaceholder} />
+            {onSkip ? (
+              <TouchableOpacity
+                onPress={onSkip}
+                style={styles.skipBtn}
+                activeOpacity={0.6}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Saltar este paso"
+                accessibilityRole="button"
+              >
+                <Text style={styles.skipText}>Saltar</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.backPlaceholder} />
+            )}
           </View>
         )}
 
@@ -137,6 +154,17 @@ const styles = StyleSheet.create({
   },
   backPlaceholder: {
     width: 36,
+  },
+  skipBtn: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  skipText: {
+    ...typography.caption,
+    color: colors.gray,
+    fontWeight: '500',
   },
   content: {
     flex: 1,
