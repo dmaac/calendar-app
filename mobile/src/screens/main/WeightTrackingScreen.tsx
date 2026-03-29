@@ -606,6 +606,8 @@ export default function WeightTrackingScreen({ navigation }: any) {
           setProfile(prof);
           // Respect stored unit preference
           if (prof.unit_system === 'imperial') setUnit('lbs');
+        } else {
+          console.warn('[WeightTracking] Failed to load profile:', profileResult.reason);
         }
 
         if (weightResult.status === 'fulfilled' && weightResult.value.length > 0) {
@@ -617,11 +619,15 @@ export default function WeightTrackingScreen({ navigation }: any) {
           );
           setIsDemoData(false);
         } else {
+          if (weightResult.status === 'rejected') {
+            console.warn('[WeightTracking] Failed to load weight history:', weightResult.reason);
+          }
           const fallbackWeight = prof?.weight_kg ?? 75;
           setEntries(generateDemoData(fallbackWeight, 60));
           setIsDemoData(true);
         }
-      } catch {
+      } catch (err) {
+        console.error('[WeightTracking] Unexpected error during data load:', err);
         setEntries(generateDemoData(75, 60));
         setIsDemoData(true);
       } finally {
@@ -705,6 +711,24 @@ export default function WeightTrackingScreen({ navigation }: any) {
     outputRange: [c.grayLight, c.accent],
   });
 
+  // ── Refresh weight history from backend ──
+  const refreshWeightHistory = useCallback(async () => {
+    try {
+      const freshEntries = await getWeightHistory(365);
+      if (freshEntries.length > 0) {
+        setEntries(
+          freshEntries.map((e: WeightLogEntry) => ({
+            date: e.date,
+            weight: e.weight_kg,
+          }))
+        );
+        setIsDemoData(false);
+      }
+    } catch (err) {
+      console.warn('[WeightTracking] Failed to refresh weight history:', err);
+    }
+  }, []);
+
   // ── Log weight ──
   const handleLogWeight = useCallback(async () => {
     const raw = parseFloat(weightInput.replace(',', '.'));
@@ -730,13 +754,22 @@ export default function WeightTrackingScreen({ navigation }: any) {
       haptics.success();
       track('weight_logged', { weight_kg: weightKg, unit });
 
+      // Optimistic update: replace demo data entirely or append to real data
       const today = result.date;
       setEntries((prev) => {
+        // If we were showing demo data, start fresh with just this entry
+        if (isDemoData) {
+          return [{ date: today, weight: Math.round(weightKg * 10) / 10 }];
+        }
+        // Otherwise append/update in the existing real entries
         const filtered = prev.filter((e) => e.date !== today);
         return [...filtered, { date: today, weight: Math.round(weightKg * 10) / 10 }];
       });
       setIsDemoData(false);
       setWeightInput('');
+
+      // Re-fetch full history from backend to ensure consistency
+      refreshWeightHistory();
 
       // Animate chart update
       Animated.sequence([
@@ -748,13 +781,16 @@ export default function WeightTrackingScreen({ navigation }: any) {
       AccessibilityInfo.announceForAccessibility(
         `Peso registrado: ${raw.toFixed(1)} ${unit}`
       );
-    } catch {
+    } catch (err: unknown) {
       haptics.error();
-      Alert.alert('Error', 'No se pudo guardar el peso. Intenta de nuevo.');
+      const errorMsg =
+        err instanceof Error ? err.message : 'No se pudo guardar el peso. Intenta de nuevo.';
+      console.error('[WeightTracking] Failed to log weight:', err);
+      Alert.alert('Error', errorMsg);
     } finally {
       setSavingWeight(false);
     }
-  }, [weightInput, unit, chartScaleAnim, track]);
+  }, [weightInput, unit, isDemoData, chartScaleAnim, track, refreshWeightHistory]);
 
   // ── Progress photos ──
   const handleAddPhoto = useCallback(async () => {
