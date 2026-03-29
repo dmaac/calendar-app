@@ -40,9 +40,10 @@ import { useThemeColors, typography, spacing, radius, shadows, useLayout } from 
 import * as foodService from '../../services/food.service';
 import { FoodScanResult } from '../../types';
 import type { HomeStackScreenProps } from '../../navigation/types';
-import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { haptics } from '../../hooks/useHaptics';
+import { usePremium } from '../../hooks/usePremium';
+import PremiumGate, { PREMIUM_FEATURES } from '../../components/PremiumGate';
 import usePulse from '../../hooks/usePulse';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import SuccessCheckmark from '../../components/SuccessCheckmark';
@@ -361,7 +362,7 @@ const scanAnimStyles = StyleSheet.create({
 export default function ScanScreen({ navigation }: HomeStackScreenProps<'Scan'>) {
   const insets = useSafeAreaInsets();
   const { contentWidth, sidePadding } = useLayout();
-  const { isPremium } = useAuth();
+  const { isPremium, showPaywall } = usePremium();
   const c = useThemeColors();
   const { t } = useTranslation();
   const { track } = useAnalytics('Scan');
@@ -1229,26 +1230,37 @@ export default function ScanScreen({ navigation }: HomeStackScreenProps<'Scan'>)
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top, paddingHorizontal: sidePadding, backgroundColor: c.bg }]}>
         <View
-          style={[styles.limitIcon, { backgroundColor: c.black }]}
+          style={[styles.limitIcon, { backgroundColor: c.accent + '15' }]}
           accessibilityLabel={t('scan.limitReached')}
         >
-          <Ionicons name="lock-closed" size={36} color={c.white} />
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.accent + '25', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="lock-closed" size={32} color={c.accent} />
+          </View>
         </View>
         <Text style={[styles.limitTitle, { color: c.black }]}>{t('scan.limitReached')}</Text>
         <Text style={[styles.limitSubtitle, { color: c.gray }]}>
           {t('scan.limitMessage', { limit: FREE_SCAN_LIMIT })}
         </Text>
+
+        {/* Premium features preview */}
+        <View style={styles.premiumFeatures}>
+          {PREMIUM_FEATURES.slice(0, 3).map((feature) => (
+            <View key={feature.text} style={styles.premiumFeatureRow}>
+              <Ionicons name={feature.icon} size={15} color={c.accent} />
+              <Text style={[styles.premiumFeatureText, { color: c.gray }]}>{feature.text}</Text>
+            </View>
+          ))}
+        </View>
+
         <TouchableOpacity
           style={[styles.upgradeBtn, { backgroundColor: c.black }]}
-          onPress={() => {
-            haptics.light();
-            navigation.navigate('Paywall');
-          }}
+          onPress={showPaywall}
           activeOpacity={0.85}
           accessibilityLabel={t('scan.viewPremiumPlans')}
           accessibilityRole="button"
           accessibilityHint="Navega a la pantalla de suscripciones Premium"
         >
+          <Ionicons name="star" size={16} color="#FFFFFF" />
           <Text style={[styles.upgradeBtnText, { color: c.white }]}>{t('scan.viewPremiumPlans')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -1383,10 +1395,7 @@ export default function ScanScreen({ navigation }: HomeStackScreenProps<'Scan'>)
         ) : (
           <TouchableOpacity
             style={[styles.freeBanner, { backgroundColor: c.badgeBg }]}
-            onPress={() => {
-              haptics.light();
-              navigation.navigate('Paywall');
-            }}
+            onPress={showPaywall}
             activeOpacity={0.8}
             accessibilityLabel={scansLoading ? t('scan.loadingScans') : t('scan.freePlan', { used: todayScans, limit: FREE_SCAN_LIMIT })}
             accessibilityRole="button"
@@ -1603,16 +1612,30 @@ const styles = StyleSheet.create({
 
   // Paywall gate
   limitIcon: {
-    width: 80, height: 80, borderRadius: 40,
+    width: 88, height: 88, borderRadius: 44,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: spacing.md,
   },
   limitTitle: { ...typography.titleSm, marginBottom: spacing.sm },
-  limitSubtitle: { ...typography.subtitle, textAlign: 'center', lineHeight: 22, marginBottom: spacing.xl },
+  limitSubtitle: { ...typography.subtitle, textAlign: 'center', lineHeight: 22, marginBottom: spacing.md },
+  premiumFeatures: {
+    gap: spacing.sm,
+    alignSelf: 'stretch',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  premiumFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  premiumFeatureText: { ...typography.body },
   upgradeBtn: {
+    flexDirection: 'row',
     borderRadius: radius.full,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
-    marginBottom: spacing.sm, width: '100%', alignItems: 'center',
+    marginBottom: spacing.sm, width: '100%', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.sm,
     minHeight: 52,
   },
   upgradeBtnText: { ...typography.button },

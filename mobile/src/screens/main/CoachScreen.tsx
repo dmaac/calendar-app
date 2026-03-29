@@ -40,6 +40,8 @@ import { colors, typography, spacing, radius, shadows, useLayout, useThemeColors
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { useCoach, CoachMessage } from '../../hooks/useCoach';
+import { usePremium } from '../../hooks/usePremium';
+import PremiumGate from '../../components/PremiumGate';
 
 // ─── Quick suggestion chips ──────────────────────────────────────────────────
 
@@ -228,6 +230,7 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
   const { sidePadding } = useLayout();
   const c = useThemeColors();
   const { track } = useAnalytics('Coach');
+  const { isPremium, showPaywall } = usePremium();
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const [inputText, setInputText] = useState('');
@@ -365,6 +368,67 @@ export default function CoachScreen({ navigation }: { navigation: { goBack: () =
 
   // Inverted FlatList: data must be reversed so newest is at index 0
   const invertedMessages = [...messages].reverse();
+
+  // ── Premium gate: free users see the first coach message, then a lock overlay ──
+  if (!isPremium && messages.length > 0) {
+    const firstMessage = messages[0];
+    return (
+      <View style={[styles.screen, { backgroundColor: c.bg }]}>
+        <View style={{ height: insets.top, backgroundColor: c.bg }} />
+
+        {/* Header (same as full version) */}
+        <View
+          style={[
+            styles.header,
+            { paddingHorizontal: sidePadding, borderBottomColor: c.border, backgroundColor: c.bg },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => { haptics.light(); navigation.goBack(); }}
+            style={[styles.headerBtn, { backgroundColor: c.surface }]}
+            accessibilityLabel="Volver a la pantalla anterior"
+            accessibilityRole="button"
+          >
+            <Ionicons name="chevron-back" size={22} color={c.black} />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <View style={styles.headerTitleRow}>
+              <View style={[styles.onlineDot, { backgroundColor: c.success }]} />
+              <Text style={[styles.headerTitle, { color: c.black }]} accessibilityRole="header">
+                AI Coach
+              </Text>
+            </View>
+            <Text style={[styles.headerSubtitle, { color: c.gray }]}>
+              Nutricion personalizada
+            </Text>
+          </View>
+          <View style={styles.headerBtn} />
+        </View>
+
+        {/* First message preview */}
+        <View style={{ paddingHorizontal: sidePadding, paddingTop: spacing.md }}>
+          <View style={[styles.bubbleRow, styles.bubbleRowCoach]}>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="chatbubble-ellipses" size={18} color={c.accent} />
+            </View>
+            <View style={[styles.bubble, styles.bubbleCoach, { backgroundColor: c.surface }]}>
+              <Text style={[styles.bubbleText, { color: c.black }]} numberOfLines={4}>
+                {firstMessage.text}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Premium gate overlay */}
+        <PremiumGate
+          title="Desbloquea el AI Coach"
+          subtitle="Obtiene consejos personalizados de nutricion, respuestas ilimitadas y recomendaciones adaptadas a tu perfil."
+          onUpgrade={showPaywall}
+          showFeatures
+        />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView

@@ -28,6 +28,7 @@ import { recipes, Recipe, MealType, DietType } from '../../data/recipes';
 import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { usePremium } from '../../hooks/usePremium';
 import * as foodService from '../../services/food.service';
 import * as favoritesService from '../../services/favorites.service';
 import { useOnboardingSafe } from '../../context/OnboardingContext';
@@ -437,11 +438,14 @@ const recStyles = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
+const FREE_RECIPE_LIMIT = 3;
+
 export default function RecipesScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { sidePadding } = useLayout();
   const c = useThemeColors();
   const { track } = useAnalytics('Recipes');
+  const { isPremium, showPaywall } = usePremium();
   const [mealFilter, setMealFilter] = useState<MealFilter>('all');
   const [dietFilter, setDietFilter] = useState<DietType | 'all'>('all');
   const [search, setSearch] = useState('');
@@ -549,6 +553,14 @@ export default function RecipesScreen({ navigation }: any) {
     return result;
   }, [mealFilter, dietFilter, debouncedSearch]);
 
+  // For free users, limit recipes to FREE_RECIPE_LIMIT
+  const displayedRecipes = useMemo(() => {
+    if (isPremium) return filtered;
+    return filtered.slice(0, FREE_RECIPE_LIMIT);
+  }, [filtered, isPremium]);
+
+  const hasLockedRecipes = !isPremium && filtered.length > FREE_RECIPE_LIMIT;
+
   // Stable callback to avoid re-creating renderItem closures
   const handleRecipePress = useCallback((recipe: Recipe) => {
     haptics.light();
@@ -573,7 +585,11 @@ export default function RecipesScreen({ navigation }: any) {
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
         <Text style={[styles.headerTitle, { color: c.black }]}>Recetas</Text>
-        <Text style={[styles.headerSub, { color: c.gray }]}>{filtered.length} recetas disponibles</Text>
+        <Text style={[styles.headerSub, { color: c.gray }]}>
+          {isPremium
+            ? `${filtered.length} recetas disponibles`
+            : `${displayedRecipes.length} de ${filtered.length} recetas disponibles`}
+        </Text>
       </View>
 
       {/* Smart Recommendations — top of screen, before search/filters */}
@@ -675,7 +691,7 @@ export default function RecipesScreen({ navigation }: any) {
 
       {/* Recipe list */}
       <FlatList
-        data={filtered}
+        data={displayedRecipes}
         keyExtractor={recipeKeyExtractor}
         renderItem={renderRecipeItem}
         contentContainerStyle={{ paddingHorizontal: sidePadding, paddingBottom: spacing.xl }}
@@ -693,6 +709,31 @@ export default function RecipesScreen({ navigation }: any) {
             <Text style={[styles.emptyText, { color: c.black }]}>No encontre recetas con ese nombre</Text>
             <Text style={[styles.emptyHint, { color: c.gray }]}>Intenta cambiar los filtros o buscar otro plato</Text>
           </View>
+        }
+        ListFooterComponent={
+          hasLockedRecipes ? (
+            <View style={[styles.lockedFooter, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <View style={[styles.lockedIconCircle, { backgroundColor: c.accent + '15' }]}>
+                <Ionicons name="lock-closed" size={24} color={c.accent} />
+              </View>
+              <Text style={[styles.lockedTitle, { color: c.black }]}>
+                +{filtered.length - FREE_RECIPE_LIMIT} recetas mas
+              </Text>
+              <Text style={[styles.lockedSubtitle, { color: c.gray }]}>
+                Desbloquea la biblioteca completa de recetas con Premium
+              </Text>
+              <TouchableOpacity
+                style={[styles.lockedUpgradeBtn, { backgroundColor: c.black }]}
+                onPress={showPaywall}
+                activeOpacity={0.85}
+                accessibilityLabel="Ver planes Premium para desbloquear recetas"
+                accessibilityRole="button"
+              >
+                <Ionicons name="star" size={14} color="#FFFFFF" />
+                <Text style={styles.lockedUpgradeBtnText}>Ver planes Premium</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
         }
       />
     </View>
@@ -753,4 +794,46 @@ const styles = StyleSheet.create({
   },
   emptyText: { ...typography.bodyMd },
   emptyHint: { ...typography.caption },
+
+  // Locked recipes footer (free users)
+  lockedFooter: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  lockedIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  lockedTitle: {
+    ...typography.titleSm,
+    textAlign: 'center',
+  },
+  lockedSubtitle: {
+    ...typography.subtitle,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  lockedUpgradeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    width: '100%',
+    height: 48,
+    borderRadius: 999,
+    marginTop: spacing.sm,
+  },
+  lockedUpgradeBtnText: {
+    ...typography.button,
+    color: '#FFFFFF',
+  },
 });

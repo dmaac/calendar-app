@@ -38,6 +38,8 @@ import Svg, {
 import { typography, spacing, radius, shadows, useLayout, useThemeColors } from '../../theme';
 import { haptics } from '../../hooks/useHaptics';
 import { shareWeeklySummary } from '../../components/ShareableCard';
+import { usePremium } from '../../hooks/usePremium';
+import PremiumGate from '../../components/PremiumGate';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -726,6 +728,7 @@ export default function ReportsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { innerWidth, sidePadding } = useLayout();
   const c = useThemeColors();
+  const { isPremium, showPaywall } = usePremium();
   const [period, setPeriod] = useState<Period>('week');
 
   const data = useMemo(() => {
@@ -833,7 +836,7 @@ export default function ReportsScreen({ navigation }: any) {
           })}
         </View>
 
-        {/* Average calories hero + adherence ring */}
+        {/* Average calories hero + adherence ring (visible to all users as teaser) */}
         <AvgCaloriesCard
           avgCalories={summary.avgCalories}
           target={CALORIE_TARGET}
@@ -842,115 +845,141 @@ export default function ReportsScreen({ navigation }: any) {
           c={c}
         />
 
-        {/* Macro mini-cards */}
-        <View style={styles.summaryRow}>
-          <SummaryCard
-            icon="fish-outline"
-            label="Prot. promedio"
-            value={summary.avgProtein}
-            unit="g"
-            color={c.protein}
-            c={c}
-          />
-          <SummaryCard
-            icon="leaf-outline"
-            label="Carbos prom."
-            value={summary.avgCarbs}
-            unit="g"
-            color={c.carbs}
-            c={c}
-          />
-          <SummaryCard
-            icon="water-outline"
-            label="Grasas prom."
-            value={summary.avgFats}
-            unit="g"
-            color={c.fats}
-            c={c}
-          />
-        </View>
-
-        {/* Calorie bar chart */}
-        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Text style={[styles.sectionTitle, { color: c.black }]}>
-            Calorias {periodLabel}
-          </Text>
-          <CalorieBarChart
-            data={data}
-            target={CALORIE_TARGET}
-            width={innerWidth - spacing.md * 2}
-            c={c}
-          />
-        </View>
-
-        {/* Goal vs actual comparison */}
-        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Text style={[styles.sectionTitle, { color: c.black }]}>Meta vs real</Text>
-          {comparisonItems.map((item) => (
-            <GoalComparisonRow key={item.label} item={item} c={c} />
-          ))}
-        </View>
-
-        {/* Macro donut chart */}
-        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Text style={[styles.sectionTitle, { color: c.black }]}>Distribucion de macros</Text>
-          <MacroDonutChart
-            protein={macros.protein}
-            carbs={macros.carbs}
-            fat={macros.fat}
-            c={c}
-          />
-        </View>
-
-        {/* Top foods */}
-        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Text style={[styles.sectionTitle, { color: c.black }]}>Alimentos mas frecuentes</Text>
-          <TopFoodsList foods={topFoods} c={c} />
-        </View>
-
-        {/* Best day */}
-        <BestDayCard bestDay={bestDay} c={c} />
-
-        {/* Insights */}
-        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Text style={[styles.sectionTitle, { color: c.black }]}>Insights</Text>
-          {insights.map((insight, i) => (
-            <View
-              key={i}
-              style={[
-                styles.insightRow,
-                {
-                  borderBottomColor: c.grayLight,
-                  borderBottomWidth: i < insights.length - 1 ? 1 : 0,
-                },
-              ]}
-            >
-              <View style={[styles.insightIcon, { backgroundColor: c.accent + '18' }]}>
-                <Ionicons name={insight.icon as any} size={18} color={c.accent} />
+        {/* Premium gate: free users see the avg card above, then a blurred preview */}
+        {!isPremium ? (
+          <PremiumGate
+            title="Desbloquea reportes detallados"
+            subtitle="Analisis semanal y mensual de calorias, macros, insights con IA y mas."
+            onUpgrade={showPaywall}
+            showFeatures
+            showPreview
+          >
+            {/* Blurred preview content for free users */}
+            <View>
+              <View style={styles.summaryRow}>
+                <SummaryCard icon="fish-outline" label="Prot. promedio" value={summary.avgProtein} unit="g" color={c.protein} c={c} />
+                <SummaryCard icon="leaf-outline" label="Carbos prom." value={summary.avgCarbs} unit="g" color={c.carbs} c={c} />
+                <SummaryCard icon="water-outline" label="Grasas prom." value={summary.avgFats} unit="g" color={c.fats} c={c} />
               </View>
-              <Text style={[styles.insightText, { color: c.gray }]}>{insight.text}</Text>
+              <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+                <Text style={[styles.sectionTitle, { color: c.black }]}>Calorias {periodLabel}</Text>
+                <CalorieBarChart data={data} target={CALORIE_TARGET} width={innerWidth - spacing.md * 2} c={c} />
+              </View>
             </View>
-          ))}
-        </View>
+          </PremiumGate>
+        ) : (
+          <>
+            {/* Macro mini-cards */}
+            <View style={styles.summaryRow}>
+              <SummaryCard
+                icon="fish-outline"
+                label="Prot. promedio"
+                value={summary.avgProtein}
+                unit="g"
+                color={c.protein}
+                c={c}
+              />
+              <SummaryCard
+                icon="leaf-outline"
+                label="Carbos prom."
+                value={summary.avgCarbs}
+                unit="g"
+                color={c.carbs}
+                c={c}
+              />
+              <SummaryCard
+                icon="water-outline"
+                label="Grasas prom."
+                value={summary.avgFats}
+                unit="g"
+                color={c.fats}
+                c={c}
+              />
+            </View>
 
-        {/* Share summary */}
-        <TouchableOpacity
-          style={styles.shareBtn}
-          activeOpacity={0.8}
-          onPress={() => {
-            haptics.light();
-            shareWeeklySummary({
-              avgCalories: summary.avgCalories,
-              avgProtein: summary.avgProtein,
-              adherence: summary.adherence,
-            }).catch(() => {});
-          }}
-          accessibilityLabel="Compartir resumen"
-          accessibilityRole="button"
-        >
-          <Ionicons name="share-outline" size={18} color="#FFFFFF" />
-          <Text style={styles.shareBtnText}>Compartir resumen</Text>
-        </TouchableOpacity>
+            {/* Calorie bar chart */}
+            <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Text style={[styles.sectionTitle, { color: c.black }]}>
+                Calorias {periodLabel}
+              </Text>
+              <CalorieBarChart
+                data={data}
+                target={CALORIE_TARGET}
+                width={innerWidth - spacing.md * 2}
+                c={c}
+              />
+            </View>
+
+            {/* Goal vs actual comparison */}
+            <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Text style={[styles.sectionTitle, { color: c.black }]}>Meta vs real</Text>
+              {comparisonItems.map((item) => (
+                <GoalComparisonRow key={item.label} item={item} c={c} />
+              ))}
+            </View>
+
+            {/* Macro donut chart */}
+            <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Text style={[styles.sectionTitle, { color: c.black }]}>Distribucion de macros</Text>
+              <MacroDonutChart
+                protein={macros.protein}
+                carbs={macros.carbs}
+                fat={macros.fat}
+                c={c}
+              />
+            </View>
+
+            {/* Top foods */}
+            <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Text style={[styles.sectionTitle, { color: c.black }]}>Alimentos mas frecuentes</Text>
+              <TopFoodsList foods={topFoods} c={c} />
+            </View>
+
+            {/* Best day */}
+            <BestDayCard bestDay={bestDay} c={c} />
+
+            {/* Insights */}
+            <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Text style={[styles.sectionTitle, { color: c.black }]}>Insights</Text>
+              {insights.map((insight, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.insightRow,
+                    {
+                      borderBottomColor: c.grayLight,
+                      borderBottomWidth: i < insights.length - 1 ? 1 : 0,
+                    },
+                  ]}
+                >
+                  <View style={[styles.insightIcon, { backgroundColor: c.accent + '18' }]}>
+                    <Ionicons name={insight.icon as any} size={18} color={c.accent} />
+                  </View>
+                  <Text style={[styles.insightText, { color: c.gray }]}>{insight.text}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Share summary */}
+            <TouchableOpacity
+              style={styles.shareBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                haptics.light();
+                shareWeeklySummary({
+                  avgCalories: summary.avgCalories,
+                  avgProtein: summary.avgProtein,
+                  adherence: summary.adherence,
+                }).catch(() => {});
+              }}
+              accessibilityLabel="Compartir resumen"
+              accessibilityRole="button"
+            >
+              <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.shareBtnText}>Compartir resumen</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
