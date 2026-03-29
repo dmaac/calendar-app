@@ -648,8 +648,8 @@ function CategoryPill({
       style={[
         styles.categoryPill,
         {
-          backgroundColor: active ? c.black : c.surface,
-          borderColor: active ? c.black : c.grayLight,
+          backgroundColor: active ? c.accent : c.surface,
+          borderColor: active ? c.accent : c.grayLight,
         },
       ]}
       activeOpacity={0.8}
@@ -1047,15 +1047,16 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   badgeCard: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 0,
     padding: spacing.md,
+    paddingBottom: spacing.lg,
     alignItems: 'center',
     gap: spacing.xs,
     ...shadows.sm,
   },
   badgeCardLocked: {
-    opacity: 0.55,
+    opacity: 0.45,
   },
   iconCircle: {
     width: 52,
@@ -1090,19 +1091,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   progressBarBg: {
-    height: 4,
-    borderRadius: 2,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
     width: '100%',
   },
   progressBarFill: {
-    height: 4,
-    borderRadius: 2,
+    height: 6,
+    borderRadius: 3,
   },
   progressText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '600',
     textAlign: 'center',
+    marginTop: 2,
   },
 
   // Unlocked check
