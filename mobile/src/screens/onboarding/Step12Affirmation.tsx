@@ -12,12 +12,12 @@ const GOAL_VERB: Record<string, string> = {
   maintain: 'Manteniendo',
 };
 const GOAL_SUFFIX: Record<string, string> = {
-  lose: 'es un objetivo realista.\n¡No es tan difícil!',
-  gain: 'es un objetivo alcanzable.\n¡Tú puedes!',
-  maintain: 'tu peso actual\n¡es una gran meta!',
+  lose: 'es un objetivo realista.\nEstas en buenas manos.',
+  gain: 'es un objetivo alcanzable.\nVamos a lograrlo juntos.',
+  maintain: 'tu peso actual\nes una gran meta.',
 };
 
-export default function Step12Affirmation({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step12Affirmation({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data } = useOnboarding();
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -30,35 +30,58 @@ export default function Step12Affirmation({ onNext, onBack, step, totalSteps }: 
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 8, bounciness: 6 }),
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 8,
+        bounciness: 6,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, []);
 
-  const verb = GOAL_VERB[data.goal] || 'Reaching';
-  const suffix = GOAL_SUFFIX[data.goal] || 'is a great goal!';
+  const verb = GOAL_VERB[data.goal] || 'Alcanzando';
+  const suffix = GOAL_SUFFIX[data.goal] || 'es una gran meta.';
+
+  const accessibilityMessage = data.goal !== 'maintain'
+    ? `${verb} ${displayDiff} ${suffix.replace('\n', ' ')}`
+    : `${verb} ${suffix.replace('\n', ' ')}`;
 
   return (
     <OnboardingLayout
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       showHeader
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
       <View style={styles.center}>
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
+        <Animated.View
+          style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}
+          accessibilityLabel={accessibilityMessage}
+          accessibilityRole="text"
+        >
           <Text style={styles.text}>
             <Text style={styles.regular}>{verb} </Text>
-            <Text style={styles.accent}>{data.goal !== 'maintain' ? displayDiff : ''}</Text>
-            {data.goal !== 'maintain' ? <Text style={styles.regular}>{' '}</Text> : null}
+            <Text style={styles.accent}>
+              {data.goal !== 'maintain' ? displayDiff : ''}
+            </Text>
+            {data.goal !== 'maintain' && (
+              <Text style={styles.regular}>{' '}</Text>
+            )}
             <Text style={styles.regular}>{suffix}</Text>
           </Text>
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim, marginTop: spacing.xl }}>
           <Text style={styles.sub}>
-            El 90% de los usuarios dice que el cambio es evidente al usar nuestra app y que no es fácil recuperar el peso.
+            El 90% de nuestros usuarios reporta resultados visibles
+            en las primeras semanas usando la app.
           </Text>
         </Animated.View>
       </View>
@@ -67,7 +90,11 @@ export default function Step12Affirmation({ onNext, onBack, step, totalSteps }: 
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   text: {
     fontSize: 32,
     fontWeight: '800',
@@ -76,8 +103,12 @@ const styles = StyleSheet.create({
     lineHeight: 42,
     letterSpacing: -0.5,
   },
-  regular: { color: colors.black },
-  accent: { color: colors.accent },
+  regular: {
+    color: colors.black,
+  },
+  accent: {
+    color: colors.accent,
+  },
   sub: {
     ...typography.subtitle,
     color: colors.gray,

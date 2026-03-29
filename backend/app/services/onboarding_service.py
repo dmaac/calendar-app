@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
@@ -19,8 +19,8 @@ class OnboardingService:
         statement = select(OnboardingProfile).where(
             OnboardingProfile.user_id == user_id
         )
-        result = await self.session.exec(statement)
-        return result.first()
+        result = await self.session.execute(statement)
+        return result.scalars().first()
 
     async def save_or_update_profile(
         self, user_id: int, data: OnboardingStepSave
@@ -133,11 +133,16 @@ class OnboardingService:
         if "lose" in goal:
             target_calories = tdee - daily_deficit
         elif "gain" in goal:
-            target_calories = tdee + daily_deficit
+            # Cap surplus at 500 kcal/day to prevent excessive bulk
+            target_calories = tdee + min(daily_deficit, 500)
         else:
             target_calories = tdee
 
-        target_calories = max(1200, round(target_calories))
+        # Gender-differentiated calorie floor (clinical safety minimum)
+        if gender == "male":
+            target_calories = max(1500, round(target_calories))
+        else:
+            target_calories = max(1200, round(target_calories))
 
         # Macro split: 30% protein, 40% carbs, 30% fat (by calories)
         protein_g = round((target_calories * 0.30) / 4)

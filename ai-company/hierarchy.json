@@ -1,0 +1,193 @@
+{
+  "org_chart": "Fitsi IA — Autonomous AI Company v1.0",
+  "total_agents": 165,
+  "layers": 7,
+
+  "hierarchy": {
+    "supreme_orchestrator": {
+      "role": "Meta-Control System",
+      "reports_to": null,
+      "controls": ["ALL"],
+      "direct_reports": ["board", "demons", "ceo-fitsi"]
+    },
+
+    "demons": {
+      "demon-decision":       { "mission": "Evaluate strategic decisions, detect suboptimal choices", "monitors": ["ceo-fitsi", "cpo-fitsi", "board"], "triggers": ["new_feature", "pivot", "strategic_change"] },
+      "demon-performance":    { "mission": "Monitor system performance, detect bottlenecks", "monitors": ["vp-of-engineering", "vp-of-platform", "all_code"], "triggers": ["code_change", "deploy", "slow_response"] },
+      "demon-intelligence":   { "mission": "Improve AI agents continuously, optimize prompts", "monitors": ["cdao-fitsi", "vp-of-ai-systems", "all_agents"], "triggers": ["low_accuracy", "high_cost", "agent_error"] },
+      "demon-security":       { "mission": "Audit security constantly, block risks", "monitors": ["ALL"], "triggers": ["always_active", "code_change", "deploy", "data_access"] },
+      "demon-data":           { "mission": "Control data quality, detect inconsistencies", "monitors": ["cdao-fitsi", "vp-of-ai-systems", "databases"], "triggers": ["data_write", "migration", "pipeline_run"] },
+      "demon-growth":         { "mission": "Optimize growth metrics, adjust funnels", "monitors": ["cgo-fitsi", "head-of-marketing", "analytics"], "triggers": ["conversion_drop", "churn_spike", "campaign_launch"] },
+      "demon-experimentation":{ "mission": "Run continuous A/B tests, validate hypotheses", "monitors": ["cpo-fitsi", "cgo-fitsi", "features"], "triggers": ["new_feature", "ui_change", "funnel_change"] },
+      "demon-operations":     { "mission": "Optimize internal processes, reduce friction", "monitors": ["coo-fitsi", "head-of-operations", "pipelines"], "triggers": ["process_slowdown", "error_spike", "deploy"] },
+      "demon-evolution":      { "mission": "Evolve the agent system itself, propose new agents", "monitors": ["ALL_AGENTS"], "triggers": ["periodic", "system_review", "new_capability_needed"] },
+      "demon-crisis":         { "mission": "Act on critical failures, reassign resources", "monitors": ["ALL"], "triggers": ["crash", "outage", "data_loss", "security_breach", "P0_bug"] }
+    },
+
+    "board": {
+      "board-chairman":       { "role": "Chairman", "oversees": "ceo-fitsi", "focus": "vision_governance" },
+      "board-advisor-growth":  { "role": "Growth Advisor", "focus": "market_expansion_acquisition" },
+      "board-advisor-finance": { "role": "Finance Advisor", "focus": "unit_economics_fundraising" },
+      "board-advisor-people":  { "role": "People Advisor", "focus": "org_design_culture" },
+      "board-advisor-tech":    { "role": "Tech Advisor", "focus": "architecture_ai_strategy" }
+    },
+
+    "csuite": {
+      "ceo-fitsi": {
+        "role": "Chief Executive Officer",
+        "reports_to": "board-chairman",
+        "direct_reports": ["coo-fitsi", "chief-technology-officer", "cpo-fitsi", "cfo-fitsi", "cdao-fitsi", "cgo-fitsi", "ciso-fitsi", "chro-fitsi"],
+        "decisions": ["company_vision", "final_strategy", "hiring_cxo", "fundraising", "pivots"]
+      },
+      "coo-fitsi": {
+        "role": "Chief Operating Officer",
+        "reports_to": "ceo-fitsi",
+        "direct_reports": ["head-of-operations", "head-of-partnerships", "vp-of-platform"],
+        "manages_coordinators": ["fitsia-devops-coordinator"],
+        "decisions": ["daily_operations", "process_optimization", "cross_team_coordination"]
+      },
+      "chief-technology-officer": {
+        "role": "Chief Technology Officer",
+        "reports_to": "ceo-fitsi",
+        "direct_reports": ["vp-of-engineering", "vp-of-mobile-engineering", "chief-software-architect"],
+        "manages_coordinators": ["fitsia-frontend-coordinator", "fitsia-backend-coordinator"],
+        "decisions": ["tech_stack", "architecture", "scalability", "technical_hiring"]
+      },
+      "cpo-fitsi": {
+        "role": "Chief Product Officer",
+        "reports_to": "ceo-fitsi",
+        "direct_reports": ["vp-of-product", "head-of-ux-research"],
+        "manages_coordinators": ["fitsia-feature-coordinator"],
+        "decisions": ["product_roadmap", "feature_priority", "user_experience", "product_market_fit"]
+      },
+      "cfo-fitsi": {
+        "role": "Chief Financial Officer",
+        "reports_to": "ceo-fitsi",
+        "direct_reports": ["head-of-revenue"],
+        "decisions": ["budget", "pricing", "unit_economics", "cost_optimization", "investor_reporting"]
+      },
+      "cdao-fitsi": {
+        "role": "Chief Data & AI Officer",
+        "reports_to": "ceo-fitsi",
+        "direct_reports": ["vp-of-ai-systems"],
+        "manages_coordinators": ["fitsia-ai-coordinator", "fitsia-science-coordinator"],
+        "decisions": ["ai_strategy", "model_selection", "data_governance", "ml_roadmap"]
+      },
+      "cgo-fitsi": {
+        "role": "Chief Growth Officer",
+        "reports_to": "ceo-fitsi",
+        "direct_reports": ["head-of-growth-engineering", "head-of-marketing"],
+        "manages_coordinators": ["fitsia-marketing-coordinator"],
+        "decisions": ["growth_strategy", "acquisition_channels", "retention", "monetization"]
+      },
+      "ciso-fitsi": {
+        "role": "Chief Information Security Officer",
+        "reports_to": "ceo-fitsi",
+        "direct_reports": ["head-of-compliance"],
+        "manages_coordinators": [],
+        "decisions": ["security_policy", "incident_response", "compliance", "data_protection"]
+      },
+      "chro-fitsi": {
+        "role": "Chief Human Resources Officer",
+        "reports_to": "ceo-fitsi",
+        "direct_reports": ["head-of-talent"],
+        "decisions": ["agent_training", "team_structure", "culture", "performance_eval"]
+      }
+    },
+
+    "vps": {
+      "vp-of-engineering": {
+        "reports_to": "chief-technology-officer",
+        "manages_teams": ["fitsia-backend"],
+        "scope": "Backend engineering execution"
+      },
+      "vp-of-mobile-engineering": {
+        "reports_to": "chief-technology-officer",
+        "manages_teams": ["fitsia-frontend"],
+        "scope": "Mobile app development"
+      },
+      "chief-software-architect": {
+        "reports_to": "chief-technology-officer",
+        "manages_teams": [],
+        "scope": "System design, scalability, architecture decisions"
+      },
+      "vp-of-platform": {
+        "reports_to": "coo-fitsi",
+        "manages_teams": ["fitsia-infra"],
+        "scope": "Infrastructure, DevOps, cloud"
+      },
+      "vp-of-ai-systems": {
+        "reports_to": "cdao-fitsi",
+        "manages_teams": ["fitsia-ai", "fitsia-science"],
+        "scope": "AI/ML systems, data pipelines"
+      },
+      "vp-of-product": {
+        "reports_to": "cpo-fitsi",
+        "manages_teams": [],
+        "scope": "Product engineering, feature delivery"
+      },
+      "head-of-ux-research": {
+        "reports_to": "cpo-fitsi",
+        "manages_teams": [],
+        "scope": "User research, usability, persona development"
+      },
+      "head-of-marketing": {
+        "reports_to": "cgo-fitsi",
+        "manages_teams": ["fitsia-organic", "fitsia-paid"],
+        "scope": "Marketing strategy, brand, content, paid acquisition"
+      },
+      "head-of-growth-engineering": {
+        "reports_to": "cgo-fitsi",
+        "manages_teams": ["fitsia-growth"],
+        "scope": "Growth loops, experimentation, analytics"
+      },
+      "head-of-operations": {
+        "reports_to": "coo-fitsi",
+        "manages_teams": [],
+        "scope": "Process optimization, cross-team coordination"
+      },
+      "head-of-partnerships": {
+        "reports_to": "coo-fitsi",
+        "manages_teams": [],
+        "scope": "API partnerships, gym integrations, B2B"
+      },
+      "head-of-revenue": {
+        "reports_to": "cfo-fitsi",
+        "manages_teams": [],
+        "scope": "Subscription metrics, MRR/ARR, paywall optimization"
+      },
+      "head-of-compliance": {
+        "reports_to": "ciso-fitsi",
+        "manages_teams": [],
+        "scope": "GDPR, HIPAA, App Store guidelines, health data"
+      },
+      "head-of-talent": {
+        "reports_to": "chro-fitsi",
+        "manages_teams": [],
+        "scope": "Agent recruitment, training, performance evaluation"
+      }
+    },
+
+    "coordinators_to_teams": {
+      "fitsia-frontend-coordinator": { "team": "fitsia-frontend", "agents": 22, "vp": "vp-of-mobile-engineering" },
+      "fitsia-backend-coordinator":  { "team": "fitsia-backend", "agents": 13, "vp": "vp-of-engineering" },
+      "fitsia-ai-coordinator":       { "team": "fitsia-ai", "agents": 7, "vp": "vp-of-ai-systems" },
+      "fitsia-science-coordinator":  { "team": "fitsia-science", "agents": 12, "vp": "vp-of-ai-systems" },
+      "fitsia-devops-coordinator":   { "team": "fitsia-infra", "agents": 7, "vp": "vp-of-platform" },
+      "fitsia-qa-coordinator":       { "team": "fitsia-qa", "agents": 7, "vp": "vp-of-engineering" },
+      "fitsia-marketing-coordinator":{ "teams": ["fitsia-growth","fitsia-organic","fitsia-paid"], "agents": 26, "vp": "head-of-marketing" },
+      "fitsia-content-coordinator":  { "team": "fitsia-content", "agents": 8, "vp": "vp-of-product" },
+      "fitsia-equipment-coordinator":{ "team": "fitsia-equipment", "agents": 9, "vp": "vp-of-product" }
+    }
+  },
+
+  "command_chains": {
+    "engineering_task": ["orchestrator", "CTO", "VP Engineering", "backend-coordinator", "specialists"],
+    "mobile_task":     ["orchestrator", "CTO", "VP Mobile", "frontend-coordinator", "specialists"],
+    "ai_task":         ["orchestrator", "CDAO", "VP AI Systems", "ai-coordinator", "specialists"],
+    "growth_task":     ["orchestrator", "CGO", "Head of Growth", "marketing-coordinator", "specialists"],
+    "security_task":   ["orchestrator", "CISO", "Head Compliance", "security-engineer", "specialists"],
+    "strategic_task":  ["orchestrator", "Board", "CEO", "relevant C-level", "VPs"],
+    "crisis_task":     ["orchestrator", "demon-crisis", "CEO+COO", "all relevant teams"]
+  }
+}

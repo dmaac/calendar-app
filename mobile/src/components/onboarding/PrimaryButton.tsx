@@ -8,13 +8,16 @@ import {
   View,
 } from 'react-native';
 import { colors, radius, typography } from '../../theme';
+import { haptics } from '../../hooks/useHaptics';
 
-interface PrimaryButtonProps {
+export interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
   variant?: 'primary' | 'outline' | 'ghost';
+  accessibilityLabel?: string;
+  accessibilityRole?: string;
 }
 
 export default function PrimaryButton({
@@ -23,15 +26,18 @@ export default function PrimaryButton({
   disabled = false,
   loading = false,
   variant = 'primary',
+  accessibilityLabel: customAccessibilityLabel,
+  accessibilityRole: customAccessibilityRole,
 }: PrimaryButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
-    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
+    haptics.light();
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 30, bounciness: 4 }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 4 }).start();
   };
 
   const isDisabled = disabled || loading;
@@ -60,6 +66,9 @@ export default function PrimaryButton({
         disabled={isDisabled}
         activeOpacity={1}
         style={btnStyle}
+        accessibilityLabel={customAccessibilityLabel ?? (loading ? 'Cargando' : label)}
+        accessibilityRole={(customAccessibilityRole as any) ?? "button"}
+        accessibilityState={{ disabled: isDisabled }}
       >
         {loading ? (
           <ActivityIndicator color={variant === 'primary' ? colors.white : colors.black} size="small" />

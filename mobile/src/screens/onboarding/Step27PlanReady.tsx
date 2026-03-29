@@ -1,11 +1,12 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
+import HealthScore from '../../components/HealthScore';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
+import FitsiMascot from '../../components/FitsiMascot';
 
 function MacroBar({ label, grams, color, maxGrams }: { label: string; grams: number; color: string; maxGrams: number }) {
   const widthAnim = useRef(new Animated.Value(0)).current;
@@ -33,6 +34,51 @@ const macroStyles = StyleSheet.create({
   value: { ...typography.caption, color: colors.black, width: 36, textAlign: 'right' },
 });
 
+/** Animated calorie counter from 0 to target with spring bounce */
+function AnimatedCalorieNum({ target, style }: { target: number; style: any }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    anim.setValue(0);
+    Animated.spring(anim, {
+      toValue: target,
+      useNativeDriver: false,
+      speed: 4,
+      bounciness: 6,
+    }).start();
+    const id = anim.addListener(({ value }) => {
+      setDisplay(Math.round(Math.max(0, value)));
+    });
+    return () => anim.removeListener(id);
+  }, [target]);
+
+  return <Text style={style}>{display}</Text>;
+}
+
+/** Animated number that counts from 0 to target with spring overshoot */
+function AnimatedMacroNum({ target, style }: { target: number; style: any }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    anim.setValue(0);
+    // Spring overshoots slightly past target then settles — gives "bounce" feel
+    Animated.spring(anim, {
+      toValue: target,
+      useNativeDriver: false,
+      speed: 6,
+      bounciness: 8,
+    }).start();
+    const id = anim.addListener(({ value }) => {
+      setDisplay(Math.round(Math.max(0, value)));
+    });
+    return () => anim.removeListener(id);
+  }, [target]);
+
+  return <Text style={style}>{display}g</Text>;
+}
+
 export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: StepProps) {
   const { data } = useOnboarding();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -43,7 +89,7 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
   const carbs = plan?.dailyCarbsG ?? 200;
   const protein = plan?.dailyProteinG ?? 130;
   const fats = plan?.dailyFatsG ?? 60;
-  const healthScore = Math.round((plan?.healthScore ?? 7.0) * 10);
+  const healthScore = plan?.healthScore ?? 7.0;
 
   const maxMacro = Math.max(carbs, protein, fats);
 
@@ -62,14 +108,17 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
       scrollable={false}
       footer={<PrimaryButton label="Ver mi plan" onPress={onNext} />}
     >
-      <Text style={styles.title}>¡Tu plan{'\n'}está listo! 🎉</Text>
+      <View style={{ alignItems: 'center' }}>
+        <FitsiMascot expression="party" size="large" animation="celebrate" message="Tu plan esta listo!" />
+      </View>
+      <Text style={styles.title}>¡Tu plan{'\n'}está listo!</Text>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }], gap: spacing.md, paddingTop: spacing.lg }}>
           {/* Calories card */}
           <View style={styles.caloriesCard}>
             <Text style={styles.caloriesLabel}>Meta calórica diaria</Text>
-            <Text style={styles.caloriesValue}>{calories}</Text>
+            <AnimatedCalorieNum target={calories} style={styles.caloriesValue} />
             <Text style={styles.caloriesUnit}>kcal / día</Text>
           </View>
 
@@ -78,15 +127,15 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
             <Text style={styles.cardTitle}>Tus Macros</Text>
             <View style={styles.macroGrid}>
               <View style={styles.macroPill}>
-                <Text style={styles.macroNum}>{carbs}g</Text>
+                <AnimatedMacroNum target={carbs} style={styles.macroNum} />
                 <Text style={styles.macroLbl}>Carbos</Text>
               </View>
               <View style={[styles.macroPill, { backgroundColor: '#FEE2E2' }]}>
-                <Text style={[styles.macroNum, { color: colors.protein }]}>{protein}g</Text>
-                <Text style={styles.macroLbl}>Proteína</Text>
+                <AnimatedMacroNum target={protein} style={[styles.macroNum, { color: colors.protein }]} />
+                <Text style={styles.macroLbl}>Proteina</Text>
               </View>
               <View style={[styles.macroPill, { backgroundColor: '#EFF6FF' }]}>
-                <Text style={[styles.macroNum, { color: colors.fats }]}>{fats}g</Text>
+                <AnimatedMacroNum target={fats} style={[styles.macroNum, { color: colors.fats }]} />
                 <Text style={styles.macroLbl}>Grasas</Text>
               </View>
             </View>
@@ -99,16 +148,7 @@ export default function Step27PlanReady({ onNext, onBack, step, totalSteps }: St
           </View>
 
           {/* Health score */}
-          <View style={[styles.card, styles.scoreCard]}>
-            <View>
-              <Text style={styles.cardTitle}>Puntuación de salud</Text>
-              <Text style={styles.scoreDesc}>Basado en tu perfil y objetivos</Text>
-            </View>
-            <View style={styles.scoreBadge}>
-              <Text style={styles.scoreNum}>{healthScore}</Text>
-              <Text style={styles.scoreMax}>/100</Text>
-            </View>
-          </View>
+          <HealthScore score={healthScore} size="large" />
 
           <View style={{ height: 80 }} />
         </Animated.View>
@@ -147,9 +187,4 @@ const styles = StyleSheet.create({
   },
   macroNum: { fontSize: 18, fontWeight: '800', color: colors.carbs },
   macroLbl: { ...typography.caption, color: colors.gray },
-  scoreCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  scoreDesc: { ...typography.caption, color: colors.gray },
-  scoreBadge: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  scoreNum: { fontSize: 40, fontWeight: '900', color: colors.black, letterSpacing: -1 },
-  scoreMax: { ...typography.subtitle, color: colors.gray },
 });

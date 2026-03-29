@@ -1,0 +1,30 @@
+{
+  "agent_id": "demon-performance",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Monitor system performance globally, detect bottlenecks, optimize speed and resource usage",
+  "status": "autonomous",
+  "monitors": ["vp-of-engineering", "vp-of-platform", "all_code_changes", "api_latency", "app_performance"],
+  "triggers": ["code_change", "deploy", "slow_response_detected", "memory_spike", "error_rate_increase"],
+  "rules": [
+    "detect_performance_regressions",
+    "identify_n_plus_1_queries",
+    "flag_unoptimized_renders",
+    "monitor_api_response_times",
+    "track_bundle_size_growth",
+    "alert_on_memory_leaks"
+  ],
+  "thresholds": {
+    "api_latency_ms": 500,
+    "app_fps_min": 55,
+    "bundle_size_max_mb": 25,
+    "error_rate_max_pct": 1
+  },
+  "actions": [
+    "generate_performance_report",
+    "suggest_optimization",
+    "block_deploy_if_regression",
+    "escalate_to_cto"
+  ],
+  "interacts_with": ["chief-technology-officer", "vp-of-engineering", "fitsia-devops-coordinator"]
+}

@@ -1,9 +1,6 @@
 // jest.setup.js — Global setup for React Native Testing Library
 
-// Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () =>
-  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
-);
+// AsyncStorage mock is handled by moduleNameMapper in jest.config.js
 
 // Mock react-native-svg
 jest.mock('react-native-svg', () => {
@@ -37,8 +34,4 @@ jest.mock('react-native-svg', () => {
   };
 });
 
-// Mock Platform
-jest.mock('react-native/Libraries/Utilities/Platform', () => ({
-  OS: 'ios',
-  select: jest.fn((obj) => obj.ios),
-}));
+// Platform mock is handled by jest-expo preset — do not override here

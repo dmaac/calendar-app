@@ -79,7 +79,12 @@ export interface NutritionPlan {
   healthScore: number;
   targetDate: string;       // ISO date string
   weeklyLossKg: number;
+  blocked?: boolean;
+  blockReason?: string;
+  warning?: string;
 }
+
+export type OnboardingMode = 'full' | 'fast';
 
 interface OnboardingContextType {
   data: OnboardingData;
@@ -89,6 +94,8 @@ interface OnboardingContextType {
   currentStep: number;
   setCurrentStep: (step: number) => void;
   isLoaded: boolean;
+  onboardingMode: OnboardingMode;
+  setOnboardingMode: (mode: OnboardingMode) => void;
 }
 
 // ─── Default values ──────────────────────────────────────────────────────────
@@ -115,6 +122,7 @@ const DEFAULT_DATA: OnboardingData = {
 
 const STORAGE_KEY = 'onboarding_data_v2';
 const STEP_KEY = 'onboarding_current_step';
+const MODE_KEY = 'onboarding_mode';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -123,6 +131,11 @@ export const useOnboarding = () => {
   const ctx = useContext(OnboardingContext);
   if (!ctx) throw new Error('useOnboarding must be used inside OnboardingProvider');
   return ctx;
+};
+
+/** Safe variant that returns null when used outside OnboardingProvider. */
+export const useOnboardingSafe = () => {
+  return useContext(OnboardingContext) ?? null;
 };
 
 // ─── Plan calculator ─────────────────────────────────────────────────────────
@@ -135,6 +148,21 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
   const monthDiff = now.getMonth() - birthDate.monthIndex;
   if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.day)) {
     age--;
+  }
+
+  // Age gate
+  if (age < 13) {
+    return {
+      dailyCalories: 0,
+      dailyCarbsG: 0,
+      dailyProteinG: 0,
+      dailyFatsG: 0,
+      healthScore: 0,
+      targetDate: new Date().toISOString(),
+      weeklyLossKg: weeklySpeedKg,
+      blocked: true,
+      blockReason: 'Debes tener al menos 13 años para usar esta app.',
+    };
   }
 
   // BMR — Fórmula Mifflin-St Jeor
@@ -150,13 +178,15 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
 
   const tdee = Math.round(bmr * activityMultiplier);
 
-  // Ajuste según objetivo
-  const deficit =
-    goal === 'lose' ? -500 :
-    goal === 'gain' ? +400 :
-    0;
+  // Ajuste según objetivo — capped per clinical guidelines (ACSM/NIH)
+  const dailyAdjustment = Math.round((weeklySpeedKg * 7700) / 7);
+  // Gain surplus capped at 500 kcal/day (beyond this, mostly fat gain)
+  const gainCap = Math.min(dailyAdjustment, 500);
+  const deficit = goal === 'lose' ? -dailyAdjustment : goal === 'gain' ? gainCap : 0;
 
-  const dailyCalories = Math.max(1200, Math.min(4000, tdee + deficit));
+  // Gender-differentiated calorie floor (NIH: 1500 males, 1200 females)
+  const calorieFloor = gender === 'Male' ? 1500 : 1200;
+  const dailyCalories = Math.max(calorieFloor, Math.min(4000, tdee + deficit));
 
   // Macros (40% carbs / 30% protein / 30% fats — matches backend calculation)
   const dailyCarbsG    = Math.round((dailyCalories * 0.40) / 4);
@@ -175,7 +205,7 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
                       bmi >= 25 && bmi <= 29.9 ? 7.0 :
                       bmi < 18.5 ? 6.5 : 5.5;
 
-  return {
+  const plan: NutritionPlan = {
     dailyCalories,
     dailyCarbsG,
     dailyProteinG,
@@ -184,6 +214,12 @@ function calculatePlan(data: OnboardingData): NutritionPlan {
     targetDate: targetDate.toISOString(),
     weeklyLossKg: weeklySpeedKg,
   };
+
+  if (age < 18) {
+    plan.warning = 'Menores de 18 años deben consultar con un profesional de salud.';
+  }
+
+  return plan;
 }
 
 // ─── Provider ────────────────────────────────────────────────────────────────
@@ -191,19 +227,22 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<OnboardingData>(DEFAULT_DATA);
   const [currentStep, setCurrentStepState] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [onboardingMode, setOnboardingModeState] = useState<OnboardingMode>('full');
 
   // Cargar desde AsyncStorage al iniciar
   useEffect(() => {
     (async () => {
       try {
-        const [savedData, savedStep] = await Promise.all([
+        const [savedData, savedStep, savedMode] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(STEP_KEY),
+          AsyncStorage.getItem(MODE_KEY),
         ]);
         if (savedData) setData(JSON.parse(savedData));
         if (savedStep) setCurrentStepState(parseInt(savedStep, 10));
+        if (savedMode === 'fast' || savedMode === 'full') setOnboardingModeState(savedMode);
       } catch (e) {
-        console.warn('OnboardingContext: error loading from storage', e);
+        // silently ignore storage load errors
       } finally {
         setIsLoaded(true);
       }
@@ -213,12 +252,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // Persistir cada vez que cambia
   useEffect(() => {
     if (!isLoaded) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data)).catch(console.warn);
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data)).catch(() => {});
   }, [data, isLoaded]);
 
   const setCurrentStep = useCallback((step: number) => {
     setCurrentStepState(step);
-    AsyncStorage.setItem(STEP_KEY, String(step)).catch(console.warn);
+    AsyncStorage.setItem(STEP_KEY, String(step)).catch(() => {});
+  }, []);
+
+  const setOnboardingMode = useCallback((mode: OnboardingMode) => {
+    setOnboardingModeState(mode);
+    AsyncStorage.setItem(MODE_KEY, mode).catch(() => {});
   }, []);
 
   const update = useCallback(<K extends keyof OnboardingData>(
@@ -247,6 +291,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       currentStep,
       setCurrentStep,
       isLoaded,
+      onboardingMode,
+      setOnboardingMode,
     }}>
       {children}
     </OnboardingContext.Provider>

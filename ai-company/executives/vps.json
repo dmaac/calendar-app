@@ -1,0 +1,129 @@
+{
+  "vps": [
+    {
+      "agent_id": "vp-of-engineering",
+      "role": "VP of Engineering",
+      "reports_to": "chief-technology-officer",
+      "manages_coordinators": ["fitsia-backend-coordinator"],
+      "manages_teams": ["fitsia-backend", "fitsia-qa"],
+      "scope": "Backend engineering execution, API quality, database performance",
+      "decisions": ["backend_architecture", "api_design", "db_optimization", "code_review_standards"],
+      "kpis": ["api_uptime", "response_latency", "test_coverage", "deploy_success_rate"]
+    },
+    {
+      "agent_id": "vp-of-mobile-engineering",
+      "role": "VP of Mobile Engineering",
+      "reports_to": "chief-technology-officer",
+      "manages_coordinators": ["fitsia-frontend-coordinator"],
+      "manages_teams": ["fitsia-frontend"],
+      "scope": "Mobile app development, React Native/Expo, all screens and components",
+      "decisions": ["mobile_architecture", "component_design", "navigation_patterns", "performance_budgets"],
+      "kpis": ["app_crash_rate", "fps_performance", "bundle_size", "feature_velocity"]
+    },
+    {
+      "agent_id": "chief-software-architect",
+      "role": "Chief Software Architect",
+      "reports_to": "chief-technology-officer",
+      "manages_coordinators": [],
+      "scope": "System design, scalability architecture, technical standards, cross-cutting concerns",
+      "decisions": ["system_architecture", "tech_stack_changes", "scalability_patterns", "api_contracts"],
+      "kpis": ["system_complexity", "modularity_score", "technical_debt_index"]
+    },
+    {
+      "agent_id": "vp-of-platform",
+      "role": "VP of Platform",
+      "reports_to": "coo-fitsi",
+      "manages_coordinators": ["fitsia-devops-coordinator"],
+      "manages_teams": ["fitsia-infra"],
+      "scope": "Infrastructure, DevOps, CI/CD, cloud, monitoring, reliability",
+      "decisions": ["infrastructure_design", "cloud_provider", "ci_cd_pipeline", "monitoring_stack"],
+      "kpis": ["uptime_sla", "deploy_frequency", "mttr", "infrastructure_cost"]
+    },
+    {
+      "agent_id": "vp-of-ai-systems",
+      "role": "VP of Data & AI Systems",
+      "reports_to": "cdao-fitsi",
+      "manages_coordinators": ["fitsia-ai-coordinator", "fitsia-science-coordinator"],
+      "manages_teams": ["fitsia-ai", "fitsia-science"],
+      "scope": "AI/ML systems, food recognition, data pipelines, model serving, scientific validation",
+      "decisions": ["model_architecture", "training_data", "inference_pipeline", "accuracy_targets"],
+      "kpis": ["scan_accuracy", "model_latency", "cost_per_inference", "data_quality"]
+    },
+    {
+      "agent_id": "vp-of-product",
+      "role": "VP of Product",
+      "reports_to": "cpo-fitsi",
+      "manages_coordinators": ["fitsia-content-coordinator", "fitsia-equipment-coordinator"],
+      "scope": "Product engineering, feature delivery, content, fitness equipment integration",
+      "decisions": ["feature_specs", "acceptance_criteria", "content_strategy", "equipment_catalog"],
+      "kpis": ["feature_adoption", "content_engagement", "exercise_library_coverage"]
+    },
+    {
+      "agent_id": "head-of-ux-research",
+      "role": "Head of UX Research",
+      "reports_to": "cpo-fitsi",
+      "scope": "User research strategy, usability testing, persona development, journey mapping",
+      "decisions": ["research_methodology", "persona_definitions", "ux_standards", "accessibility_targets"],
+      "kpis": ["usability_score", "task_completion_rate", "nps", "accessibility_compliance"]
+    },
+    {
+      "agent_id": "head-of-marketing",
+      "role": "Head of Marketing",
+      "reports_to": "cgo-fitsi",
+      "manages_coordinators": ["fitsia-marketing-coordinator"],
+      "manages_teams": ["fitsia-organic", "fitsia-paid"],
+      "scope": "Marketing strategy, brand, content, paid acquisition, ASO, social media",
+      "decisions": ["channel_strategy", "brand_voice", "creative_direction", "budget_per_channel"],
+      "kpis": ["cac", "roas", "organic_installs", "brand_awareness"]
+    },
+    {
+      "agent_id": "head-of-growth-engineering",
+      "role": "Head of Growth Engineering",
+      "reports_to": "cgo-fitsi",
+      "manages_teams": ["fitsia-growth"],
+      "scope": "Growth loops, viral mechanics, experimentation platform, analytics infrastructure",
+      "decisions": ["experiment_priority", "growth_loop_design", "analytics_architecture", "referral_mechanics"],
+      "kpis": ["viral_coefficient", "experiment_velocity", "activation_rate", "referral_conversion"]
+    },
+    {
+      "agent_id": "head-of-operations",
+      "role": "Head of Operations",
+      "reports_to": "coo-fitsi",
+      "scope": "Process optimization, cross-team coordination, SLA management, vendor relations",
+      "decisions": ["process_design", "vendor_selection", "sla_targets", "tooling_decisions"],
+      "kpis": ["process_efficiency", "cross_team_blockers", "sla_compliance"]
+    },
+    {
+      "agent_id": "head-of-partnerships",
+      "role": "Head of Partnerships",
+      "reports_to": "coo-fitsi",
+      "scope": "API partnerships, gym integrations, corporate wellness, B2B deals",
+      "decisions": ["partner_selection", "api_access_terms", "integration_priority", "b2b_pricing"],
+      "kpis": ["partner_integrations", "b2b_revenue", "api_usage"]
+    },
+    {
+      "agent_id": "head-of-revenue",
+      "role": "Head of Revenue",
+      "reports_to": "cfo-fitsi",
+      "scope": "Subscription metrics, MRR/ARR tracking, paywall optimization, pricing experiments",
+      "decisions": ["pricing_tiers", "paywall_design", "trial_length", "promotional_offers"],
+      "kpis": ["mrr", "arpu", "trial_conversion", "churn_rate", "ltv"]
+    },
+    {
+      "agent_id": "head-of-compliance",
+      "role": "Head of Compliance",
+      "reports_to": "ciso-fitsi",
+      "scope": "GDPR, HIPAA awareness, App Store guidelines, health data, privacy",
+      "decisions": ["compliance_framework", "data_retention_policy", "consent_flows", "app_store_submission"],
+      "kpis": ["compliance_score", "audit_findings", "policy_violations"]
+    },
+    {
+      "agent_id": "head-of-talent",
+      "role": "Head of Talent",
+      "reports_to": "chro-fitsi",
+      "scope": "Agent recruitment (new agent proposals), training, performance evaluation, team health",
+      "decisions": ["new_agent_specs", "agent_retirement", "team_composition", "training_programs"],
+      "kpis": ["agent_coverage", "response_quality", "knowledge_gaps_filled"]
+    }
+  ]
+}

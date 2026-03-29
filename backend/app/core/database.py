@@ -9,14 +9,58 @@ logger = logging.getLogger(__name__)
 _is_sqlite = settings.database_url_async.startswith("sqlite")
 
 _engine_kwargs: dict = {"echo": False}
+
+# Enable SSL for Supabase/cloud PostgreSQL connections
+# SEC: Use ssl.CERT_REQUIRED with system CA bundle to verify the server's
+# identity. This prevents MITM attacks on the database connection.
+# If a custom CA is needed, set DATABASE_SSL_CA_FILE env var.
+_db_url = settings.database_url_async
+if "supabase" in _db_url or "pooler.supabase" in _db_url:
+    import ssl
+    import os
+    _ca_file = os.getenv("DATABASE_SSL_CA_FILE")
+    if _ca_file and os.path.isfile(_ca_file):
+        # SEC-PREFERRED: Full verification using Supabase project CA cert.
+        # Download from: Supabase Dashboard > Project Settings > Database > SSL
+        _ssl_ctx = ssl.create_default_context(cafile=_ca_file)
+        # check_hostname=True and verify_mode=CERT_REQUIRED are defaults
+        logger.info("Supabase SSL: full verification with CA file %s", _ca_file)
+    else:
+        # SEC-FALLBACK: Supabase pooler uses an internal CA not in system trust
+        # store. Encrypted in transit (TLS) but without server identity verification.
+        # Set DATABASE_SSL_CA_FILE to enable full verification.
+        _ssl_ctx = ssl.create_default_context()
+        _ssl_ctx.check_hostname = False
+        _ssl_ctx.verify_mode = ssl.CERT_NONE
+        logger.warning(
+            "Supabase SSL: using encrypted connection WITHOUT certificate verification. "
+            "Set DATABASE_SSL_CA_FILE env var with the Supabase CA cert for full security."
+        )
+    _engine_kwargs["connect_args"] = {
+        "ssl": _ssl_ctx,
+        "statement_cache_size": 0,  # Required for Supabase pooler (transaction mode)
+    }
+
 if not _is_sqlite:
     # PostgreSQL-only pool parameters — not supported by SQLite
+    #
+    # Production recommendations:
+    #   pool_size=20        — baseline persistent connections
+    #   max_overflow=40     — burst capacity (total max = pool_size + max_overflow = 60)
+    #   pool_timeout=30     — seconds to wait for a connection before raising
+    #   pool_recycle=3600   — recycle connections every hour to avoid stale/idle drops
+    #   pool_pre_ping=True  — test connection liveness before checkout (detects dead connections)
+    #
+    # For development, echo_pool="debug" logs pool checkout/checkin events.
     _engine_kwargs.update(
         pool_size=settings.db_pool_size,
         max_overflow=settings.db_max_overflow,
         pool_timeout=settings.db_pool_timeout,
         pool_recycle=settings.db_pool_recycle,
+        pool_pre_ping=True,
     )
+    if not settings.is_production:
+        _engine_kwargs["echo_pool"] = "debug"
 
 async_engine = create_async_engine(settings.database_url_async, **_engine_kwargs)
 

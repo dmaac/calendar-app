@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# dev.sh — Levanta TODO el sistema Cal AI en desarrollo
+# dev.sh — Levanta TODO el sistema Fitsi AI en desarrollo
 #
 # Uso:
 #   ./dev.sh          # levanta todo (DB + Redis + Backend + Mobile)
@@ -76,12 +76,12 @@ esac
 # ═══════════════════════════════════════════════════════════════════════════════
 clear
 echo -e "${BOLD}${CYAN}"
-echo "  ██████╗ █████╗ ██╗      █████╗ ██╗"
-echo " ██╔════╝██╔══██╗██║     ██╔══██╗██║"
-echo " ██║     ███████║██║     ███████║██║"
-echo " ██║     ██╔══██║██║     ██╔══██║██║"
-echo " ╚██████╗██║  ██║███████╗██║  ██║██║"
-echo "  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  dev"
+echo " ███████╗██╗████████╗███████╗██╗     █████╗ ██╗"
+echo " ██╔════╝██║╚══██╔══╝██╔════╝██║    ██╔══██╗██║"
+echo " █████╗  ██║   ██║   ███████╗██║    ███████║██║"
+echo " ██╔══╝  ██║   ██║   ╚════██║██║    ██╔══██║██║"
+echo " ██║     ██║   ██║   ███████║██║    ██║  ██║██║"
+echo " ╚═╝     ╚═╝   ╚═╝   ╚══════╝╚═╝    ╚═╝  ╚═╝╚═╝  dev"
 echo -e "${NC}"
 sep
 
@@ -217,7 +217,7 @@ PIP="$BACKEND/venv/bin/pip"
 
 log "Instalando/verificando dependencias Python..."
 # Excluir psycopg2-binary (usamos asyncpg)
-DEPS=$(grep -v "psycopg2" "$BACKEND/requirements.txt" | tr '\n' ' ')
+DEPS=$(grep -v "psycopg2" "$BACKEND/requirements.txt" | sed 's/#.*//' | tr '\n' ' ')
 $PIP install --quiet --upgrade pip
 $PIP install --quiet $DEPS
 ok "Dependencias Python OK"
@@ -244,13 +244,13 @@ else
     --host 0.0.0.0 \
     --port 8000 \
     --reload \
-    --log-level info \
+    --log-level warning \
     > "$LOG_DIR/backend.log" 2>&1 &
   BACKEND_PID=$!
 
-  log "Esperando backend..."
-  RETRIES=40
-  until curl -sf http://localhost:8000/ &>/dev/null; do
+  log "Esperando backend (puede tardar ~30s por conexión a Supabase)..."
+  RETRIES=60
+  until curl -sf --max-time 2 http://localhost:8000/ &>/dev/null; do
     RETRIES=$((RETRIES-1))
     if [[ $RETRIES -eq 0 ]]; then
       err "Backend no respondió. Últimas líneas:"
@@ -278,33 +278,7 @@ else
   ok "node_modules existe"
 fi
 
-# ── 7. Expo ───────────────────────────────────────────────────────────────────
-sep
-log "Iniciando Expo..."
-cd "$MOBILE"
-
-# Limpiar log anterior para que el detector de "listo" funcione bien
-> "$LOG_DIR/mobile.log"
-
-npx expo start \
-  > "$LOG_DIR/mobile.log" 2>&1 &
-MOBILE_PID=$!
-
-log "Esperando Expo Metro bundler..."
-RETRIES=90
-until grep -qE "Metro waiting on|exp://|localhost:8081" "$LOG_DIR/mobile.log" 2>/dev/null; do
-  RETRIES=$((RETRIES-1))
-  if [[ $RETRIES -eq 0 ]]; then
-    warn "Expo tardó más de 90s — puede que aún esté iniciando"
-    break
-  fi
-  if ! kill -0 "$MOBILE_PID" 2>/dev/null; then
-    err "Expo crasheó:"; cat "$LOG_DIR/mobile.log"; cleanup; exit 1
-  fi
-  sleep 1
-done
-
-# ── 8. Resumen ────────────────────────────────────────────────────────────────
+# ── 7. Resumen ────────────────────────────────────────────────────────────────
 sep
 echo ""
 echo -e "${BOLD}${GREEN}  ✅ SISTEMA LEVANTADO${NC}"
@@ -320,10 +294,6 @@ if [[ "${BACKEND_REUSED:-false}" == "false" ]]; then
 echo -e "    Log          ${CYAN}tail -f $LOG_DIR/backend.log${NC}"
 fi
 echo ""
-echo -e "  ${BOLD}Mobile (Expo):${NC}"
-echo -e "    Web          ${GREEN}http://localhost:8081${NC}"
-echo -e "    Log/QR       ${CYAN}tail -f $LOG_DIR/mobile.log${NC}"
-echo ""
 echo -e "  ${BOLD}Comandos:${NC}"
 echo -e "    ${CYAN}./dev.sh stop${NC}   → para contenedores Docker"
 echo -e "    ${CYAN}./dev.sh reset${NC}  → borrar DB y empezar limpio"
@@ -333,12 +303,11 @@ echo -e "  ${YELLOW}Ctrl+C para parar todo${NC}"
 sep
 echo ""
 
-# ── 9. Stream logs en tiempo real ─────────────────────────────────────────────
-if [[ "${BACKEND_REUSED:-false}" == "false" && -f "$LOG_DIR/backend.log" ]]; then
-  tail -f "$LOG_DIR/backend.log" | sed "s/^/$(printf "${GREEN}[api]${NC}") /" &
-fi
-tail -f "$LOG_DIR/mobile.log" | sed "s/^/$(printf "${CYAN}[expo]${NC}") /" &
+# ── 8. Expo en primer plano (muestra QR interactivo) ─────────────────────────
+log "Iniciando Expo (interactivo — QR visible)..."
+cd "$MOBILE"
+MOBILE_PID=""
+npx expo start
 
-wait "${BACKEND_PID:-}" "${MOBILE_PID:-}" 2>/dev/null || true
-# Si los procesos terminaron solos, limpiar igual
+# Si Expo termina, limpiar
 cleanup

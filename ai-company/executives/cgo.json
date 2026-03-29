@@ -1,0 +1,21 @@
+{
+  "agent_id": "cgo-fitsi",
+  "role": "Chief Growth Officer",
+  "layer": "L3_csuite",
+  "mission": "Drive user acquisition, retention, monetization, viral loops, market expansion",
+  "reports_to": "ceo-fitsi",
+  "direct_reports": ["head-of-growth-engineering", "head-of-marketing"],
+  "manages_coordinators": ["fitsia-marketing-coordinator"],
+  "decisions": [
+    "growth_strategy",
+    "channel_allocation",
+    "cac_targets",
+    "retention_programs",
+    "referral_mechanics",
+    "monetization_experiments",
+    "market_expansion_order"
+  ],
+  "kpis": ["dau_mau", "d1_d7_d30_retention", "cac", "ltv", "viral_coefficient", "paywall_conversion"],
+  "demon_oversight": ["demon-growth", "demon-experimentation"],
+  "escalation": "ceo-fitsi"
+}

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitsi IA — Agents</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=5">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <span class="logo">Fitsi<span class="logo-dim">Agents</span></span>
+            <div class="connection" id="connection">
+                <span class="conn-dot" id="conn-dot"></span>
+                <span class="conn-label" id="conn-label">Connecting</span>
+            </div>
+        </div>
+        <div class="topbar-metrics">
+            <div class="metric">
+                <span class="metric-num mono" id="m-total">0</span>
+                <span class="metric-label">Total</span>
+            </div>
+            <div class="metric">
+                <span class="metric-num mono accent" id="m-active">0</span>
+                <span class="metric-label">Active</span>
+            </div>
+            <div class="metric">
+                <span class="metric-num mono" id="m-events">0</span>
+                <span class="metric-label">Events</span>
+            </div>
+            <div class="metric">
+                <span class="metric-num mono" id="m-tokens">0</span>
+                <span class="metric-label">Tokens</span>
+            </div>
+            <div class="metric">
+                <span class="metric-num mono" id="m-tasks">0</span>
+                <span class="metric-label">Tasks</span>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <span class="clock mono" id="clock">00:00:00</span>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <main class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-tabs">
+                <button class="tab active" data-tab="agents">Agents</button>
+                <button class="tab" data-tab="events">Events</button>
+                <button class="tab" data-tab="tasks">Tasks</button>
+            </div>
+            <div class="sidebar-search">
+                <input type="text" id="search" placeholder="Search..." />
+            </div>
+            <div class="sidebar-list" id="sidebar-list"></div>
+        </aside>
+
+        <!-- Graph -->
+        <section class="canvas-area" id="canvas-area">
+            <svg id="graph"></svg>
+            <!-- Agent detail panel -->
+            <div class="detail" id="detail">
+                <button class="detail-close" id="detail-close">&times;</button>
+                <div id="detail-body"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="/static/js/graph.js?v=5"></script>
+</body>
+</html>

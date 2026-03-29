@@ -1,42 +1,160 @@
-import { Platform, useWindowDimensions } from 'react-native';
+import { Platform, useColorScheme, useWindowDimensions } from 'react-native';
 
-// ─── Design tokens (Cal AI style) ──────────────────────────────────────────
-export const colors = {
+// ─── Design tokens (Fitsi AI style) ───────────────────────────────────────────
+
+/** Light mode palette — Fitsi AI (Norte Digital inspired) */
+export const lightColors = {
   // Fondos
   bg: '#FFFFFF',
-  surface: '#F5F5F7',
-  surfaceAlt: '#F0F0F5',
+  surface: '#F5F5F5',
+  surfaceAlt: '#EEF2F7',
+  surfaceElevated: '#FFFFFF',
 
   // Texto
-  black: '#111111',
-  gray: '#8E8E93',
-  grayLight: '#E5E5EA',
+  black: '#1A1A2E',
+  gray: '#666666',
+  grayLight: '#E0E0E0',
 
   // Acciones
-  primary: '#111111',       // botón primario
-  accent: '#FF7A5C',        // naranja highlight
+  primary: '#4285F4',
+  accent: '#4285F4',
 
   // Estados
-  disabled: '#C7C7CC',
-  disabledBg: '#E5E5EA',
+  disabled: '#BDBDBD',
+  disabledBg: '#E0E0E0',
   white: '#FFFFFF',
 
   // Macros (dashboard)
-  calories: '#111111',
-  carbs: '#F59E0B',
-  protein: '#EF4444',
-  fats: '#3B82F6',
-  success: '#10B981',
+  calories: '#1A1A2E',
+  carbs: '#FBBC04',
+  protein: '#EA4335',
+  fats: '#4285F4',
+  success: '#34A853',
 
-  // Tabs (app principal)
-  tabActive: '#111111',
-  tabInactive: '#C7C7CC',
-  border: '#E5E5EA',
+  // Tabs
+  tabActive: '#4285F4',
+  tabInactive: '#BDBDBD',
+  border: '#E0E0E0',
 
-  // Badge (streak, premium)
-  badgeBg: '#FEF3C7',
-  badgeText: '#92400E',
+  // Card border (subtle)
+  cardBorder: '#E5E7EB',
+
+  // Badge
+  badgeBg: '#E8F0FE',
+  badgeText: '#1967D2',
 };
+
+/** Dark mode palette — Fitsi AI (vivid modern dark, WCAG AA) */
+export const darkColors: typeof lightColors = {
+  // Backgrounds — deep navy base with blue-tinted surfaces for depth
+  bg: '#0D0D1A',
+  surface: '#1E1E30',
+  surfaceAlt: '#282845',
+  surfaceElevated: '#252542',
+
+  // Text — off-white primary, warm mid-gray secondary (never #666)
+  black: '#F5F5F7',
+  gray: '#8E8EA0',
+  grayLight: '#2E2E48',
+
+  // Accent — brighter blue that pops against dark backgrounds
+  primary: '#6BA5FF',
+  accent: '#6BA5FF',
+
+  // States
+  disabled: '#555570',
+  disabledBg: '#252540',
+  white: '#FFFFFF',
+
+  // Macros — vivid, saturated colors for visibility on dark surfaces
+  calories: '#F5F5F7',
+  carbs: '#FBBF24',      // warm amber (was muted yellow)
+  protein: '#FF6B6B',    // vibrant red (was washed-out pink)
+  fats: '#60A5FA',       // bright blue (was pastel)
+  success: '#4ADE80',    // vivid green (was muted sage)
+
+  // Tabs
+  tabActive: '#6BA5FF',
+  tabInactive: '#555570',
+  border: '#2E2E48',
+
+  // Card border — subtle white overlay instead of hard gray lines
+  cardBorder: 'rgba(255,255,255,0.06)',
+
+  // Badge
+  badgeBg: '#1E2670',
+  badgeText: '#6BA5FF',
+};
+
+// Default export for backward compatibility — light palette
+export const colors = lightColors;
+
+/**
+ * Parses a hex color string (#RRGGBB) into [r, g, b] components.
+ */
+function parseHex(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.substring(0, 2), 16),
+    parseInt(h.substring(2, 4), 16),
+    parseInt(h.substring(4, 6), 16),
+  ];
+}
+
+/**
+ * Converts [r, g, b] components back to a hex string.
+ */
+function toHex(r: number, g: number, b: number): string {
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  return '#' + [clamp(r), clamp(g), clamp(b)]
+    .map((v) => v.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase();
+}
+
+/**
+ * Interpolates between two or three hex colors based on a normalized factor t (0..1).
+ * With two colors: linear interpolation.
+ * With three colors (cold, mid, warm): 0->cold, 0.5->mid, 1.0->warm.
+ */
+export function interpolateColor(t: number, cold: string, mid: string, warm: string): string {
+  const [cr, cg, cb] = parseHex(cold);
+  const [mr, mg, mb] = parseHex(mid);
+  const [wr, wg, wb] = parseHex(warm);
+
+  if (t <= 0.5) {
+    const f = t * 2; // 0..1 within first half
+    return toHex(
+      cr + (mr - cr) * f,
+      cg + (mg - cg) * f,
+      cb + (mb - cb) * f,
+    );
+  } else {
+    const f = (t - 0.5) * 2; // 0..1 within second half
+    return toHex(
+      mr + (wr - mr) * f,
+      mg + (wg - mg) * f,
+      mb + (wb - mb) * f,
+    );
+  }
+}
+
+/**
+ * useThemeColors — Returns the correct color palette based on app theme (ThemeContext).
+ * Falls back to device color scheme if ThemeContext is not available.
+ */
+export function useThemeColors() {
+  try {
+    // Use app-level theme context (supports toggle from Settings + warmth)
+    const { useAppTheme } = require('../context/ThemeContext');
+    const { colors: themeColors } = useAppTheme();
+    return themeColors;
+  } catch {
+    // Fallback: use OS color scheme (for screens rendered outside ThemeProvider)
+    const scheme = useColorScheme();
+    return scheme === 'dark' ? darkColors : lightColors;
+  }
+}
 
 // ─── Meal type colors (shared across LogScreen, HomeScreen, ScanScreen, AddFoodScreen) ─
 export const mealColors: Record<string, { label: string; icon: string; color: string }> = {

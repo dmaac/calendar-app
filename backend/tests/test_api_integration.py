@@ -18,7 +18,7 @@ class TestAuthFlow:
                 "email": "newuser@example.com",
                 "first_name": "New",
                 "last_name": "User",
-                "password": "securepass123",
+                "password": "Securepass123",
             },
         )
         assert response.status_code == 200
@@ -32,7 +32,7 @@ class TestAuthFlow:
             "email": "dup@example.com",
             "first_name": "Dup",
             "last_name": "User",
-            "password": "pass123",
+            "password": "Pass1234",
         }
         client.post("/auth/register", json=payload)
         response = client.post("/auth/register", json=payload)
@@ -47,13 +47,13 @@ class TestAuthFlow:
                 "email": "login@example.com",
                 "first_name": "Login",
                 "last_name": "User",
-                "password": "loginpass123",
+                "password": "Loginpass123",
             },
         )
 
         response = client.post(
             "/auth/login",
-            data={"username": "login@example.com", "password": "loginpass123"},
+            data={"username": "login@example.com", "password": "Loginpass123"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -67,7 +67,7 @@ class TestAuthFlow:
                 "email": "wrongpw@example.com",
                 "first_name": "Wrong",
                 "last_name": "PW",
-                "password": "correctpass",
+                "password": "Correctpass1",
             },
         )
 

@@ -8,9 +8,68 @@ import { api } from './api';
 import { OnboardingData } from '../context/OnboardingContext';
 import { OnboardingProfileRead } from '../types';
 
-/** Guarda un paso parcial del onboarding en el backend. */
+/**
+ * Payload accepted by POST /api/onboarding/save-step (snake_case, all optional).
+ * Mirrors the backend OnboardingStepSave Pydantic schema.
+ */
+export interface ProfileUpdatePayload {
+  gender?: string;
+  workouts_per_week?: number;
+  heard_from?: string;
+  used_other_apps?: boolean;
+  height_cm?: number;
+  weight_kg?: number;
+  unit_system?: string;
+  birth_date?: string;
+  goal?: string;
+  target_weight_kg?: number;
+  weekly_speed_kg?: number;
+  pain_points?: string;
+  diet_type?: string;
+  accomplishments?: string;
+  health_connected?: boolean;
+  notifications_enabled?: boolean;
+  referral_code?: string;
+  daily_calories?: number;
+  daily_protein_g?: number;
+  daily_carbs_g?: number;
+  daily_fats_g?: number;
+}
+
+/** Maps camelCase OnboardingData keys to snake_case backend keys. */
+function toSnakeCase(partial: Partial<OnboardingData>): ProfileUpdatePayload {
+  const payload: ProfileUpdatePayload = {};
+  if (partial.gender !== undefined)             payload.gender = partial.gender || undefined;
+  if (partial.workoutsPerWeek !== undefined)     payload.workouts_per_week = mapWorkoutsToInt(partial.workoutsPerWeek);
+  if (partial.heardFrom !== undefined)           payload.heard_from = partial.heardFrom || undefined;
+  if (partial.usedOtherApps !== undefined)       payload.used_other_apps = partial.usedOtherApps ?? undefined;
+  if (partial.heightCm !== undefined)            payload.height_cm = partial.heightCm;
+  if (partial.weightKg !== undefined)            payload.weight_kg = partial.weightKg;
+  if (partial.unitSystem !== undefined)          payload.unit_system = partial.unitSystem;
+  if (partial.birthDate !== undefined)           payload.birth_date = formatBirthDate(partial.birthDate);
+  if (partial.goal !== undefined)                payload.goal = partial.goal || undefined;
+  if (partial.targetWeightKg !== undefined)      payload.target_weight_kg = partial.targetWeightKg;
+  if (partial.weeklySpeedKg !== undefined)       payload.weekly_speed_kg = partial.weeklySpeedKg;
+  if (partial.dietType !== undefined)            payload.diet_type = partial.dietType || undefined;
+  if (partial.healthConnected !== undefined)     payload.health_connected = partial.healthConnected;
+  if (partial.notificationsEnabled !== undefined) payload.notifications_enabled = partial.notificationsEnabled;
+  if (partial.referralCode !== undefined)        payload.referral_code = partial.referralCode || undefined;
+  return payload;
+}
+
+/** Guarda un paso parcial del onboarding en el backend (camelCase -> snake_case). */
 export const saveOnboardingStep = async (partial: Partial<OnboardingData>): Promise<void> => {
-  await api.post('/api/onboarding/save-step', partial);
+  const payload = toSnakeCase(partial);
+  await api.post('/api/onboarding/save-step', payload);
+};
+
+/**
+ * Update the user's profile directly with snake_case fields.
+ * Used by EditProfileScreen where values are already in backend format.
+ */
+export const updateProfile = async (payload: ProfileUpdatePayload): Promise<OnboardingProfileRead> => {
+  const res = await api.post('/api/onboarding/save-step', payload);
+  return res.data;
 };
 
 /** Completa el onboarding — envía todos los datos y recibe el plan calculado. */

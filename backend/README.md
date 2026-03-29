@@ -1,6 +1,6 @@
-# Calendar API Backend
+# Fitsi AI API Backend
 
-FastAPI backend for the Calendar App with PostgreSQL database, SQLModel ORM, and JWT authentication.
+FastAPI backend for Fitsi AI with PostgreSQL database, SQLModel ORM, and JWT authentication.
 
 ## Features
 

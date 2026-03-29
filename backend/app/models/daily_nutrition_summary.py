@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Index, Integer, UniqueConstraint
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, date
 
@@ -25,9 +25,22 @@ class DailyNutritionSummary(DailyNutritionSummaryBase, table=True):
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
 
     user: "User" = Relationship(back_populates="daily_nutrition_summaries")
+
+    def __repr__(self) -> str:
+        return (
+            f"<DailyNutritionSummary id={self.id} user={self.user_id} "
+            f"date={self.date} cal={self.total_calories}/{self.target_calories}>"
+        )
 
 
 class DailyNutritionSummaryRead(DailyNutritionSummaryBase):

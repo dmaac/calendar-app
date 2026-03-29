@@ -1,5 +1,13 @@
 import React, { useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, PanResponder, GestureResponderEvent, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  PanResponder,
+  GestureResponderEvent,
+  Platform,
+} from 'react-native';
 import { colors, typography, spacing, radius, useLayout } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
@@ -7,19 +15,19 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 
 const MIN = 0.1;
-const MAX = 1.5;
+const MAX = 1.0; // Capped at 1.0 kg/week per ACSM/NIH clinical guidelines
 const STEP = 0.1;
 const PRESETS = [
-  { value: 0.3, label: '0.3 kg/sem' },
-  { value: 0.8, label: '⭐ Recomendado' },
-  { value: 1.5, label: '1.5 kg/sem' },
+  { value: 0.3, label: 'Gradual' },
+  { value: 0.5, label: 'Recomendado' },
+  { value: 1.0, label: 'Intenso' },
 ];
 
 function clamp(v: number) {
   return Math.max(MIN, Math.min(MAX, Math.round(v / STEP) * STEP));
 }
 
-export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepProps) {
+export default function Step13Speed({ onNext, onBack, step, totalSteps, onSkip }: StepProps) {
   const { data, update } = useOnboarding();
   const { innerWidth } = useLayout();
   const speed = data.weeklySpeedKg;
@@ -28,20 +36,17 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
   const trackWidth = innerWidth;
   const trackRef = useRef<View>(null);
   const trackX = useRef(0);
-  const isWeb = Platform.OS === 'web';
 
-  const getAnimal = () => speed <= 0.4 ? '🦥' : speed <= 1.0 ? '🐕' : '🐆';
-
-  const handleTrackPress = useCallback((e: GestureResponderEvent) => {
-    const x = e.nativeEvent.locationX;
-    const ratio = Math.max(0, Math.min(1, x / trackWidth));
-    update('weeklySpeedKg', clamp(MIN + ratio * (MAX - MIN)));
-  }, [trackWidth]);
+  const getSpeedLabel = () => {
+    if (speed <= 0.4) return 'Gradual';
+    if (speed <= 1.0) return 'Moderado';
+    return 'Intenso';
+  };
 
   const computeFromX = useCallback((x: number) => {
     const ratio = Math.max(0, Math.min(1, x / trackWidth));
     update('weeklySpeedKg', clamp(MIN + ratio * (MAX - MIN)));
-  }, [trackWidth]);
+  }, [trackWidth, update]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -49,7 +54,6 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (e) => {
         if (Platform.OS === 'web') {
-          // On web, locationX is relative to the element — use it directly
           computeFromX(e.nativeEvent.locationX);
         } else {
           trackRef.current?.measure((_fx, _fy, _w, _h, px) => {
@@ -72,29 +76,58 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
       step={step}
       totalSteps={totalSteps}
       onBack={onBack}
+      onSkip={onSkip}
       footer={<PrimaryButton label="Continuar" onPress={onNext} />}
     >
-      <Text style={styles.title}>¿Qué tan rápido quieres{'\n'}alcanzar tu objetivo?</Text>
+      <Text
+        style={styles.title}
+        accessibilityRole="header"
+      >
+        ¿Que tan rapido quieres{'\n'}alcanzar tu objetivo?
+      </Text>
 
       <View style={styles.center}>
         {/* Value display */}
-        <Text style={styles.speedLabel}>Velocidad de pérdida de peso por semana</Text>
-        <Text style={styles.speedValue}>{speed.toFixed(1)} kg</Text>
+        <Text style={styles.speedLabel}>Velocidad semanal</Text>
+        <Text
+          style={styles.speedValue}
+          accessibilityLabel={`${speed.toFixed(1)} kilogramos por semana, ritmo ${getSpeedLabel()}`}
+        >
+          {speed.toFixed(1)} kg
+        </Text>
 
-        {/* Animal indicator */}
-        <View style={styles.animalsRow}>
-          {['🦥','🐕','🐆'].map((a, i) => {
-            const isActive = (i === 0 && speed <= 0.4) || (i === 1 && speed > 0.4 && speed <= 1.0) || (i === 2 && speed > 1.0);
-            return (
-              <Text key={i} style={[styles.animal, { opacity: isActive ? 1 : 0.25, fontSize: isActive ? 32 : 24 }]}>
-                {a}
-              </Text>
-            );
-          })}
+        {/* Speed indicator */}
+        <View
+          style={styles.indicatorRow}
+          accessibilityLabel={`Ritmo: ${getSpeedLabel()}`}
+        >
+          <Text style={[
+            styles.indicatorText,
+            speed <= 0.4 && styles.indicatorActive,
+          ]}>
+            Gradual
+          </Text>
+          <Text style={[
+            styles.indicatorText,
+            speed > 0.4 && speed <= 1.0 && styles.indicatorActive,
+          ]}>
+            Moderado
+          </Text>
+          <Text style={[
+            styles.indicatorText,
+            speed > 1.0 && styles.indicatorActive,
+          ]}>
+            Intenso
+          </Text>
         </View>
 
         {/* Custom slider track */}
-        <View style={[styles.trackWrapper, { width: trackWidth }]}>
+        <View
+          style={[styles.trackWrapper, { width: trackWidth }]}
+          accessibilityRole="adjustable"
+          accessibilityLabel={`Velocidad de perdida de peso: ${speed.toFixed(1)} kilogramos por semana`}
+          accessibilityHint="Desliza para ajustar la velocidad"
+        >
           <View
             ref={trackRef}
             style={[styles.track, { width: trackWidth }]}
@@ -123,6 +156,9 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
               onPress={() => update('weeklySpeedKg', p.value)}
               style={[styles.chip, speed === p.value && styles.chipActive]}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`${p.label}${p.value === 0.8 ? ', opcion recomendada' : ''}`}
+              accessibilityState={{ selected: speed === p.value }}
             >
               <Text style={[styles.chipText, speed === p.value && styles.chipTextActive]}>
                 {p.label}
@@ -136,18 +172,47 @@ export default function Step13Speed({ onNext, onBack, step, totalSteps }: StepPr
 }
 
 const styles = StyleSheet.create({
-  title: { ...typography.title, color: colors.black, marginTop: spacing.md },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg },
-  speedLabel: { ...typography.label, color: colors.black },
-  speedValue: { fontSize: 48, fontWeight: '800', color: colors.black, letterSpacing: -1, marginTop: -8 },
-  animalsRow: {
+  title: {
+    ...typography.title,
+    color: colors.black,
+    marginTop: spacing.md,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  speedLabel: {
+    ...typography.label,
+    color: colors.gray,
+  },
+  speedValue: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: colors.black,
+    letterSpacing: -1,
+    marginTop: -8,
+  },
+  indicatorRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
     paddingHorizontal: spacing.sm,
   },
-  animal: { textAlign: 'center' },
-  trackWrapper: { gap: spacing.sm },
+  indicatorText: {
+    ...typography.caption,
+    color: colors.gray,
+    opacity: 0.4,
+  },
+  indicatorActive: {
+    opacity: 1,
+    fontWeight: '700',
+    color: colors.black,
+  },
+  trackWrapper: {
+    gap: spacing.sm,
+  },
   track: {
     height: 6,
     backgroundColor: colors.grayLight,
@@ -177,15 +242,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.sm,
   },
-  rangeLabel: { ...typography.caption, color: colors.gray },
-  presets: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', justifyContent: 'center' },
+  rangeLabel: {
+    ...typography.caption,
+    color: colors.gray,
+  },
+  presets: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
     backgroundColor: colors.surface,
   },
-  chipActive: { backgroundColor: colors.black },
-  chipText: { ...typography.label, color: colors.black },
-  chipTextActive: { color: colors.white },
+  chipActive: {
+    backgroundColor: colors.black,
+  },
+  chipText: {
+    ...typography.label,
+    color: colors.black,
+  },
+  chipTextActive: {
+    color: colors.white,
+  },
 });

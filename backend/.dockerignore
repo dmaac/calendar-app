@@ -1,0 +1,51 @@
+# =============================================================================
+# Fitsi IA Backend — Docker build context exclusions
+# =============================================================================
+# Keep the build context small and prevent secrets from leaking into images.
+# =============================================================================
+
+# Version control
+.git
+.gitignore
+
+# Environment / secrets — NEVER bake into image
+.env
+.env.*
+*.env
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+dist
+build
+.eggs
+
+# Virtual environments
+venv
+.venv
+env
+
+# Testing / coverage
+.pytest_cache
+.coverage
+htmlcov
+coverage.xml
+tests/
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+
+# Docker (avoid recursive context)
+Dockerfile
+docker-compose*.yml

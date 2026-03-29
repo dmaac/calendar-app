@@ -1,0 +1,27 @@
+Method,Name,Error,Occurrences
+POST,POST /auth/login,CatchResponseError('Login failed for user_0066@fitsi.test: 401'),1
+POST,POST /auth/login,CatchResponseError('Login failed for user_0083@fitsi.test: 401'),6
+POST,POST /auth/login,CatchResponseError('Login failed for user_0001@fitsi.test: 401'),3
+POST,POST /auth/login,CatchResponseError('Login failed for user_0094@fitsi.test: 401'),5
+POST,POST /auth/login,CatchResponseError('Login failed for user_0008@fitsi.test: 401'),5
+POST,POST /auth/login,CatchResponseError('Login failed for user_0095@fitsi.test: 401'),5
+POST,POST /auth/login,CatchResponseError('Login failed for user_0080@fitsi.test: 401'),2
+GET,GET /nutrition-profile/,HTTPError('404 Client Error: Not Found for url: GET /nutrition-profile/'),61
+POST,POST /auth/login,CatchResponseError('Login failed for user_0003@fitsi.test: 401'),5
+POST,POST /auth/login,CatchResponseError('Login failed for user_0048@fitsi.test: 401'),4
+POST,POST /auth/login,CatchResponseError('Login failed for user_0071@fitsi.test: 401'),3
+POST,POST /auth/login,CatchResponseError('Login failed for user_0061@fitsi.test: 401'),4
+POST,POST /auth/login,CatchResponseError('Login failed for user_0073@fitsi.test: 401'),6
+POST,POST /auth/login,CatchResponseError('Login failed for user_0082@fitsi.test: 401'),3
+GET,GET /meals/summary,HTTPError('500 Server Error: Internal Server Error for url: GET /meals/summary'),23
+POST,POST /auth/login,CatchResponseError('Login failed for user_0098@fitsi.test: 401'),6
+POST,POST /auth/login,CatchResponseError('Login failed for user_0036@fitsi.test: 401'),6
+POST,POST /auth/login,CatchResponseError('Login failed for user_0079@fitsi.test: 401'),8
+POST,POST /auth/login,CatchResponseError('Login failed for user_0020@fitsi.test: 401'),4
+POST,POST /auth/login,CatchResponseError('Login failed for user_0022@fitsi.test: 401'),5
+POST,POST /api/food/water,HTTPError('500 Server Error: Internal Server Error for url: POST /api/food/water'),71
+POST,POST /auth/login,CatchResponseError('Login failed for user_0016@fitsi.test: 401'),4
+POST,POST /auth/login,CatchResponseError('Login failed for user_0017@fitsi.test: 401'),4
+POST,POST /auth/login,CatchResponseError('Login failed for user_0034@fitsi.test: 401'),7
+POST,POST /auth/login,CatchResponseError('Login failed for user_0043@fitsi.test: 401'),2
+POST,POST /auth/login,CatchResponseError('Login failed for user_0077@fitsi.test: 401'),3

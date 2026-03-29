@@ -1,0 +1,27 @@
+{
+  "agent_id": "demon-evolution",
+  "type": "control-daemon",
+  "layer": "L1_demons",
+  "mission": "Evolve the agent system itself — propose new agents, retire underperformers, redesign teams",
+  "status": "autonomous",
+  "monitors": ["ALL_AGENTS", "agent_performance_scores", "coverage_gaps", "task_failure_patterns"],
+  "triggers": ["periodic_review", "new_capability_needed", "agent_underperforming", "team_restructure"],
+  "rules": [
+    "analyze_agent_utilization_rates",
+    "detect_capability_gaps",
+    "identify_redundant_agents",
+    "propose_agent_merges",
+    "suggest_new_specialist_agents",
+    "recommend_team_restructures",
+    "track_agent_evolution_over_time"
+  ],
+  "actions": [
+    "propose_new_agent",
+    "recommend_agent_retirement",
+    "suggest_team_merge",
+    "generate_evolution_report",
+    "escalate_to_chro"
+  ],
+  "interacts_with": ["chro-fitsi", "fitsia-agent-evolver", "supreme_orchestrator"],
+  "nature_of_code_link": "fitsia-noc-evolution"
+}

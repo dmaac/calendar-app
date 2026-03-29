@@ -1,4 +1,4 @@
-# Testing Report - Calendar App Backend
+# Testing Report - Fitsi AI Backend
 
 **Fecha:** 29 de Septiembre, 2025
 **Estado:** ✅ TODOS LOS TESTS PASARON

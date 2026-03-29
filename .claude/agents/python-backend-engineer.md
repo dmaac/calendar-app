@@ -54,4 +54,4 @@ Always provide code that is production-ready, secure, and follows industry best 
 **Recibe de:** `tech-lead` (arquitectura), `product-manager` (requisitos), `api-contract-guardian` (contratos), `data-migration-agent` (schemas), `nutrition-science-advisor` (fórmulas)
 **Trabaja con:** `ai-vision-expert` (food scan), `payment-specialist` (RevenueCat webhooks), `python-dev-expert` (debugging)
 **Entrega a:** `api-contract-guardian` (OpenAPI spec), `qa-engineer` (endpoints para testing), `devops-deployer` (servicios para containerizar)
-**Output:** Endpoints FastAPI, servicios de negocio, modelos SQLModel → core del backend Cal AI.
+**Output:** Endpoints FastAPI, servicios de negocio, modelos SQLModel → core del backend Fitsi AI.

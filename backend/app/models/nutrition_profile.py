@@ -1,6 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, ForeignKey, Integer
 from typing import Optional, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -28,31 +29,45 @@ class NutritionGoal(str, Enum):
 
 
 class UserNutritionProfileBase(SQLModel):
-    height_cm: Optional[float] = Field(default=None, gt=0)
-    weight_kg: Optional[float] = Field(default=None, gt=0)
-    age: Optional[int] = Field(default=None, gt=0, le=150)
+    height_cm: Optional[float] = Field(default=None, ge=50, le=300, description="Height in cm (50-300)")
+    weight_kg: Optional[float] = Field(default=None, ge=20, le=500, description="Weight in kg (20-500)")
+    age: Optional[int] = Field(default=None, gt=0, le=150, description="Age in years (1-150)")
     gender: Optional[Gender] = None
     activity_level: ActivityLevel = ActivityLevel.MODERATELY_ACTIVE
     goal: NutritionGoal = NutritionGoal.MAINTAIN
-    target_calories: float = Field(default=2000.0, ge=0)
-    target_protein_g: float = Field(default=150.0, ge=0)
-    target_carbs_g: float = Field(default=250.0, ge=0)
-    target_fat_g: float = Field(default=65.0, ge=0)
+    target_calories: float = Field(default=2000.0, ge=0, le=10000, description="Daily calorie target (0-10000)")
+    target_protein_g: float = Field(default=150.0, ge=0, le=2000, description="Daily protein target in g (0-2000)")
+    target_carbs_g: float = Field(default=250.0, ge=0, le=2000, description="Daily carbs target in g (0-2000)")
+    target_fat_g: float = Field(default=65.0, ge=0, le=2000, description="Daily fat target in g (0-2000)")
 
 
 class UserNutritionProfile(UserNutritionProfileBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", unique=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+            unique=True,
+            index=True,
+        ),
+    )
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship(back_populates="nutrition_profile")
 
+    def __repr__(self) -> str:
+        return (
+            f"<UserNutritionProfile id={self.id} user={self.user_id} "
+            f"goal={self.goal} cal={self.target_calories}>"
+        )
+
 
 class UserNutritionProfileCreate(SQLModel):
-    height_cm: Optional[float] = None
-    weight_kg: Optional[float] = None
-    age: Optional[int] = None
+    height_cm: Optional[float] = Field(default=None, ge=50, le=300, description="Height in cm (50-300)")
+    weight_kg: Optional[float] = Field(default=None, ge=20, le=500, description="Weight in kg (20-500)")
+    age: Optional[int] = Field(default=None, gt=0, le=150, description="Age in years (1-150)")
     gender: Optional[Gender] = None
     activity_level: ActivityLevel = ActivityLevel.MODERATELY_ACTIVE
     goal: NutritionGoal = NutritionGoal.MAINTAIN
@@ -66,13 +81,13 @@ class UserNutritionProfileRead(UserNutritionProfileBase):
 
 
 class UserNutritionProfileUpdate(SQLModel):
-    height_cm: Optional[float] = None
-    weight_kg: Optional[float] = None
-    age: Optional[int] = None
+    height_cm: Optional[float] = Field(default=None, ge=50, le=300, description="Height in cm (50-300)")
+    weight_kg: Optional[float] = Field(default=None, ge=20, le=500, description="Weight in kg (20-500)")
+    age: Optional[int] = Field(default=None, gt=0, le=150, description="Age in years (1-150)")
     gender: Optional[Gender] = None
     activity_level: Optional[ActivityLevel] = None
     goal: Optional[NutritionGoal] = None
-    target_calories: Optional[float] = None
-    target_protein_g: Optional[float] = None
-    target_carbs_g: Optional[float] = None
-    target_fat_g: Optional[float] = None
+    target_calories: Optional[float] = Field(default=None, ge=0, le=10000, description="Daily calorie target (0-10000)")
+    target_protein_g: Optional[float] = Field(default=None, ge=0, le=2000, description="Daily protein target in g (0-2000)")
+    target_carbs_g: Optional[float] = Field(default=None, ge=0, le=2000, description="Daily carbs target in g (0-2000)")
+    target_fat_g: Optional[float] = Field(default=None, ge=0, le=2000, description="Daily fat target in g (0-2000)")
