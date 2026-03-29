@@ -232,7 +232,7 @@ async def _award_xp(
     profile = await _get_or_create_profile(user_id, session)
     old_level = profile.nutrition_level
     profile.nutrition_xp_total += xp
-    profile.last_progress_event_at = datetime.now(timezone.utc)
+    profile.last_progress_event_at = datetime.utcnow()
 
     # Check level up
     new_level = old_level

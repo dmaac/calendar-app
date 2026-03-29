@@ -40,8 +40,8 @@ class CorporateCompany(SQLModel, table=True):
         ),
     )
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     memberships: List["CorporateMembership"] = Relationship(back_populates="company")
     teams: List["CorporateTeam"] = Relationship(back_populates="company")
@@ -83,7 +83,7 @@ class CorporateMembership(SQLModel, table=True):
         ),
     )
     role: str = Field(default="member")  # admin | member
-    joined_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    joined_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     company: CorporateCompany = Relationship(back_populates="memberships")
     team: Optional["CorporateTeam"] = Relationship(back_populates="members")
@@ -108,7 +108,7 @@ class CorporateTeam(SQLModel, table=True):
         ),
     )
     name: str = Field()
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     company: CorporateCompany = Relationship(back_populates="teams")
     members: List[CorporateMembership] = Relationship(back_populates="team")
@@ -133,8 +133,8 @@ class FamilyGroup(SQLModel, table=True):
             index=True,
         ),
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     memberships: List["FamilyMembership"] = Relationship(back_populates="family_group")
 
@@ -167,7 +167,7 @@ class FamilyMembership(SQLModel, table=True):
         ),
     )
     role: str = Field(default="member")  # owner | member
-    joined_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    joined_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     family_group: FamilyGroup = Relationship(back_populates="memberships")
 

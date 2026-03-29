@@ -52,8 +52,8 @@ class UserNutritionProfile(UserNutritionProfileBase, table=True):
             index=True,
         ),
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship(back_populates="nutrition_profile")
 

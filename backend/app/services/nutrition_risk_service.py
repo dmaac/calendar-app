@@ -986,7 +986,7 @@ def _should_send_intervention(user_id: int, severity: str) -> tuple[bool, Option
     Returns (should_send, last_intervention_at, last_intervention_type).
     """
     key = f"{user_id}:{severity}"
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     last_at = _intervention_cooldowns.get(key)
 
     if last_at is not None and (now - last_at) < timedelta(hours=24):
@@ -998,7 +998,7 @@ def _should_send_intervention(user_id: int, severity: str) -> tuple[bool, Option
 def _record_intervention(user_id: int, severity: str) -> None:
     """Record that an intervention was sent so cooldown kicks in."""
     key = f"{user_id}:{severity}"
-    _intervention_cooldowns[key] = datetime.now(timezone.utc)
+    _intervention_cooldowns[key] = datetime.utcnow()
 
 
 # ---------------------------------------------------------------------------
@@ -1007,7 +1007,7 @@ def _record_intervention(user_id: int, severity: str) -> None:
 
 def _get_time_period() -> str:
     """Return 'morning', 'afternoon', or 'evening' based on current UTC hour."""
-    hour = datetime.now(timezone.utc).hour
+    hour = datetime.utcnow().hour
     if 6 <= hour < 12:
         return "morning"
     elif 12 <= hour < 18:

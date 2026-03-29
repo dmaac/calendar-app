@@ -260,7 +260,7 @@ async def _stream_food_logs_json(
 ) -> AsyncIterator[bytes]:
     """Stream food logs as a JSON array, yielding chunks to avoid full memory load."""
     yield b'{"export_version":"1.2","exported_at":"'
-    yield datetime.now(timezone.utc).isoformat().encode("utf-8")
+    yield datetime.utcnow().isoformat().encode("utf-8")
     yield b'","food_logs":[\n'
 
     offset = 0
@@ -521,7 +521,7 @@ async def export_weekly_summary(
 
         export_payload = {
             "export_version": "1.2",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.utcnow().isoformat(),
             "period": {"start_date": str(start_date), "end_date": str(end_date)},
             "daily_summaries": summary_list,
         }
@@ -854,7 +854,7 @@ async def export_my_data(
 
     export = {
         "export_version": "1.2",
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.utcnow().isoformat(),
         "user": profile_data,
         "onboarding_profile": onboarding_data,
         "nutrition_profile": nutrition_data,
@@ -871,7 +871,7 @@ async def export_my_data(
 
     # Return as downloadable JSON file
     json_bytes = json.dumps(export, indent=2, ensure_ascii=False).encode("utf-8")
-    filename = f"fitsi_export_{user_id}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
+    filename = f"fitsi_export_{user_id}_{datetime.utcnow().strftime('%Y%m%d')}.json"
 
     return StreamingResponse(
         io.BytesIO(json_bytes),
@@ -943,7 +943,7 @@ async def export_my_data_csv(
     output.write(text_buf.getvalue().encode("utf-8"))
     output.seek(0)
 
-    filename = f"fitsi_food_logs_{user_id}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"
+    filename = f"fitsi_food_logs_{user_id}_{datetime.utcnow().strftime('%Y%m%d')}.csv"
 
     logger.info("Legacy CSV food log export: user_id=%s rows=%d", user_id, len(logs))
 

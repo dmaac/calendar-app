@@ -85,8 +85,8 @@ class OnboardingProfile(SoftDeleteMixin, SQLModel, table=True):
     interventions_paused: bool = Field(default=False)
 
     completed_at: Optional[datetime] = Field(default=None)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship(back_populates="onboarding_profile")
 

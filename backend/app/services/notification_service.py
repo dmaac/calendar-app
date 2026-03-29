@@ -77,7 +77,7 @@ class NotificationService:
         if schedule is None:
             return False
 
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.utcnow()
         # Adjust to user's local time
         offset = timedelta(minutes=schedule.timezone_offset_minutes)
         local_now = now_utc + offset
@@ -285,7 +285,7 @@ class NotificationService:
         idempotency_key: Optional[str],
     ) -> None:
         """Record the notification in the log table for analytics."""
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         # Generate idempotency key if not provided
         if not idempotency_key:
             idempotency_key = f"{notification_type}:{user_id}:{now.isoformat()}"
@@ -354,7 +354,7 @@ class NotificationService:
             return False
 
         if log.opened_at is None:
-            log.opened_at = datetime.now(timezone.utc)
+            log.opened_at = datetime.utcnow()
             self.session.add(log)
             await self.session.commit()
         return True
@@ -375,7 +375,7 @@ class NotificationService:
             return False
 
         if log.dismissed_at is None:
-            log.dismissed_at = datetime.now(timezone.utc)
+            log.dismissed_at = datetime.utcnow()
             self.session.add(log)
             await self.session.commit()
         return True
@@ -392,7 +392,7 @@ class NotificationService:
         """
         Return notification analytics for a user over the last N days.
         """
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.utcnow() - timedelta(days=days)
 
         # Total sent
         total_stmt = select(func.count(NotificationLog.id)).where(
@@ -529,8 +529,8 @@ class NotificationService:
                 channel="push",
                 delivery_status="dead_letter",
                 failure_reason=error_message[:500],
-                idempotency_key=f"dlq:{notification_type}:{user_id}:{datetime.now(timezone.utc).isoformat()}",
-                sent_at=datetime.now(timezone.utc),
+                idempotency_key=f"dlq:{notification_type}:{user_id}:{datetime.utcnow().isoformat()}",
+                sent_at=datetime.utcnow(),
             )
             self.session.add(log_entry)
             await self.session.commit()
@@ -644,7 +644,7 @@ class NotificationService:
         }
         title = titles.get(meal_type, "Hora de comer!")
         body = "Registra tu comida en Fitsi para mantener tu streak."
-        today = datetime.now(timezone.utc).date().isoformat()
+        today = datetime.utcnow().date().isoformat()
         return await self.send_push(
             user_id,
             title,
@@ -656,7 +656,7 @@ class NotificationService:
         )
 
     async def send_water_reminder(self, user_id: int) -> list[dict]:
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         # Use hour-level idempotency so we don't spam within the same hour
         key = f"water_reminder:{user_id}:{now.date().isoformat()}:{now.hour}"
         return await self.send_push(
@@ -670,7 +670,7 @@ class NotificationService:
         )
 
     async def send_streak_congrats(self, user_id: int, days: int) -> list[dict]:
-        today = datetime.now(timezone.utc).date().isoformat()
+        today = datetime.utcnow().date().isoformat()
         return await self.send_push(
             user_id,
             f"Llevas {days} dias seguidos!",

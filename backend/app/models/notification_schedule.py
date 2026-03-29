@@ -94,8 +94,8 @@ class NotificationSchedule(SQLModel, table=True):
     water_reminder_interval_hours: int = Field(default=2)
 
     # -- Timestamps -----------------------------------------------------------
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship(back_populates="notification_schedule")
 

@@ -26,7 +26,7 @@ class PushToken(SQLModel, table=True):
     token: str = Field(unique=True, index=True)
     platform: str = Field()  # "ios" or "android"
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship(back_populates="push_tokens")
 

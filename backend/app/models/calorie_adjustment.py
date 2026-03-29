@@ -64,7 +64,7 @@ class WeightLog(SQLModel, table=True):
     weight_kg: float = Field(ge=20.0, le=500.0)
     source: str = Field(default="manual")  # manual | healthkit | scale_api (validated by WeightSource enum in Create schema)
     notes: Optional[str] = Field(default=None, max_length=500)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return f"<WeightLog id={self.id} user={self.user_id} date={self.date} kg={self.weight_kg}>"
@@ -116,7 +116,7 @@ class CalorieAdjustment(SQLModel, table=True):
     applied_at: Optional[datetime] = Field(default=None)
     dismissed: bool = Field(default=False)
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return (

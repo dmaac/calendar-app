@@ -33,7 +33,7 @@ class OnboardingService:
         if profile:
             for field, value in update_data.items():
                 setattr(profile, field, value)
-            profile.updated_at = datetime.now(timezone.utc)
+            profile.updated_at = datetime.utcnow()
         else:
             profile = OnboardingProfile(user_id=user_id, **update_data)
 
@@ -53,7 +53,7 @@ class OnboardingService:
         if profile:
             for field, value in update_data.items():
                 setattr(profile, field, value)
-            profile.updated_at = datetime.now(timezone.utc)
+            profile.updated_at = datetime.utcnow()
         else:
             profile = OnboardingProfile(user_id=user_id, **update_data)
 
@@ -64,8 +64,8 @@ class OnboardingService:
         profile.daily_protein_g = plan.protein_g
         profile.daily_fats_g = plan.fats_g
         profile.health_score = plan.health_score
-        profile.completed_at = datetime.now(timezone.utc)
-        profile.updated_at = datetime.now(timezone.utc)
+        profile.completed_at = datetime.utcnow()
+        profile.updated_at = datetime.utcnow()
 
         self.session.add(profile)
         await self.session.commit()

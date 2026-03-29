@@ -531,7 +531,7 @@ async def update_mission_progress(
 
         if completed:
             status.completed = True
-            status.completed_at = datetime.now(timezone.utc)
+            status.completed_at = datetime.utcnow()
             session.add(status)
             newly_completed.append({
                 "code": mission.code,

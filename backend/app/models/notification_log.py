@@ -56,7 +56,7 @@ class NotificationLog(SQLModel, table=True):
     idempotency_key: str = Field(sa_column=Column(String, unique=True, index=True))
 
     # -- Analytics timestamps -------------------------------------------------
-    sent_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    sent_at: datetime = Field(default_factory=lambda: datetime.utcnow())
     delivered_at: Optional[datetime] = Field(default=None)
     opened_at: Optional[datetime] = Field(default=None)
     dismissed_at: Optional[datetime] = Field(default=None)

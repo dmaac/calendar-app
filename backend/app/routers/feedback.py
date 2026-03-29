@@ -232,7 +232,7 @@ async def update_feedback(
     if body.admin_notes is not None:
         feedback.admin_notes = body.admin_notes
 
-    feedback.updated_at = datetime.now(timezone.utc)
+    feedback.updated_at = datetime.utcnow()
     session.add(feedback)
     await session.commit()
     await session.refresh(feedback)

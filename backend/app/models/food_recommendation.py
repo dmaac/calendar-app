@@ -31,7 +31,7 @@ class MealTemplate(SQLModel, table=True):
     category: str = Field(default="general", index=True)
     is_active: bool = Field(default=True)
     tags: Optional[str] = Field(default=None)  # comma-separated: "chileno,rapido,economico"
-    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return f"<MealTemplate id={self.id} name={self.name!r} type={self.meal_type} cal={self.calories}>"
@@ -86,7 +86,7 @@ class UserMealRecommendation(SQLModel, table=True):
     reason: str = Field()
     score: float = Field()
     meal_type_context: str = Field()  # what meal type was recommended for
-    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return (

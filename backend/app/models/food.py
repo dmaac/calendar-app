@@ -28,7 +28,7 @@ class Food(FoodBase, table=True):
         index=True,
         sa_column_kwargs={"comment": "NULL = system/admin created"},
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return f"<Food id={self.id} name={self.name!r} cal={self.calories}>"

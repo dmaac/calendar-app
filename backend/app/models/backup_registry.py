@@ -44,7 +44,7 @@ class BackupRegistry(SQLModel, table=True):
     # Human-readable reason why backup was created
     trigger_reason: Optional[str] = Field(default=None)
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     # NULL = keep forever
     expires_at: Optional[datetime] = Field(default=None)

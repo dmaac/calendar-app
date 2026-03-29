@@ -224,7 +224,7 @@ async def analytics_summary(
 async def _compute_analytics_summary(session: AsyncSession) -> AnalyticsSummary:
     """Internal implementation -- all queries use COUNT/SUM aggregations."""
     today = date.today()
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     today_start = datetime.combine(today, dt_time.min)
     week_ago = datetime.combine(today - timedelta(days=7), dt_time.min)
@@ -344,7 +344,7 @@ async def cohort_analysis(
         return CohortAnalysisResponse(**cached_val)
 
     today = date.today()
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     cohorts: list[CohortWeek] = []
 
     for week_offset in range(weeks):
@@ -457,7 +457,7 @@ async def revenue_analytics(
     if cached_val is not None:
         return RevenueAnalyticsResponse(**cached_val)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     today = date.today()
 
     # ── Active subscriptions + MRR (single aggregation query) ────────────

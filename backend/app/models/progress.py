@@ -29,7 +29,7 @@ class UserProgressProfile(SQLModel, table=True):
     last_progress_event_at: Optional[datetime] = Field(default=None)
     motivation_state: str = Field(default="new")  # new, active, at_risk, returning
     active_season_id: Optional[int] = Field(default=None)
-    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return (
@@ -89,7 +89,7 @@ class UserAchievement(SQLModel, table=True):
             index=True,
         ),
     )
-    unlocked_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    unlocked_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return f"<UserAchievement id={self.id} user={self.user_id} achievement={self.achievement_id}>"
@@ -223,7 +223,7 @@ class ProgressEvent(SQLModel, table=True):
     xp_amount: int = Field(default=0)
     coins_amount: int = Field(default=0)
     metadata_json: Optional[str] = Field(default=None)
-    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return (
@@ -271,7 +271,7 @@ class UserRewardRedemption(SQLModel, table=True):
             nullable=False,
         ),
     )
-    redeemed_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    redeemed_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
     coins_spent: int = Field(default=0)
 
     def __repr__(self) -> str:

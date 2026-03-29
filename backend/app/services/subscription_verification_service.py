@@ -122,7 +122,7 @@ def _has_active_premium_entitlement(subscriber_data: dict) -> bool:
         expires_date = datetime.fromisoformat(
             expires_date_str.replace("Z", "+00:00")
         )
-        return expires_date > datetime.now(timezone.utc)
+        return expires_date > datetime.utcnow()
 
     except Exception as exc:
         logger.warning("Error parsing RevenueCat entitlement data: %s", exc)
@@ -179,7 +179,7 @@ async def verify_premium(user_id: int, session: AsyncSession) -> bool:
                     user_id, user.is_premium, is_premium,
                 )
                 user.is_premium = is_premium
-                user.updated_at = datetime.now(timezone.utc)
+                user.updated_at = datetime.utcnow()
                 session.add(user)
                 await session.commit()
 
@@ -210,7 +210,7 @@ async def verify_premium(user_id: int, session: AsyncSession) -> bool:
                 user_id,
             )
             user.is_premium = False
-            user.updated_at = datetime.now(timezone.utc)
+            user.updated_at = datetime.utcnow()
             session.add(user)
             await session.commit()
             await cache_set(cache_key, "0", _PREMIUM_CACHE_TTL)
@@ -368,7 +368,7 @@ async def verify_and_activate_subscription(
         )
         # Mark as expired — do not leave in pending_verification forever
         sub.status = "expired"
-        sub.updated_at = datetime.now(timezone.utc)
+        sub.updated_at = datetime.utcnow()
         session.add(sub)
         await session.commit()
         return False
@@ -395,7 +395,7 @@ async def verify_and_activate_subscription(
     )
     for old_sub in active_result.scalars().all():
         old_sub.status = "expired"
-        old_sub.updated_at = datetime.now(timezone.utc)
+        old_sub.updated_at = datetime.utcnow()
         session.add(old_sub)
 
     # ── Step 5: Update expires date from store if available ──
@@ -404,14 +404,14 @@ async def verify_and_activate_subscription(
 
     # ── Step 6: Activate the verified subscription ──
     sub.status = new_status
-    sub.updated_at = datetime.now(timezone.utc)
+    sub.updated_at = datetime.utcnow()
     session.add(sub)
 
     # ── Step 7: Mark user as premium ──
     user = await session.get(User, sub.user_id)
     if user:
         user.is_premium = True
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = datetime.utcnow()
         session.add(user)
 
     await session.commit()
@@ -471,7 +471,7 @@ async def handle_apple_server_notification(notification_data: dict) -> dict:
             )
             return {"status": "ignored", "reason": "subscription_not_found"}
 
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
 
         if notification_type == "SUBSCRIBED":
             if sub.status == "pending_verification":
@@ -584,7 +584,7 @@ async def handle_google_rtdn(notification_data: dict) -> dict:
             )
             return {"status": "ignored", "reason": "subscription_not_found"}
 
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
 
         # PURCHASED (4) or RECOVERED (1) or RESTARTED (7)
         if notification_type in (1, 4, 7):
@@ -671,7 +671,7 @@ async def check_expired_subscriptions() -> int:
     Returns the number of subscriptions expired.
     Should be called periodically (e.g., every hour) by a background task.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     expired_count = 0
 
     async with AsyncSessionLocal() as session:
@@ -729,7 +729,7 @@ async def expire_stale_pending_subscriptions(max_age_hours: int = 24) -> int:
     Returns the number of subscriptions expired.
     Protects against subscriptions that never get verified (e.g., webhook missed).
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+    cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
     expired_count = 0
 
     async with AsyncSessionLocal() as session:
@@ -743,7 +743,7 @@ async def expire_stale_pending_subscriptions(max_age_hours: int = 24) -> int:
 
         for sub in stale_subs:
             sub.status = "expired"
-            sub.updated_at = datetime.now(timezone.utc)
+            sub.updated_at = datetime.utcnow()
             session.add(sub)
             expired_count += 1
             logger.warning(

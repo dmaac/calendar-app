@@ -377,7 +377,7 @@ async def get_recommendations(
             },
             "frequent_foods": frequent_foods,
             "recommendations": recommendations,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.utcnow().isoformat(),
         }
     except Exception:
         logger.exception("Error generating recommendations: user_id=%d", user_id)

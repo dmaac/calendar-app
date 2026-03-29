@@ -350,7 +350,7 @@ def _generate_pdf_bytes(
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#E0E0E0")))
     elements.append(Spacer(1, 6))
     elements.append(Paragraph(
-        f"Generado por Fitsi AI el {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')} UTC",
+        f"Generado por Fitsi AI el {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC",
         ParagraphStyle("Footer", parent=normal_style, fontSize=8, textColor=colors.HexColor("#999999")),
     ))
 

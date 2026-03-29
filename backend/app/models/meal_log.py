@@ -50,7 +50,7 @@ class MealLog(MealLogBase, table=True):
             index=True,
         ),
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship(back_populates="meal_logs")
     food: "Food" = Relationship()

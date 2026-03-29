@@ -229,7 +229,7 @@ async def award_xp(
 
         old_level = get_level_for_xp(profile.nutrition_xp_total)["level"]
         profile.nutrition_xp_total += actual_xp
-        profile.last_progress_event_at = datetime.now(timezone.utc)
+        profile.last_progress_event_at = datetime.utcnow()
 
         new_level_info = get_level_for_xp(profile.nutrition_xp_total)
         level_up = new_level_info["level"] > old_level
@@ -292,7 +292,7 @@ async def award_coins(
     try:
         profile = await _get_or_create_profile(user_id, session)
         profile.fitsia_coins_balance += amount
-        profile.last_progress_event_at = datetime.now(timezone.utc)
+        profile.last_progress_event_at = datetime.utcnow()
 
         await _log_event(
             user_id, "coins_earned", session,
@@ -428,7 +428,7 @@ async def process_daily_progress(user_id: int, session: AsyncSession) -> dict:
 
         # 5. Check comeback bonus (returning after inactivity)
         if profile.last_progress_event_at:
-            days_inactive = (datetime.now(timezone.utc) - profile.last_progress_event_at).days
+            days_inactive = (datetime.utcnow() - profile.last_progress_event_at).days
             if days_inactive >= 7:
                 result = await award_xp(user_id, XP_RULES["comeback_after_7d"], "comeback_after_7d", session)
                 awards.append({"action": "comeback_after_7d", **result})

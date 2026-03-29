@@ -33,7 +33,7 @@ class CoachConversation(SQLModel, table=True):
     content: str = Field()
 
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.utcnow()
     )
 
     def __repr__(self) -> str:

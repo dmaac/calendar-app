@@ -394,7 +394,7 @@ async def _get_recent_recommendation_ids(
     user_id: int, session: AsyncSession, days: int = 3
 ) -> set[int]:
     """Get meal IDs recommended in the last N days."""
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.utcnow() - timedelta(days=days)
     result = await session.execute(
         select(UserMealRecommendation.meal_id).where(
             UserMealRecommendation.user_id == user_id,

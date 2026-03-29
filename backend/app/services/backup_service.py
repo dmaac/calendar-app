@@ -121,7 +121,7 @@ def _row_to_dict(row: Any) -> dict:
 
 def _generate_backup_path(user_id: int) -> str:
     """Generate a deterministic path: user_{id}/user_{id}_YYYYMMDD_HHMMSS.json.gz"""
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     filename = f"user_{user_id}_{ts}.json.gz"
     return f"user_{user_id}/{filename}"
 
@@ -236,7 +236,7 @@ class UserDataBackupService:
         snapshot: Dict[str, Any] = {
             "version": "1.0",
             "user_id": user_id,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.utcnow().isoformat(),
             "backup_type": backup_type,
             "tables": {},
         }
@@ -548,7 +548,7 @@ class UserDataBackupService:
 
         Returns the number of backups cleaned up.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         cleaned = 0
 
         async with AsyncSessionLocal() as session:

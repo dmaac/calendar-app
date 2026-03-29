@@ -107,7 +107,7 @@ async def get_user_risk_analytics(
     session: AsyncSession,
 ) -> dict:
     """Return aggregated risk analytics for a single user over the given period."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.utcnow() - timedelta(days=days)
 
     # Count events by type — single query
     result = await session.execute(
@@ -180,7 +180,7 @@ async def get_admin_risk_dashboard(session: AsyncSession) -> dict:
 
 async def _compute_admin_risk_dashboard(session: AsyncSession) -> dict:
     """Internal computation — called via cache_get_or_refresh."""
-    today = datetime.now(timezone.utc).date()
+    today = datetime.utcnow().date()
     seven_days_ago = today - timedelta(days=7)
 
     # ── Subquery: latest adherence record per user (last 7 days) ─────────
@@ -284,7 +284,7 @@ async def _compute_admin_risk_dashboard(session: AsyncSession) -> dict:
         }
 
     # ── Intervention effectiveness — SQL aggregation ─────────────────────
-    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    cutoff = datetime.utcnow() - timedelta(days=7)
 
     # Single query for both metrics
     intervention_q = select(

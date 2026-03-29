@@ -42,5 +42,5 @@ class AdminErrorLog(SQLModel, table=True):
     request_id: Optional[str] = Field(default=None, max_length=36)
 
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
     )

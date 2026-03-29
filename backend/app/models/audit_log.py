@@ -55,7 +55,7 @@ class AuditLog(SQLModel, table=True):
 
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": text("NOW()")},
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
     )
 
     def __repr__(self) -> str:

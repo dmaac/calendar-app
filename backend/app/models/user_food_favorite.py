@@ -32,7 +32,7 @@ class UserFoodFavorite(SQLModel, table=True):
         ),
     )
     times_logged: int = Field(default=0)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship(back_populates="food_favorites")
     food: "Food" = Relationship()

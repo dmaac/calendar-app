@@ -54,7 +54,7 @@ class CoachCostLog(SQLModel, table=True):
     error_type: Optional[str] = Field(default=None)
 
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.utcnow()
     )
 
     def __repr__(self) -> str:

@@ -56,7 +56,7 @@ class DailyNutritionAdherence(SQLModel, table=True):
     primary_risk_reason: Optional[str] = Field(default=None)
     plan_snapshot: Optional[str] = Field(default=None)  # JSON: {calories, protein_g, fat_g, carbs_g}
 
-    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return (

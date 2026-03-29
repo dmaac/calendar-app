@@ -54,8 +54,8 @@ class Feedback(SQLModel, table=True):
     status: FeedbackStatus = Field(default=FeedbackStatus.NEW)
     admin_notes: Optional[str] = Field(default=None, max_length=2000)
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship()
 

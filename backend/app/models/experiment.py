@@ -29,8 +29,8 @@ class Experiment(SQLModel, table=True):
     start_date: Optional[datetime] = Field(default=None)
     end_date: Optional[datetime] = Field(default=None)
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return f"<Experiment id={self.id} name={self.name!r} active={self.is_active}>"
@@ -62,7 +62,7 @@ class ExperimentAssignment(SQLModel, table=True):
     )
     variant: str = Field()
 
-    assigned_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    assigned_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return (
@@ -99,7 +99,7 @@ class ExperimentConversion(SQLModel, table=True):
     # Optional metadata about what converted (e.g. "subscribe", "onboarding_complete")
     conversion_event: Optional[str] = Field(default=None)
 
-    converted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    converted_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return (

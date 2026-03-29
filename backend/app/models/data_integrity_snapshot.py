@@ -35,7 +35,7 @@ class DataIntegritySnapshot(SQLModel, table=True):
     table_name: str = Field(max_length=128)
     record_count: int = Field(default=0)
     snapshot_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.utcnow()
     )
 
     def __repr__(self) -> str:

@@ -867,13 +867,13 @@ class AdaptiveCalorieService:
             profile.target_protein_g = round(profile.target_protein_g * ratio)
             profile.target_carbs_g = round(profile.target_carbs_g * ratio)
             profile.target_fat_g = round(profile.target_fat_g * ratio)
-            profile.updated_at = datetime.now(timezone.utc)
+            profile.updated_at = datetime.utcnow()
 
             self.session.add(profile)
 
         # Mark adjustment as applied
         pending.applied = True
-        pending.applied_at = datetime.now(timezone.utc)
+        pending.applied_at = datetime.utcnow()
         self.session.add(pending)
 
         await self.session.commit()
@@ -1007,7 +1007,7 @@ class AdaptiveCalorieService:
 
         if profile:
             profile.weight_kg = weight_kg
-            profile.updated_at = datetime.now(timezone.utc)
+            profile.updated_at = datetime.utcnow()
             self.session.add(profile)
             await self.session.commit()
 

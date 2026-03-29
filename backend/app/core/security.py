@@ -75,9 +75,9 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({
         "exp": expire,
         "type": "access",  # SEC: distinguish access from refresh tokens
@@ -114,7 +114,7 @@ def create_refresh_token(data: dict) -> str:
     """Creates a long-lived refresh token with a unique jti claim."""
     to_encode = data.copy()
     jti = str(uuid_lib.uuid4())
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
     to_encode.update({"exp": expire, "jti": jti, "type": "refresh"})
     return jwt.encode(to_encode, settings.refresh_secret_key, algorithm=settings.algorithm)
 

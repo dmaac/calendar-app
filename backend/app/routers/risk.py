@@ -676,7 +676,7 @@ async def copy_yesterday(
 
     total_calories = 0
     total_protein = 0
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     for log in yesterday_logs:
         new_log = AIFoodLog(
@@ -727,7 +727,7 @@ async def quick_add_protein(
     Adds a Greek yogurt entry: 180 kcal, 20g protein, 8g carbs, 5g fats.
     """
     _t0 = time_mod.perf_counter()
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     new_log = AIFoodLog(
         user_id=current_user.id,

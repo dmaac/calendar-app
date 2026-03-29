@@ -28,8 +28,8 @@ class Activity(ActivityBase, table=True):
         index=True,
         sa_column_kwargs={"comment": "Owner of this activity"},
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: "User" = Relationship(back_populates="activities")
 

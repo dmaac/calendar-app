@@ -106,7 +106,7 @@ async def soft_delete(
     if record is None:
         return None
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     record.deleted_at = now  # type: ignore[attr-defined]
     record.deleted_by = acting_user_id if acting_user_id is not None else user_id  # type: ignore[attr-defined]
 
@@ -143,7 +143,7 @@ async def bulk_soft_delete(
     result = await session.execute(stmt)
     records = result.scalars().all()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     actor = acting_user_id if acting_user_id is not None else user_id
     count = 0
     for record in records:
@@ -259,7 +259,7 @@ async def purge_expired(
     -------
     int : number of rows permanently removed.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.utcnow() - timedelta(days=days)
 
     stmt = sa_delete(model).where(
         model.deleted_at.isnot(None),  # type: ignore[attr-defined]

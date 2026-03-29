@@ -264,7 +264,7 @@ async def update_streak_for_date(
                 }),
             )
             session.add(event)
-            profile.last_progress_event_at = datetime.now(timezone.utc)
+            profile.last_progress_event_at = datetime.utcnow()
 
             await session.flush()
             logger.info(

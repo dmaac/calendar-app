@@ -62,8 +62,8 @@ class Webhook(SQLModel, table=True):
     is_active: bool = Field(default=True, description="Soft-disable without deleting")
     description: Optional[str] = Field(default=None, max_length=500)
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     # Relationships
     deliveries: List["WebhookDelivery"] = Relationship(back_populates="webhook")
@@ -103,7 +103,7 @@ class WebhookDelivery(SQLModel, table=True):
     attempt: int = Field(default=1, description="Attempt number (1-based)")
     duration_ms: Optional[float] = Field(default=None, description="Round-trip time in milliseconds")
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     # Relationships
     webhook: "Webhook" = Relationship(back_populates="deliveries")

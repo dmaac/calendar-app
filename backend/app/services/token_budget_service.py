@@ -51,14 +51,14 @@ def _current_week_key() -> str:
     Using ISO week ensures consistent weekly boundaries (Monday-based)
     and makes Redis keys human-readable for debugging.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     iso_year, iso_week, _ = now.isocalendar()
     return f"{iso_year}-W{iso_week:02d}"
 
 
 def _seconds_until_next_monday() -> int:
     """Return the number of seconds until next Monday 00:00 UTC."""
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     days_until_monday = (7 - now.weekday()) % 7
     if days_until_monday == 0:
         days_until_monday = 7
@@ -231,7 +231,7 @@ async def get_usage_summary(user_id: int, tier: str = "free") -> dict:
     usage_pct = round((used / total_budget) * 100, 1) if total_budget > 0 else 0.0
 
     # Calculate next Monday 00:00 UTC
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     days_until_monday = (7 - now.weekday()) % 7
     if days_until_monday == 0:
         days_until_monday = 7

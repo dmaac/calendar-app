@@ -34,7 +34,7 @@ class RiskAnalyticsEvent(SQLModel, table=True):
     # JSON metadata (variant, risk_score, reason, etc.)
     metadata_json: Optional[str] = Field(default=None, sa_column=Column(Text))
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return f"<RiskAnalyticsEvent id={self.id} user={self.user_id} type={self.event_type!r}>"

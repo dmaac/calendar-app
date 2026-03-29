@@ -846,7 +846,7 @@ async def toggle_premium(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     old_premium = user.is_premium
     user.is_premium = body.is_premium
     user.updated_at = now
@@ -924,7 +924,7 @@ async def gift_premium(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     expires_at = now + timedelta(days=body.days)
 
     # Set premium flag
@@ -1053,7 +1053,7 @@ async def extend_subscription(
     if not sub:
         raise HTTPException(status_code=404, detail="Subscription not found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     # Calculate new expiry: extend from current expiry or from now if expired
     current_expiry = sub.current_period_ends_at or now
@@ -1122,7 +1122,7 @@ async def cancel_subscription(
             detail=f"Subscription is already {sub.status}, cannot cancel",
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     old_status = sub.status
     sub.status = "canceled"
     sub.updated_at = now
@@ -1676,7 +1676,7 @@ async def get_system_health(
     # Error count in last 24h from DB
     error_count_24h = 0
     try:
-        twenty_four_hours_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+        twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
         error_count_result = await session.execute(
             select(func.count(AdminErrorLog.id)).where(
                 AdminErrorLog.created_at >= twenty_four_hours_ago,
@@ -1723,7 +1723,7 @@ async def get_error_log(
 
     Replaces the old in-memory ring buffer with a persistent, queryable log.
     """
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = datetime.utcnow() - timedelta(hours=hours)
     query = select(AdminErrorLog).where(AdminErrorLog.created_at >= since)
 
     if severity:
@@ -1895,7 +1895,7 @@ async def create_tip(
     admin: User = Depends(require_admin),
 ):
     """Create a new nutrition tip."""
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     tip = NutritionTip(
         title=body.title,
         body=body.body,
@@ -1961,7 +1961,7 @@ async def update_tip(
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(tip, field, value)
-    tip.updated_at = datetime.now(timezone.utc)
+    tip.updated_at = datetime.utcnow()
     session.add(tip)
     await session.commit()
     await session.refresh(tip)
@@ -2013,7 +2013,7 @@ async def create_recipe(
     admin: User = Depends(require_admin),
 ):
     """Create a new recipe."""
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     recipe = Recipe(
         title=body.title,
         description=body.description,
@@ -2095,7 +2095,7 @@ async def update_recipe(
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(recipe, field, value)
-    recipe.updated_at = datetime.now(timezone.utc)
+    recipe.updated_at = datetime.utcnow()
     session.add(recipe)
     await session.commit()
     await session.refresh(recipe)

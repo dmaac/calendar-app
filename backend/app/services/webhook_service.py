@@ -240,7 +240,7 @@ class WebhookService:
         test_payload = {
             "event": webhook.event,
             "test": True,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.utcnow().isoformat(),
             "data": {
                 "message": "This is a test delivery from Fitsi AI",
                 "webhook_id": webhook.id,
@@ -398,7 +398,7 @@ async def dispatch_webhooks_for_event(event_name: str, data: dict) -> None:
 
             payload = {
                 "event": event_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.utcnow().isoformat(),
                 "data": data,
             }
 

@@ -90,7 +90,7 @@ async def _record_dead_letter(
                 "job": job_name,
                 "date": str(run_date),
                 "error": error_message[:500],  # truncate to avoid bloat
-                "recorded_at": datetime.now(timezone.utc).isoformat(),
+                "recorded_at": datetime.utcnow().isoformat(),
             }),
         )
         session.add(event)
@@ -128,7 +128,7 @@ def _resolve_user_today(tz_name: Optional[str]) -> date:
             return datetime.now(tz).date()
     except Exception:
         pass
-    return datetime.now(timezone.utc).date()
+    return datetime.utcnow().date()
 
 
 # ---------------------------------------------------------------------------
@@ -473,7 +473,7 @@ async def nightly_notification_dispatch(
 
     job_name = "nightly_notification_dispatch"
     _t0 = time_mod.perf_counter()
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.utcnow()
 
     BATCH_JOB_RUNS.inc(job=job_name)
 

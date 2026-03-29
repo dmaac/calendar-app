@@ -277,7 +277,7 @@ async def get_recent_deletions(
     offset: int = 0,
 ) -> Sequence[AuditLog]:
     """Return recent DELETE actions, optionally filtered by table."""
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.utcnow() - timedelta(days=days)
     stmt = (
         select(AuditLog)
         .where(
@@ -339,7 +339,7 @@ async def purge_old_entries(
     Returns the number of rows deleted.  This is designed to run as a
     periodic background job (e.g., daily via the existing cleanup task).
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+    cutoff = datetime.utcnow() - timedelta(days=retention_days)
     stmt = delete(AuditLog).where(AuditLog.created_at < cutoff)
 
     if session is not None:

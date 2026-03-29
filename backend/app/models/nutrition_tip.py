@@ -29,8 +29,8 @@ class NutritionTip(SQLModel, table=True):
             nullable=True,
         ),
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     def __repr__(self) -> str:
         return f"<NutritionTip id={self.id} title={self.title!r} category={self.category!r}>"

@@ -53,7 +53,7 @@ class SoftDeleteMixin:
 
         This does NOT commit -- the caller must flush/commit the session.
         """
-        self.deleted_at = datetime.now(timezone.utc)
+        self.deleted_at = datetime.utcnow()
         if acting_user_id is not None:
             self.deleted_by = acting_user_id
 

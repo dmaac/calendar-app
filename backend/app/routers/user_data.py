@@ -506,7 +506,7 @@ async def _collect_and_export_user_data(current_user, user_id, session):
 
     export = {
         "export_version": "1.2",
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.utcnow().isoformat(),
         "gdpr_article": "Article 20 - Right to data portability",
         "user": profile_data,
         "onboarding_profile": onboarding_data,
@@ -537,7 +537,7 @@ async def _collect_and_export_user_data(current_user, user_id, session):
         user_id, current_user.email, len(export) - 3,
     )
 
-    filename = f"fitsi_all_data_{user_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+    filename = f"fitsi_all_data_{user_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
 
     return StreamingResponse(
         io.BytesIO(json_bytes),
@@ -719,7 +719,7 @@ async def delete_user_data(
             "GDPR Article 17 (Right to Erasure). This action is irreversible."
         ),
         "user_id": user_id,
-        "deleted_at": datetime.now(timezone.utc).isoformat(),
+        "deleted_at": datetime.utcnow().isoformat(),
         "deleted_counts": deleted_counts,
         "total_records_deleted": total_deleted,
     }

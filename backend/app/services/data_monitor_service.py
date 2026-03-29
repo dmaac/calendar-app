@@ -46,7 +46,7 @@ class Alert:
     table: Optional[str] = None
     user_id: Optional[int] = None
     record_count: Optional[int] = None
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     context: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -56,7 +56,7 @@ class Alert:
 @dataclass
 class DataIntegrityReport:
     user_id: int
-    checked_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    checked_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     food_log_gaps: List[str] = field(default_factory=list)
     orphaned_images: List[str] = field(default_factory=list)
     broken_image_refs: List[str] = field(default_factory=list)
@@ -74,7 +74,7 @@ class DataIntegrityReport:
 
 @dataclass
 class ReconciliationReport:
-    checked_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    checked_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     total_storage_objects: int = 0
     total_db_references: int = 0
     orphaned_images: List[str] = field(default_factory=list)
@@ -181,7 +181,7 @@ class DataMonitor:
                       AND logged_at >= :since
                     ORDER BY log_date
                 """),
-                {"uid": user_id, "since": datetime.now(timezone.utc) - timedelta(days=7)},
+                {"uid": user_id, "since": datetime.utcnow() - timedelta(days=7)},
             )
             logged_dates = {row.log_date for row in result}
 
@@ -290,7 +290,7 @@ class DataMonitor:
                 """),
                 {
                     "uid": user_id,
-                    "since": datetime.now(timezone.utc) - timedelta(days=7),
+                    "since": datetime.utcnow() - timedelta(days=7),
                     "since_date": (date.today() - timedelta(days=7)).isoformat(),
                 },
             )
@@ -649,7 +649,7 @@ class DataMonitor:
         Stores results in the data_integrity_snapshots table.
         Returns a summary dict of the snapshot.
         """
-        snapshot_time = datetime.now(timezone.utc)
+        snapshot_time = datetime.utcnow()
         summary: Dict[str, Any] = {
             "snapshot_at": snapshot_time.isoformat(),
             "tables": {},

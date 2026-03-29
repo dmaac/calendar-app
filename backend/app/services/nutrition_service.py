@@ -94,7 +94,7 @@ class NutritionService:
                 existing.target_protein_g = targets["target_protein_g"]
                 existing.target_carbs_g = targets["target_carbs_g"]
                 existing.target_fat_g = targets["target_fat_g"]
-                existing.updated_at = datetime.now(timezone.utc)
+                existing.updated_at = datetime.utcnow()
 
                 self.session.add(existing)
                 await self.session.commit()
@@ -158,7 +158,7 @@ class NutritionService:
         try:
             for field, value in update_data.items():
                 setattr(profile, field, value)
-            profile.updated_at = datetime.now(timezone.utc)
+            profile.updated_at = datetime.utcnow()
             self.session.add(profile)
             await self.session.commit()
             await self.session.refresh(profile)

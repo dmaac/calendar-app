@@ -48,7 +48,7 @@ async def run_integrity_check() -> dict:
 
     Returns a summary dict with the check results.
     """
-    check_start = datetime.now(timezone.utc)
+    check_start = datetime.utcnow()
     monitor = DataMonitor()
     summary = {
         "started_at": check_start.isoformat(),
@@ -86,7 +86,7 @@ async def run_integrity_check() -> dict:
         summary["errors"].append(f"Bulk deletion check failed: {exc}")
         logger.error("Integrity check bulk deletion detection failed: %s", exc)
 
-    check_duration = (datetime.now(timezone.utc) - check_start).total_seconds()
+    check_duration = (datetime.utcnow() - check_start).total_seconds()
     summary["duration_seconds"] = round(check_duration, 2)
 
     # Update Prometheus metrics

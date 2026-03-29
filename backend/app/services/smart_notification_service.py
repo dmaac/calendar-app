@@ -291,7 +291,7 @@ class SmartNotificationService:
             if key in allowed_fields and hasattr(schedule, key):
                 setattr(schedule, key, value)
 
-        schedule.updated_at = datetime.now(timezone.utc)
+        schedule.updated_at = datetime.utcnow()
         self.session.add(schedule)
         await self.session.commit()
         await self.session.refresh(schedule)
@@ -310,7 +310,7 @@ class SmartNotificationService:
         Run all notification rules for *user_id* and return a list of
         intents that should be dispatched.
         """
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.utcnow()
         prefs = await self.get_preferences(user_id)
         intents: List[NotificationIntent] = []
 
@@ -484,7 +484,7 @@ class SmartNotificationService:
         meal type. Returns a dict mapping meal_type -> predicted time
         (or None if insufficient data).
         """
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.utcnow()
         since = now - timedelta(days=_ANALYSIS_WINDOW_DAYS)
 
         statement = select(AIFoodLog.meal_type, AIFoodLog.logged_at).where(
@@ -1259,7 +1259,7 @@ class SmartNotificationService:
         import time as time_mod
 
         _t0 = time_mod.perf_counter()
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.utcnow()
 
         # Get all user IDs with active push tokens
         stmt = (

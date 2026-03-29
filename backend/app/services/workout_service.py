@@ -63,7 +63,7 @@ class WorkoutService:
         return await self.session.get(WorkoutLog, workout_id)
 
     async def get_workout_summary(self, user_id: int, days: int = 7) -> WorkoutSummary:
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.utcnow() - timedelta(days=days)
         statement = select(WorkoutLog).where(
             WorkoutLog.user_id == user_id,
             WorkoutLog.created_at >= since,

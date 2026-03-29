@@ -68,7 +68,7 @@ class ActivityService:
                 if await self.check_duplicate_title(user_id, update_data["title"], exclude_activity_id=activity_id):
                     raise ValueError(f"Activity with title '{update_data['title']}' already exists")
 
-            update_data["updated_at"] = datetime.now(timezone.utc)
+            update_data["updated_at"] = datetime.utcnow()
             for field, value in update_data.items():
                 setattr(activity, field, value)
             self.session.add(activity)
