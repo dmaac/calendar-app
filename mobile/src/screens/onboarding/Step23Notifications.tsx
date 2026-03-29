@@ -9,6 +9,7 @@ import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { StepProps } from './OnboardingNavigator';
 import { api } from '../../services/api';
+import { scheduleDailyReminders, saveDailyReminderPrefs } from '../../services/notification.service';
 
 const NOTIF_EXAMPLES = [
   { time: '8:00 AM', text: 'Buenos dias! Registra tu desayuno', sub: 'Manten tu racha', icon: 'sunny' },
@@ -33,79 +34,15 @@ export default function Step23Notifications({ onNext, onBack, step, totalSteps, 
   }, []);
 
   const scheduleLocalReminders = async () => {
-    // Cancel previous reminders first
-    await Notifications.cancelAllScheduledNotificationsAsync();
-
-    // Desayuno 8:00 AM
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Fitsi AI',
-        body: 'Buenos dias! Registra tu desayuno',
-        data: { type: 'meal_reminder', meal_type: 'breakfast', screen: 'LogMain' },
-        sound: 'default',
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: 8,
-        minute: 0,
-      } as any,
-    });
-    // Almuerzo 1:00 PM
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Fitsi AI',
-        body: 'Hora de comer! No olvides fotografiar tu almuerzo',
-        data: { type: 'meal_reminder', meal_type: 'lunch', screen: 'LogMain' },
-        sound: 'default',
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: 13,
-        minute: 0,
-      } as any,
-    });
-    // Cena 7:00 PM
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Fitsi AI',
-        body: 'Hora de cenar! Registra tu cena en Fitsi',
-        data: { type: 'meal_reminder', meal_type: 'dinner', screen: 'LogMain' },
-        sound: 'default',
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: 19,
-        minute: 0,
-      } as any,
-    });
-    // Resumen nocturno 9:00 PM
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Fitsi AI',
-        body: 'Revisa tu resumen del dia y cierra fuerte',
-        data: { type: 'evening_summary', screen: 'HomeMain' },
-        sound: 'default',
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: 21,
-        minute: 0,
-      } as any,
-    });
-    // Streak risk alert 6:00 PM
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Fitsi AI',
-        body: 'No has registrado comida hoy. Tu racha puede estar en riesgo!',
-        data: { type: 'streak_at_risk', screen: 'LogMain' },
-        sound: 'default',
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: 18,
-        minute: 0,
-      } as any,
-    });
+    // Save default daily reminder preferences and schedule them
+    const defaultPrefs = {
+      morning: { enabled: true, hour: 8, minute: 0 },
+      lunch: { enabled: true, hour: 13, minute: 0 },
+      evening: { enabled: true, hour: 20, minute: 0 },
+      dailyTip: { enabled: true },
+    };
+    await saveDailyReminderPrefs(defaultPrefs);
+    await scheduleDailyReminders(defaultPrefs);
   };
 
   const registerPushToken = async () => {

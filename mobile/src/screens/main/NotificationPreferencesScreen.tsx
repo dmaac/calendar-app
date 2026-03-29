@@ -38,6 +38,10 @@ import {
   scheduleFromPredictedTimes,
   MealTimePrediction,
   getPredictedMealTimes,
+  DailyReminderPreferences,
+  getDailyReminderPrefs,
+  saveDailyReminderPrefs,
+  scheduleDailyReminders,
 } from '../../services/notification.service';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -49,6 +53,10 @@ type TimePickerTarget =
   | 'snack'
   | 'evening_summary'
   | 'streak_risk'
+  | 'nutrition_alerts'
+  | 'daily_morning'
+  | 'daily_lunch'
+  | 'daily_evening'
   | null;
 
 // ─── Preview card data ──────────────────────────────────────────────────────
@@ -296,6 +304,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [predictions, setPredictions] = useState<MealTimePrediction[]>([]);
   const [sendingTest, setSendingTest] = useState(false);
+  const [dailyPrefs, setDailyPrefs] = useState<DailyReminderPreferences | null>(null);
 
   // Time picker state
   const [pickerTarget, setPickerTarget] = useState<TimePickerTarget>(null);
@@ -322,12 +331,14 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [prefsData, predsData] = await Promise.all([
+      const [prefsData, predsData, dailyData] = await Promise.all([
         getNotificationPreferences(),
         getPredictedMealTimes().catch(() => []),
+        getDailyReminderPrefs(),
       ]);
       setPrefs(prefsData);
       setPredictions(predsData);
+      setDailyPrefs(dailyData);
     } catch {
       // Backend unavailable — use defaults (preferences saved locally)
       setPrefs({
@@ -354,6 +365,10 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
         inactivity_days_threshold: 2,
         water_reminders_enabled: false,
         water_reminder_interval_hours: 2,
+        nutrition_alerts_push_enabled: true,
+        nutrition_alerts_hour: 12,
+        nutrition_alerts_minute: 0,
+        nutrition_alerts_repeat_hours: 4,
       });
     } finally {
       setLoading(false);
@@ -385,6 +400,33 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
     [prefs],
   );
 
+  const updateDailyPref = useCallback(
+    async (updates: Partial<DailyReminderPreferences>) => {
+      if (!dailyPrefs) return;
+
+      const merged: DailyReminderPreferences = {
+        morning: updates.morning ? { ...dailyPrefs.morning, ...updates.morning } : dailyPrefs.morning,
+        lunch: updates.lunch ? { ...dailyPrefs.lunch, ...updates.lunch } : dailyPrefs.lunch,
+        evening: updates.evening ? { ...dailyPrefs.evening, ...updates.evening } : dailyPrefs.evening,
+        dailyTip: updates.dailyTip ? { ...dailyPrefs.dailyTip, ...updates.dailyTip } : dailyPrefs.dailyTip,
+      };
+
+      // Optimistic update
+      setDailyPrefs(merged);
+
+      setSaving(true);
+      try {
+        await saveDailyReminderPrefs(merged);
+        await scheduleDailyReminders(merged);
+      } catch {
+        // Persistence failed — UI already shows optimistic state
+      } finally {
+        setSaving(false);
+      }
+    },
+    [dailyPrefs],
+  );
+
   const handleTestNotification = useCallback(async () => {
     setSendingTest(true);
     haptics.medium();
@@ -402,42 +444,59 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
 
   const openTimePicker = useCallback(
     (target: TimePickerTarget) => {
-      if (!prefs || !target) return;
+      if (!target) return;
+      if (!prefs && !target.startsWith('daily_')) return;
 
       let hour = 12;
       let minute = 0;
 
       switch (target) {
         case 'breakfast':
-          hour = prefs.breakfast_reminder_hour;
-          minute = prefs.breakfast_reminder_minute;
+          hour = prefs!.breakfast_reminder_hour;
+          minute = prefs!.breakfast_reminder_minute;
           break;
         case 'lunch':
-          hour = prefs.lunch_reminder_hour;
-          minute = prefs.lunch_reminder_minute;
+          hour = prefs!.lunch_reminder_hour;
+          minute = prefs!.lunch_reminder_minute;
           break;
         case 'dinner':
-          hour = prefs.dinner_reminder_hour;
-          minute = prefs.dinner_reminder_minute;
+          hour = prefs!.dinner_reminder_hour;
+          minute = prefs!.dinner_reminder_minute;
           break;
         case 'snack':
-          hour = prefs.snack_reminder_hour;
-          minute = prefs.snack_reminder_minute;
+          hour = prefs!.snack_reminder_hour;
+          minute = prefs!.snack_reminder_minute;
           break;
         case 'evening_summary':
-          hour = prefs.evening_summary_hour;
-          minute = prefs.evening_summary_minute;
+          hour = prefs!.evening_summary_hour;
+          minute = prefs!.evening_summary_minute;
           break;
         case 'streak_risk':
-          hour = prefs.streak_risk_hour;
-          minute = prefs.streak_risk_minute;
+          hour = prefs!.streak_risk_hour;
+          minute = prefs!.streak_risk_minute;
+          break;
+        case 'nutrition_alerts':
+          hour = prefs!.nutrition_alerts_hour ?? 12;
+          minute = prefs!.nutrition_alerts_minute ?? 0;
+          break;
+        case 'daily_morning':
+          hour = dailyPrefs?.morning.hour ?? 8;
+          minute = dailyPrefs?.morning.minute ?? 0;
+          break;
+        case 'daily_lunch':
+          hour = dailyPrefs?.lunch.hour ?? 13;
+          minute = dailyPrefs?.lunch.minute ?? 0;
+          break;
+        case 'daily_evening':
+          hour = dailyPrefs?.evening.hour ?? 20;
+          minute = dailyPrefs?.evening.minute ?? 0;
           break;
       }
 
       setPickerDate(timeToDate(hour, minute));
       setPickerTarget(target);
     },
-    [prefs],
+    [prefs, dailyPrefs],
   );
 
   const handleTimeChange = useCallback(
@@ -470,9 +529,21 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
         case 'streak_risk':
           updatePref({ streak_risk_hour: hour, streak_risk_minute: minute });
           break;
+        case 'nutrition_alerts':
+          updatePref({ nutrition_alerts_hour: hour, nutrition_alerts_minute: minute });
+          break;
+        case 'daily_morning':
+          updateDailyPref({ morning: { enabled: dailyPrefs?.morning.enabled ?? true, hour, minute } });
+          break;
+        case 'daily_lunch':
+          updateDailyPref({ lunch: { enabled: dailyPrefs?.lunch.enabled ?? true, hour, minute } });
+          break;
+        case 'daily_evening':
+          updateDailyPref({ evening: { enabled: dailyPrefs?.evening.enabled ?? true, hour, minute } });
+          break;
       }
     },
-    [pickerTarget, updatePref],
+    [pickerTarget, updatePref, updateDailyPref, dailyPrefs],
   );
 
   if (loading || !prefs) {
@@ -538,6 +609,93 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
 
           {prefs.notifications_enabled && (
             <>
+              {/* ── Daily reminders ── */}
+              {dailyPrefs && (
+                <>
+                  <SectionHeader title="Recordatorios diarios" c={c} />
+                  <Card c={c}>
+                    <ToggleRow
+                      icon="sunny-outline"
+                      iconColor="#F59E0B"
+                      label="Recordatorio matutino"
+                      subtitle={`${formatTime(dailyPrefs.morning.hour, dailyPrefs.morning.minute)} — Registra tu desayuno`}
+                      value={dailyPrefs.morning.enabled}
+                      onToggle={(v) =>
+                        updateDailyPref({ morning: { ...dailyPrefs.morning, enabled: v } })
+                      }
+                      c={c}
+                    />
+                    {dailyPrefs.morning.enabled && (
+                      <TimeRow
+                        icon="time-outline"
+                        iconColor="#F59E0B"
+                        label="Hora matutina"
+                        hour={dailyPrefs.morning.hour}
+                        minute={dailyPrefs.morning.minute}
+                        onPress={() => openTimePicker('daily_morning')}
+                        c={c}
+                      />
+                    )}
+                    <ToggleRow
+                      icon="restaurant-outline"
+                      iconColor="#10B981"
+                      label="Recordatorio de almuerzo"
+                      subtitle={`${formatTime(dailyPrefs.lunch.hour, dailyPrefs.lunch.minute)} — Registra tu comida`}
+                      value={dailyPrefs.lunch.enabled}
+                      onToggle={(v) =>
+                        updateDailyPref({ lunch: { ...dailyPrefs.lunch, enabled: v } })
+                      }
+                      c={c}
+                    />
+                    {dailyPrefs.lunch.enabled && (
+                      <TimeRow
+                        icon="time-outline"
+                        iconColor="#10B981"
+                        label="Hora de almuerzo"
+                        hour={dailyPrefs.lunch.hour}
+                        minute={dailyPrefs.lunch.minute}
+                        onPress={() => openTimePicker('daily_lunch')}
+                        c={c}
+                      />
+                    )}
+                    <ToggleRow
+                      icon="moon-outline"
+                      iconColor="#6366F1"
+                      label="Recordatorio nocturno"
+                      subtitle={`${formatTime(dailyPrefs.evening.hour, dailyPrefs.evening.minute)} — Registra tu cena`}
+                      value={dailyPrefs.evening.enabled}
+                      onToggle={(v) =>
+                        updateDailyPref({ evening: { ...dailyPrefs.evening, enabled: v } })
+                      }
+                      c={c}
+                    />
+                    {dailyPrefs.evening.enabled && (
+                      <TimeRow
+                        icon="time-outline"
+                        iconColor="#6366F1"
+                        label="Hora nocturna"
+                        hour={dailyPrefs.evening.hour}
+                        minute={dailyPrefs.evening.minute}
+                        onPress={() => openTimePicker('daily_evening')}
+                        c={c}
+                      />
+                    )}
+                    <ToggleRow
+                      icon="bulb-outline"
+                      iconColor="#8B5CF6"
+                      label="Tip nutricional diario"
+                      subtitle="Recibe un consejo de nutricion cada dia a las 10:30 AM"
+                      value={dailyPrefs.dailyTip.enabled}
+                      onToggle={(v) =>
+                        updateDailyPref({ dailyTip: { enabled: v } })
+                      }
+                      isLast
+                      c={c}
+                    />
+                  </Card>
+                </>
+              )}
+
               {/* ── Meal reminders ── */}
               <SectionHeader title="Recordatorios de comidas" c={c} />
               <Card c={c}>
@@ -721,6 +879,77 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                   c={c}
                 />
               </Card>
+
+              {/* ── Nutrition alerts as push ── */}
+              <SectionHeader title="Alertas Nutricionales" c={c} />
+              <Card c={c}>
+                <ToggleRow
+                  icon="nutrition-outline"
+                  iconColor="#EF4444"
+                  label="Push de alertas nutricionales"
+                  subtitle="Recibe alertas de exceso calorico, grasa, agua, etc."
+                  value={prefs.nutrition_alerts_push_enabled ?? true}
+                  onToggle={(v) => updatePref({ nutrition_alerts_push_enabled: v })}
+                  c={c}
+                />
+                {(prefs.nutrition_alerts_push_enabled ?? true) && (
+                  <>
+                    <TimeRow
+                      icon="time-outline"
+                      iconColor="#EF4444"
+                      label="Primera alerta del dia"
+                      hour={prefs.nutrition_alerts_hour ?? 12}
+                      minute={prefs.nutrition_alerts_minute ?? 0}
+                      onPress={() => openTimePicker('nutrition_alerts')}
+                      c={c}
+                    />
+                    <View style={[styles.row, { borderBottomWidth: 0 }]}>
+                      <View style={[styles.iconCircle, { backgroundColor: '#F59E0B' + '18' }]}>
+                        <Ionicons name="repeat-outline" size={16} color="#F59E0B" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.rowLabel, { color: c.black }]}>Repetir cada</Text>
+                        <Text style={[styles.rowSubtitle, { color: c.gray }]}>Frecuencia de recordatorios</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        {[2, 4, 6].map((h) => (
+                          <TouchableOpacity
+                            key={h}
+                            onPress={() => updatePref({ nutrition_alerts_repeat_hours: h })}
+                            style={{
+                              paddingHorizontal: 12,
+                              paddingVertical: 6,
+                              borderRadius: 999,
+                              backgroundColor: (prefs.nutrition_alerts_repeat_hours ?? 4) === h ? c.accent : c.surface,
+                            }}
+                          >
+                            <Text style={{
+                              fontSize: 12,
+                              fontWeight: '700',
+                              color: (prefs.nutrition_alerts_repeat_hours ?? 4) === h ? '#FFF' : c.gray,
+                            }}>
+                              {h}h
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  </>
+                )}
+              </Card>
+
+              {(prefs.nutrition_alerts_push_enabled ?? true) && (
+                <PreviewCard
+                  preview={{
+                    icon: 'nutrition',
+                    iconColor: '#EF4444',
+                    title: 'Fitsi AI — Alerta Nutricional',
+                    body: 'Revisa tus alertas nutricionales del dia. Toca para ver el detalle.',
+                    time: `${String(prefs.nutrition_alerts_hour ?? 12).padStart(2, '0')}:${String(prefs.nutrition_alerts_minute ?? 0).padStart(2, '0')}`,
+                  }}
+                  c={c}
+                />
+              )}
 
               {/* ── Test notification ── */}
               <SectionHeader title="Prueba" c={c} />

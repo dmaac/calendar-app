@@ -1,17 +1,18 @@
 """
 Smart Notifications router.
 
-GET   /api/smart-notifications/evaluate      -- Run all rules, return intents
-GET   /api/smart-notifications/meal-times    -- Predicted meal times
-GET   /api/smart-notifications/preferences   -- Get user notification preferences
-PUT   /api/smart-notifications/preferences   -- Update preferences
-POST  /api/smart-notifications/send-test     -- Send a test notification
-POST  /api/smart-notifications/dispatch      -- Evaluate + send push notifications
-POST  /api/smart-notifications/dispatch-all  -- Batch dispatch for all users (admin)
-GET   /api/smart-notifications/stats         -- Notification analytics for current user
-GET   /api/smart-notifications/history       -- Notification history for current user
-POST  /api/smart-notifications/opened        -- Mark notification as opened
-POST  /api/smart-notifications/dismissed     -- Mark notification as dismissed
+GET   /api/smart-notifications/evaluate       -- Run all rules, return intents
+GET   /api/smart-notifications/meal-times     -- Predicted meal times
+GET   /api/smart-notifications/preferences    -- Get user notification preferences
+PUT   /api/smart-notifications/preferences    -- Update preferences
+POST  /api/smart-notifications/send-test      -- Send a test notification
+POST  /api/smart-notifications/dispatch       -- Evaluate + send push notifications
+POST  /api/smart-notifications/dispatch-all   -- Batch dispatch for all users (admin)
+POST  /api/smart-notifications/trigger-daily  -- Trigger daily motivational notifications (admin/cron)
+GET   /api/smart-notifications/stats          -- Notification analytics for current user
+GET   /api/smart-notifications/history        -- Notification history for current user
+POST  /api/smart-notifications/opened         -- Mark notification as opened
+POST  /api/smart-notifications/dismissed      -- Mark notification as dismissed
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..core.database import get_session
 from ..models.user import User
+from ..services.daily_notifications import DailyNotificationService
 from ..services.notification_service import NotificationService
 from ..services.smart_notification_service import SmartNotificationService
 from .auth import get_current_user
@@ -162,6 +164,22 @@ class BatchDispatchResponse(BaseModel):
     users_evaluated: int
     notifications_sent: int
     errors: int
+
+
+class TriggerDailyRequest(BaseModel):
+    slot: str = Field(
+        description="Time slot: morning, lunch, or evening",
+        pattern="^(morning|lunch|evening)$",
+    )
+
+
+class TriggerDailyResponse(BaseModel):
+    slot: str
+    users_evaluated: int
+    notifications_sent: int
+    skipped_disabled: int
+    errors: int
+    duration_ms: float
 
 
 class NotificationStatsResponse(BaseModel):
@@ -419,6 +437,43 @@ async def dispatch_all_notifications(
         users_evaluated=stats["users_evaluated"],
         notifications_sent=stats["notifications_sent"],
         errors=stats["errors"],
+    )
+
+
+@router.post("/trigger-daily", response_model=TriggerDailyResponse)
+async def trigger_daily_notifications(
+    body: TriggerDailyRequest,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Trigger daily motivational notifications for ALL users with active
+    push tokens and notifications enabled.
+
+    Designed to be called by a cron job three times per day:
+      - morning (7-8 AM): greeting + yesterday summary + streak + tip
+      - lunch (12-1 PM): mid-day progress check + macro tip
+      - evening (7-8 PM): daily summary + streak + tomorrow motivation
+
+    Admin-only endpoint.
+    """
+    service = DailyNotificationService(session)
+
+    try:
+        stats = await service.dispatch_daily_notifications(slot=body.slot)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+    return TriggerDailyResponse(
+        slot=stats["slot"],
+        users_evaluated=stats["users_evaluated"],
+        notifications_sent=stats["notifications_sent"],
+        skipped_disabled=stats["skipped_disabled"],
+        errors=stats["errors"],
+        duration_ms=stats["duration_ms"],
     )
 
 

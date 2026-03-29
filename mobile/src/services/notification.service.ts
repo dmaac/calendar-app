@@ -34,6 +34,182 @@ function dailyTrigger(
   } as unknown as Notifications.NotificationTriggerInput;
 }
 
+// ─── Nutrition tips (rotating daily tip in Spanish) ─────────────────────────
+
+const NUTRITION_TIPS: string[] = [
+  'Beber agua antes de comer reduce el apetito naturalmente.',
+  'La proteina en el desayuno mantiene la saciedad por mas horas.',
+  'Masticar despacio ayuda a tu cerebro a registrar cuando estas lleno.',
+  'Las frutas enteras sacian mas que los jugos por su contenido de fibra.',
+  'Dormir bien regula las hormonas del hambre: grelina y leptina.',
+  'Las grasas saludables como aguacate y nueces no engordan, sacian.',
+  'Comer verduras al inicio de la comida reduce los picos de azucar.',
+  'El estres cronico aumenta los antojos de comida alta en azucar.',
+  'Una ensalada antes del plato principal puede reducir calorias totales un 12%.',
+  'Cocinar en casa te da control sobre los ingredientes y las porciones.',
+  'La fibra alimenta tus bacterias intestinales y mejora la digestion.',
+  'Caminar 10 minutos despues de comer mejora la digestion y el azucar.',
+  'Planificar tus comidas del dia reduce las decisiones impulsivas.',
+  'Comer proteina en cada comida ayuda a mantener la masa muscular.',
+  'Hidratarte bien mejora tu energia, concentracion y metabolismo.',
+];
+
+// ─── Daily reminder preferences ─────────────────────────────────────────────
+
+const DAILY_REMINDER_PREFS_KEY = '@fitsi_notification_prefs';
+
+export interface DailyReminderConfig {
+  enabled: boolean;
+  hour: number;
+  minute: number;
+}
+
+export interface DailyReminderPreferences {
+  morning: DailyReminderConfig;
+  lunch: DailyReminderConfig;
+  evening: DailyReminderConfig;
+  dailyTip: { enabled: boolean };
+}
+
+const DEFAULT_DAILY_REMINDER_PREFS: DailyReminderPreferences = {
+  morning: { enabled: true, hour: 8, minute: 0 },
+  lunch: { enabled: true, hour: 13, minute: 0 },
+  evening: { enabled: true, hour: 20, minute: 0 },
+  dailyTip: { enabled: true },
+};
+
+/**
+ * Read daily reminder preferences from AsyncStorage.
+ */
+export async function getDailyReminderPrefs(): Promise<DailyReminderPreferences> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_REMINDER_PREFS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Merge with defaults so new fields are always present
+      return {
+        morning: { ...DEFAULT_DAILY_REMINDER_PREFS.morning, ...parsed.morning },
+        lunch: { ...DEFAULT_DAILY_REMINDER_PREFS.lunch, ...parsed.lunch },
+        evening: { ...DEFAULT_DAILY_REMINDER_PREFS.evening, ...parsed.evening },
+        dailyTip: { ...DEFAULT_DAILY_REMINDER_PREFS.dailyTip, ...parsed.dailyTip },
+      };
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return { ...DEFAULT_DAILY_REMINDER_PREFS };
+}
+
+/**
+ * Persist daily reminder preferences to AsyncStorage.
+ */
+export async function saveDailyReminderPrefs(prefs: DailyReminderPreferences): Promise<void> {
+  await AsyncStorage.setItem(DAILY_REMINDER_PREFS_KEY, JSON.stringify(prefs));
+}
+
+// ─── Identifiers for daily reminders ────────────────────────────────────────
+
+const DAILY_REMINDER_IDS = {
+  morning: 'fitsi-daily-morning',
+  lunch: 'fitsi-daily-lunch',
+  evening: 'fitsi-daily-evening',
+  dailyTip: 'fitsi-daily-tip',
+} as const;
+
+/**
+ * Schedule (or reschedule) the 3 daily meal reminders + optional daily tip.
+ *
+ * - Cancels any existing daily reminders first (by known identifier).
+ * - Schedules only the reminders the user has enabled.
+ * - Safe to call even if notification permissions are denied (will no-op).
+ */
+export async function scheduleDailyReminders(
+  overridePrefs?: DailyReminderPreferences,
+): Promise<void> {
+  if (Platform.OS === 'web') return;
+
+  // Check permission — bail silently if denied
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+  } catch {
+    return;
+  }
+
+  const prefs = overridePrefs ?? (await getDailyReminderPrefs());
+
+  // Cancel existing daily reminders by their known identifiers
+  for (const id of Object.values(DAILY_REMINDER_IDS)) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(id);
+    } catch {
+      // Identifier may not exist yet — safe to ignore
+    }
+  }
+
+  // Morning reminder
+  if (prefs.morning.enabled) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: DAILY_REMINDER_IDS.morning,
+      content: {
+        title: 'Fitsi AI',
+        body: 'Buenos dias! Empieza tu dia registrando tu desayuno',
+        data: { type: 'meal_reminder', meal_type: 'breakfast', screen: 'LogMain' },
+        sound: 'default',
+      },
+      trigger: dailyTrigger(prefs.morning.hour, prefs.morning.minute),
+    });
+  }
+
+  // Lunch reminder
+  if (prefs.lunch.enabled) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: DAILY_REMINDER_IDS.lunch,
+      content: {
+        title: 'Fitsi AI',
+        body: 'Hora de almorzar! No olvides registrar tu comida',
+        data: { type: 'meal_reminder', meal_type: 'lunch', screen: 'LogMain' },
+        sound: 'default',
+      },
+      trigger: dailyTrigger(prefs.lunch.hour, prefs.lunch.minute),
+    });
+  }
+
+  // Evening reminder
+  if (prefs.evening.enabled) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: DAILY_REMINDER_IDS.evening,
+      content: {
+        title: 'Fitsi AI',
+        body: 'Registra tu cena antes de terminar el dia',
+        data: { type: 'meal_reminder', meal_type: 'dinner', screen: 'LogMain' },
+        sound: 'default',
+      },
+      trigger: dailyTrigger(prefs.evening.hour, prefs.evening.minute),
+    });
+  }
+
+  // Daily nutrition tip (scheduled at a random-ish time: 10:30 AM)
+  if (prefs.dailyTip.enabled) {
+    // Pick a tip based on the day of the year so it rotates predictably
+    const dayOfYear = Math.floor(
+      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000,
+    );
+    const tip = NUTRITION_TIPS[dayOfYear % NUTRITION_TIPS.length];
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: DAILY_REMINDER_IDS.dailyTip,
+      content: {
+        title: 'Fitsi AI — Tip del dia',
+        body: tip,
+        data: { type: 'daily_tip', screen: 'HomeMain' },
+        sound: 'default',
+      },
+      trigger: dailyTrigger(10, 30),
+    });
+  }
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface NotificationPreferences {
@@ -60,6 +236,10 @@ export interface NotificationPreferences {
   inactivity_days_threshold: number;
   water_reminders_enabled: boolean;
   water_reminder_interval_hours: number;
+  nutrition_alerts_push_enabled: boolean;
+  nutrition_alerts_hour: number;
+  nutrition_alerts_minute: number;
+  nutrition_alerts_repeat_hours: number;
 }
 
 const DEFAULT_PREFS: NotificationPreferences = {
@@ -86,6 +266,10 @@ const DEFAULT_PREFS: NotificationPreferences = {
   inactivity_days_threshold: 2,
   water_reminders_enabled: false,
   water_reminder_interval_hours: 2,
+  nutrition_alerts_push_enabled: true,
+  nutrition_alerts_hour: 12,
+  nutrition_alerts_minute: 0,
+  nutrition_alerts_repeat_hours: 4,
 };
 
 export interface NotificationIntent {
@@ -391,6 +575,8 @@ function _mapNotificationIcon(type?: string): string {
       return 'time';
     case 'inactivity_reengagement':
       return 'heart';
+    case 'daily_tip':
+      return 'bulb';
     default:
       return 'notifications';
   }
@@ -552,6 +738,58 @@ export async function scheduleLocalNotifications(
       trigger: dailyTrigger(prefs.streak_risk_hour, prefs.streak_risk_minute),
     });
   }
+
+  // Schedule nutrition alert push notifications
+  if (prefs.nutrition_alerts_push_enabled) {
+    // Schedule first alert at configured hour
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Fitsi AI — Alerta Nutricional',
+        body: 'Revisa tus alertas nutricionales del dia. Toca para ver el detalle.',
+        data: { type: 'nutrition_alert', screen: 'HomeMain' },
+        sound: 'default',
+      },
+      trigger: dailyTrigger(prefs.nutrition_alerts_hour, prefs.nutrition_alerts_minute),
+    });
+
+    // Schedule repeating alerts if repeat_hours > 0
+    if (prefs.nutrition_alerts_repeat_hours > 0) {
+      const repeatIntervalSec = prefs.nutrition_alerts_repeat_hours * 3600;
+      // Schedule 2 additional reminders throughout the day
+      for (let i = 1; i <= 2; i++) {
+        const extraHour = (prefs.nutrition_alerts_hour + prefs.nutrition_alerts_repeat_hours * i) % 24;
+        if (extraHour >= 8 && extraHour <= 22) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Fitsi AI — Recordatorio',
+              body: 'Tienes alertas nutricionales pendientes. Revisa tu progreso del dia.',
+              data: { type: 'nutrition_alert_repeat', screen: 'HomeMain' },
+              sound: 'default',
+            },
+            trigger: dailyTrigger(extraHour, prefs.nutrition_alerts_minute),
+          });
+        }
+      }
+    }
+  }
+
+  // Schedule water reminders (interval-based)
+  if (prefs.water_reminders_enabled) {
+    const waterHours = [9, 11, 13, 15, 17, 19].filter(
+      (_, i) => i % Math.max(1, Math.round(6 / (24 / prefs.water_reminder_interval_hours))) === 0
+    );
+    for (const h of waterHours) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Fitsi AI — Hidratacion',
+          body: 'Recuerda beber agua! Mantente hidratado para un mejor rendimiento.',
+          data: { type: 'water_reminder', screen: 'LogMain' },
+          sound: 'default',
+        },
+        trigger: dailyTrigger(h, 0),
+      });
+    }
+  }
 }
 
 /**
@@ -629,7 +867,8 @@ export async function scheduleFromPredictedTimes(): Promise<void> {
 
 /**
  * Full notification initialization sequence.
- * Registers push token, sets up listeners, schedules local fallbacks.
+ * Registers push token, sets up listeners, schedules local fallbacks,
+ * and ensures daily reminders are active.
  */
 export async function initializeNotifications(): Promise<void> {
   const token = await registerForPushNotifications();
@@ -640,5 +879,12 @@ export async function initializeNotifications(): Promise<void> {
     await scheduleFromPredictedTimes();
   } catch (error) {
     console.warn('[Notifications] Failed to schedule local notifications:', error);
+  }
+
+  // Ensure daily reminders are scheduled (uses persisted preferences)
+  try {
+    await scheduleDailyReminders();
+  } catch (error) {
+    console.warn('[Notifications] Failed to schedule daily reminders:', error);
   }
 }

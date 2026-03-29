@@ -1,631 +1,421 @@
 /**
- * nutritionTips.ts — 100 science-backed nutrition tips for Fitsi AI
- * Organized by category with scientific source references.
- * Max 120 characters per tip text.
+ * nutritionTips.ts — 50 daily nutrition tips for Fitsi AI
+ *
+ * Used for push notifications and in-app tip cards.
+ * All tips are evidence-based, actionable, and written in neutral Spanish
+ * suitable for a LATAM audience.
+ *
+ * Categories (5 tips each, 50 total):
+ *   hydration, protein, fiber, vitamins, portions,
+ *   timing, habits, mindful, exercise, sleep
  */
 
-export type TipCategory =
-  | 'protein'
-  | 'hydration'
-  | 'micronutrients'
-  | 'meal_timing'
-  | 'healthy_snacks';
-
 export interface NutritionTip {
-  id: string;
-  text: string;
-  category: TipCategory;
-  source: string;
+  id: number;
+  category:
+    | 'hydration'
+    | 'protein'
+    | 'fiber'
+    | 'vitamins'
+    | 'portions'
+    | 'timing'
+    | 'habits'
+    | 'mindful'
+    | 'exercise'
+    | 'sleep';
+  title: string;
+  body: string;
+  emoji: string;
 }
 
-export const nutritionTips: NutritionTip[] = [
-  // ─── Protein Tips (20) ──────────────────────────────────────────────────────
+export const NUTRITION_TIPS: NutritionTip[] = [
+  // ---------------------------------------------------------------------------
+  // HYDRATION (5)
+  // ---------------------------------------------------------------------------
   {
-    id: 'tip-p01',
-    text: 'Consume 1.6-2.2g de proteina por kg de peso corporal para maximizar la sintesis muscular.',
-    category: 'protein',
-    source: 'British Journal of Sports Medicine, 2018',
+    id: 1,
+    category: 'hydration',
+    title: 'Empieza el dia con un vaso de agua',
+    body: 'Beber agua al despertar reactiva tu metabolismo despues de horas sin liquidos. Intenta 250 ml antes del desayuno.',
+    emoji: '\u{1F4A7}',
   },
   {
-    id: 'tip-p02',
-    text: 'Distribuye tu proteina en 3-4 comidas al dia para mejor absorcion y sintesis muscular.',
-    category: 'protein',
-    source: 'Journal of the International Society of Sports Nutrition, 2017',
+    id: 2,
+    category: 'hydration',
+    title: 'Calcula tu meta de agua diaria',
+    body: 'Una guia practica: multiplica tu peso en kg por 30-35 ml. Si pesas 70 kg, apunta a unos 2.1-2.4 litros al dia.',
+    emoji: '\u{1F4A7}',
   },
   {
-    id: 'tip-p03',
-    text: 'La leucina es el aminoacido clave para activar la sintesis de proteina muscular.',
-    category: 'protein',
-    source: 'The Journal of Nutrition, 2006',
+    id: 3,
+    category: 'hydration',
+    title: 'Revisa el color de tu orina',
+    body: 'Amarillo claro indica buena hidratacion. Si es oscuro, tu cuerpo necesita mas agua. Es el indicador mas simple.',
+    emoji: '\u{1F4A7}',
   },
   {
-    id: 'tip-p04',
-    text: '20-40g de proteina por comida es el rango optimo para estimular la sintesis muscular.',
-    category: 'protein',
-    source: 'Journal of the American Dietetic Association, 2009',
+    id: 4,
+    category: 'hydration',
+    title: 'Dale sabor natural a tu agua',
+    body: 'Agrega rodajas de limon, pepino o menta a tu agua. Te ayudara a beber mas sin calorias ni azucar agregada.',
+    emoji: '\u{1F4A7}',
   },
   {
-    id: 'tip-p05',
-    text: 'Las proteinas de origen animal tienen un perfil de aminoacidos mas completo que las vegetales.',
-    category: 'protein',
-    source: 'Nutrients, 2019',
-  },
-  {
-    id: 'tip-p06',
-    text: 'Combinar legumbres con cereales (arroz + porotos) crea una proteina completa.',
-    category: 'protein',
-    source: 'The American Journal of Clinical Nutrition, 1994',
-  },
-  {
-    id: 'tip-p07',
-    text: 'El suero de leche (whey) se absorbe mas rapido que la caseina, ideal post-entrenamiento.',
-    category: 'protein',
-    source: 'Journal of the American College of Nutrition, 2007',
-  },
-  {
-    id: 'tip-p08',
-    text: 'Mayor consumo de proteina ayuda a preservar masa muscular durante deficit calorico.',
-    category: 'protein',
-    source: 'The American Journal of Clinical Nutrition, 2016',
-  },
-  {
-    id: 'tip-p09',
-    text: 'Los huevos contienen todos los aminoacidos esenciales y tienen alta biodisponibilidad.',
-    category: 'protein',
-    source: 'Nutrients, 2015',
-  },
-  {
-    id: 'tip-p10',
-    text: 'La proteina tiene mayor efecto termico que carbohidratos o grasas (20-30% vs 5-10%).',
-    category: 'protein',
-    source: 'Nutrition & Metabolism, 2004',
-  },
-  {
-    id: 'tip-p11',
-    text: 'El consumo de proteina antes de dormir estimula la recuperacion muscular nocturna.',
-    category: 'protein',
-    source: 'Medicine & Science in Sports & Exercise, 2012',
-  },
-  {
-    id: 'tip-p12',
-    text: 'Las personas mayores necesitan mas proteina por comida (~40g) para igual respuesta anabolica.',
-    category: 'protein',
-    source: 'The American Journal of Clinical Nutrition, 2015',
-  },
-  {
-    id: 'tip-p13',
-    text: 'La soja es la proteina vegetal con mayor contenido de leucina y valor biologico.',
-    category: 'protein',
-    source: 'Journal of Agricultural and Food Chemistry, 2012',
-  },
-  {
-    id: 'tip-p14',
-    text: 'Consumir proteina con cada comida aumenta la saciedad y reduce el hambre entre comidas.',
-    category: 'protein',
-    source: 'The American Journal of Clinical Nutrition, 2005',
-  },
-  {
-    id: 'tip-p15',
-    text: 'El pollo y pavo son fuentes magras de proteina con bajo contenido de grasa saturada.',
-    category: 'protein',
-    source: 'Nutrition Reviews, 2015',
-  },
-  {
-    id: 'tip-p16',
-    text: 'Los pescados grasos aportan proteina mas omega-3, una combinacion ideal para la salud.',
-    category: 'protein',
-    source: 'The American Journal of Clinical Nutrition, 2011',
-  },
-  {
-    id: 'tip-p17',
-    text: 'El yogur griego tiene el doble de proteina que el yogur regular por porcion.',
-    category: 'protein',
-    source: 'Journal of Dairy Science, 2013',
-  },
-  {
-    id: 'tip-p18',
-    text: 'La creatina complementa la proteina para maximizar ganancia de fuerza y masa muscular.',
-    category: 'protein',
-    source: 'Journal of the International Society of Sports Nutrition, 2017',
-  },
-  {
-    id: 'tip-p19',
-    text: 'Dietas altas en proteina no danan los rinones en personas con funcion renal normal.',
-    category: 'protein',
-    source: 'The Journal of Nutrition, 2018',
-  },
-  {
-    id: 'tip-p20',
-    text: 'Las legumbres son una fuente economica de proteina con alto contenido de fibra.',
-    category: 'protein',
-    source: 'Nutrients, 2017',
+    id: 5,
+    category: 'hydration',
+    title: 'Balancea cafe y agua',
+    body: 'El cafe moderado (3-4 tazas) no deshidrata, pero por cada taza agrega un vaso extra de agua para equilibrar.',
+    emoji: '\u{1F4A7}',
   },
 
-  // ─── Hydration Tips (20) ────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // PROTEIN (5)
+  // ---------------------------------------------------------------------------
   {
-    id: 'tip-h01',
-    text: 'Bebe 30-35ml de agua por kg de peso corporal como base diaria minima.',
-    category: 'hydration',
-    source: 'European Journal of Clinical Nutrition, 2010',
+    id: 6,
+    category: 'protein',
+    title: 'Incluye proteina en cada comida',
+    body: 'Distribuir proteina en 3-4 comidas mejora su absorcion y la sintesis muscular. No la concentres en una sola.',
+    emoji: '\u{1F4AA}',
   },
   {
-    id: 'tip-h02',
-    text: 'Una perdida de solo 2% del peso corporal en agua reduce el rendimiento fisico y mental.',
-    category: 'hydration',
-    source: 'Medicine & Science in Sports & Exercise, 2007',
+    id: 7,
+    category: 'protein',
+    title: 'Elige bien tus fuentes de proteina',
+    body: 'Pollo, pescado, huevos, legumbres y lacteos son opciones accesibles. Varía para obtener distintos aminoacidos.',
+    emoji: '\u{1F4AA}',
   },
   {
-    id: 'tip-h03',
-    text: 'Beber agua antes de las comidas puede ayudar a reducir la ingesta calorica total.',
-    category: 'hydration',
-    source: 'Obesity, 2010',
+    id: 8,
+    category: 'protein',
+    title: 'Conoce tu necesidad diaria',
+    body: 'La mayoria de adultos necesita entre 1.2 y 2.0 g de proteina por kg de peso segun su actividad fisica.',
+    emoji: '\u{1F4AA}',
   },
   {
-    id: 'tip-h04',
-    text: 'El color de tu orina indica hidratacion: amarillo claro es buena senal.',
-    category: 'hydration',
-    source: 'European Journal of Clinical Nutrition, 2003',
+    id: 9,
+    category: 'protein',
+    title: 'Proteina vegetal: combinala bien',
+    body: 'Arroz con frijoles, lentejas con pan o garbanzos con quinoa forman proteinas completas sin necesidad de carne.',
+    emoji: '\u{1F4AA}',
   },
   {
-    id: 'tip-h05',
-    text: 'Durante ejercicio intenso, bebe 150-250ml cada 15-20 minutos.',
-    category: 'hydration',
-    source: 'Journal of the American College of Sports Medicine, 2007',
-  },
-  {
-    id: 'tip-h06',
-    text: 'Frutas como sandia, naranja y pepino contribuyen significativamente a tu hidratacion.',
-    category: 'hydration',
-    source: 'The American Journal of Clinical Nutrition, 2013',
-  },
-  {
-    id: 'tip-h07',
-    text: 'El cafe en cantidades moderadas (3-4 tazas) no causa deshidratacion significativa.',
-    category: 'hydration',
-    source: 'PLOS ONE, 2014',
-  },
-  {
-    id: 'tip-h08',
-    text: 'Despues de ejercicio, repone 150% del peso perdido en sudor para rehidratarte.',
-    category: 'hydration',
-    source: 'British Journal of Sports Medicine, 1996',
-  },
-  {
-    id: 'tip-h09',
-    text: 'La sed es un indicador tardio: cuando la sientes ya puedes estar 1-2% deshidratado.',
-    category: 'hydration',
-    source: 'The Journal of Physiology, 2005',
-  },
-  {
-    id: 'tip-h10',
-    text: 'Bebidas con electrolitos son necesarias solo en ejercicios de mas de 60 minutos.',
-    category: 'hydration',
-    source: 'Journal of the International Society of Sports Nutrition, 2006',
-  },
-  {
-    id: 'tip-h11',
-    text: 'El agua fria se absorbe mas rapido que el agua a temperatura ambiente durante ejercicio.',
-    category: 'hydration',
-    source: 'International Journal of Clinical and Experimental Medicine, 2013',
-  },
-  {
-    id: 'tip-h12',
-    text: 'La deshidratacion leve afecta la concentracion, el animo y la memoria a corto plazo.',
-    category: 'hydration',
-    source: 'The Journal of Nutrition, 2012',
-  },
-  {
-    id: 'tip-h13',
-    text: 'Beber agua ayuda al metabolismo: 500ml puede aumentar el gasto energetico un 30%.',
-    category: 'hydration',
-    source: 'The Journal of Clinical Endocrinology & Metabolism, 2003',
-  },
-  {
-    id: 'tip-h14',
-    text: 'En climas calidos o en altura, tus necesidades de agua aumentan significativamente.',
-    category: 'hydration',
-    source: 'Wilderness & Environmental Medicine, 2006',
-  },
-  {
-    id: 'tip-h15',
-    text: 'El agua con gas hidrata igual que el agua sin gas, sin efectos negativos en la salud.',
-    category: 'hydration',
-    source: 'European Journal of Gastroenterology & Hepatology, 2002',
-  },
-  {
-    id: 'tip-h16',
-    text: 'Los infantes y adultos mayores son mas susceptibles a la deshidratacion. Vigila su ingesta.',
-    category: 'hydration',
-    source: 'Nutrition Reviews, 2010',
-  },
-  {
-    id: 'tip-h17',
-    text: 'Beber agua al despertar ayuda a activar el metabolismo despues del ayuno nocturno.',
-    category: 'hydration',
-    source: 'The Journal of Clinical Endocrinology & Metabolism, 2003',
-  },
-  {
-    id: 'tip-h18',
-    text: 'La leche tiene mejor indice de hidratacion que el agua debido a su contenido de sodio.',
-    category: 'hydration',
-    source: 'The American Journal of Clinical Nutrition, 2016',
-  },
-  {
-    id: 'tip-h19',
-    text: 'Llevar una botella reutilizable aumenta el consumo de agua diario en promedio un 25%.',
-    category: 'hydration',
-    source: 'Journal of the Academy of Nutrition and Dietetics, 2016',
-  },
-  {
-    id: 'tip-h20',
-    text: 'La hiperhidratacion (beber en exceso) puede ser peligrosa. No fuerces mas de lo necesario.',
-    category: 'hydration',
-    source: 'Clinical Journal of the American Society of Nephrology, 2007',
+    id: 10,
+    category: 'protein',
+    title: 'No olvides la proteina post-entreno',
+    body: 'Consumir 20-40 g de proteina dentro de las 2 horas despues de ejercicio apoya la recuperacion muscular.',
+    emoji: '\u{1F4AA}',
   },
 
-  // ─── Micronutrient Tips (20) ────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // FIBER (5)
+  // ---------------------------------------------------------------------------
   {
-    id: 'tip-m01',
-    text: 'La vitamina D es clave para huesos fuertes. Exponerte al sol 15 min al dia ayuda.',
-    category: 'micronutrients',
-    source: 'The New England Journal of Medicine, 2007',
+    id: 11,
+    category: 'fiber',
+    title: 'La fibra: tu aliada digestiva',
+    body: 'La fibra regula el transito intestinal, controla el azucar en sangre y aumenta la saciedad. Meta: 25-30 g al dia.',
+    emoji: '\u{1F33E}',
   },
   {
-    id: 'tip-m02',
-    text: 'El hierro de origen animal (hemo) se absorbe 2-3 veces mejor que el de origen vegetal.',
-    category: 'micronutrients',
-    source: 'The American Journal of Clinical Nutrition, 2003',
+    id: 12,
+    category: 'fiber',
+    title: 'Fuentes faciles de fibra',
+    body: 'Avena, frijoles, lentejas, frutas con cascara y verduras son excelentes. Empieza con lo que ya tienes en casa.',
+    emoji: '\u{1F33E}',
   },
   {
-    id: 'tip-m03',
-    text: 'La vitamina C mejora la absorcion de hierro vegetal. Combina legumbres con citricos.',
-    category: 'micronutrients',
-    source: 'The American Journal of Clinical Nutrition, 2000',
+    id: 13,
+    category: 'fiber',
+    title: 'Aumenta la fibra gradualmente',
+    body: 'Agregar demasiada fibra de golpe puede causar molestias. Aumenta poco a poco y acompana con suficiente agua.',
+    emoji: '\u{1F33E}',
   },
   {
-    id: 'tip-m04',
-    text: 'El magnesio participa en mas de 300 reacciones enzimaticas. Nueces y semillas son ricos.',
-    category: 'micronutrients',
-    source: 'Physiological Reviews, 2015',
+    id: 14,
+    category: 'fiber',
+    title: 'Soluble e insoluble: ambas importan',
+    body: 'La soluble (avena, frutas) regula colesterol. La insoluble (verduras, cereales) mejora el transito intestinal.',
+    emoji: '\u{1F33E}',
   },
   {
-    id: 'tip-m05',
-    text: 'El zinc es esencial para la inmunidad. Carnes, mariscos y semillas de zapallo son fuentes.',
-    category: 'micronutrients',
-    source: 'Advances in Nutrition, 2013',
-  },
-  {
-    id: 'tip-m06',
-    text: 'La vitamina B12 solo se encuentra naturalmente en alimentos de origen animal.',
-    category: 'micronutrients',
-    source: 'Nutrients, 2012',
-  },
-  {
-    id: 'tip-m07',
-    text: 'El calcio necesita vitamina D para absorberse correctamente. Ambos son esenciales juntos.',
-    category: 'micronutrients',
-    source: 'The Journal of Clinical Endocrinology & Metabolism, 2011',
-  },
-  {
-    id: 'tip-m08',
-    text: 'Los antioxidantes de frutas y verduras coloridas protegen tus celulas del dano oxidativo.',
-    category: 'micronutrients',
-    source: 'Free Radical Biology and Medicine, 2012',
-  },
-  {
-    id: 'tip-m09',
-    text: 'El potasio ayuda a regular la presion arterial. Platanos, papas y espinacas son ricos.',
-    category: 'micronutrients',
-    source: 'The American Journal of Clinical Nutrition, 2013',
-  },
-  {
-    id: 'tip-m10',
-    text: 'El omega-3 reduce inflamacion y apoya la salud cardiovascular. Consume pescado 2x/semana.',
-    category: 'micronutrients',
-    source: 'Circulation, 2002',
-  },
-  {
-    id: 'tip-m11',
-    text: 'El acido folico es critico en el embarazo. Verduras de hoja verde son la mejor fuente.',
-    category: 'micronutrients',
-    source: 'The Lancet, 2001',
-  },
-  {
-    id: 'tip-m12',
-    text: 'La fibra alimentaria reduce el riesgo de enfermedades cardiacas. Meta: 25-30g diarios.',
-    category: 'micronutrients',
-    source: 'The Lancet, 2019',
-  },
-  {
-    id: 'tip-m13',
-    text: 'El selenio es un poderoso antioxidante. Dos nueces de Brasil al dia cubren el RDA.',
-    category: 'micronutrients',
-    source: 'The American Journal of Clinical Nutrition, 2003',
-  },
-  {
-    id: 'tip-m14',
-    text: 'El yodo es esencial para la funcion tiroidea. La sal yodada es la fuente mas comun.',
-    category: 'micronutrients',
-    source: 'Thyroid, 2011',
-  },
-  {
-    id: 'tip-m15',
-    text: 'La vitamina A mantiene la vision y la piel. Zanahoria, zapallo y batata son ricos.',
-    category: 'micronutrients',
-    source: 'The Journal of Nutrition, 2001',
-  },
-  {
-    id: 'tip-m16',
-    text: 'La vitamina K es clave para la coagulacion. Las verduras de hoja verde son la fuente.',
-    category: 'micronutrients',
-    source: 'Advances in Nutrition, 2012',
-  },
-  {
-    id: 'tip-m17',
-    text: 'El cromo ayuda a regular la glucosa en sangre. Brocoli y avena son buenas fuentes.',
-    category: 'micronutrients',
-    source: 'Diabetes Technology & Therapeutics, 2006',
-  },
-  {
-    id: 'tip-m18',
-    text: 'El exceso de vitaminas liposolubles (A, D, E, K) puede ser toxico. No excedas el RDA.',
-    category: 'micronutrients',
-    source: 'The American Journal of Clinical Nutrition, 2007',
-  },
-  {
-    id: 'tip-m19',
-    text: 'Las vitaminas del complejo B son esenciales para el metabolismo energetico celular.',
-    category: 'micronutrients',
-    source: 'Nutrients, 2016',
-  },
-  {
-    id: 'tip-m20',
-    text: 'El cobre y el zinc compiten por absorcion. Suplementar uno en exceso puede afectar al otro.',
-    category: 'micronutrients',
-    source: 'The Journal of Nutrition, 2000',
+    id: 15,
+    category: 'fiber',
+    title: 'Fibra y salud intestinal',
+    body: 'La fibra alimenta las bacterias buenas de tu intestino. Una microbiota sana mejora tu inmunidad y tu animo.',
+    emoji: '\u{1F33E}',
   },
 
-  // ─── Meal Timing Tips (20) ──────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // VITAMINS (5)
+  // ---------------------------------------------------------------------------
   {
-    id: 'tip-t01',
-    text: 'Comer proteina dentro de 2 horas post-ejercicio optimiza la recuperacion muscular.',
-    category: 'meal_timing',
-    source: 'Journal of the International Society of Sports Nutrition, 2017',
+    id: 16,
+    category: 'vitamins',
+    title: 'Come un arcoiris de colores',
+    body: 'Cada color de fruta o verdura aporta distintas vitaminas y antioxidantes. Varia los colores en tu plato.',
+    emoji: '\u{1F34A}',
   },
   {
-    id: 'tip-t02',
-    text: 'El desayuno no es obligatorio. Lo importante es cumplir tus calorias y macros diarios.',
-    category: 'meal_timing',
-    source: 'The American Journal of Clinical Nutrition, 2014',
+    id: 17,
+    category: 'vitamins',
+    title: 'Hierro + vitamina C = mejor absorcion',
+    body: 'Si comes lentejas o espinacas, agrega limon o pimiento. La vitamina C puede triplicar la absorcion de hierro.',
+    emoji: '\u{1F34A}',
   },
   {
-    id: 'tip-t03',
-    text: 'El ayuno intermitente 16:8 puede ayudar a reducir grasa sin perder masa muscular.',
-    category: 'meal_timing',
-    source: 'Translational Research, 2014',
+    id: 18,
+    category: 'vitamins',
+    title: 'No descuides la vitamina D',
+    body: '15 minutos de sol al dia ayudan a producir vitamina D, clave para huesos fuertes y un sistema inmune sano.',
+    emoji: '\u{1F34A}',
   },
   {
-    id: 'tip-t04',
-    text: 'Comer carbohidratos 2-3 horas antes del ejercicio mejora el rendimiento deportivo.',
-    category: 'meal_timing',
-    source: 'Journal of the American Dietetic Association, 2009',
+    id: 19,
+    category: 'vitamins',
+    title: 'Aprovecha las frutas de temporada',
+    body: 'Las frutas y verduras de estacion son mas frescas, nutritivas y economicas. Consulta que hay disponible ahora.',
+    emoji: '\u{1F34A}',
   },
   {
-    id: 'tip-t05',
-    text: 'Cenar tarde no engorda por si solo. El total calorico diario es lo que importa.',
-    category: 'meal_timing',
-    source: 'Nutrients, 2015',
-  },
-  {
-    id: 'tip-t06',
-    text: 'Distribuir comidas cada 3-5 horas ayuda a mantener niveles estables de energia.',
-    category: 'meal_timing',
-    source: 'The British Journal of Nutrition, 2010',
-  },
-  {
-    id: 'tip-t07',
-    text: 'La ventana anabolica post-ejercicio es mas amplia de lo que se creia: dura varias horas.',
-    category: 'meal_timing',
-    source: 'Journal of the International Society of Sports Nutrition, 2013',
-  },
-  {
-    id: 'tip-t08',
-    text: 'Comer despacio (20+ min por comida) mejora la saciedad y reduce el consumo total.',
-    category: 'meal_timing',
-    source: 'Journal of the Academy of Nutrition and Dietetics, 2014',
-  },
-  {
-    id: 'tip-t09',
-    text: 'Un snack con proteina antes de dormir puede mejorar la sintesis de proteina nocturna.',
-    category: 'meal_timing',
-    source: 'Nutrients, 2016',
-  },
-  {
-    id: 'tip-t10',
-    text: 'Entrenar en ayunas puede aumentar la oxidacion de grasas, pero no la perdida de grasa total.',
-    category: 'meal_timing',
-    source: 'Journal of the International Society of Sports Nutrition, 2014',
-  },
-  {
-    id: 'tip-t11',
-    text: 'El ritmo circadiano sugiere que tu cuerpo procesa mejor los carbohidratos por la manana.',
-    category: 'meal_timing',
-    source: 'Current Biology, 2013',
-  },
-  {
-    id: 'tip-t12',
-    text: 'Para ganancia muscular, comer en superavit calorico es mas importante que el timing exacto.',
-    category: 'meal_timing',
-    source: 'Sports Medicine, 2014',
-  },
-  {
-    id: 'tip-t13',
-    text: 'Hacer 3 o 6 comidas al dia no afecta el metabolismo. Elige lo que se adapte a tu rutina.',
-    category: 'meal_timing',
-    source: 'The British Journal of Nutrition, 2010',
-  },
-  {
-    id: 'tip-t14',
-    text: 'La cafeina 30-60 minutos antes del ejercicio mejora rendimiento y oxidacion de grasa.',
-    category: 'meal_timing',
-    source: 'Journal of the International Society of Sports Nutrition, 2021',
-  },
-  {
-    id: 'tip-t15',
-    text: 'Evita comidas pesadas 1-2 horas antes de entrenar para evitar molestias digestivas.',
-    category: 'meal_timing',
-    source: 'International Journal of Sport Nutrition and Exercise Metabolism, 2006',
-  },
-  {
-    id: 'tip-t16',
-    text: 'Comer a horarios regulares puede mejorar la sensibilidad a la insulina.',
-    category: 'meal_timing',
-    source: 'Proceedings of the Nutrition Society, 2016',
-  },
-  {
-    id: 'tip-t17',
-    text: 'Planificar tus comidas semanalmente reduce la probabilidad de comer ultraprocesados.',
-    category: 'meal_timing',
-    source: 'International Journal of Behavioral Nutrition and Physical Activity, 2017',
-  },
-  {
-    id: 'tip-t18',
-    text: 'Comer la mayor porcion de calorias temprano se asocia con mejor manejo de peso.',
-    category: 'meal_timing',
-    source: 'International Journal of Obesity, 2013',
-  },
-  {
-    id: 'tip-t19',
-    text: 'Carbohidratos post-ejercicio reponen glucogeno muscular y aceleran la recuperacion.',
-    category: 'meal_timing',
-    source: 'Journal of Applied Physiology, 1988',
-  },
-  {
-    id: 'tip-t20',
-    text: 'La consistencia en horarios de comida es mas beneficiosa que cualquier patron especifico.',
-    category: 'meal_timing',
-    source: 'Proceedings of the Nutrition Society, 2016',
+    id: 20,
+    category: 'vitamins',
+    title: 'Senales de que faltan vitaminas',
+    body: 'Cansancio constante, unas fragiles o labios agrietados pueden indicar deficiencias. Una dieta variada es la solucion.',
+    emoji: '\u{1F34A}',
   },
 
-  // ─── Healthy Snacks Tips (20) ───────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // PORTIONS (5)
+  // ---------------------------------------------------------------------------
   {
-    id: 'tip-s01',
-    text: 'Un punado de almendras (30g) aporta 6g de proteina, grasas saludables y vitamina E.',
-    category: 'healthy_snacks',
-    source: 'The Journal of Nutrition, 2015',
+    id: 21,
+    category: 'portions',
+    title: 'Usa tu mano para medir porciones',
+    body: 'Palma = proteina, puno = carbohidratos, pulgar = grasas, dos manos juntas = verduras. Sencillo y sin bascula.',
+    emoji: '\u{1F37D}\u{FE0F}',
   },
   {
-    id: 'tip-s02',
-    text: 'El queso cottage con frutas es un snack alto en proteina y bajo en grasa.',
-    category: 'healthy_snacks',
-    source: 'The British Journal of Nutrition, 2015',
+    id: 22,
+    category: 'portions',
+    title: 'Divide tu plato en tres partes',
+    body: 'Medio plato de verduras, un cuarto de proteina y un cuarto de carbohidratos. Es una formula equilibrada y visual.',
+    emoji: '\u{1F37D}\u{FE0F}',
   },
   {
-    id: 'tip-s03',
-    text: 'Las zanahorias con hummus combinan fibra, proteina y grasas saludables en un snack.',
-    category: 'healthy_snacks',
-    source: 'Nutrients, 2016',
+    id: 23,
+    category: 'portions',
+    title: 'Sirvete y guarda el resto',
+    body: 'Pon la porcion en un plato y guarda la olla. Comer directo de la fuente lleva a consumir mas de lo planeado.',
+    emoji: '\u{1F37D}\u{FE0F}',
   },
   {
-    id: 'tip-s04',
-    text: 'Un huevo duro es un snack portatil con 6g de proteina y solo 70 calorias.',
-    category: 'healthy_snacks',
-    source: 'Nutrients, 2015',
+    id: 24,
+    category: 'portions',
+    title: 'En restaurantes, planifica tu porcion',
+    body: 'Las porciones de restaurante suelen ser el doble. Pide para llevar la mitad o comparte un plato grande.',
+    emoji: '\u{1F37D}\u{FE0F}',
   },
   {
-    id: 'tip-s05',
-    text: 'Las frutas deshidratadas son nutritivas pero densas en calorias. Controla la porcion.',
-    category: 'healthy_snacks',
-    source: 'Journal of the Academy of Nutrition and Dietetics, 2016',
+    id: 25,
+    category: 'portions',
+    title: 'Porciona tus snacks con anticipacion',
+    body: 'Divide los snacks en bolsas o recipientes individuales. Evita comer del paquete grande para controlar cantidades.',
+    emoji: '\u{1F37D}\u{FE0F}',
+  },
+
+  // ---------------------------------------------------------------------------
+  // TIMING (5)
+  // ---------------------------------------------------------------------------
+  {
+    id: 26,
+    category: 'timing',
+    title: 'Come cada 3-5 horas',
+    body: 'Espaciar tus comidas mantiene estables los niveles de energia y evita llegar con hambre extrema a la siguiente.',
+    emoji: '\u{23F0}',
   },
   {
-    id: 'tip-s06',
-    text: 'El edamame es un snack vegetal con 11g de proteina por porcion de 100g.',
-    category: 'healthy_snacks',
-    source: 'Journal of Agricultural and Food Chemistry, 2012',
+    id: 27,
+    category: 'timing',
+    title: 'Combustible antes de entrenar',
+    body: 'Un snack con carbohidratos 1-2 horas antes del ejercicio mejora tu rendimiento. Una fruta o tostada funciona bien.',
+    emoji: '\u{23F0}',
   },
   {
-    id: 'tip-s07',
-    text: 'Las palomitas de maiz sin mantequilla son un snack integral bajo en calorias.',
-    category: 'healthy_snacks',
-    source: 'Journal of the American Dietetic Association, 2012',
+    id: 28,
+    category: 'timing',
+    title: 'Recuperate despues del ejercicio',
+    body: 'Combina proteina y carbohidratos dentro de las 2 horas post-entreno para reponer energia y reparar musculos.',
+    emoji: '\u{23F0}',
   },
   {
-    id: 'tip-s08',
-    text: 'Una manzana con mantequilla de mani combina fibra, proteina y grasas saludables.',
-    category: 'healthy_snacks',
-    source: 'The British Journal of Nutrition, 2013',
+    id: 29,
+    category: 'timing',
+    title: 'Cenar tarde no te hace subir de peso',
+    body: 'Lo que importa es el total calorico del dia, no la hora exacta. Elige cenas ligeras si te sientes pesado de noche.',
+    emoji: '\u{23F0}',
   },
   {
-    id: 'tip-s09',
-    text: 'El chocolate oscuro (70%+) en moderacion aporta antioxidantes y mejora el animo.',
-    category: 'healthy_snacks',
-    source: 'Antioxidants & Redox Signaling, 2011',
+    id: 30,
+    category: 'timing',
+    title: 'El desayuno es opcional, no obligatorio',
+    body: 'Si no tienes hambre temprano, esta bien. Lo esencial es cumplir tus metas de calorias y nutrientes durante el dia.',
+    emoji: '\u{23F0}',
+  },
+
+  // ---------------------------------------------------------------------------
+  // HABITS (5)
+  // ---------------------------------------------------------------------------
+  {
+    id: 31,
+    category: 'habits',
+    title: 'Prepara comida para la semana',
+    body: 'Dedica 1-2 horas el fin de semana a cocinar en lote. Tendras opciones saludables listas cuando no haya tiempo.',
+    emoji: '\u{2705}',
   },
   {
-    id: 'tip-s10',
-    text: 'Las semillas de zapallo son ricas en magnesio, zinc y acidos grasos omega-3.',
-    category: 'healthy_snacks',
-    source: 'Pharmacognosy Reviews, 2012',
+    id: 32,
+    category: 'habits',
+    title: 'Haz la lista antes de ir al super',
+    body: 'Comprar con lista reduce compras impulsivas y alimentos ultraprocesados. Planifica tus comidas y anota lo necesario.',
+    emoji: '\u{2705}',
   },
   {
-    id: 'tip-s11',
-    text: 'Los garbanzos asados con especias son un snack crujiente rico en fibra y proteina.',
-    category: 'healthy_snacks',
-    source: 'Food Chemistry, 2009',
+    id: 33,
+    category: 'habits',
+    title: 'Aprende a leer las etiquetas',
+    body: 'Revisa la porcion, calorias, azucar agregada y sodio. Lo mas importante no siempre esta en la parte frontal.',
+    emoji: '\u{2705}',
   },
   {
-    id: 'tip-s12',
-    text: 'El yogur natural con berries aporta probioticos, proteina y antioxidantes.',
-    category: 'healthy_snacks',
-    source: 'The American Journal of Clinical Nutrition, 2014',
+    id: 34,
+    category: 'habits',
+    title: 'Cocinar en casa te da el control',
+    body: 'Cocinar permite elegir ingredientes, porciones y metodos de coccion. No tiene que ser complicado: lo simple funciona.',
+    emoji: '\u{2705}',
   },
   {
-    id: 'tip-s13',
-    text: 'Los datiles medjool son un endulzante natural rico en fibra, potasio y magnesio.',
-    category: 'healthy_snacks',
-    source: 'Journal of Food Science and Technology, 2014',
+    id: 35,
+    category: 'habits',
+    title: 'Registra lo que comes, sin juzgarte',
+    body: 'Llevar un diario de comidas aumenta la consciencia alimentaria. No es para culparte, es para conocerte mejor.',
+    emoji: '\u{2705}',
+  },
+
+  // ---------------------------------------------------------------------------
+  // MINDFUL (5)
+  // ---------------------------------------------------------------------------
+  {
+    id: 36,
+    category: 'mindful',
+    title: 'Come despacio: disfruta cada bocado',
+    body: 'Tu cerebro tarda unos 20 minutos en registrar saciedad. Comer mas lento te ayuda a sentirte satisfecho con menos.',
+    emoji: '\u{1F9D8}',
   },
   {
-    id: 'tip-s14',
-    text: 'Las tostadas de arroz con aguacate son un snack rapido con grasas mono-insaturadas.',
-    category: 'healthy_snacks',
-    source: 'Nutrients, 2018',
+    id: 37,
+    category: 'mindful',
+    title: 'Hambre real vs. hambre emocional',
+    body: 'El hambre real crece gradualmente y acepta varios alimentos. La emocional es repentina y busca algo especifico.',
+    emoji: '\u{1F9D8}',
   },
   {
-    id: 'tip-s15',
-    text: 'El apio con queso crema es un snack bajo en calorias que satisface el hambre.',
-    category: 'healthy_snacks',
-    source: 'Appetite, 2013',
+    id: 38,
+    category: 'mindful',
+    title: 'Identifica tus emociones al comer',
+    body: 'Antes de comer, preguntate: tengo hambre o estoy aburrido, estresado o triste? Reconocerlo es el primer paso.',
+    emoji: '\u{1F9D8}',
   },
   {
-    id: 'tip-s16',
-    text: 'Las nueces de Brasil son la mejor fuente natural de selenio. Dos al dia son suficientes.',
-    category: 'healthy_snacks',
-    source: 'The American Journal of Clinical Nutrition, 2008',
+    id: 39,
+    category: 'mindful',
+    title: 'Escucha las senales de tu cuerpo',
+    body: 'No necesitas terminar todo el plato. Cuando sientas satisfaccion (no llenura extrema), puedes detenerte.',
+    emoji: '\u{1F9D8}',
   },
   {
-    id: 'tip-s17',
-    text: 'Los batidos verdes (espinaca, banana, leche) son una forma facil de aumentar nutrientes.',
-    category: 'healthy_snacks',
-    source: 'Journal of the Academy of Nutrition and Dietetics, 2015',
+    id: 40,
+    category: 'mindful',
+    title: 'Come sin pantallas de vez en cuando',
+    body: 'Comer viendo el celular o la TV reduce la atencion a la comida y puede llevar a comer en exceso sin notarlo.',
+    emoji: '\u{1F9D8}',
+  },
+
+  // ---------------------------------------------------------------------------
+  // EXERCISE (5)
+  // ---------------------------------------------------------------------------
+  {
+    id: 41,
+    category: 'exercise',
+    title: 'Come algo ligero antes de entrenar',
+    body: 'Una fruta, unas galletas integrales o un yogur 1 hora antes te daran la energia que necesitas para rendir mejor.',
+    emoji: '\u{1F3CB}\u{FE0F}',
   },
   {
-    id: 'tip-s18',
-    text: 'Los frutos secos mixtos son un snack energetico ideal para llevar. Porcion: 30g.',
-    category: 'healthy_snacks',
-    source: 'The New England Journal of Medicine, 2013',
+    id: 42,
+    category: 'exercise',
+    title: 'Proteina + carbohidratos post-entreno',
+    body: 'Despues de entrenar, tu cuerpo necesita reparar musculos y reponer glucogeno. Combina ambos macros para recuperarte.',
+    emoji: '\u{1F3CB}\u{FE0F}',
   },
   {
-    id: 'tip-s19',
-    text: 'Las barritas de proteina caseras son mas saludables que las comerciales ultraprocesadas.',
-    category: 'healthy_snacks',
-    source: 'Nutrients, 2019',
+    id: 43,
+    category: 'exercise',
+    title: 'Hidratate durante el ejercicio',
+    body: 'Bebe 150-250 ml de agua cada 15-20 minutos durante actividad fisica. La deshidratacion reduce tu rendimiento.',
+    emoji: '\u{1F3CB}\u{FE0F}',
   },
   {
-    id: 'tip-s20',
-    text: 'Prepara snacks saludables con anticipacion para evitar opciones poco nutritivas.',
-    category: 'healthy_snacks',
-    source: 'International Journal of Behavioral Nutrition and Physical Activity, 2017',
+    id: 44,
+    category: 'exercise',
+    title: 'No necesitas suplementos caros',
+    body: 'Con una alimentacion variada puedes cubrir tus necesidades. Los suplementos ayudan, pero no reemplazan la comida real.',
+    emoji: '\u{1F3CB}\u{FE0F}',
+  },
+  {
+    id: 45,
+    category: 'exercise',
+    title: 'Los dias de descanso tambien importan',
+    body: 'En dias de descanso, mantén tu proteina alta para la recuperacion pero puedes reducir un poco los carbohidratos.',
+    emoji: '\u{1F3CB}\u{FE0F}',
+  },
+
+  // ---------------------------------------------------------------------------
+  // SLEEP (5)
+  // ---------------------------------------------------------------------------
+  {
+    id: 46,
+    category: 'sleep',
+    title: 'Dormir poco aumenta el apetito',
+    body: 'La falta de sueno eleva la grelina (hormona del hambre) y reduce la leptina. Dormir 7-9 horas ayuda a controlar.',
+    emoji: '\u{1F31C}',
+  },
+  {
+    id: 47,
+    category: 'sleep',
+    title: 'Cena ligero para dormir mejor',
+    body: 'Evita comidas pesadas o muy grasosas 2-3 horas antes de dormir. Un yogur o fruta son buenas opciones nocturnas.',
+    emoji: '\u{1F31C}',
+  },
+  {
+    id: 48,
+    category: 'sleep',
+    title: 'Alimentos que ayudan a dormir',
+    body: 'Platano, avena, leche tibia y nueces contienen triptofano y magnesio que favorecen la relajacion y el descanso.',
+    emoji: '\u{1F31C}',
+  },
+  {
+    id: 49,
+    category: 'sleep',
+    title: 'Corta la cafeina a las 2 PM',
+    body: 'La cafeina tiene una vida media de 5-6 horas. Evita cafe, te negro y bebidas energeticas por la tarde-noche.',
+    emoji: '\u{1F31C}',
+  },
+  {
+    id: 50,
+    category: 'sleep',
+    title: 'Sincroniza comidas con tu reloj interno',
+    body: 'Comer a horarios regulares refuerza tu ritmo circadiano. Esto mejora la calidad del sueno y el metabolismo.',
+    emoji: '\u{1F31C}',
   },
 ];
