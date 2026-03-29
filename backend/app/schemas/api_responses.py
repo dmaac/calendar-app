@@ -70,8 +70,9 @@ class FoodLogItemResponse(BaseModel):
 
 
 class CelebrationItem(BaseModel):
-    trigger: str
-    message: str
+    type: str = ""
+    trigger: str = ""
+    message: str = ""
     emoji: Optional[str] = None
     intensity: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
