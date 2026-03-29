@@ -544,9 +544,21 @@ function FoodSearchInner({ onLogged, mealType = 'snack', inline = false }: FoodS
       setLogging(true);
 
       try {
+        const totalCals = Math.round(food.calories * portions);
+        if (totalCals > 10000) {
+          haptics.error();
+          showNotification({
+            message: `${totalCals} kcal excede el limite de 10,000. Reduce las porciones.`,
+            type: 'warning',
+            icon: 'alert-circle',
+          });
+          setLogging(false);
+          return;
+        }
+
         await foodService.manualLogFood({
           food_name: food.name,
-          calories: Math.round(food.calories * portions),
+          calories: totalCals,
           carbs_g: Math.round(food.carbs_g * portions * 10) / 10,
           protein_g: Math.round(food.protein_g * portions * 10) / 10,
           fats_g: Math.round(food.fat_g * portions * 10) / 10,
@@ -565,10 +577,13 @@ function FoodSearchInner({ onLogged, mealType = 'snack', inline = false }: FoodS
         setSelectedFood(null);
         setQuery('');
         onLogged?.();
-      } catch {
+      } catch (err: any) {
         haptics.error();
+        const msg = err?.response?.data?.detail?.[0]?.msg
+          || err?.message
+          || 'Error al registrar. Intenta de nuevo.';
         showNotification({
-          message: 'Error al registrar. Intenta de nuevo.',
+          message: typeof msg === 'string' ? msg : 'Error al registrar. Intenta de nuevo.',
           type: 'warning',
           icon: 'alert-circle',
         });
