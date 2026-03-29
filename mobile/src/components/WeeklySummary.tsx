@@ -247,14 +247,14 @@ export default function WeeklySummary({
         {/* Stats grid (2x2) */}
         <View style={styles.statsGrid}>
           {/* Average Calories */}
-          <View style={[styles.statCard, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: isDark ? '#2A2A45' : '#E5E7EB' }]}>
+          <View style={[styles.statCard, { backgroundColor: isDark ? c.surface : '#FFFFFF', borderColor: isDark ? c.grayLight : '#E5E7EB' }]}>
             <Ionicons name="flame-outline" size={18} color="#F59E0B" />
             <Text style={[styles.statValue, { color: c.black }]}>{displayCal}</Text>
             <Text style={[styles.statLabel, { color: c.gray }]}>kcal prom.</Text>
           </View>
 
           {/* Best NutriScore */}
-          <View style={[styles.statCard, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: isDark ? '#2A2A45' : '#E5E7EB' }]}>
+          <View style={[styles.statCard, { backgroundColor: isDark ? c.surface : '#FFFFFF', borderColor: isDark ? c.grayLight : '#E5E7EB' }]}>
             <Ionicons name="leaf" size={18} color={bestScoreColor} />
             <Text style={[styles.statValue, { color: bestScoreColor }]}>{displayScore}</Text>
             <Text style={[styles.statLabel, { color: c.gray }]}>
@@ -263,14 +263,14 @@ export default function WeeklySummary({
           </View>
 
           {/* Meals Logged */}
-          <View style={[styles.statCard, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: isDark ? '#2A2A45' : '#E5E7EB' }]}>
+          <View style={[styles.statCard, { backgroundColor: isDark ? c.surface : '#FFFFFF', borderColor: isDark ? c.grayLight : '#E5E7EB' }]}>
             <Ionicons name="restaurant-outline" size={18} color="#10B981" />
             <Text style={[styles.statValue, { color: c.black }]}>{displayMeals}</Text>
             <Text style={[styles.statLabel, { color: c.gray }]}>comidas</Text>
           </View>
 
           {/* Streak */}
-          <View style={[styles.statCard, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: isDark ? '#2A2A45' : '#E5E7EB' }]}>
+          <View style={[styles.statCard, { backgroundColor: isDark ? c.surface : '#FFFFFF', borderColor: isDark ? c.grayLight : '#E5E7EB' }]}>
             <Ionicons name="flame" size={18} color="#EF4444" />
             <Text style={[styles.statValue, { color: c.black }]}>{displayStreak}</Text>
             <Text style={[styles.statLabel, { color: c.gray }]}>
@@ -281,7 +281,7 @@ export default function WeeklySummary({
 
         {/* Optional macro averages */}
         {data.avgProtein != null && data.avgCarbs != null && data.avgFats != null && (
-          <View style={[styles.macroRow, { borderTopColor: isDark ? '#2A2A45' : '#E5E7EB' }]}>
+          <View style={[styles.macroRow, { borderTopColor: isDark ? c.grayLight : '#E5E7EB' }]}>
             <MacroChip label="P" value={`${data.avgProtein}g`} color={c.protein} isDark={isDark} />
             <MacroChip label="C" value={`${data.avgCarbs}g`} color={c.carbs} isDark={isDark} />
             <MacroChip label="G" value={`${data.avgFats}g`} color={c.fats} isDark={isDark} />
@@ -320,8 +320,9 @@ const MacroChip = React.memo(function MacroChip({
   color: string;
   isDark: boolean;
 }) {
+  const c = useThemeColors();
   return (
-    <View style={[styles.macroChip, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF' }]}>
+    <View style={[styles.macroChip, { backgroundColor: isDark ? c.surface : '#FFFFFF' }]}>
       <View style={[styles.macroChipDot, { backgroundColor: color }]} />
       <Text style={[styles.macroChipLabel, { color }]}>{label}</Text>
       <Text style={[styles.macroChipValue, { color }]}>{value}</Text>

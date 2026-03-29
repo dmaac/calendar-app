@@ -30,6 +30,7 @@ export default function StreakBadge({
   onPress,
 }: StreakBadgeProps) {
   const c = useThemeColors();
+  const safeDays = days ?? 0;
   const scaleAnim = useRef(new Animated.Value(0.6)).current;
 
   // Pulse animation for freeze indicator
@@ -64,9 +65,9 @@ export default function StreakBadge({
       tension: 160,
       useNativeDriver: true,
     }).start();
-  }, [days]);
+  }, [safeDays]);
 
-  if (days <= 0) return null;
+  if (safeDays <= 0) return null;
 
   const freezeColor = freezeUsedToday ? '#60A5FA' : '#93C5FD';
 
@@ -78,14 +79,14 @@ export default function StreakBadge({
         freezeUsedToday && styles.freezeGlow,
       ]}
       accessibilityLabel={
-        `Racha de ${days} dia${days > 1 ? 's' : ''}` +
+        `Racha de ${safeDays} dia${safeDays > 1 ? 's' : ''}` +
         (hasFreezeAvailable ? ', freeze disponible' : '') +
         (freezeUsedToday ? ', freeze usado hoy' : '')
       }
       accessibilityRole="text"
     >
       <Ionicons name="flame" size={14} color="#4285F4" />
-      <Text style={[styles.count, { color: c.badgeText }]}>{days}</Text>
+      <Text style={[styles.count, { color: c.badgeText }]}>{safeDays}</Text>
       {hasFreezeAvailable && (
         <Animated.View style={{ transform: [{ scale: freezePulse }] }}>
           <Ionicons name="snow" size={11} color={freezeColor} />
@@ -100,7 +101,7 @@ export default function StreakBadge({
         onPress={onPress}
         activeOpacity={0.8}
         accessibilityLabel={
-          `Racha de ${days} dia${days > 1 ? 's' : ''}` +
+          `Racha de ${safeDays} dia${safeDays > 1 ? 's' : ''}` +
           (hasFreezeAvailable ? ', freeze disponible' : '') +
           (freezeUsedToday ? ', freeze usado hoy' : '')
         }

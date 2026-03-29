@@ -197,6 +197,7 @@ const es = {
     caloriesLeft: '%{count} kcal restantes',
     excess: '%{count} kcal de exceso',
     noData: 'Registra tu primera comida para ver tu puntaje de salud',
+    gettingStartedLabel: 'Comenzando',
     gettingStarted: 'Estamos aprendiendo tus habitos. Registra unas comidas mas para ver tu puntaje.',
   },
   language: {

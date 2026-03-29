@@ -197,6 +197,7 @@ const en = {
     caloriesLeft: '%{count} kcal remaining',
     excess: '%{count} kcal excess',
     noData: 'Log your first meal to see your health score',
+    gettingStartedLabel: 'Getting started',
     gettingStarted: 'We are learning your habits. Log a few more meals to see your score.',
   },
   language: {

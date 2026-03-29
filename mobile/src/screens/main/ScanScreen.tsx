@@ -136,6 +136,7 @@ function DailyProgressBar({
   accentColor,
   grayColor,
   surfaceColor,
+  borderColor,
   t,
 }: {
   currentCal: number;
@@ -144,6 +145,7 @@ function DailyProgressBar({
   accentColor: string;
   grayColor: string;
   surfaceColor: string;
+  borderColor: string;
   t: (key: string, opts?: Record<string, any>) => string;
 }) {
   const totalAfter = currentCal + mealCal;
@@ -152,7 +154,7 @@ function DailyProgressBar({
 
   return (
     <View
-      style={[styles.dailyProgressContainer, { backgroundColor: surfaceColor, borderWidth: 1, borderColor: surfaceColor === '#1A1A2E' ? '#2E2E45' : '#E0E0E0' }]}
+      style={[styles.dailyProgressContainer, { backgroundColor: surfaceColor, borderWidth: 1, borderColor }]}
       accessibilityLabel={t(isOver ? 'scan.overDailyGoal' : 'scan.fitsInYourDay')}
     >
       <View style={styles.dailyProgressHeader}>
@@ -1022,6 +1024,7 @@ export default function ScanScreen({ navigation }: HomeStackScreenProps<'Scan'>)
               accentColor={c.accent}
               grayColor={c.gray}
               surfaceColor={c.surface}
+              borderColor={c.border}
               t={t}
             />
           )}

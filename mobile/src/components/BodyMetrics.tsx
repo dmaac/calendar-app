@@ -74,11 +74,11 @@ const STORAGE_KEY = '@fitsi_body_metrics';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const METRICS: MetricConfig[] = [
-  { key: 'weight', label: 'Peso', unit: 'kg', icon: 'scale-outline', color: '#4285F4', colorDark: '#5B9CF6', min: 20, max: 300, step: 0.1, decimals: 1 },
-  { key: 'bodyFat', label: 'Grasa Corporal', unit: '%', icon: 'water-outline', color: '#F59E0B', colorDark: '#FDD663', min: 2, max: 60, step: 0.1, decimals: 1 },
-  { key: 'waist', label: 'Cintura', unit: 'cm', icon: 'resize-outline', color: '#10B981', colorDark: '#81C995', min: 40, max: 200, step: 0.5, decimals: 1 },
-  { key: 'chest', label: 'Pecho', unit: 'cm', icon: 'fitness-outline', color: '#EC4899', colorDark: '#F28B82', min: 50, max: 200, step: 0.5, decimals: 1 },
-  { key: 'arms', label: 'Brazos', unit: 'cm', icon: 'barbell-outline', color: '#8B5CF6', colorDark: '#B794F4', min: 15, max: 60, step: 0.5, decimals: 1 },
+  { key: 'weight', label: 'Peso', unit: 'kg', icon: 'scale-outline', color: '#4285F4', colorDark: '#6BA5FF', min: 20, max: 300, step: 0.1, decimals: 1 },
+  { key: 'bodyFat', label: 'Grasa Corporal', unit: '%', icon: 'water-outline', color: '#F59E0B', colorDark: '#FBBF24', min: 2, max: 60, step: 0.1, decimals: 1 },
+  { key: 'waist', label: 'Cintura', unit: 'cm', icon: 'resize-outline', color: '#10B981', colorDark: '#4ADE80', min: 40, max: 200, step: 0.5, decimals: 1 },
+  { key: 'chest', label: 'Pecho', unit: 'cm', icon: 'fitness-outline', color: '#EC4899', colorDark: '#FF6B6B', min: 50, max: 200, step: 0.5, decimals: 1 },
+  { key: 'arms', label: 'Brazos', unit: 'cm', icon: 'barbell-outline', color: '#8B5CF6', colorDark: '#A78BFA', min: 15, max: 60, step: 0.5, decimals: 1 },
 ];
 
 const CHART_H = 140;
@@ -437,7 +437,7 @@ export default function BodyMetrics() {
                 key={metric.key}
                 style={[
                   s.metricCard,
-                  { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: c.grayLight },
+                  { backgroundColor: isDark ? c.surface : '#FFFFFF', borderColor: c.grayLight },
                   isSelected && { borderColor: metricColor, borderWidth: 2 },
                 ]}
                 onPress={() => { haptics.light(); setSelectedMetric(metric.key); }}

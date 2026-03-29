@@ -34,7 +34,7 @@ interface MacroBarProps {
   delay?: number;
   /** Animation duration in ms. Defaults to 700. */
   duration?: number;
-  /** Bar track height in points. Defaults to 5. */
+  /** Bar track height in points. Defaults to 6. */
   trackHeight?: number;
   /** Hide the label/value header row. Defaults to false. */
   hideHeader?: boolean;
@@ -50,7 +50,7 @@ const MacroBar = React.memo(function MacroBar({
   unit = 'g',
   delay = 0,
   duration = 700,
-  trackHeight = 5,
+  trackHeight = 6,
   hideHeader = false,
   accessibilityLabel: a11yLabel,
 }: MacroBarProps) {

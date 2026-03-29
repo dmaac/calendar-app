@@ -247,12 +247,12 @@ const CalorieRing = React.memo(function CalorieRing({
       accessibilityValue={{ min: 0, max: safeTarget, now: netCalories }}
     >
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        {/* Track (background ring) */}
+        {/* Track (background ring) -- grayLight for visibility on surface cards */}
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={c.surface}
+          stroke={c.grayLight}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -398,7 +398,7 @@ const MealSection = React.memo(function MealSection({
 
   return (
     <View
-      style={[styles.mealSection, { borderBottomColor: c.surface }, isLast && { borderBottomWidth: 0 }]}
+      style={[styles.mealSection, { borderBottomColor: c.grayLight }, isLast && { borderBottomWidth: 0 }]}
       accessibilityLabel={`${meta.label}: ${Math.round(total)} kilocalorias, ${logs.length} alimento${logs.length > 1 ? 's' : ''}`}
     >
       <View style={styles.mealHeader}>
@@ -438,6 +438,7 @@ const QuickActionButton = React.memo(function QuickActionButton({
   iconBgColor,
   onPress,
   colors: c,
+  isDark,
 }: {
   label: string;
   iconName: string;
@@ -445,10 +446,19 @@ const QuickActionButton = React.memo(function QuickActionButton({
   iconBgColor: string;
   onPress: () => void;
   colors: ReturnType<typeof useThemeColors>;
+  isDark: boolean;
 }) {
   return (
     <TouchableOpacity
-      style={[styles.quickAction, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+      style={[
+        styles.quickAction,
+        {
+          backgroundColor: c.surface,
+          borderWidth: isDark ? 1 : 0,
+          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'transparent',
+          ...(isDark ? {} : shadows.sm),
+        },
+      ]}
       onPress={onPress}
       activeOpacity={0.8}
       accessibilityLabel={label}
@@ -511,12 +521,14 @@ const ErrorFullScreen = React.memo(function ErrorFullScreen({
 const EmptyMealsState = React.memo(function EmptyMealsState({
   onScan,
   colors: c,
+  isDark,
   noMealsText,
   scanHint,
   scanNowText,
 }: {
   onScan: () => void;
   colors: ReturnType<typeof useThemeColors>;
+  isDark: boolean;
   noMealsText: string;
   scanHint: string;
   scanNowText: string;
@@ -533,7 +545,16 @@ const EmptyMealsState = React.memo(function EmptyMealsState({
 
   return (
     <View
-      style={[styles.card, styles.emptyCard, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+      style={[
+        styles.card,
+        styles.emptyCard,
+        {
+          backgroundColor: c.surface,
+          borderWidth: isDark ? 1 : 0,
+          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'transparent',
+          ...(isDark ? {} : shadows.sm),
+        },
+      ]}
       accessibilityLabel="Sin comidas registradas hoy"
     >
       <Animated.View style={{ transform: [{ scale: iconScale }] }}>
@@ -559,15 +580,25 @@ const EmptyMealsState = React.memo(function EmptyMealsState({
 // ─── Daily Tip Card (memoized, one tip per day of month) ──────────────────────
 const DailyTipCard = React.memo(function DailyTipCard({
   colors: c,
+  isDark,
 }: {
   colors: ReturnType<typeof useThemeColors>;
+  isDark: boolean;
 }) {
   const tipIndex = new Date().getDate() - 1;
   const tip = DAILY_TIPS[tipIndex % DAILY_TIPS.length];
 
   return (
     <View
-      style={[styles.dailyTipCard, { backgroundColor: c.surfaceAlt, borderColor: c.grayLight }]}
+      style={[
+        styles.dailyTipCard,
+        {
+          backgroundColor: c.surfaceAlt,
+          borderWidth: isDark ? 1 : 0,
+          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'transparent',
+          ...(isDark ? {} : shadows.sm),
+        },
+      ]}
       accessibilityLabel={`Consejo del dia: ${tip}`}
       accessibilityRole="text"
     >
@@ -896,6 +927,16 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
 
   const hasMeals = logs.length > 0;
 
+  // ─── Dark-mode-aware card styling ─────────────────────────────────────────
+  // In dark mode: subtle translucent border instead of hard grayLight border.
+  // In light mode: standard shadow elevation with grayLight border.
+  const cardStyle = useMemo(() => ({
+    backgroundColor: c.surface,
+    borderWidth: isDark ? 1 : 0,
+    borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'transparent',
+    ...(isDark ? {} : shadows.sm),
+  }), [c.surface, isDark]);
+
   // MINIMALIST REDESIGN Phase 1: removed NutriScore, HealthAlerts, ExerciseBalance,
   // WellnessScore. AdaptiveCalorieBanner is now server-driven.
 
@@ -1036,7 +1077,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
             accessibilityHint="Abre la camara para escanear alimentos con IA"
             activeOpacity={0.85}
           >
-            <Animated.View style={[styles.scanBtn, { backgroundColor: c.white }, pulseStyle]}>
+            <Animated.View style={[styles.scanBtn, { backgroundColor: isDark ? c.surface : c.white }, pulseStyle]}>
               <Ionicons name="camera" size={20} color={c.black} />
             </Animated.View>
           </TouchableOpacity>
@@ -1125,17 +1166,17 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
               ) : daysWithData === 0 ? (
                 <View style={styles.riskEmptyState}>
                   <Text style={[styles.riskEmptyText, { color: c.gray }]}>
-                    Registra tu primera comida para ver tu puntaje de salud
+                    {t('risk.noData')}
                   </Text>
                 </View>
               ) : daysWithData <= 1 && (riskStatus === 'critical' || riskStatus === 'high_risk') ? (
                 <View style={styles.semaphoreContainer}>
                   <View style={styles.gettingStartedContainer}>
                     <View style={[styles.gettingStartedDot, { backgroundColor: c.accent }]} />
-                    <Text style={[styles.gettingStartedLabel, { color: c.accent }]}>Getting started</Text>
+                    <Text style={[styles.gettingStartedLabel, { color: c.accent }]}>{t('risk.gettingStartedLabel')}</Text>
                   </View>
                   <Text style={[styles.gettingStartedMsg, { color: c.gray }]}>
-                    Estamos aprendiendo tus habitos. Registra unas comidas mas para ver tu puntaje.
+                    {t('risk.gettingStarted')}
                   </Text>
                 </View>
               ) : riskScore > 60 ? (
@@ -1153,7 +1194,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
               {/* Re-engagement banner — user hasn't logged in 3+ days */}
               {daysSinceLastLog >= 3 && (
                 <View
-                  style={[styles.reengageBanner, { backgroundColor: isDark ? c.surface : '#FEF2F2', borderColor: isDark ? c.grayLight : '#FECACA' }]}
+                  style={[styles.reengageBanner, { backgroundColor: isDark ? c.surface : '#FEF2F2', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.06)' : '#FECACA' }]}
                   accessible={true}
                   accessibilityRole="alert"
                   accessibilityLabel={`Te echamos de menos. Llevas ${daysSinceLastLog} dias sin registrar. Fitsi te espera para retomar tu seguimiento.`}
@@ -1168,7 +1209,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
               )}
 
               {/* Calorie Ring + Macro Bars — the core card */}
-              <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]} accessibilityLabel="Resumen de calorias del dia">
+              <View style={[styles.card, cardStyle]} accessibilityLabel="Resumen de calorias del dia">
                 <View style={styles.ringRow}>
                   <CalorieRing
                     consumed={consumed}
@@ -1238,7 +1279,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
 
                 {/* Exercises today — shown inline when there are workouts */}
                 {exercisesToday.length > 0 && (
-                  <View style={[styles.exercisesTodayContainer, { borderTopColor: c.grayLight }]}>
+                  <View style={[styles.exercisesTodayContainer, { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : c.grayLight }]}>
                     <View style={styles.exercisesTodayHeader}>
                       <Ionicons name="barbell-outline" size={14} color={EXERCISE_ORANGE} />
                       <Text style={[styles.exercisesTodayTitle, { color: c.black }]}>
@@ -1299,7 +1340,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
               {/* Best Day Banner */}
               {summary && (summary.meals_logged ?? 0) > 0 && (
                 <TouchableOpacity
-                  style={[styles.bestDayBanner, { backgroundColor: isDark ? c.surface : '#FEF3C7', borderColor: isDark ? c.grayLight : '#FDE68A' }]}
+                  style={[styles.bestDayBanner, { backgroundColor: isDark ? c.surface : '#FEF3C7', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.06)' : '#FDE68A' }]}
                   onPress={onQuickReports}
                   activeOpacity={0.8}
                   accessibilityLabel="Tu mejor dia esta semana: Viernes, 125 gramos de proteinas"
@@ -1325,6 +1366,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
                       iconBgColor={c.success}
                       onPress={onQuickLog}
                       colors={c}
+                      isDark={isDark}
                     />
                     <QuickActionButton
                       label="Copiar ayer"
@@ -1333,6 +1375,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
                       iconBgColor={c.primary}
                       onPress={onCopyYesterday}
                       colors={c}
+                      isDark={isDark}
                     />
                     <QuickActionButton
                       label="Comida sugerida"
@@ -1341,6 +1384,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
                       iconBgColor={EXERCISE_ORANGE}
                       onPress={onSuggestedMeal}
                       colors={c}
+                      isDark={isDark}
                     />
                   </>
                 ) : (
@@ -1352,6 +1396,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
                       iconBgColor={c.white}
                       onPress={onQuickScan}
                       colors={c}
+                      isDark={isDark}
                     />
                     <QuickActionButton
                       label="Water"
@@ -1360,6 +1405,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
                       iconBgColor={c.primary}
                       onPress={onQuickWater}
                       colors={c}
+                      isDark={isDark}
                     />
                     <QuickActionButton
                       label="Favoritos"
@@ -1368,6 +1414,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
                       iconBgColor={c.protein}
                       onPress={onQuickFavorites}
                       colors={c}
+                      isDark={isDark}
                     />
                   </>
                 )}
@@ -1393,7 +1440,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
               {/* Motivational banner — no meals logged and it's past 2pm */}
               {!hasMeals && new Date().getHours() >= 14 && (
                 <View
-                  style={[styles.motivationalBanner, { backgroundColor: isDark ? c.surface : '#FEF3C7', borderColor: isDark ? c.grayLight : '#FDE68A' }]}
+                  style={[styles.motivationalBanner, { backgroundColor: isDark ? c.surface : '#FEF3C7', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.06)' : '#FDE68A' }]}
                   accessible={true}
                   accessibilityRole="alert"
                   accessibilityLabel="Aun no has registrado comida hoy. Tu cuerpo necesita combustible. Registra lo que has comido para mantener tu seguimiento al dia."
@@ -1412,7 +1459,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
               {/* Today's meals — always visible (core content) */}
               <Text style={[styles.sectionTitle, { color: c.black }]} accessibilityRole="header">{t('home.today')}</Text>
               {hasMeals ? (
-                <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.grayLight }]}>
+                <View style={[styles.card, cardStyle]}>
                   {MEAL_ORDER.map((mt, idx) => {
                     // Determine if this is the last non-empty section for border styling
                     const remainingTypes = MEAL_ORDER.slice(idx + 1);
@@ -1432,6 +1479,7 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
                 <EmptyMealsState
                   onScan={onScanFromEmpty}
                   colors={c}
+                  isDark={isDark}
                   noMealsText={t('home.noMealsLogged')}
                   scanHint={t('home.scanYourFood')}
                   scanNowText={t('home.scanNow')}
@@ -1439,11 +1487,11 @@ export default function HomeScreen({ navigation }: HomeStackScreenProps<'HomeMai
               )}
 
               {/* Daily nutrition tip */}
-              <DailyTipCard colors={c} />
+              <DailyTipCard colors={c} isDark={isDark} />
 
               {/* Report CTA */}
               <TouchableOpacity
-                style={[styles.reportBtn, { backgroundColor: c.surface, borderColor: c.grayLight }]}
+                style={[styles.reportBtn, cardStyle]}
                 onPress={onQuickReports}
                 activeOpacity={0.85}
                 accessibilityLabel="Ver reporte semanal y mensual"
@@ -1536,7 +1584,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md + 4,
+    paddingBottom: spacing.sm + 4,
   },
   headerRight: {
     flexDirection: 'row',
@@ -1561,11 +1610,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   card: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
-    ...shadows.sm,
   },
   ringRow: {
     flexDirection: 'row',
@@ -1690,9 +1737,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     backgroundColor: undefined,
-    borderWidth: 1,
     borderColor: undefined,
-    borderRadius: radius.lg,
+    borderRadius: 16,
     padding: spacing.sm + 2,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
@@ -1727,10 +1773,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: spacing.sm + 2,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: 16,
     gap: spacing.xs,
-    ...shadows.sm,
   },
   quickActionIcon: {
     width: 36,
@@ -1747,11 +1791,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
-    ...shadows.sm,
   },
   reportBtnText: {
     ...typography.label,
@@ -1761,8 +1803,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    borderWidth: 1,
-    borderRadius: radius.lg,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
   },
@@ -1819,9 +1860,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     backgroundColor: undefined,
-    borderWidth: 1,
     borderColor: undefined,
-    borderRadius: radius.lg,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
@@ -1950,8 +1990,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
   },

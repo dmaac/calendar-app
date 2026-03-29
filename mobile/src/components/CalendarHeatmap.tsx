@@ -74,7 +74,7 @@ interface CalendarHeatmapProps {
 // ─── Color helpers ──────────────────────────────────────────────────────────
 
 function scoreToColor(score: number | null, isDark: boolean): string {
-  if (score === null) return isDark ? '#1F1F35' : '#F0F0F0';
+  if (score === null) return isDark ? '#252542' : '#F0F0F0';
   if (score < 20) return '#EF4444';
   if (score < 40) return '#F87171';
   if (score < 55) return '#FBBF24';
@@ -190,6 +190,7 @@ const HeatmapCell = React.memo(function HeatmapCell({
   onPress: () => void;
   isDark: boolean;
 }) {
+  const c = useThemeColors();
   const color = scoreToColor(day.nutriScore, isDark);
 
   return (
@@ -211,7 +212,7 @@ const HeatmapCell = React.memo(function HeatmapCell({
           isToday && cellStyles.todayCell,
           isSelected && {
             borderWidth: 2,
-            borderColor: isDark ? '#FFFFFF' : '#1A1A2E',
+            borderColor: isDark ? '#FFFFFF' : c.black,
           },
         ]}
       />
@@ -225,7 +226,7 @@ const cellStyles = StyleSheet.create({
   },
   todayCell: {
     borderWidth: 1.5,
-    borderColor: '#5B9CF6',
+    borderColor: '#6BA5FF',
   },
 });
 
@@ -303,10 +304,10 @@ const DayDetail = React.memo(function DayDetail({
 
           {day.calories !== undefined && (
             <View style={[detailStyles.macrosRow, { borderTopColor: c.grayLight }]}>
-              <MacroChip label="Cal" value={`${day.calories}`} color="#1A1A2E" themeColors={c} />
-              <MacroChip label="Prot" value={`${day.protein ?? 0}g`} color="#EA4335" themeColors={c} />
-              <MacroChip label="Carb" value={`${day.carbs ?? 0}g`} color="#FBBC04" themeColors={c} />
-              <MacroChip label="Grasa" value={`${day.fats ?? 0}g`} color="#4285F4" themeColors={c} />
+              <MacroChip label="Cal" value={`${day.calories}`} color={c.calories} themeColors={c} />
+              <MacroChip label="Prot" value={`${day.protein ?? 0}g`} color={c.protein} themeColors={c} />
+              <MacroChip label="Carb" value={`${day.carbs ?? 0}g`} color={c.carbs} themeColors={c} />
+              <MacroChip label="Grasa" value={`${day.fats ?? 0}g`} color={c.fats} themeColors={c} />
             </View>
           )}
         </>

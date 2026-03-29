@@ -82,22 +82,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const t = warmth / 100;
     return {
       ...darkColors,
-      // Backgrounds — from cool black to warm brown
-      bg: interpolateColor(t, '#0A0A0A', '#14120E', '#1E1A14'),
-      surface: interpolateColor(t, '#1C1C1E', '#1F1C16', '#2A2520'),
-      surfaceAlt: interpolateColor(t, '#2C2C2E', '#2E2A22', '#3A3428'),
+      // Backgrounds — from cool navy to warm brown
+      bg: interpolateColor(t, '#0D0D1A', '#14120E', '#1E1A14'),
+      surface: interpolateColor(t, '#1E1E30', '#221F18', '#2A2520'),
+      surfaceAlt: interpolateColor(t, '#282845', '#2E2A22', '#3A3428'),
+      surfaceElevated: interpolateColor(t, '#252542', '#28241C', '#322E24'),
       // Borders — warmer grays
-      grayLight: interpolateColor(t, '#3A3A3C', '#3A3630', '#443E34'),
-      border: interpolateColor(t, '#2E2E45', '#2E2C28', '#3A3630'),
+      grayLight: interpolateColor(t, '#2E2E48', '#3A3630', '#443E34'),
+      border: interpolateColor(t, '#2E2E48', '#2E2C28', '#3A3630'),
       // Text — slightly warmer whites
-      black: interpolateColor(t, '#F0F0F5', '#F0EDE8', '#EDE8E0'),
-      gray: interpolateColor(t, '#A0A0B0', '#A0A098', '#A89E92'),
+      black: interpolateColor(t, '#F5F5F7', '#F0EDE8', '#EDE8E0'),
+      gray: interpolateColor(t, '#8E8EA0', '#9E9A90', '#A89E92'),
       // Disabled states
       disabled: interpolateColor(t, '#555570', '#555048', '#5A5448'),
       disabledBg: interpolateColor(t, '#252540', '#252218', '#2E2A20'),
       // Badge
-      badgeBg: interpolateColor(t, '#1A237E', '#1A2040', '#2A2518'),
-      badgeText: interpolateColor(t, '#8AB4F8', '#8AB0E0', '#C0B090'),
+      badgeBg: interpolateColor(t, '#1E2670', '#1A2040', '#2A2518'),
+      badgeText: interpolateColor(t, '#6BA5FF', '#8AB0E0', '#C0B090'),
     };
   }, [isDarkResolved, warmth]);
 

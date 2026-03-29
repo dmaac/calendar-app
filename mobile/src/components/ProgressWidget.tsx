@@ -36,7 +36,11 @@ const ProgressWidget = React.memo(function ProgressWidget({
   onPress,
 }: ProgressWidgetProps) {
   const c = useThemeColors();
-  const progress = xpToNextLevel > 0 ? Math.min(currentXp / xpToNextLevel, 1) : 0;
+  const safeXp = currentXp ?? 0;
+  const safeXpNext = xpToNextLevel ?? 0;
+  const safeStreak = streakDays ?? 0;
+  const safeCoins = coins ?? 0;
+  const progress = safeXpNext > 0 ? Math.min(safeXp / safeXpNext, 1) : 0;
   const percentText = `${Math.round(progress * 100)}%`;
 
   // Animated XP bar fill on mount
@@ -68,7 +72,7 @@ const ProgressWidget = React.memo(function ProgressWidget({
       style={[styles.container, { backgroundColor: c.surface, borderColor: c.grayLight }]}
       onPress={handlePress}
       activeOpacity={0.85}
-      accessibilityLabel={`Nivel ${levelNumber} ${levelName}, ${Math.round(currentXp)} de ${Math.round(xpToNextLevel)} XP, racha ${streakDays} dias, ${Math.round(coins)} monedas`}
+      accessibilityLabel={`Nivel ${levelNumber} ${levelName}, ${Math.round(safeXp)} de ${Math.round(safeXpNext)} XP, racha ${safeStreak} dias, ${Math.round(safeCoins)} monedas`}
       accessibilityRole="button"
       accessibilityHint="Abre la pantalla de progreso completa"
     >
@@ -81,7 +85,7 @@ const ProgressWidget = React.memo(function ProgressWidget({
           <View>
             <Text style={[styles.levelName, { color: c.black }]}>{levelName}</Text>
             <Text style={[styles.xpText, { color: c.gray }]}>
-              {Math.round(currentXp)}/{Math.round(xpToNextLevel)} XP
+              {Math.round(safeXp)}/{Math.round(safeXpNext)} XP
             </Text>
           </View>
         </View>
@@ -89,11 +93,11 @@ const ProgressWidget = React.memo(function ProgressWidget({
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Ionicons name="flame" size={14} color="#F97316" />
-            <Text style={[styles.statValue, { color: c.black }]}>{streakDays}</Text>
+            <Text style={[styles.statValue, { color: c.black }]}>{safeStreak}</Text>
           </View>
           <View style={styles.statItem}>
             <Ionicons name="ellipse" size={12} color="#FBBF24" />
-            <Text style={[styles.statValue, { color: c.black }]}>{Math.round(coins)}</Text>
+            <Text style={[styles.statValue, { color: c.black }]}>{Math.round(safeCoins)}</Text>
           </View>
           <Ionicons name="chevron-forward" size={14} color={c.gray} />
         </View>

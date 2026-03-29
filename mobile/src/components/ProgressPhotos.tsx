@@ -376,7 +376,7 @@ export default function ProgressPhotos() {
                         source={{ uri: `data:image/jpeg;base64,${photo.base64}` }}
                         style={s.thumbnailImage}
                       />
-                      <View style={[s.poseBadge, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF' }]}>
+                      <View style={[s.poseBadge, { backgroundColor: isDark ? c.surface : '#FFFFFF' }]}>
                         <Text style={[s.poseBadgeText, { color: c.accent }]}>
                           {POSES.find((p) => p.key === photo.pose)?.label ?? photo.pose}
                         </Text>
@@ -428,7 +428,7 @@ export default function ProgressPhotos() {
                 style={s.fullScreenImage}
                 resizeMode="contain"
               />
-              <View style={[s.fullScreenInfo, { backgroundColor: isDark ? '#1A1A2EDD' : '#FFFFFFDD' }]}>
+              <View style={[s.fullScreenInfo, { backgroundColor: isDark ? c.surface + 'DD' : '#FFFFFFDD' }]}>
                 <Text style={[s.fullScreenPose, { color: c.accent }]}>
                   {POSES.find((p) => p.key === fullScreenPhoto.pose)?.label}
                 </Text>
@@ -437,7 +437,7 @@ export default function ProgressPhotos() {
                 </Text>
               </View>
               <TouchableOpacity
-                style={[s.closeBtn, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF' }]}
+                style={[s.closeBtn, { backgroundColor: isDark ? c.surface : '#FFFFFF' }]}
                 onPress={() => setFullScreenPhoto(null)}
                 accessibilityLabel="Cerrar"
                 accessibilityRole="button"

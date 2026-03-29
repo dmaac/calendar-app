@@ -133,12 +133,12 @@ const CalorieRing = React.memo(function CalorieRing({
       accessibilityValue={{ min: 0, max: safeTarget, now: netCalories }}
     >
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        {/* Background track */}
+        {/* Background track — use grayLight so ring is visible against surface cards */}
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={c.surface}
+          stroke={c.grayLight}
           strokeWidth={strokeWidth}
           fill="none"
         />

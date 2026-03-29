@@ -197,6 +197,7 @@ const pt = {
     caloriesLeft: '%{count} kcal restantes',
     excess: '%{count} kcal de excesso',
     noData: 'Registre sua primeira refeicao para ver sua pontuacao de saude',
+    gettingStartedLabel: 'Comecando',
     gettingStarted: 'Estamos aprendendo seus habitos. Registre mais algumas refeicoes para ver sua pontuacao.',
   },
   language: {

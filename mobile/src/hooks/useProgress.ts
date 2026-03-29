@@ -180,7 +180,19 @@ export default function useProgress(): UseProgressReturn {
       ]);
 
       if (profileRes.status === 'fulfilled') {
-        setProfile(profileRes.value.data);
+        const d = profileRes.value.data;
+        setProfile({
+          level_number: d.level_number ?? 1,
+          level_name: d.level_name ?? 'Novato',
+          current_xp: d.current_xp ?? 0,
+          xp_to_next_level: d.xp_to_next_level ?? 1,
+          total_xp: d.total_xp ?? 0,
+          coins: d.coins ?? 0,
+          current_streak: d.current_streak ?? 0,
+          best_streak: d.best_streak ?? 0,
+          freezes_available: d.freezes_available ?? 0,
+          streak_at_risk: d.streak_at_risk ?? false,
+        });
       }
       if (missionsRes.status === 'fulfilled') {
         // Backend wraps missions in { date, missions: [...] }

@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   levelLabel: {
-    color: '#8AB4F8',
+    color: '#6BA5FF',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 2,
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   levelNameText: {
-    color: '#8AB4F8',
+    color: '#6BA5FF',
     fontSize: 18,
     fontWeight: '600',
   },

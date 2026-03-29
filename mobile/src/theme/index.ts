@@ -8,6 +8,7 @@ export const lightColors = {
   bg: '#FFFFFF',
   surface: '#F5F5F5',
   surfaceAlt: '#EEF2F7',
+  surfaceElevated: '#FFFFFF',
 
   // Texto
   black: '#1A1A2E',
@@ -35,40 +36,54 @@ export const lightColors = {
   tabInactive: '#BDBDBD',
   border: '#E0E0E0',
 
+  // Card border (subtle)
+  cardBorder: '#E5E7EB',
+
   // Badge
   badgeBg: '#E8F0FE',
   badgeText: '#1967D2',
 };
 
-/** Dark mode palette — Fitsi AI (Norte Digital inspired, WCAG AA) */
+/** Dark mode palette — Fitsi AI (vivid modern dark, WCAG AA) */
 export const darkColors: typeof lightColors = {
+  // Backgrounds — deep navy base with blue-tinted surfaces for depth
   bg: '#0D0D1A',
-  surface: '#1A1A2E',
-  surfaceAlt: '#252540',
+  surface: '#1E1E30',
+  surfaceAlt: '#282845',
+  surfaceElevated: '#252542',
 
-  black: '#F0F0F5',
-  gray: '#A0A0B0',
-  grayLight: '#2E2E45',
+  // Text — off-white primary, warm mid-gray secondary (never #666)
+  black: '#F5F5F7',
+  gray: '#8E8EA0',
+  grayLight: '#2E2E48',
 
-  primary: '#5B9CF6',
-  accent: '#5B9CF6',
+  // Accent — brighter blue that pops against dark backgrounds
+  primary: '#6BA5FF',
+  accent: '#6BA5FF',
 
+  // States
   disabled: '#555570',
   disabledBg: '#252540',
   white: '#FFFFFF',
 
-  calories: '#F0F0F5',
-  carbs: '#FDD663',
-  protein: '#F28B82',
-  fats: '#8AB4F8',
-  success: '#81C995',
+  // Macros — vivid, saturated colors for visibility on dark surfaces
+  calories: '#F5F5F7',
+  carbs: '#FBBF24',      // warm amber (was muted yellow)
+  protein: '#FF6B6B',    // vibrant red (was washed-out pink)
+  fats: '#60A5FA',       // bright blue (was pastel)
+  success: '#4ADE80',    // vivid green (was muted sage)
 
-  tabActive: '#5B9CF6',
+  // Tabs
+  tabActive: '#6BA5FF',
   tabInactive: '#555570',
-  border: '#2E2E45',
+  border: '#2E2E48',
 
-  badgeBg: '#1A237E',
-  badgeText: '#8AB4F8',
+  // Card border — subtle white overlay instead of hard gray lines
+  cardBorder: 'rgba(255,255,255,0.06)',
+
+  // Badge
+  badgeBg: '#1E2670',
+  badgeText: '#6BA5FF',
 };
 
 // Default export for backward compatibility — light palette
