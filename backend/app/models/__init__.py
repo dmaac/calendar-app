@@ -8,7 +8,7 @@ from .user_food_favorite import UserFoodFavorite
 from .onboarding_profile import OnboardingProfile
 from .ai_food_log import AIFoodLog
 from .ai_scan_cache import AIScanCache
-from .subscription import Subscription
+from .subscription import Subscription, WebhookEventLog
 from .push_token import PushToken
 from .feedback import Feedback
 from .workout import WorkoutLog
@@ -112,4 +112,5 @@ __all__ = [
     "CoachCostLog",
     "AdminErrorLog",
     "AdminActionLog",
+    "WebhookEventLog",
 ]

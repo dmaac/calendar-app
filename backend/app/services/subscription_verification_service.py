@@ -5,10 +5,14 @@ Handles receipt validation against Apple App Store Server API and
 Google Play Developer API, and activates subscriptions after
 successful verification.
 
+Also provides RevenueCat-based entitlement verification for server-side
+premium status checks, with Redis caching to avoid hammering the API.
+
 This module is called by:
   1. The POST /api/subscriptions endpoint (inline, after subscription creation)
   2. The POST /api/subscriptions/webhooks/apple endpoint (server notifications)
   3. The POST /api/subscriptions/webhooks/google endpoint (RTDN)
+  4. The require_premium dependency (on every premium-gated request)
 
 No AI API calls are made in this file.
 """
@@ -17,14 +21,213 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import httpx
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ..core.cache import cache_get, cache_set, cache_delete, CACHE_TTL
+from ..core.config import settings
 from ..core.database import AsyncSessionLocal
 from ..models.subscription import Subscription
 from ..models.user import User
 
 logger = logging.getLogger(__name__)
+
+# ─── RevenueCat entitlement verification ─────────────────────────────────
+
+_REVENUECAT_BASE_URL = "https://api.revenuecat.com/v1"
+_PREMIUM_ENTITLEMENT_ID = "premium"
+_PREMIUM_CACHE_TTL = CACHE_TTL.get("premium_entitlement", 300)  # 5 min
+
+
+async def _fetch_revenuecat_subscriber(app_user_id: str) -> Optional[dict]:
+    """Call the RevenueCat REST API to fetch subscriber data.
+
+    GET https://api.revenuecat.com/v1/subscribers/{app_user_id}
+    Authorization: Bearer <REVENUECAT_API_KEY>
+
+    Returns the parsed JSON response dict, or None on any failure.
+    The caller is responsible for caching.
+    """
+    api_key = settings.revenuecat_api_key
+    if not api_key:
+        logger.warning(
+            "REVENUECAT_API_KEY is not configured -- cannot verify entitlements"
+        )
+        return None
+
+    url = f"{_REVENUECAT_BASE_URL}/subscribers/{app_user_id}"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, headers=headers)
+
+        if resp.status_code == 200:
+            return resp.json()
+
+        if resp.status_code == 404:
+            logger.info(
+                "RevenueCat subscriber not found for app_user_id=%s", app_user_id
+            )
+            return None
+
+        logger.warning(
+            "RevenueCat API returned status %d for app_user_id=%s: %s",
+            resp.status_code,
+            app_user_id,
+            resp.text[:200],
+        )
+        return None
+
+    except httpx.TimeoutException:
+        logger.error(
+            "RevenueCat API timeout for app_user_id=%s", app_user_id
+        )
+        return None
+    except Exception as exc:
+        logger.exception(
+            "RevenueCat API error for app_user_id=%s: %s", app_user_id, exc
+        )
+        return None
+
+
+def _has_active_premium_entitlement(subscriber_data: dict) -> bool:
+    """Check whether the RevenueCat subscriber response contains an active
+    'premium' entitlement.
+
+    The entitlement is considered active if:
+      - It exists in subscriber.entitlements
+      - Its expires_date is either null (lifetime) or in the future
+      - unsubscribe_detected_at being set does NOT revoke access until
+        expires_date passes (standard RevenueCat behavior)
+    """
+    try:
+        subscriber = subscriber_data.get("subscriber", {})
+        entitlements = subscriber.get("entitlements", {})
+        premium = entitlements.get(_PREMIUM_ENTITLEMENT_ID)
+
+        if premium is None:
+            return False
+
+        expires_date_str = premium.get("expires_date")
+        if expires_date_str is None:
+            # Lifetime entitlement -- no expiry
+            return True
+
+        # Parse the ISO 8601 date from RevenueCat
+        expires_date = datetime.fromisoformat(
+            expires_date_str.replace("Z", "+00:00")
+        )
+        return expires_date > datetime.now(timezone.utc)
+
+    except Exception as exc:
+        logger.warning("Error parsing RevenueCat entitlement data: %s", exc)
+        return False
+
+
+async def verify_premium(user_id: int, session: AsyncSession) -> bool:
+    """Verify whether a user has an active premium subscription.
+
+    Verification order:
+      1. Check Redis cache (5 min TTL) to avoid redundant API calls.
+      2. Check the local DB (user.is_premium flag + active subscription).
+      3. If REVENUECAT_API_KEY is configured, call the RevenueCat API as
+         the source of truth and reconcile the local DB flag.
+      4. Cache the result in Redis for 5 minutes.
+
+    This function never raises -- it returns False on any error (fail-closed
+    for premium access).
+
+    Args:
+        user_id: The user's database primary key.
+        session: An active async database session.
+
+    Returns:
+        True if the user has active premium access, False otherwise.
+    """
+    cache_key = f"premium_entitlement:user:{user_id}"
+
+    # ── Step 1: Check Redis cache ──
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached == "1"
+
+    # ── Step 2: Check local DB ──
+    user = await session.get(User, user_id)
+    if not user:
+        await cache_set(cache_key, "0", _PREMIUM_CACHE_TTL)
+        return False
+
+    # ── Step 3: If RevenueCat is configured, verify remotely ──
+    if settings.revenuecat_api_key:
+        # RevenueCat uses app_user_id which maps to our user ID
+        app_user_id = str(user_id)
+        subscriber_data = await _fetch_revenuecat_subscriber(app_user_id)
+
+        if subscriber_data is not None:
+            is_premium = _has_active_premium_entitlement(subscriber_data)
+
+            # Reconcile: update local DB if RevenueCat disagrees
+            if is_premium != user.is_premium:
+                logger.info(
+                    "Premium status mismatch for user %d: "
+                    "local=%s, revenuecat=%s — updating local DB",
+                    user_id, user.is_premium, is_premium,
+                )
+                user.is_premium = is_premium
+                user.updated_at = datetime.now(timezone.utc)
+                session.add(user)
+                await session.commit()
+
+            await cache_set(cache_key, "1" if is_premium else "0", _PREMIUM_CACHE_TTL)
+            return is_premium
+
+        # RevenueCat API failed -- fall through to local DB as fallback
+        logger.warning(
+            "RevenueCat API unavailable for user %d, falling back to local DB",
+            user_id,
+        )
+
+    # ── Step 4: Use local DB flag as fallback ──
+    # Also verify there is an active subscription record (defense in depth)
+    if user.is_premium:
+        result = await session.execute(
+            select(Subscription).where(
+                Subscription.user_id == user_id,
+                Subscription.status.in_(["active", "trial", "grace_period"]),
+            )
+        )
+        has_active_sub = result.scalars().first() is not None
+
+        if not has_active_sub:
+            # is_premium flag is stale -- fix it
+            logger.warning(
+                "User %d has is_premium=True but no active subscription — fixing",
+                user_id,
+            )
+            user.is_premium = False
+            user.updated_at = datetime.now(timezone.utc)
+            session.add(user)
+            await session.commit()
+            await cache_set(cache_key, "0", _PREMIUM_CACHE_TTL)
+            return False
+
+    await cache_set(cache_key, "1" if user.is_premium else "0", _PREMIUM_CACHE_TTL)
+    return user.is_premium
+
+
+async def invalidate_premium_cache(user_id: int) -> None:
+    """Invalidate the cached premium status for a user.
+
+    Call this after subscription changes (activate, expire, cancel, webhook)
+    so the next premium check fetches fresh data.
+    """
+    cache_key = f"premium_entitlement:user:{user_id}"
+    await cache_delete(cache_key)
 
 # ─── Valid subscription status transitions ──────────────────────────────────
 
@@ -212,6 +415,10 @@ async def verify_and_activate_subscription(
         session.add(user)
 
     await session.commit()
+
+    # Invalidate cached premium status so next check reflects the change
+    await invalidate_premium_cache(sub.user_id)
+
     logger.info(
         "Subscription %d activated (status=%s) for user %d (store=%s tx=%s)",
         subscription_id, new_status, sub.user_id, sub.store, sub.store_tx_id,
@@ -304,6 +511,7 @@ async def handle_apple_server_notification(notification_data: dict) -> dict:
                     session.add(user)
 
             await session.commit()
+            await invalidate_premium_cache(sub.user_id)
             return {"status": "processed", "action": "expired"}
 
         elif notification_type == "DID_FAIL_TO_RENEW":
@@ -325,6 +533,7 @@ async def handle_apple_server_notification(notification_data: dict) -> dict:
                 session.add(user)
 
             await session.commit()
+            await invalidate_premium_cache(sub.user_id)
             return {"status": "processed", "action": "revoked"}
 
         else:
@@ -391,6 +600,7 @@ async def handle_google_rtdn(notification_data: dict) -> dict:
                     user.updated_at = now
                     session.add(user)
                 await session.commit()
+                await invalidate_premium_cache(sub.user_id)
             return {"status": "processed", "action": "activated"}
 
         # RENEWED (2)
@@ -443,6 +653,7 @@ async def handle_google_rtdn(notification_data: dict) -> dict:
                     session.add(user)
 
             await session.commit()
+            await invalidate_premium_cache(sub.user_id)
             return {"status": "processed", "action": "expired"}
 
         else:
@@ -475,6 +686,7 @@ async def check_expired_subscriptions() -> int:
         )
         expired_subs = result.scalars().all()
 
+        affected_user_ids = []
         for sub in expired_subs:
             sub.status = "expired"
             sub.updated_at = now
@@ -493,11 +705,15 @@ async def check_expired_subscriptions() -> int:
                     user.is_premium = False
                     user.updated_at = now
                     session.add(user)
+                    affected_user_ids.append(sub.user_id)
 
             expired_count += 1
 
         if expired_count > 0:
             await session.commit()
+            # Invalidate cached premium status for all affected users
+            for uid in affected_user_ids:
+                await invalidate_premium_cache(uid)
             logger.info(
                 "Expired %d subscription(s) past current_period_ends_at", expired_count,
             )

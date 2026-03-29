@@ -38,6 +38,11 @@ import { haptics } from '../../hooks/useHaptics';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import ApiService from '../../services/api';
 import useHealthKit from '../../hooks/useHealthKit';
+import {
+  getCustomerInfo,
+  getTrialStatus,
+  type TrialStatus,
+} from '../../services/purchase.service';
 import type { ProfileStackScreenProps } from '../../navigation/types';
 
 const APP_VERSION = '1.0.0';
@@ -362,6 +367,15 @@ export default function SettingsScreen({ navigation }: ProfileStackScreenProps<'
   const [rolloverCalories, setRolloverCalories] = useState(false);
   const [autoAdjustMacros, setAutoAdjustMacros] = useState(false);
 
+  // Subscription state
+  const [subPlan, setSubPlan] = useState<'monthly' | 'yearly' | 'lifetime' | null>(null);
+  const [subExpirationDate, setSubExpirationDate] = useState<string | null>(null);
+  const [trialStatus, setTrialStatus] = useState<TrialStatus>({
+    isTrialing: false,
+    trialDaysRemaining: 0,
+    trialExpirationDate: null,
+  });
+
   // Load persisted values on mount
   useEffect(() => {
     (async () => {
@@ -383,6 +397,54 @@ export default function SettingsScreen({ navigation }: ProfileStackScreenProps<'
       } catch {}
     })();
   }, []);
+
+  // Load subscription info on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const [info, trial] = await Promise.all([getCustomerInfo(), getTrialStatus()]);
+        setTrialStatus(trial);
+
+        if (info) {
+          const entitlement = info.entitlements.active?.premium;
+          if (entitlement) {
+            // Determine plan from productIdentifier
+            const pid = (entitlement as Record<string, unknown>).productIdentifier as string | undefined;
+            if (pid?.includes('lifetime')) {
+              setSubPlan('lifetime');
+            } else if (pid?.includes('annual') || pid?.includes('yearly')) {
+              setSubPlan('yearly');
+            } else {
+              setSubPlan('monthly');
+            }
+            setSubExpirationDate(entitlement.expirationDate ?? null);
+          }
+        }
+      } catch {}
+    })();
+  }, []);
+
+  const isPremium = user?.is_premium ?? false;
+  const isTrialing = trialStatus.isTrialing;
+
+  // Format the renewal date for display
+  const formattedRenewalDate = subExpirationDate
+    ? new Date(subExpirationDate).toLocaleDateString(locale === 'es' ? 'es-CL' : locale === 'pt' ? 'pt-BR' : 'en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
+
+  const handleManageSubscription = () => {
+    track('manage_subscription_tapped');
+    const url = Platform.select({
+      ios: 'https://apps.apple.com/account/subscriptions',
+      android: 'https://play.google.com/store/account/subscriptions',
+      default: '',
+    });
+    if (url) Linking.openURL(url);
+  };
 
   const persistToggle = (key: string, setter: (v: boolean) => void) => (v: boolean) => {
     setter(v);
@@ -544,6 +606,136 @@ export default function SettingsScreen({ navigation }: ProfileStackScreenProps<'
             </View>
           </Card>
         )}
+
+        {/* ---- SUBSCRIPTION ---- */}
+        <SectionHeader title="SUSCRIPCION" c={c} />
+        <Card c={c}>
+          {isPremium && !isTrialing ? (
+            /* ── Premium user ── */
+            <View style={styles.subscriptionCard}>
+              <View style={styles.subscriptionHeader}>
+                <View style={[styles.iconCircle, { backgroundColor: '#F59E0B' + '20' }]}>
+                  <Ionicons name="star" size={18} color="#F59E0B" />
+                </View>
+                <View style={styles.rowTextWrap}>
+                  <Text style={[styles.rowLabel, { color: c.black, fontWeight: '700' }]} allowFontScaling>
+                    Fitsi AI Premium
+                  </Text>
+                  <Text style={[styles.rowSubtitle, { color: c.gray }]} allowFontScaling>
+                    {subPlan === 'lifetime'
+                      ? 'Lifetime'
+                      : subPlan === 'yearly'
+                        ? 'Plan Anual'
+                        : 'Plan Mensual'}
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.subscriptionDetail, { borderTopColor: c.grayLight }]}>
+                <Ionicons name="calendar-outline" size={16} color={c.gray} />
+                <Text style={[styles.subscriptionDetailText, { color: c.gray }]} allowFontScaling>
+                  {subPlan === 'lifetime'
+                    ? 'Acceso de por vida'
+                    : formattedRenewalDate
+                      ? `Renueva el ${formattedRenewalDate}`
+                      : 'Suscripcion activa'}
+                </Text>
+              </View>
+              {subPlan !== 'lifetime' && (
+                <TouchableOpacity
+                  style={[styles.subscriptionButton, { backgroundColor: c.surface }]}
+                  onPress={handleManageSubscription}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Manage subscription"
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.subscriptionButtonText, { color: c.accent }]} allowFontScaling>
+                    Gestionar suscripcion
+                  </Text>
+                  <Ionicons name="open-outline" size={14} color={c.accent} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : isTrialing ? (
+            /* ── Trial user ── */
+            <View style={styles.subscriptionCard}>
+              <View style={styles.subscriptionHeader}>
+                <View style={[styles.iconCircle, { backgroundColor: '#8B5CF6' + '20' }]}>
+                  <Ionicons name="time" size={18} color="#8B5CF6" />
+                </View>
+                <View style={styles.rowTextWrap}>
+                  <Text style={[styles.rowLabel, { color: c.black, fontWeight: '700' }]} allowFontScaling>
+                    Prueba Premium
+                  </Text>
+                  <Text style={[styles.rowSubtitle, { color: '#8B5CF6' }]} allowFontScaling>
+                    {trialStatus.trialDaysRemaining} {trialStatus.trialDaysRemaining === 1 ? 'dia restante' : 'dias restantes'}
+                  </Text>
+                </View>
+                <View style={[styles.trialBadge, { backgroundColor: '#8B5CF6' + '15' }]}>
+                  <Text style={styles.trialBadgeText}>TRIAL</Text>
+                </View>
+              </View>
+              {/* Trial progress bar */}
+              <View style={[styles.trialProgressContainer, { borderTopColor: c.grayLight }]}>
+                <View style={[styles.trialProgressTrack, { backgroundColor: c.grayLight }]}>
+                  <View
+                    style={[
+                      styles.trialProgressFill,
+                      {
+                        backgroundColor: '#8B5CF6',
+                        width: `${Math.max(5, Math.min(100, ((7 - trialStatus.trialDaysRemaining) / 7) * 100))}%` as any,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.subscriptionButton, { backgroundColor: c.surface }]}
+                onPress={handleManageSubscription}
+                activeOpacity={0.7}
+                accessibilityLabel="Manage subscription"
+                accessibilityRole="button"
+              >
+                <Text style={[styles.subscriptionButtonText, { color: c.accent }]} allowFontScaling>
+                  Gestionar suscripcion
+                </Text>
+                <Ionicons name="open-outline" size={14} color={c.accent} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* ── Free user ── */
+            <View style={styles.subscriptionCard}>
+              <View style={styles.subscriptionHeader}>
+                <View style={[styles.iconCircle, { backgroundColor: c.surface }]}>
+                  <Ionicons name="lock-closed-outline" size={18} color={c.gray} />
+                </View>
+                <View style={styles.rowTextWrap}>
+                  <Text style={[styles.rowLabel, { color: c.black, fontWeight: '700' }]} allowFontScaling>
+                    Plan gratuito
+                  </Text>
+                  <Text style={[styles.rowSubtitle, { color: c.gray }]} allowFontScaling>
+                    Escaneos limitados, sin coach IA
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.subscriptionUpgradeButton, { backgroundColor: c.accent }]}
+                onPress={() => {
+                  haptics.medium();
+                  track('upgrade_tapped_settings');
+                  navigation.navigate('Paywall');
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel="Upgrade to Premium"
+                accessibilityRole="button"
+              >
+                <Ionicons name="star" size={16} color="#FFFFFF" />
+                <Text style={styles.subscriptionUpgradeText} allowFontScaling>
+                  Mejorar a Premium
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Card>
 
         {/* ---- PREFERENCES ---- */}
         <SectionHeader title={t('settings.general')} c={c} />
@@ -949,6 +1141,76 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     width: '80%' as DimensionValue,
+  },
+
+  // Subscription
+  subscriptionCard: {
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  subscriptionDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  subscriptionDetailText: {
+    ...typography.caption,
+  },
+  subscriptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+  },
+  subscriptionButtonText: {
+    ...typography.bodyMd,
+    fontWeight: '600',
+  },
+  subscriptionUpgradeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: 14,
+    borderRadius: 999,
+  },
+  subscriptionUpgradeText: {
+    ...typography.bodyMd,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  trialBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  trialBadgeText: {
+    ...typography.caption,
+    fontWeight: '700',
+    color: '#8B5CF6',
+    fontSize: 10,
+  },
+  trialProgressContainer: {
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  trialProgressTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  trialProgressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 
   // Version footer

@@ -1,28 +1,29 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Easing } from 'react-native';
 import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
-import { colors, typography, spacing, radius, useLayout } from '../../theme';
+import { colors, typography, spacing, radius, useLayout, useThemeColors } from '../../theme';
 import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import PrimaryButton from '../../components/onboarding/PrimaryButton';
 import { StepProps } from './OnboardingNavigator';
 import { haptics } from '../../hooks/useHaptics';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 const SEGMENTS = [
-  { label: '40% OFF', color: '#4285F4' },
-  { label: '1 Month', color: '#111111' },
+  { label: '20% OFF', color: '#8E8E93' },
+  { label: '1 mes gratis', color: '#111111' },
   { label: '50% OFF', color: '#4285F4' },
   { label: 'Otra vez', color: '#E5E5EA' },
-  { label: '60% OFF', color: '#4285F4' },
-  { label: '30% OFF', color: '#8E8E93' },
-  { label: '3 Days Free', color: '#111111' },
-  { label: '80% OFF', color: '#4285F4' },
+  { label: '30% OFF', color: '#4285F4' },
+  { label: '10% OFF', color: '#8E8E93' },
+  { label: '3 dias gratis', color: '#111111' },
+  { label: '40% OFF', color: '#4285F4' },
 ];
 
 const SEGMENT_ANGLE = (2 * Math.PI) / SEGMENTS.length;
 const DEGREES_PER_SEGMENT = 360 / SEGMENTS.length;
 
-// Winning segment is always index 7 (80% OFF) -- index calculation accounts for spin
-const WINNING_IDX = 7;
+// Winning segment is always index 2 (50% OFF first year)
+const WINNING_IDX = 2;
 
 function polarToCart(cx: number, cy: number, r: number, angle: number) {
   return {
@@ -62,6 +63,8 @@ function wheelDeceleration(t: number): number {
 
 export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: StepProps) {
   const { innerWidth } = useLayout();
+  const themeColors = useThemeColors();
+  const { track } = useAnalytics('SpinWheel');
   const WHEEL_SIZE = Math.min(Math.round(innerWidth * 0.85), 320);
   const WHEEL_CENTER = WHEEL_SIZE / 2;
 
@@ -92,9 +95,10 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
     if (spinning || spun) return;
     setSpinning(true);
     haptics.medium();
+    track('spin_wheel_started');
     lastTickSegment.current = -1;
 
-    // Land on winning segment: 80% OFF (index 7)
+    // Land on winning segment: 50% OFF (index 2)
     const targetOffset = WINNING_IDX * DEGREES_PER_SEGMENT + DEGREES_PER_SEGMENT / 2;
     // 6 full rotations + offset to center on the winning segment
     const targetDeg = 6 * 360 + targetOffset;
@@ -109,6 +113,7 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
       setSpun(true);
       setResult(SEGMENTS[WINNING_IDX].label);
       haptics.success();
+      track('spin_wheel_result', { result: SEGMENTS[WINNING_IDX].label });
 
       // Animate result banner entrance with a bouncy spring
       resultBannerScale.setValue(0.6);
@@ -152,14 +157,14 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
             <Text style={styles.spinBtnText}>{spinning ? 'Girando...' : 'GIRAR'}</Text>
           </TouchableOpacity>
         ) : (
-          <PrimaryButton label="Reclamar mi descuento" onPress={onNext} />
+          <PrimaryButton label="Reclamar 50% de descuento" onPress={() => { track('spin_wheel_claim'); onNext(); }} />
         )
       }
     >
-      <Text style={styles.title} accessibilityRole="header">
+      <Text style={[styles.title, { color: themeColors.black }]} accessibilityRole="header">
         Gira para desbloquear{'\n'}tu descuento!
       </Text>
-      <Text style={styles.subtitle}>Un giro por usuario. Buena suerte!</Text>
+      <Text style={[styles.subtitle, { color: themeColors.gray }]}>Un giro por usuario. Buena suerte!</Text>
 
       <View style={styles.wheelContainer}>
         {/* Pointer */}
@@ -207,16 +212,19 @@ export default function Step29SpinWheel({ onNext, onBack, step, totalSteps }: St
         <Animated.View
           style={[
             styles.resultBanner,
+            { backgroundColor: themeColors.surface },
             {
               transform: [{ scale: resultBannerScale }],
               opacity: resultBannerOpacity,
             },
           ]}
-          accessibilityLabel={`Ganaste: ${result}`}
+          accessibilityLabel={`Ganaste: ${result} en tu primer a\u00F1o`}
           accessibilityLiveRegion="polite"
         >
           <Text style={styles.resultEmoji}>🎉</Text>
-          <Text style={styles.resultText}>Ganaste: <Text style={styles.resultHighlight}>{result}</Text></Text>
+          <Text style={[styles.resultText, { color: themeColors.black }]}>
+            Ganaste: <Text style={[styles.resultHighlight, { color: themeColors.accent }]}>{result}</Text> en tu primer a{'\u00F1'}o
+          </Text>
         </Animated.View>
       ) : null}
     </OnboardingLayout>

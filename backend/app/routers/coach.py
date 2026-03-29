@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..core.database import get_session
+from ..core.dependencies import require_premium
 from ..models.user import User
 from ..services.ai_coach_service import AICoachService
 from .auth import get_current_user
@@ -99,7 +100,7 @@ class MealType(str, Enum):
 @router.post("/chat", response_model=CoachChatResponse)
 async def coach_chat(
     request: CoachChatRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -132,7 +133,7 @@ async def coach_chat(
 
 @router.get("/insight", response_model=CoachInsightResponse)
 async def daily_insight(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -164,7 +165,7 @@ async def daily_insight(
 @router.get("/suggest/{meal_type}", response_model=CoachMealSuggestionResponse)
 async def suggest_meal(
     meal_type: MealType,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
     """

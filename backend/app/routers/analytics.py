@@ -43,6 +43,7 @@ from ..services.insights_service import (
     get_most_eaten_foods,
     get_streak_statistics,
 )
+from ..core.dependencies import require_premium
 from .auth import get_current_user
 from .admin import require_admin
 
@@ -595,30 +596,30 @@ async def revenue_analytics(
 
 @router.get("/me")
 async def user_analytics_full(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
-    """Full analytics bundle for the authenticated user."""
+    """Full analytics bundle for the authenticated user. Requires premium."""
     return await get_full_user_analytics(current_user.id, session)
 
 
 @router.get("/me/trends")
 async def user_calorie_trends(
     days: int = Query(default=30, ge=7, le=90, description="Lookback period in days"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
-    """Weekly/monthly calorie trends with linear regression slope."""
+    """Weekly/monthly calorie trends with linear regression slope. Requires premium."""
     return await get_calorie_trends(current_user.id, session, days=days)
 
 
 @router.get("/me/macro-balance")
 async def user_macro_balance(
     days: int = Query(default=7, ge=1, le=30, description="Lookback period in days"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
-    """Macro adherence scoring (protein, carbs, fat, calories vs targets)."""
+    """Macro adherence scoring (protein, carbs, fat, calories vs targets). Requires premium."""
     return await get_macro_balance_score(current_user.id, session, days=days)
 
 
@@ -635,37 +636,37 @@ async def user_streak_stats(
 async def user_top_foods(
     days: int = Query(default=30, ge=7, le=90, description="Lookback period in days"),
     limit: int = Query(default=10, ge=5, le=25, description="Number of foods to return"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
-    """Most-eaten foods ranking with calories and macro info."""
+    """Most-eaten foods ranking with calories and macro info. Requires premium."""
     return await get_most_eaten_foods(current_user.id, session, days=days, limit=limit)
 
 
 @router.get("/me/meal-timing")
 async def user_meal_timing(
     days: int = Query(default=30, ge=7, le=90, description="Lookback period in days"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
-    """Meal timing analysis: when does the user typically eat each meal?"""
+    """Meal timing analysis: when does the user typically eat each meal? Requires premium."""
     return await get_meal_timing_analysis(current_user.id, session, days=days)
 
 
 @router.get("/me/consistency")
 async def user_calorie_consistency(
     days: int = Query(default=14, ge=7, le=30, description="Lookback period in days"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
-    """Calorie consistency score (coefficient of variation)."""
+    """Calorie consistency score (coefficient of variation). Requires premium."""
     return await get_calorie_consistency(current_user.id, session, days=days)
 
 
 @router.get("/me/goal-progress")
 async def user_goal_progress(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
-    """Progress toward the user's weight/nutrition goal."""
+    """Progress toward the user's weight/nutrition goal. Requires premium."""
     return await get_goal_progress(current_user.id, session)

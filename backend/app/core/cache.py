@@ -52,6 +52,7 @@ CACHE_TTL = {
     "analytics_ranking": 900,     # 15 min — top foods ranking
     "analytics_admin": 120,       # 2 min — admin dashboard summary
     "risk_dashboard": 180,        # 3 min — risk admin dashboard
+    "premium_entitlement": 300,   # 5 min — RevenueCat premium status
 }
 
 

@@ -18,6 +18,7 @@ import {
 } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../context/AuthContext';
+import { PremiumProvider, setPremiumNavigationRef } from '../context/PremiumContext';
 import { useAppTheme } from '../context/ThemeContext';
 import { useThemeColors } from '../theme';
 import LoginScreen from '../screens/LoginScreen';
@@ -203,6 +204,7 @@ const AppNavigator = () => {
           // Wire up navigation ref for deep-linking from notification taps
           if (navigationRef.current) {
             setNavigationRef(navigationRef.current);
+            setPremiumNavigationRef(navigationRef.current);
             // Handle notification that launched the app (cold start)
             handleInitialNotification().catch((err) => {
               console.warn('[AppNavigator] Failed to handle initial notification:', err);
@@ -210,8 +212,10 @@ const AppNavigator = () => {
           }
         }}
       >
-        <AppContent />
-        <InAppNotificationHost />
+        <PremiumProvider>
+          <AppContent />
+          <InAppNotificationHost />
+        </PremiumProvider>
       </NavigationContainer>
     </ErrorBoundary>
   );

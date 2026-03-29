@@ -32,6 +32,7 @@ from ..models.activity import Activity
 from ..models.subscription import Subscription
 from ..models.feedback import Feedback
 from ..models.workout import WorkoutLog
+from ..core.dependencies import require_premium
 from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -323,7 +324,7 @@ _WEEKLY_SUMMARY_CSV_COLUMNS = [
 async def export_pdf(
     request: Request,
     days: int = Query(default=7, ge=1, le=90, description="Number of days to include in the report"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_premium),
     session: AsyncSession = Depends(get_session),
 ):
     """

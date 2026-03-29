@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # Anthropic (Claude Vision)
     anthropic_api_key: str = ""
 
+    # RevenueCat (server-side subscription verification)
+    revenuecat_api_key: str = ""
+
     # AI provider selection: "claude", "openai", "auto" (Claude -> OpenAI -> mock)
     ai_provider: str = "auto"
 
@@ -89,6 +92,16 @@ class Settings(BaseSettings):
     # Set TRUSTED_PROXY_IPS as a comma-separated list of IPs/CIDRs in .env.
     # When empty, X-Forwarded-For is ignored and request.client.host is used.
     trusted_proxy_ips: List[str] = []
+
+    # RevenueCat webhook secret (Authorization header value)
+    revenuecat_webhook_secret: str = ""
+
+    # Apple App Store shared secret (for receipt validation)
+    app_store_shared_secret: str = ""
+
+    # Google Play service account JSON (for receipt validation)
+    google_play_service_account: str = ""
+    google_play_package_name: str = "com.fitsiai.app"
 
     # Password policy
     password_min_length: int = 8

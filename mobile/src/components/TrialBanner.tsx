@@ -31,9 +31,18 @@ interface TrialBannerProps {
   visible: boolean;
   /** Called when user taps "Probar gratis" */
   onStartTrial: () => void;
+  /** Whether the user is currently in a free trial period */
+  isTrialing?: boolean;
+  /** Number of full days remaining in the trial */
+  trialDaysRemaining?: number;
 }
 
-export default function TrialBanner({ visible, onStartTrial }: TrialBannerProps) {
+export default function TrialBanner({
+  visible,
+  onStartTrial,
+  isTrialing = false,
+  trialDaysRemaining = 0,
+}: TrialBannerProps) {
   const c = useThemeColors();
   const [show, setShow] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -138,22 +147,37 @@ export default function TrialBanner({ visible, onStartTrial }: TrialBannerProps)
         </Animated.View>
 
         <View style={styles.textContainer}>
-          <Text style={styles.title}>7 dias gratis de Premium</Text>
-          <Text style={styles.subtitle}>
-            Escaneos ilimitados, AI Coach y mas
-          </Text>
+          {isTrialing ? (
+            <>
+              <Text style={styles.title}>
+                {trialDaysRemaining} {trialDaysRemaining === 1 ? 'dia' : 'dias'} restantes de prueba
+              </Text>
+              <Text style={styles.subtitle}>
+                Tu acceso Premium esta activo
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.title}>7 dias gratis de Premium</Text>
+              <Text style={styles.subtitle}>
+                Escaneos ilimitados, AI Coach y mas
+              </Text>
+            </>
+          )}
         </View>
 
-        <TouchableOpacity
-          style={styles.ctaBtn}
-          onPress={handleStartTrial}
-          activeOpacity={0.85}
-          accessibilityLabel="Iniciar prueba gratuita de 7 dias"
-          accessibilityRole="button"
-        >
-          <Text style={styles.ctaText}>Probar</Text>
-          <Ionicons name="arrow-forward" size={14} color="#1A1A2E" />
-        </TouchableOpacity>
+        {!isTrialing && (
+          <TouchableOpacity
+            style={styles.ctaBtn}
+            onPress={handleStartTrial}
+            activeOpacity={0.85}
+            accessibilityLabel="Iniciar prueba gratuita de 7 dias"
+            accessibilityRole="button"
+          >
+            <Text style={styles.ctaText}>Probar</Text>
+            <Ionicons name="arrow-forward" size={14} color="#1A1A2E" />
+          </TouchableOpacity>
+        )}
       </View>
     </Animated.View>
   );
