@@ -458,6 +458,49 @@ export default function WaterTracker({ waterMl, onAdd, goal: goalProp, weightKg 
               <Text style={s.btnText}>{formatAmount(ml)}</Text>
             </TouchableOpacity>
           ))}
+          {/* Subtract / Reset row */}
+          {waterMl > 0 && (
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+              <TouchableOpacity
+                style={[s.btn, { backgroundColor: '#FF6B6B20', flex: 1 }]}
+                onPress={() => {
+                  haptics.light();
+                  const subtract = Math.min(250, waterMl);
+                  onAdd(-subtract);
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel="Quitar 250 mililitros de agua"
+                accessibilityRole="button"
+              >
+                <Text style={[s.btnText, { color: '#FF6B6B' }]}>-250ml</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.btn, { backgroundColor: '#FF6B6B20', flex: 1 }]}
+                onPress={() => {
+                  Alert.alert(
+                    'Reiniciar agua',
+                    'Se pondra el agua de hoy en 0ml. Continuar?',
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      {
+                        text: 'Reiniciar',
+                        style: 'destructive',
+                        onPress: () => {
+                          haptics.medium();
+                          onAdd(-waterMl);
+                        },
+                      },
+                    ],
+                  );
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel="Reiniciar agua a cero"
+                accessibilityRole="button"
+              >
+                <Ionicons name="refresh-outline" size={14} color="#FF6B6B" />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
 

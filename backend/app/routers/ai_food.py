@@ -106,7 +106,7 @@ class UpdateFoodLog(BaseModel):
 
 
 class WaterLog(BaseModel):
-    ml: int = Field(..., ge=0, le=20000, description="Water intake in ml, 0-20000 (max 20L)")  # SEC: Cap at 20L to prevent absurd values
+    ml: int = Field(..., ge=-20000, le=20000, description="Water in ml. Positive=add, negative=subtract")  # Negative values subtract water
 
 # ─── Free-tier scan quota (server-side enforcement) ──────────────────────────
 # This MUST match the client-side constant in ScanScreen.tsx (FREE_SCAN_LIMIT).
@@ -400,13 +400,13 @@ async def log_water(
     summary = result.scalars().first()
 
     if summary:
-        summary.water_ml = (summary.water_ml or 0) + body.ml
+        summary.water_ml = max(0, (summary.water_ml or 0) + body.ml)
     else:
         # Auto-create DailyNutritionSummary if it doesn't exist
         summary = DailyNutritionSummary(
             user_id=current_user.id,
             date=today,
-            water_ml=float(body.ml),
+            water_ml=float(max(0, body.ml)),
         )
 
     session.add(summary)
@@ -424,7 +424,7 @@ async def log_water(
         )
         summary = result.scalars().first()
         if summary:
-            summary.water_ml = (summary.water_ml or 0) + body.ml
+            summary.water_ml = max(0, (summary.water_ml or 0) + body.ml)
             session.add(summary)
             await session.commit()
             await session.refresh(summary)
