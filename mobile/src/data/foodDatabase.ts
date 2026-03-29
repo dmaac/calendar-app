@@ -5,7 +5,7 @@
  * Sources: USDA FoodData Central, FAO/INFOODS.
  */
 
-export type FoodCategory = 'fruit' | 'vegetable' | 'protein' | 'carbohydrate' | 'fat_snack';
+export type FoodCategory = 'fruit' | 'vegetable' | 'protein' | 'carbohydrate' | 'fat_snack' | 'meal';
 
 export interface FoodItem {
   id: string;
@@ -1331,4 +1331,25 @@ export const foodDatabase: FoodItem[] = [
     servingSize: 10,
     servingUnit: '2 unidades',
   },
+  // ─── Prepared Meals / Platos Preparados (20) ──────────────────────────────
+  { id: 'f-ml01', name: 'Pollo con arroz', emoji: '🍗', category: 'meal', calories_per_100g: 165, protein: 18, carbs: 15, fat: 4, fiber: 0.5, servingSize: 350, servingUnit: '1 plato' },
+  { id: 'f-ml02', name: 'Carne con pure', emoji: '🥩', category: 'meal', calories_per_100g: 145, protein: 14, carbs: 12, fat: 5, fiber: 1, servingSize: 350, servingUnit: '1 plato' },
+  { id: 'f-ml03', name: 'Pasta con salsa de tomate', emoji: '🍝', category: 'meal', calories_per_100g: 155, protein: 6, carbs: 25, fat: 4, fiber: 2, servingSize: 300, servingUnit: '1 plato' },
+  { id: 'f-ml04', name: 'Salmon con verduras', emoji: '🐟', category: 'meal', calories_per_100g: 130, protein: 17, carbs: 5, fat: 5, fiber: 2, servingSize: 350, servingUnit: '1 plato' },
+  { id: 'f-ml05', name: 'Ensalada Caesar con pollo', emoji: '🥗', category: 'meal', calories_per_100g: 110, protein: 12, carbs: 5, fat: 6, fiber: 1.5, servingSize: 300, servingUnit: '1 bowl' },
+  { id: 'f-ml06', name: 'Lentejas guisadas', emoji: '🍲', category: 'meal', calories_per_100g: 116, protein: 9, carbs: 16, fat: 1.5, fiber: 5, servingSize: 350, servingUnit: '1 plato' },
+  { id: 'f-ml07', name: 'Tacos de carne', emoji: '🌮', category: 'meal', calories_per_100g: 210, protein: 11, carbs: 18, fat: 10, fiber: 2, servingSize: 200, servingUnit: '3 tacos' },
+  { id: 'f-ml08', name: 'Sushi variado', emoji: '🍣', category: 'meal', calories_per_100g: 150, protein: 8, carbs: 22, fat: 3, fiber: 1, servingSize: 250, servingUnit: '8 piezas' },
+  { id: 'f-ml09', name: 'Hamburguesa completa', emoji: '🍔', category: 'meal', calories_per_100g: 250, protein: 13, carbs: 20, fat: 13, fiber: 1, servingSize: 250, servingUnit: '1 unidad' },
+  { id: 'f-ml10', name: 'Pizza Margarita', emoji: '🍕', category: 'meal', calories_per_100g: 240, protein: 10, carbs: 28, fat: 10, fiber: 2, servingSize: 200, servingUnit: '2 rebanadas' },
+  { id: 'f-ml11', name: 'Arroz con frijoles', emoji: '🍚', category: 'meal', calories_per_100g: 140, protein: 6, carbs: 24, fat: 2, fiber: 4, servingSize: 300, servingUnit: '1 plato' },
+  { id: 'f-ml12', name: 'Cazuela de pollo', emoji: '🍲', category: 'meal', calories_per_100g: 75, protein: 7, carbs: 6, fat: 2.5, fiber: 1.5, servingSize: 400, servingUnit: '1 bowl' },
+  { id: 'f-ml13', name: 'Empanada de pino', emoji: '🥟', category: 'meal', calories_per_100g: 280, protein: 10, carbs: 25, fat: 15, fiber: 1, servingSize: 150, servingUnit: '1 unidad' },
+  { id: 'f-ml14', name: 'Wrap de pollo', emoji: '🌯', category: 'meal', calories_per_100g: 180, protein: 14, carbs: 18, fat: 6, fiber: 2, servingSize: 250, servingUnit: '1 wrap' },
+  { id: 'f-ml15', name: 'Bowl de poke', emoji: '🥗', category: 'meal', calories_per_100g: 130, protein: 12, carbs: 15, fat: 4, fiber: 2, servingSize: 350, servingUnit: '1 bowl' },
+  { id: 'f-ml16', name: 'Completo italiano', emoji: '🌭', category: 'meal', calories_per_100g: 230, protein: 8, carbs: 22, fat: 12, fiber: 1, servingSize: 250, servingUnit: '1 unidad' },
+  { id: 'f-ml17', name: 'Churrasco con ensalada', emoji: '🥩', category: 'meal', calories_per_100g: 155, protein: 20, carbs: 3, fat: 7, fiber: 1.5, servingSize: 300, servingUnit: '1 plato' },
+  { id: 'f-ml18', name: 'Ceviche de pescado', emoji: '🐟', category: 'meal', calories_per_100g: 85, protein: 14, carbs: 5, fat: 1.5, fiber: 1, servingSize: 250, servingUnit: '1 porcion' },
+  { id: 'f-ml19', name: 'Sandwich de jamon y queso', emoji: '🥪', category: 'meal', calories_per_100g: 260, protein: 13, carbs: 25, fat: 12, fiber: 1.5, servingSize: 180, servingUnit: '1 unidad' },
+  { id: 'f-ml20', name: 'Tortilla de huevo con verduras', emoji: '🍳', category: 'meal', calories_per_100g: 140, protein: 10, carbs: 3, fat: 10, fiber: 1, servingSize: 200, servingUnit: '1 porcion' },
 ];

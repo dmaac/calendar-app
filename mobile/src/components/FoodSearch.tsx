@@ -441,16 +441,37 @@ function FoodSearchInner({ onLogged, mealType = 'snack', inline = false }: FoodS
     getRecentSearches().then(setRecentSearches);
   }, []);
 
-  // Search local database — show all when no query (browsing mode)
+  // Category priority by meal type — shows most relevant foods first
+  const MEAL_CATEGORY_PRIORITY: Record<string, string[]> = {
+    breakfast: ['carbohydrate', 'fruit', 'protein', 'meal', 'fat_snack', 'vegetable'],
+    lunch:     ['meal', 'protein', 'carbohydrate', 'vegetable', 'fat_snack', 'fruit'],
+    dinner:    ['meal', 'protein', 'vegetable', 'carbohydrate', 'fat_snack', 'fruit'],
+    snack:     ['fruit', 'fat_snack', 'carbohydrate', 'protein', 'vegetable', 'meal'],
+  };
+
+  // Search local database — sorted by meal type relevance
   const localResults = useMemo<SearchResult[]>(() => {
+    const priority = MEAL_CATEGORY_PRIORITY[mealType] || MEAL_CATEGORY_PRIORITY.snack;
+
     if (!debouncedQuery.trim()) {
-      return foodDatabase.slice(0, 50).map(localToResult);
+      // Sort by meal type relevance, then show top 50
+      const sorted = [...foodDatabase].sort((a, b) => {
+        const aIdx = priority.indexOf(a.category);
+        const bIdx = priority.indexOf(b.category);
+        return aIdx - bIdx;
+      });
+      return sorted.slice(0, 50).map(localToResult);
     }
     return foodDatabase
       .filter((f) => fuzzyMatch(f.name, debouncedQuery))
+      .sort((a, b) => {
+        const aIdx = priority.indexOf(a.category);
+        const bIdx = priority.indexOf(b.category);
+        return aIdx - bIdx;
+      })
       .slice(0, 20)
       .map(localToResult);
-  }, [debouncedQuery]);
+  }, [debouncedQuery, mealType]);
 
   // Search API with debounced query
   useEffect(() => {
