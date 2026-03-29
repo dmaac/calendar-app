@@ -50,6 +50,14 @@
           "icon": "./assets/icon.png",
           "color": "#4285F4"
         }
+      ],
+      [
+        "react-native-purchases",
+        {
+          "ios": {
+            "usesStoreKit2JWS": true
+          }
+        }
       ]
     ],
     "updates": {
